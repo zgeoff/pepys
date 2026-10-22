@@ -57,8 +57,9 @@ dirty every dependent scope whose input rows the diff changed. It asks nothing. 
 the same hash exists, `up` reuses its file and replays only the facts that arrived since.
 
 Building to the side keeps readers on the old version until the swap, so no reader sees a
-half-replayed table. The previous version's file stays on disk, and `pepys up` with the previous
-hash swaps it back with no replay.
+half-replayed table. The previous version's file stays on disk. `pepys up` with the previous hash
+catches that file up from its own offsets to the live head and swaps it back, which costs only the
+facts that arrived since the earlier swap, never a full replay.
 
 ## File layout
 

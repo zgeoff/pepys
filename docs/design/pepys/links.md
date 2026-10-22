@@ -9,8 +9,10 @@ kinds it connects, and both the TypeScript types and the host check those kinds.
 ## Link tables
 
 Any consumer can own a link table in its own file. The link table holds the source entity, the
-target, the link type, the origin, an optional scope, a confidence and the evidence. The origin is
-the consumer's name, and the host fills it in.
+target, the link type, the origin, an optional scope, a confidence and the evidence. The host fills
+in the origin as the consumer's name. One exception: a manual link takes its origin from the client
+that the manual fact records, so links that one agent asserted stay distinguishable from the
+owner's.
 
 The `link_effective` view unions every link table across the attached files and drops any link that
 has a retraction, from any origin. Queries read that view, and each query sets its own confidence
@@ -70,8 +72,10 @@ from text has its own branded type, and a query cannot use a reference where it 
 the alias table resolves it.
 
 The brands exist only in TypeScript, and the module boundary passes plain strings. The host
-therefore checks the kind prefix of both ends of every link operation against the same registry, and
-rejects a link of the wrong kinds.
+therefore checks every link operation against the same registry, and rejects a link of the wrong
+kinds. An ID carries its kind in its prefix, so the host checks an ID end when the operation
+arrives. A reference written as text names no kind, so its kind is checked when the alias table
+resolves it, and a reference that resolves to the wrong kind is left out of the effective link view.
 
 ## Manual and agent links
 

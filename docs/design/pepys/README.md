@@ -39,6 +39,7 @@ flowchart TD
   store --> enrichment
   enrichment --> log
   store --> api[API: queries, MCP, change streams]
+  api -- manual facts --> log
   api --> clients[tools, agents, dashboards]
   log --> lake[(lake: Parquet)]
 ```

@@ -26,8 +26,8 @@ on one fact each, and join links recompute from state.
 One entity's history is a query over the fact index, not a stream of its own, so consumers tail a
 fixed set of streams.
 
-s2-lite has no built-in access control, so a k3s NetworkPolicy lets only ingest, enrichment and the
-host reach it.
+s2-lite has no built-in access control, so a k3s NetworkPolicy lets only its four clients reach it:
+ingest, enrichment and the API append facts, and the host reads them.
 
 ## The fact envelope
 

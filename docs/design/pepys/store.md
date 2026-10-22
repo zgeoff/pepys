@@ -40,8 +40,8 @@ driver and a connection over Turso. It is written as plain functions and objects
 The API never writes. Writes from people and agents go to the log as manual facts, and the host
 applies them, so one connection serves the read-only API without transactions colliding.
 
-The Kysely `DB` type is generated from the consumer declarations, the same source as the WIT and the
-host's Rust types.
+The API uses the Kysely types generated from the
+[consumer declarations](./consumers.md#one-schema-source).
 
 Consumers do not use Kysely. They read through typed get and scan host calls, which keeps SQL out of
 the module boundary and keeps the boundary independent of what scriptc can compile.
