@@ -82,10 +82,11 @@ A fact is either an event or an observation:
 - An event records one change exactly as it happened, from a webhook or a source history API.
 - An observation records the full state of an object as a poll saw it.
 
-pepys prefers events. Observations exist only to resync after a gap longer than the source keeps its
-history, such as a server outage longer than GitHub keeps webhook deliveries. A poller writes an
-observation only when the object changed since the last observation, so a frequent poll does not
-fill the log with identical copies.
+pepys prefers events. For a source with a history API, observations exist only to resync after a gap
+longer than the source keeps its history, such as a server outage longer than GitHub keeps webhook
+deliveries. An object with no history API, such as a Gmail label, is always recorded as
+observations. A poller writes an observation only when the object changed since the last
+observation, so a frequent poll does not fill the log with identical copies.
 
 Consumers treat both kinds alike for current state, where the newest source update time wins.
 History treats them differently, as [History](./history.md) describes.
