@@ -36,7 +36,7 @@
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/format-codemod": "0.3.1",
     "@zgeoff/oxlint-config": "0.6.3",
-    "@zgeoff/skill-gate": "0.2.4",
+    "@zgeoff/skill-gate": "0.2.6",
     "knip": "6.41.0",
     "lefthook": "2.2.2",
     "oxfmt": "0.73.0",
@@ -389,7 +389,7 @@
 
     "@zgeoff/oxlint-config": ["@zgeoff/oxlint-config@0.6.3", "", { "dependencies": { "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "oxlint": ">=1.78.0" } }, "sha512-EWPa1Sa5FsjINdolCRIXbzdlFur6wFQwSbtjm7wwl+TEyhNFFdOndzhQ/oBTCnGKOxqAXR2KnAgK224R/6JRdw=="],
 
-    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.4", "", {}, "sha512-uxY6ijM+VIIf4rtdLnxWMIuA2apHPE0ttiqRrkV05VAxEHQ60Fu/vfdGMOUbQVaQ7oQt40oG3m8WfnSs3FOiew=="],
+    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.6", "", {}, "sha512-9ccggI/DFRZaSO1LBM4kOB1vk1AoutU65x79tBk7j15f+bNxCNxyMG+JPIVtpVHDx7EPlJiMrCX5NuMJBG+6SQ=="],
 
     "acorn": ["acorn@8.19.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="],
 
