@@ -1,10 +1,66 @@
 {
   "name": "pepys",
   "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "catalog": {
+      "@commitlint/cli": "21.2.3",
+      "@stylistic/eslint-plugin": "5.10.0",
+      "@tsconfig/strictest": "2.0.8",
+      "@types/bun": "1.4.3",
+      "@zgeoff/bun-test-extended": "0.2.1",
+      "@zgeoff/checks": "0.2.4",
+      "@zgeoff/format-codemod": "0.3.1",
+      "@zgeoff/oxlint-config": "0.6.1",
+      "@zgeoff/skill-gate": "0.2.4",
+      "knip": "6.41.0",
+      "lefthook": "2.2.2",
+      "oxfmt": "0.73.0",
+      "oxlint": "1.88.0",
+      "oxlint-tsgolint": "7.0.2004",
+      "tslib": "2.8.1",
+      "tsrs": "0.15.0-ts7.1.0-dev.20260929",
+      "typescript": "7.0.2"
+    }
+  },
   "type": "module",
   "scripts": {
+    "audit": "bun audit",
+    "check": "zgeoff-check",
+    "deadcode": "knip",
     "files:branch": "bun scripts/read-branch-files.ts",
+    "format": "oxfmt . && format-codemod --quiet .",
+    "format:check": "oxfmt --check . && format-codemod --check --quiet .",
+    "lint": "oxlint",
     "lint:files": "oxlint --no-error-on-unmatched-pattern",
-    "test:related": "bun scripts/run-related-tests.ts"
-  }
+    "lint:fix": "oxlint --fix",
+    "lint:full": "oxlint --type-aware --type-check --report-unused-disable-directives-severity error",
+    "lint:shell": "git ls-files -z '*.sh' ':!.claude/**' | xargs -0 sh -c 'shellcheck \"$@\" && shfmt -d \"$@\"' sh",
+    "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
+    "test": "bun test",
+    "test:related": "bun scripts/run-related-tests.ts",
+    "typecheck": "tsrs -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "catalog:",
+    "@stylistic/eslint-plugin": "catalog:",
+    "@tsconfig/strictest": "catalog:",
+    "@types/bun": "catalog:",
+    "@zgeoff/bun-test-extended": "catalog:",
+    "@zgeoff/checks": "catalog:",
+    "@zgeoff/format-codemod": "catalog:",
+    "@zgeoff/oxlint-config": "catalog:",
+    "@zgeoff/skill-gate": "catalog:",
+    "knip": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "tslib": "catalog:",
+    "tsrs": "catalog:",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.4.3"
 }

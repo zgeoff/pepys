@@ -1,0 +1,43 @@
+# Git hooks. pre-commit fixes staged files only (fast); pre-push checks what
+# the branch changes, plus the cheap whole-tree gates. CI runs every
+# whole-tree check: type-aware lint (lint:full), dead code, and the full test suite.
+
+extends:
+  - .lefthook/pre-push-baseline.yml
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: oxlint --fix
+      glob: '*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'
+      run: node_modules/.bin/oxlint --fix --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    - name: oxfmt
+      glob: '*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,json,jsonc,md,css,yml,yaml,html}'
+      run: node_modules/.bin/oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    - name: format-codemod
+      glob: '*.{ts,tsx}'
+      run: node_modules/.bin/format-codemod --quiet {staged_files}
+      stage_fixed: true
+    # after the fixers, so it checks what they wrote; skipped when no staged
+    # file matches the glob
+    - name: typecheck
+      glob: '*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,json,jsonc}'
+      run: bun run typecheck
+    # last so it scans what the fixers above re-staged; needs the gitleaks
+    # binary on PATH (mise: `mise use -g gitleaks`)
+    - name: gitleaks
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: node_modules/.bin/commitlint --edit {1}
+
+pre-push:
+  # Sequential, to bound memory on a small host.
+  piped: true
+  jobs:
+    - name: lint:shell
+      run: bun run lint:shell
