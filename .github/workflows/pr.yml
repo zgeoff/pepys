@@ -1,0 +1,42 @@
+name: PR
+
+on:
+  pull_request:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # bun-checks fails before running anything when a listed script is missing,
+  # so a renamed script cannot drop a check without notice. `test` joins the
+  # list with the first package, because bun test fails when no test exists.
+  ci:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: zgeoff/tools/.github/workflows/bun-checks.yml@sync-v23
+    with:
+      scripts: audit deadcode format:check lint:full check typecheck
+
+  # the one status the main ruleset requires: it runs even when a job it needs
+  # failed or was skipped, and passes only when every one of them succeeded
+  checks:
+    needs: [ci]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every check
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "a required job ended as $result" >&2
+              exit 1
+            fi
+          done
