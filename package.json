@@ -2,5 +2,9 @@
   "name": "pepys",
   "private": true,
   "type": "module",
-  "scripts": {}
+  "scripts": {
+    "files:branch": "bun scripts/read-branch-files.ts",
+    "lint:files": "oxlint --no-error-on-unmatched-pattern",
+    "test:related": "bun scripts/run-related-tests.ts"
+  }
 }
