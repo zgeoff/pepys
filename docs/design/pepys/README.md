@@ -1,15 +1,19 @@
 # pepys design
 
-pepys is a personal data hub. It takes in its owner's own data from GitHub and Gmail, keeps every
+pepys is a personal data hub. It takes in its owner's own data from pluggable sources, keeps every
 change as an immutable fact, builds entities and cross-source links from those facts, and serves
 them to the owner's tools and agents through typed queries, MCP tools and live change streams. The
 question it exists to answer is "what is waiting on me, across everything?". Every other part of the
 design follows from one split: facts are kept forever and never change, and everything built from
 them can be deleted and rebuilt by replaying the facts.
 
-pepys ships as `@pepys/*` packages plus a deployment that assembles them in code. The deployment
-holds what is personal to its owner: the owner's identity, queries such as "waiting on me", and
-consumers that only that owner wants.
+pepys ships as `@pepys/*` packages plus a deployment that assembles them in code. The core packages
+hold the log, the host, the store and the API, and none of them is written for one source. A source
+is a package that brings its ingest paths, its fact families and the consumers that build its
+entities. GitHub and Gmail are the first two sources, and these docs use them as their examples.
+
+The deployment chooses its sources and holds what is personal to its owner: the owner's identity,
+queries such as "waiting on me", and consumers that only that owner wants.
 
 ## Principles
 
@@ -31,7 +35,7 @@ consumers that only that owner wants.
 
 ```mermaid
 flowchart TD
-  sources[GitHub and Gmail] --> ingest
+  sources["sources: GitHub, Gmail, ..."] --> ingest
   ingest --> blobs[(blobs bucket)]
   ingest --> log[(log: s2-lite on Garage)]
   log --> host[host: runs consumers]
@@ -53,8 +57,7 @@ and never writes it; manual links and corrections reach the log as facts.
 
 - [Storage](./storage.md) — Garage on the owner's k3s server, the buckets, and blobs.
 - [Log](./log.md) — s2-lite streams, the fact envelope, fact IDs, cursors, events and observations.
-- [Ingest](./ingest.md) — GitHub App webhooks with redelivery and backfill, and Gmail history
-  polling.
+- [Ingest](./ingest.md) — what every source does, and the GitHub and Gmail sources.
 - [Entities](./entities.md) — per-source tables, the shared entity view, aliases, people and
   tombstones.
 - [Consumers](./consumers.md) — TypeScript compiled to WebAssembly, the host contract, and the two

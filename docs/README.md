@@ -16,7 +16,7 @@
 - [Storage](./design/pepys/storage.md) — Garage, the buckets, and blobs.
 - [Log](./design/pepys/log.md) — streams, the fact envelope, fact IDs, cursors, events and
   observations.
-- [Ingest](./design/pepys/ingest.md) — GitHub App webhooks and Gmail history polling.
+- [Ingest](./design/pepys/ingest.md) — what every source does, and the GitHub and Gmail sources.
 - [Entities](./design/pepys/entities.md) — per-source tables, the shared view, aliases and people.
 - [Consumers](./design/pepys/consumers.md) — WebAssembly consumers, the host contract and input
   modes.

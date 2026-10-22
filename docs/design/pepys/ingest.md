@@ -1,9 +1,19 @@
 # Ingest
 
 Ingest turns source activity into facts. It is a TypeScript service on Bun, because its work is API
-clients and HTTP handlers. Each source has a live path, a recovery path for what the live path
-misses, and a backfill path for history from before pepys started. For GitHub and Gmail, all three
-paths produce events; observations appear only after a gap longer than the source keeps its history.
+clients and HTTP handlers. A source is a package that the deployment plugs into ingest. GitHub and
+Gmail are the first two sources, and this doc uses them to show what every source does.
+
+## What every source does
+
+Each source has a live path, a recovery path for what the live path misses, and a backfill path for
+history from before pepys started. A source writes to its own fact families, named
+`facts.<source>.<family>`, and names its entities `<source>:<kind>:<id>`. A new source therefore
+adds streams, tables and consumers of its own, and changes nothing that another source owns.
+
+All three paths produce events wherever the source has a history API. Observations appear after a
+gap longer than the source keeps its history, and for objects with no history API, such as Gmail
+labels. The first two sources fill the three paths as follows.
 
 | Source | Live                                     | Recovery                               | Backfill        |
 | ------ | ---------------------------------------- | -------------------------------------- | --------------- |

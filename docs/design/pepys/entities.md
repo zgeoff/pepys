@@ -4,7 +4,8 @@ An entity is one record from one source: a pull request, a review, an email mess
 consumer owns a full table for its kind, with every column that kind needs, plus a view named
 `entity` with six fixed columns that every kind shares. Cross-source queries read the shared view,
 and queries about one kind read its full table. Entities are named by stable global IDs, and an
-alias table maps the readable forms people write to those IDs.
+alias table maps the readable forms people write to those IDs. Each source brings the entity
+consumers for its own kinds, and the GitHub and Gmail sections below show the first two sources.
 
 ## Tables and the entity view
 
