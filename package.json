@@ -37,7 +37,7 @@
     "lint:files": "oxlint --no-error-on-unmatched-pattern",
     "lint:fix": "oxlint --fix",
     "lint:full": "oxlint --type-aware --type-check --report-unused-disable-directives-severity error",
-    "lint:shell": "git ls-files -z '*.sh' ':!.claude/**' | xargs -0 sh -c 'shellcheck \"$@\" && shfmt -d \"$@\"' sh",
+    "lint:shell": "git ls-files -z '*.sh' ':!.claude/**' | xargs -r0 sh -c 'shellcheck \"$@\" && shfmt -d \"$@\"' sh",
     "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
     "test": "bun test",
     "test:related": "bun scripts/run-related-tests.ts",
