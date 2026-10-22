@@ -18,7 +18,7 @@ that uses something outside scriptc's subset changes to fit it.
 
 ## Why
 
-A module with no outside imports cannot break replay: it gives the same output for the same facts by
-construction. The sandbox also lets the host enforce ownership on every write. WebAssembly is the
-boundary, so a later compiler or language can replace scriptc per consumer without changing the
-host.
+Denying the network, clock and random imports keeps those sources of nondeterminism out of every
+consumer, and its only other inputs are typed host reads of facts, rows and content-addressed blobs.
+The sandbox also lets the host enforce ownership on every write. WebAssembly is the boundary, so a
+later compiler or language can replace scriptc per consumer without changing the host.

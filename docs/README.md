@@ -34,7 +34,7 @@
 - [0001: Object storage holds all durable state](./decisions/0001-object-storage-holds-all-state.md)
 - [0002: s2-lite runs the log](./decisions/0002-s2-lite-runs-the-log.md)
 - [0003: One stream per fact family](./decisions/0003-one-stream-per-fact-family.md)
-- [0004: Events first, observations only to resync](./decisions/0004-events-first.md)
+- [0004: Events first, observations as the fallback](./decisions/0004-events-first.md)
 - [0005: Consumers compile to WebAssembly with scriptc](./decisions/0005-consumers-compile-to-webassembly.md)
 - [0006: Consumers return operations, and the host applies them](./decisions/0006-consumers-return-operations.md)
 - [0007: The host is written in Rust, everything else in TypeScript](./decisions/0007-rust-host.md)

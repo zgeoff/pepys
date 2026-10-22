@@ -5,8 +5,8 @@ Date: 2026-10-22
 ## Decision
 
 The API writes its queries with Kysely, through a dialect for the Turso TypeScript bindings that
-reuses Kysely's SQLite pieces. The Kysely types are generated from the consumer declarations. Each
-query is a registered object that gives an oRPC route, an MCP tool and a test.
+reuses Kysely's SQLite pieces. The Kysely types are generated from the consumer declarations. The
+[API design](../design/pepys/api.md#registered-queries) describes how each query is served.
 
 ## Rejected alternatives
 

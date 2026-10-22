@@ -10,10 +10,10 @@ consumer owns.
 
 ## Rejected alternatives
 
-| Option                | Why not                                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------------- |
-| host calls for writes | the host would check ownership after a write had started, and tests would need a database |
-| SQL strings for reads | Kysely under scriptc is unknown, and SQL widens the module boundary                       |
+| Option                | Why not                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| host calls for writes | tests and version diffs would have to capture write calls instead of comparing returned lists |
+| SQL strings for reads | Kysely under scriptc is unknown, and SQL widens the module boundary                           |
 
 ## Why
 
