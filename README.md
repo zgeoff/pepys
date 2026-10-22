@@ -7,12 +7,10 @@
   </p>
 </div>
 
-A personal data hub that keeps every change to your own data as an immutable fact.
+**WIP**
 
-pepys ingests the owner's GitHub and Gmail data, builds entities and cross-source links from the
-facts, and serves them through typed queries, MCP, and change streams. The first question it covers
-is what is waiting on me, across everything. The repo holds the scaffold only so far: no packages
-exist yet.
+sources -> immutable fact log (one stream per source, on object storage) -> sandboxed WASM consumers
+-> queryable tables
 
 ## Quick start
 
