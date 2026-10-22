@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./node_modules/@zgeoff/oxlint-config/oxlintrc.json"],
+  "env": {
+    "node": true,
+    "es2024": true
+  },
+  "rules": {
+    // pepys is ES modules throughout, so a module loads through an import
+    "typescript/no-require-imports": "error"
+  },
+  "ignorePatterns": [".claude/**", "docs/design/**"]
+}

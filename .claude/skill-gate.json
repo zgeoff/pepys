@@ -1,0 +1,9 @@
+{
+  "ignore": ["node_modules/", "dist/", ".cache/"],
+  "gates": [
+    { "match": "**/*.ts", "skills": ["code-style", "project-code-style"] },
+    { "match": "**/*.test.ts", "skills": ["testing", "project-testing"] },
+    { "match": "**/*.md", "skills": ["docs-writing"] },
+    { "match": ".claude/skills/**/SKILL.md", "skills": ["skill-writing"] }
+  ]
+}
