@@ -12,7 +12,8 @@
 ## Design
 
 - [pepys design](./design/pepys/README.md) — the principles, the pipeline, and the index of design
-  docs and spikes.
+  docs.
+- [Spikes](../research/README.md) — the experiments that settle the design's open questions.
 - [Storage](./design/pepys/storage.md) — Garage, the buckets, and blobs.
 - [Log](./design/pepys/log.md) — streams, the fact envelope, fact IDs, cursors, events and
   observations.

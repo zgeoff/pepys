@@ -9,5 +9,6 @@
       "entry": ["src/**/*.test.ts"]
     }
   },
+  "ignoreWorkspaces": ["research/**"],
   "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/skill-gate"]
 }

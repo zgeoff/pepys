@@ -1,4 +1,4 @@
-# Spike: LEAF-IR under Bun
+# LEAF-IR under Bun
 
 The embedding job runs LEAF-IR locally on the CPU. This spike checks that the model runs from Bun at
 a usable speed before the embedding job is built.
@@ -18,3 +18,15 @@ does one embedding take on the k3s server?
 
 The model loads and embeds under Bun on the server's CPU, and a day of the owner's email embeds in
 minutes.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

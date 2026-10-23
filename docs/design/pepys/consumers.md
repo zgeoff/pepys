@@ -74,7 +74,7 @@ scriptc compiles TypeScript and JavaScript to native code and WebAssembly using 
 TypeScript compiler checks, and supports a subset of the language. pepys uses scriptc only, with no
 second compiler. When a consumer uses something outside the subset, the consumer changes to fit.
 Consumers are small pure functions with few imports, which keeps that rare. The
-[scriptc spike](./spikes/scriptc-wasm/README.md) proves the path before the first consumer.
+[scriptc spike](../../../research/scriptc-wasm/README.md) proves the path before the first consumer.
 
 ## Code style
 

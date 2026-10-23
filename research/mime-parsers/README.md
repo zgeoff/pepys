@@ -1,4 +1,4 @@
-# Spike: MIME parsers
+# MIME parsers
 
 The mail text job parses raw MIME messages with an npm parser. Real email holds nested parts, odd
 encodings and HTML-only bodies, and the parser decides the text every later mail job reads.
@@ -18,3 +18,15 @@ Bun?
 ## Passes when
 
 One parser extracts readable text from every message with no crash, and the spike names it.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

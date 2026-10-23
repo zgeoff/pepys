@@ -1,4 +1,4 @@
-# Spike: Parquet escape hatch
+# Parquet escape hatch
 
 The lake keeps a Parquet copy of every fact so that pepys survives the loss of s2-lite. That copy
 only counts if a projection can be rebuilt from it alone.
@@ -18,3 +18,15 @@ equal the file built from the log?
 ## Passes when
 
 The two files hold the same rows.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

@@ -1,4 +1,4 @@
-# Spike: scriptc to WebAssembly
+# Scriptc to WebAssembly
 
 Consumers are TypeScript compiled by scriptc to WebAssembly and run by the host in wasmtime with no
 network, clock or random imports. This spike proves that path on a real consumer before the first
@@ -22,3 +22,15 @@ function run under Bun?
 
 The module runs under wasmtime with no clock, random or network import, and its operation list
 equals the Bun run's list for every input.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

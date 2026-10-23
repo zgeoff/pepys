@@ -53,7 +53,7 @@ needs each pull request's commit list, which joins when such a repository is fol
 
 The mail text job parses each raw MIME message with an npm MIME parser and writes the plain text as
 a blob plus a fact. Every later mail job reads that text. The
-[MIME spike](./spikes/mime-parsers/README.md) picks the parser.
+[MIME spike](../../../research/mime-parsers/README.md) picks the parser.
 
 ### Models
 

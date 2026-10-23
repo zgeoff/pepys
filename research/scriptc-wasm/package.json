@@ -1,0 +1,6 @@
+{
+  "name": "@pepys/spike-scriptc-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module"
+}

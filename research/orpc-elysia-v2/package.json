@@ -1,0 +1,6 @@
+{
+  "name": "@pepys/spike-orpc-elysia-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module"
+}

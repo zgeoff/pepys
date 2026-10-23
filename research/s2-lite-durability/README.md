@@ -1,4 +1,4 @@
-# Spike: s2-lite durability
+# S2-lite durability
 
 The log runs on s2-lite with its data in Garage, and every projection depends on the log keeping
 what it acknowledged. This spike checks that claim and the S2 features the design uses, before
@@ -21,3 +21,15 @@ retention, a cheap read of a stream's last record, and conditional appends?
 
 Every acknowledged record survives the kill in order with no gaps, and retention can be set to keep
 records forever.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

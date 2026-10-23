@@ -74,15 +74,5 @@ and never writes it; manual links and corrections reach the log as facts.
 
 ## Spikes
 
-Each spike settles one open question before the work that depends on it starts.
-
-- [scriptc to WebAssembly](./spikes/scriptc-wasm/README.md)
-- [s2-lite durability](./spikes/s2-lite-durability/README.md)
-- [Turso from TypeScript](./spikes/turso-bindings/README.md)
-- [oRPC on Elysia v2](./spikes/orpc-elysia-v2/README.md)
-- [LEAF-IR under Bun](./spikes/leaf-ir-bun/README.md)
-- [MIME parsers](./spikes/mime-parsers/README.md)
-- [Durable Streams conformance](./spikes/durable-streams-conformance/README.md)
-- [Source history retention](./spikes/source-retention/README.md)
-- [Jev terms and choice sets](./spikes/jev-terms/README.md)
-- [Parquet escape hatch](./spikes/parquet-escape-hatch/README.md)
+Each spike settles one open question before the work that depends on it starts. The spikes live in
+[research/](../../../research/README.md), whose index says what each one answers.

@@ -1,4 +1,4 @@
-# Spike: Durable Streams conformance
+# Durable Streams conformance
 
 The API serves each consumer's change log over the read side of the Durable Streams protocol.
 Clients such as TanStack DB rely on exact protocol behaviour, and the protocol's repository ships
@@ -20,3 +20,15 @@ conformance tests?
 
 The server passes every read conformance test, and the State Protocol client holds a correct copy of
 the table.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

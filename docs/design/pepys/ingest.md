@@ -31,7 +31,7 @@ GitHub does not retry a failed delivery on its own. A sweep lists the App's rece
 the ones that failed or never reached pepys, and asks GitHub to redeliver them. GitHub keeps its
 delivery log for a limited time, so after an outage longer than that, ingest polls the affected
 objects once and writes observations. The
-[source retention spike](./spikes/source-retention/README.md) measures that limit.
+[source retention spike](../../../research/source-retention/README.md) measures that limit.
 
 Backfill reads the pull request and issue timeline APIs, which return past events with their times.
 Those events go into the same stream as the live events for the same entity.

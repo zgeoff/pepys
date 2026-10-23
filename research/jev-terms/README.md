@@ -1,4 +1,4 @@
-# Spike: Jev terms and choice sets
+# Jev terms and choice sets
 
 Enrichment sends email text and candidate pairs to Jev for labels and judgements. Jev will see the
 owner's email, and the shape of its API decides how link judgement asks its question.
@@ -18,3 +18,15 @@ these five issues, or none"?
 
 The terms allow email content, and the spike states whether link judgement asks one question per
 pair or one per candidate set.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

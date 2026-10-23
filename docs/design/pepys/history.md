@@ -45,5 +45,5 @@ store.
 The lake is plain Parquet. DuckLake, which adds a catalog, snapshots and schema changes on top,
 joins only if the lake gets queried often.
 
-The [escape hatch spike](./spikes/parquet-escape-hatch/README.md) rebuilds one consumer from the
-lake with s2-lite stopped, which proves the copy is complete.
+The [escape hatch spike](../../../research/parquet-escape-hatch/README.md) rebuilds one consumer
+from the lake with s2-lite stopped, which proves the copy is complete.

@@ -25,6 +25,46 @@
         "typescript": "catalog:",
       },
     },
+    "research/durable-streams-conformance": {
+      "name": "@pepys/spike-durable-streams-conformance",
+      "version": "0.0.0",
+    },
+    "research/jev-terms": {
+      "name": "@pepys/spike-jev-terms",
+      "version": "0.0.0",
+    },
+    "research/leaf-ir-bun": {
+      "name": "@pepys/spike-leaf-ir-bun",
+      "version": "0.0.0",
+    },
+    "research/mime-parsers": {
+      "name": "@pepys/spike-mime-parsers",
+      "version": "0.0.0",
+    },
+    "research/orpc-elysia-v2": {
+      "name": "@pepys/spike-orpc-elysia-v2",
+      "version": "0.0.0",
+    },
+    "research/parquet-escape-hatch": {
+      "name": "@pepys/spike-parquet-escape-hatch",
+      "version": "0.0.0",
+    },
+    "research/s2-lite-durability": {
+      "name": "@pepys/spike-s2-lite-durability",
+      "version": "0.0.0",
+    },
+    "research/scriptc-wasm": {
+      "name": "@pepys/spike-scriptc-wasm",
+      "version": "0.0.0",
+    },
+    "research/source-retention": {
+      "name": "@pepys/spike-source-retention",
+      "version": "0.0.0",
+    },
+    "research/turso-bindings": {
+      "name": "@pepys/spike-turso-bindings",
+      "version": "0.0.0",
+    },
   },
   "catalog": {
     "@commitlint/cli": "21.2.3",
@@ -304,6 +344,26 @@
     "@oxlint/binding-win32-ia32-msvc": ["@oxlint/binding-win32-ia32-msvc@1.88.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-MA6iOw//amleaz2mVMsZrA7NHlEexjTrhIxSMFCXQi6IUuQO+3Od00GZhr2iCYw6RFzMW36jkKK/WHBXMsoQAw=="],
 
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.88.0", "", { "os": "win32", "cpu": "x64" }, "sha512-3Sz6rVWe8Dy+ufsXurFN1GX2dX43F/lQMSLelK9gFjiba7nHvLlqlhR5cHlWVnCpSqUY1hN9pyCX9XToe6ve6g=="],
+
+    "@pepys/spike-durable-streams-conformance": ["@pepys/spike-durable-streams-conformance@workspace:research/durable-streams-conformance"],
+
+    "@pepys/spike-jev-terms": ["@pepys/spike-jev-terms@workspace:research/jev-terms"],
+
+    "@pepys/spike-leaf-ir-bun": ["@pepys/spike-leaf-ir-bun@workspace:research/leaf-ir-bun"],
+
+    "@pepys/spike-mime-parsers": ["@pepys/spike-mime-parsers@workspace:research/mime-parsers"],
+
+    "@pepys/spike-orpc-elysia-v2": ["@pepys/spike-orpc-elysia-v2@workspace:research/orpc-elysia-v2"],
+
+    "@pepys/spike-parquet-escape-hatch": ["@pepys/spike-parquet-escape-hatch@workspace:research/parquet-escape-hatch"],
+
+    "@pepys/spike-s2-lite-durability": ["@pepys/spike-s2-lite-durability@workspace:research/s2-lite-durability"],
+
+    "@pepys/spike-scriptc-wasm": ["@pepys/spike-scriptc-wasm@workspace:research/scriptc-wasm"],
+
+    "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
+
+    "@pepys/spike-turso-bindings": ["@pepys/spike-turso-bindings@workspace:research/turso-bindings"],
 
     "@simple-libs/child-process-utils": ["@simple-libs/child-process-utils@2.0.0", "", { "dependencies": { "@simple-libs/stream-utils": "^2.0.0" } }, "sha512-dvNoRKLijXnD0XoJAz94pbNuB5GQgDr55UhpSPhffDkTT0Cmcqh9jSCOtwfT2d4H6MI9E7c4SgtMuJXZ6F3c6A=="],
 
