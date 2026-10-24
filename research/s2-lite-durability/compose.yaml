@@ -1,0 +1,26 @@
+# Garage and s2-lite for the durability spike. Every credential here is an invented local fixture.
+
+services:
+  garage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+
+  s2-lite:
+    image: ghcr.io/s2-streamstore/s2:0.43.2@sha256:214a7ea92c7bbf5e4b79c57fba642f95765b68eaa143cd11173bcda6d3c4ed09
+    command: [lite, --bucket, facts, --path, s2lite]
+    environment:
+      AWS_ENDPOINT_URL_S3: http://garage:3900
+      AWS_REGION: garage
+      AWS_ACCESS_KEY_ID: GK000000000000000000000000
+      AWS_SECRET_ACCESS_KEY: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+      RUST_LOG: info
+    ports:
+      - 127.0.0.1:${S2_LITE_PORT:-18431}:80
+    profiles: [s2-lite]
+
+volumes:
+  garage-meta:
+  garage-data:
