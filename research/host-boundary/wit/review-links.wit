@@ -1,0 +1,17 @@
+package pepys:boundary;
+
+interface reads {
+  read-review-length: func(review-id: string) -> f64;
+  read-review-into: func(review-id: string, row: list<u8>);
+  panic: func(message: string);
+}
+
+interface links {
+  derive-from-input: func(input: string) -> string;
+  derive-with-reads: func(input: string) -> string;
+}
+
+world review-links {
+  import reads;
+  export links;
+}

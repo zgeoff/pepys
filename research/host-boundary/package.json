@@ -2,5 +2,14 @@
   "name": "@pepys/spike-host-boundary",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "check": "bun run-spike.ts",
+    "typecheck": "tsrs --noEmit"
+  },
+  "devDependencies": {
+    "@scriptc/runtime-wasm32-wasi": "0.3.5",
+    "@types/bun": "1.4.3",
+    "scriptc": "0.3.5"
+  }
 }
