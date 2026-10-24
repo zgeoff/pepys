@@ -1,6 +1,6 @@
 import type { InferSchemaInput, InferSchemaOutput, RouterClient, Schema } from '@orpc/server';
 import type { ConsumerDeclaration, DB, Result } from '@pepys/schema';
-import type { Kysely } from 'kysely';
+import type { Transaction } from 'kysely';
 import type { createRouter } from './create-router.ts';
 
 interface EntityViewRow {
@@ -15,7 +15,10 @@ interface EntityViewRow {
 export type ConsumerDB = DB & { entity: EntityViewRow };
 
 export interface StoreReader {
-  readConsumer: (consumerName: string) => Promise<Kysely<ConsumerDB>>;
+  withConsumer: <Result>(
+    consumerName: string,
+    work: (transaction: Transaction<ConsumerDB>) => Promise<Result>,
+  ) => Promise<Result>;
   close: () => Promise<void>;
 }
 

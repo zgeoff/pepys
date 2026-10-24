@@ -46,7 +46,11 @@ export function createTursoDriver(openDatabase: () => Promise<Database>): Driver
 
       return Promise.resolve();
     },
+
+    // a connection in use finishes before the database closes
     destroy: async () => {
+      await queue;
+
       await database?.close();
     },
   };

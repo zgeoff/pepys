@@ -162,3 +162,25 @@ test('it rolls back the writes of a failed transaction', async () => {
 
   expect(rows).toStrictEqual([]);
 });
+
+test('it lets a running transaction finish when the database is destroyed', async () => {
+  const ctx = await setupTest();
+
+  const db = new Kysely<Schema>({
+    dialect: createTursoDialect({ database: () => connect(ctx.path) }),
+  });
+
+  const destroyed = Promise.withResolvers<void>();
+
+  const rows = await db.transaction().execute(async (transaction) => {
+    await transaction.selectFrom('item').select('id').execute();
+
+    void db.destroy().then(destroyed.resolve);
+
+    return transaction.selectFrom('item').select('id').execute();
+  });
+
+  await destroyed.promise;
+
+  expect(rows).toStrictEqual([]);
+});

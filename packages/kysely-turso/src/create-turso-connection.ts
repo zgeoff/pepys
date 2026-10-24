@@ -16,17 +16,21 @@ async function runQuery<Row>(
 ): Promise<QueryResult<Row>> {
   const statement = await database.prepare(compiledQuery.sql);
 
-  if (statement.reader) {
-    return { rows: await statement.all(...compiledQuery.parameters) };
+  try {
+    if (statement.reader) {
+      return { rows: await statement.all(...compiledQuery.parameters) };
+    }
+
+    const result = await statement.run(...compiledQuery.parameters);
+
+    return {
+      insertId: BigInt(result.lastInsertRowid),
+      numAffectedRows: BigInt(result.changes),
+      rows: [],
+    };
+  } finally {
+    statement.close();
   }
-
-  const result = await statement.run(...compiledQuery.parameters);
-
-  return {
-    insertId: BigInt(result.lastInsertRowid),
-    numAffectedRows: BigInt(result.changes),
-    rows: [],
-  };
 }
 
 async function* streamRows<Row>(
@@ -35,7 +39,11 @@ async function* streamRows<Row>(
 ): AsyncIterableIterator<QueryResult<Row>> {
   const statement = await database.prepare(compiledQuery.sql);
 
-  for await (const row of statement.iterate(...compiledQuery.parameters)) {
-    yield { rows: [row] };
+  try {
+    for await (const row of statement.iterate(...compiledQuery.parameters)) {
+      yield { rows: [row] };
+    }
+  } finally {
+    statement.close();
   }
 }

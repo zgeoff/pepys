@@ -38,7 +38,7 @@ export const getEntityQuery = defineQuery({
     "Returns one entity by its ID, such as github:pr:1874433021: its row in the owning consumer's entity view, and its full row.",
   input: z.object({ id: entityIDSchema }),
   output: z.object({ entity: entitySchema, row: rowSchema }),
-  run: async (context, input) => {
+  run: (context, input) => {
     const notFound = {
       ok: false,
       failure: { code: 'NOT_FOUND', message: `no entity ${input.id.text}` },
@@ -47,35 +47,35 @@ export const getEntityQuery = defineQuery({
     const found = findEntityConsumer(context.consumers, input.id.parts);
 
     if (found === undefined) {
-      return notFound;
+      return Promise.resolve(notFound);
     }
 
-    const database = await context.store.readConsumer(found.consumer.name);
+    return context.store.withConsumer(found.consumer.name, async (transaction) => {
+      const entity = await transaction
+        .selectFrom('entity')
+        .selectAll()
+        .where('id', '=', input.id.text)
+        .executeTakeFirst();
 
-    const entity = await database
-      .selectFrom('entity')
-      .selectAll()
-      .where('id', '=', input.id.text)
-      .executeTakeFirst();
+      if (entity === undefined) {
+        return notFound;
+      }
 
-    if (entity === undefined) {
-      return notFound;
-    }
+      const table = sql.table(found.entityView.table);
+      const idColumn = sql.ref(found.entityView.id);
+      const query = sql`select * from ${table} where ${idColumn} = ${input.id.text}`;
 
-    const table = sql.table(found.entityView.table);
-    const idColumn = sql.ref(found.entityView.id);
-    const query = sql`select * from ${table} where ${idColumn} = ${input.id.text}`;
+      const result = await query.execute(transaction);
 
-    const result = await query.execute(database);
+      const [stored] = storedRowsSchema.parse(result).rows;
+      const declaration = found.consumer.tables[found.entityView.table];
 
-    const [stored] = storedRowsSchema.parse(result).rows;
-    const declaration = found.consumer.tables[found.entityView.table];
+      invariant(
+        stored !== undefined && declaration !== undefined,
+        'an entity view row has a table row',
+      );
 
-    invariant(
-      stored !== undefined && declaration !== undefined,
-      'an entity view row has a table row',
-    );
-
-    return { ok: true, value: { entity, row: buildEntityRow(declaration, stored) } };
+      return { ok: true, value: { entity, row: buildEntityRow(declaration, stored) } };
+    });
   },
 });
