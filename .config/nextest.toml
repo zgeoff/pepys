@@ -1,2 +1,18 @@
+# A unit test finishes in under 5 s; nextest ends it at 5 s.
+# The lanes run only under their own profile: their tests live in a module
+# named after the lane, so each test path starts with `e2e::` or
+# `model_api::` (a Rust module name takes no hyphen).
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 1 }
+default-filter = "not (test(/^e2e::/) | test(/^model_api::/))"
+
 [profile.ci]
 fail-fast = false
+
+[profile.e2e]
+slow-timeout = { period = "15s", terminate-after = 1 }
+default-filter = "test(/^e2e::/)"
+
+[profile.model-api]
+slow-timeout = { period = "120s", terminate-after = 1 }
+default-filter = "test(/^model_api::/)"
