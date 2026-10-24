@@ -1,0 +1,9 @@
+{
+  "name": "@pepys/source-github",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/schema": "workspace:*"
+  }
+}

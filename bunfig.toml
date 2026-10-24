@@ -20,6 +20,7 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/format-codemod",
   "@zgeoff/oxlint-config",
   "@zgeoff/skill-gate",
+  "@zgeoff/std",
   "fast-uri",
 ]
 
