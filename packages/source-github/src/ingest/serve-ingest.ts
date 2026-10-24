@@ -31,9 +31,13 @@ const server = Bun.serve({
 console.log(`ingest listening on ${server.port}`);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.on(signal, async () => {
-    await server.stop();
-
-    process.exit(0);
+  process.on(signal, () => {
+    void shutdown();
   });
+}
+
+async function shutdown(): Promise<void> {
+  await server.stop();
+
+  process.exit(0);
 }

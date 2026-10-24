@@ -125,8 +125,17 @@ test('it fails once the attempts are used up', async () => {
   const fact = parsed.value;
   const ctx = setupTest(['unavailable', 'unavailable', 'unavailable', 'stored']);
   const append = makeFactAppender({ stream: ctx.stream, maxAttempts: 3, retryDelayMs: 0 });
+  let error: unknown = null;
 
-  await expect(append(fact)).rejects.toThrow('unavailable');
+  try {
+    await append(fact);
+  } catch (error_: unknown) {
+    error = error_;
+  }
+
+  expect(error).toStrictEqual(
+    expect.objectContaining({ message: expect.stringContaining('unavailable') }),
+  );
 
   expect(ctx.calls).toHaveLength(3);
 });
@@ -147,8 +156,17 @@ test('it does not retry a refusal from the server', async () => {
   const fact = parsed.value;
   const ctx = setupTest(['refused', 'stored']);
   const append = makeFactAppender({ stream: ctx.stream, maxAttempts: 3, retryDelayMs: 0 });
+  let error: unknown = null;
 
-  await expect(append(fact)).rejects.toThrow('invalid record');
+  try {
+    await append(fact);
+  } catch (error_: unknown) {
+    error = error_;
+  }
+
+  expect(error).toStrictEqual(
+    expect.objectContaining({ message: expect.stringContaining('invalid record') }),
+  );
 
   expect(ctx.calls).toHaveLength(1);
 });
