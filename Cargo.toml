@@ -19,8 +19,8 @@ serde_json = "=1.0.154"
 thiserror = "=2.0.21"
 tokio = { version = "=1.53.3", features = ["macros", "rt-multi-thread", "signal", "time"] }
 turso = "=0.8.3"
-wasmtime = "=49.0.3"
-wasmtime-wasi = "=49.0.3"
+wasmtime = "=49.0.4"
+wasmtime-wasi = "=49.0.4"
 
 [workspace.lints.clippy]
 expect_used = "warn"
