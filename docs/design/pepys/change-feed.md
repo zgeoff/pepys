@@ -30,8 +30,8 @@ append or producer headers.
 
 The Durable Streams repository ships server conformance tests. The API runs the read subset of them,
 so TypeScript clients and TanStack DB work against it. The
-[conformance spike](./spikes/durable-streams-conformance/README.md) runs them first against a
-minimal server.
+[conformance spike](../../../research/durable-streams-conformance/README.md) runs them first against
+a minimal server.
 
 Live readers wait on a signal from the host, which it sends over a local socket after each commit.
 

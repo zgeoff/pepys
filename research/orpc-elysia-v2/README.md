@@ -1,4 +1,4 @@
-# Spike: oRPC on Elysia v2
+# ORPC on Elysia v2
 
 The API runs Elysia v2 with oRPC for typed routes. Elysia v2 is at release candidate and oRPC v2 is
 in beta, and the API cannot be built until the two are known to work together.
@@ -17,3 +17,15 @@ Does oRPC's Elysia adapter work with Elysia v2, and does it need oRPC v1 or v2?
 ## Passes when
 
 One combination of versions serves the typed route and the MCP endpoint from one Elysia v2 app.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

@@ -9,5 +9,24 @@
     // pepys is ES modules throughout, so a module loads through an import
     "typescript/no-require-imports": "error"
   },
+  "overrides": [
+    {
+      // a spike is throwaway, so product code never depends on one
+      "files": ["packages/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@pepys/spike-*", "**/research/**"],
+                "message": "product code never imports a spike"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "ignorePatterns": [".claude/**", "docs/design/**"]
 }

@@ -16,8 +16,8 @@ Each file has one writer, so the store needs no concurrent writes. Turso's multi
 control stays off. It is still experimental, and turning it on may change the file format.
 
 If Turso fails, the host switches to rusqlite and opens the same files, with no migration and no
-replay. The [Turso spike](./spikes/turso-bindings/README.md) checks the attach behaviour and the
-TypeScript bindings before the API depends on them.
+replay. The [Turso spike](../../../research/turso-bindings/README.md) checks the attach behaviour
+and the TypeScript bindings before the API depends on them.
 
 ## One file per consumer
 

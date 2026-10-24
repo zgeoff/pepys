@@ -30,6 +30,7 @@ Bun 1.4.3 is the pinned version (`.bun-version`).
 ## Layout
 
 - `packages/` holds the `@pepys/*` workspace packages.
+- `research/` holds the spikes, one Bun package each.
 - `scripts/` holds the repo tooling.
 - `docs/` holds the documentation.
 

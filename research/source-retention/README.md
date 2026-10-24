@@ -1,4 +1,4 @@
-# Spike: source history retention
+# Source history retention
 
 Ingest recovers from an outage through GitHub's delivery log and Gmail's history IDs. Each source
 keeps that history for a limited time, and the limit decides how long the server can be down before
@@ -19,3 +19,15 @@ history ID stay valid?
 
 Both limits are known, and the ingest design states which outage length triggers a resync for each
 source.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

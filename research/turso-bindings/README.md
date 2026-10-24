@@ -1,4 +1,4 @@
-# Spike: Turso from TypeScript
+# Turso from TypeScript
 
 The API queries the store through a Kysely dialect over Turso's TypeScript bindings, and attaches
 every consumer file read-only. Search uses Turso's full-text and vector features. This spike checks
@@ -22,3 +22,15 @@ many files work, and how stable are full-text search and vector search?
 
 The Kysely dialect's driver can be written against the bindings, 30 files attach read-only, and a
 reader sees a writer's committed rows.
+
+## Run
+
+The spike has no runner yet.
+
+## Result
+
+The spike has not run.
+
+## Untested
+
+Every step of the method, until the spike runs.

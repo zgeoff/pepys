@@ -62,5 +62,5 @@ not correct a label, because only the owner's corrections count as the test set 
 
 ## Open questions
 
-The [oRPC spike](./spikes/orpc-elysia-v2/README.md) checks whether oRPC's Elysia adapter supports
-Elysia v2, and which oRPC major version it needs.
+The [oRPC spike](../../../research/orpc-elysia-v2/README.md) checks whether oRPC's Elysia adapter
+supports Elysia v2, and which oRPC major version it needs.

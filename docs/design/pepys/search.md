@@ -37,5 +37,6 @@ judges only the top candidates, which keeps model calls to a small fraction of a
 
 ## Open questions
 
-The [LEAF-IR spike](./spikes/leaf-ir-bun/README.md) checks that the model runs under Bun. The
-[Turso spike](./spikes/turso-bindings/README.md) checks how stable Turso's full-text search is.
+The [LEAF-IR spike](../../../research/leaf-ir-bun/README.md) checks that the model runs under Bun.
+The [Turso spike](../../../research/turso-bindings/README.md) checks how stable Turso's full-text
+search is.
