@@ -1,32 +1,23 @@
-# Parquet escape hatch
+# Spike: Parquet escape hatch
 
-The lake keeps a Parquet copy of every fact so that pepys survives the loss of s2-lite. That copy
-only counts if a projection can be rebuilt from it alone.
+The lake keeps a Parquet copy of every fact so that pepys survives the loss of s2-lite. This spike
+rebuilds a projection from that copy alone, for the history design.
 
 ## Question
 
 Can the host rebuild one consumer's file from the lake with s2-lite stopped, and does the result
 equal the file built from the log?
 
-## Method
+## Answer
 
-1. Build one consumer's file from the log.
-2. Run the compaction job to write that consumer's stream to Parquet.
-3. Stop s2-lite and rebuild the same consumer from the Parquet files.
-4. Compare the two files row by row.
+- The spike has not run, so it holds no verdict and no numbers.
 
-## Passes when
+The history design holds no recommendation from this spike until it runs.
 
-The two files hold the same rows.
+## Results
 
-## Run
-
-The spike has no runner yet.
-
-## Result
-
-The spike has not run.
+[results.md](results.md) holds the method and the check the spike must pass.
 
 ## Untested
 
-Every step of the method, until the spike runs.
+Every step of the method, until the spike runs: [Untested](results.md#untested).

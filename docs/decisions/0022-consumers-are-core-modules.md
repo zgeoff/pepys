@@ -24,4 +24,4 @@ writes is the one measured shape in which a consumer reads from the host during 
 scope consumers need for joins. Its glue is a fixed template per read and per export. It relies on
 scriptc passing a byte buffer as a view of module memory, which scriptc does not promise, so the
 host's boundary tests gate every scriptc upgrade. The
-[host boundary spike](../../research/host-boundary/README.md) holds the measurements.
+[host boundary spike](../../research/host-boundary/results.md#shapes) holds the measurements.

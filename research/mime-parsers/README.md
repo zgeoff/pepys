@@ -1,32 +1,24 @@
-# MIME parsers
+# Spike: MIME parsers
 
-The mail text job parses raw MIME messages with an npm parser. Real email holds nested parts, odd
-encodings and HTML-only bodies, and the parser decides the text every later mail job reads.
+The mail text job parses raw MIME messages with an npm parser, and the parser decides the text every
+later mail job reads. This spike compares two parsers on the owner's real email, for the enrichment
+design.
 
 ## Question
 
 Which of `postal-mime` and `mailparser` extracts better plain text from the owner's real email under
 Bun?
 
-## Method
+## Answer
 
-1. Export 200 raw messages from the owner's mailbox, including newsletters, receipts, GitHub
-   notifications and replies with quoted history.
-2. Parse each one with both parsers.
-3. Compare the plain text, the attachment list and any errors for each message.
+- The spike has not run, so it holds no verdict and no numbers.
 
-## Passes when
+The enrichment design holds no recommendation from this spike until it runs.
 
-One parser extracts readable text from every message with no crash, and the spike names it.
+## Results
 
-## Run
-
-The spike has no runner yet.
-
-## Result
-
-The spike has not run.
+[results.md](results.md) holds the method and the check the spike must pass.
 
 ## Untested
 
-Every step of the method, until the spike runs.
+Every step of the method, until the spike runs: [Untested](results.md#untested).

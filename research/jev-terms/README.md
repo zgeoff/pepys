@@ -1,32 +1,24 @@
-# Jev terms and choice sets
+# Spike: Jev terms and choice sets
 
-Enrichment sends email text and candidate pairs to Jev for labels and judgements. Jev will see the
-owner's email, and the shape of its API decides how link judgement asks its question.
+Enrichment sends email text and candidate pairs to Jev for labels and judgements, so Jev will see
+the owner's email. This spike reads Jev's data terms and tries its API's choice sets, for the
+enrichment design's link judgement.
 
 ## Question
 
 What do Jev's data terms allow, and does its API accept a set of choices per call, such as "which of
 these five issues, or none"?
 
-## Method
+## Answer
 
-1. Read Jev's data and retention terms.
-2. Send one labelling call with a fixed label set and one call with a per-call choice set.
-3. Record the returned choice, the probability and the latency of each.
+- The spike has not run, so it holds no verdict and no numbers.
 
-## Passes when
+The enrichment design holds no recommendation from this spike until it runs.
 
-The terms allow email content, and the spike states whether link judgement asks one question per
-pair or one per candidate set.
+## Results
 
-## Run
-
-The spike has no runner yet.
-
-## Result
-
-The spike has not run.
+[results.md](results.md) holds the method and the check the spike must pass.
 
 ## Untested
 
-Every step of the method, until the spike runs.
+Every step of the method, until the spike runs: [Untested](results.md#untested).

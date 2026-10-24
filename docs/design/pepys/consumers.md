@@ -84,8 +84,8 @@ scriptc compiles TypeScript and JavaScript to native code and WebAssembly using 
 TypeScript compiler checks, and supports a subset of the language. pepys uses scriptc only, with no
 second compiler. When a consumer uses something outside the subset, the consumer changes to fit.
 Consumers are small pure functions with few imports, which keeps that rare. The
-[scriptc spike](../../../research/scriptc-wasm/README.md) records the subset limits a consumer
-meets.
+[scriptc spike](../../../research/scriptc-wasm/results.md#the-scriptc-subset) records the subset
+limits a consumer meets.
 
 Every consumer builds as a scriptc library with `determinism.fences` covering the Date, performance,
 process, random, filesystem and OS APIs. Such a build refuses a call to any of them at compile time,
