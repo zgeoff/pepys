@@ -1,0 +1,10 @@
+package pepys:spike;
+
+interface host {
+  read-pull-request-number: func(review-id: string) -> f64;
+  panic: func(message: string);
+}
+
+world host-provider {
+  export host;
+}
