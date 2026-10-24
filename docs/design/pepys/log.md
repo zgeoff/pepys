@@ -3,7 +3,8 @@
 The log is the one place facts enter pepys. It runs on s2-lite, a single-binary server for the S2
 streams API that stores its data in the facts bucket through SlateDB. s2-lite acknowledges an append
 only after the data is durable in the bucket. The log holds one stream per fact family, keeps every
-record forever, and never rewrites a record.
+record forever, and never rewrites a record. s2-lite's default retention is 7 days, so pepys creates
+every stream with infinite retention.
 
 ## Streams
 
@@ -62,7 +63,9 @@ drop the duplicate.
 | manual assertion  | a UUID, since people do not repeat themselves by accident   |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
-webhooks repeat, and neither needs to prevent it at write time.
+webhooks repeat, and neither needs to prevent it at write time. s2-lite can also store an append
+whose acknowledgement never arrived, so a writer retries every append with an unknown outcome, and
+the fact ID makes the stored copy harmless.
 
 ## Cursors
 

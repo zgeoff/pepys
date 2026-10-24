@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isSpikePassing } from './is-spike-passing.ts';
 import { runComponentChecks } from './run-component-checks.ts';
 import { runConsumerChecks } from './run-consumer-checks.ts';
 import { runLibraryChecks } from './run-library-checks.ts';
@@ -58,11 +59,36 @@ function runSpike(context: SpikeContext): boolean {
 
   writeLines(component.lines);
 
+  const hasPassed = isSpikePassing({
+    imports: consumer.imports,
+    isEveryConstantClockOutputEqual: consumer.isEveryConstantClockOutputEqual,
+    isDeterministic: library.isDeterministic,
+  });
+
+  const isVerdictSound = isVerdictSelfCheckPassing();
+  const areOtherChecksPassing = consumer.isPassing && library.isPassing && component.isPassing;
+
   writeLines([
-    `library and component checks: ${library.isPassing && component.isPassing ? 'pass' : 'fail'}`,
+    `real clock, library and component checks: ${areOtherChecksPassing ? 'pass' : 'fail'}`,
+    `verdict self-check on fixed evidence: ${isVerdictSound ? 'pass' : 'fail'}`,
+    `passes when: ${hasPassed ? 'pass' : 'fail'}`,
   ]);
 
-  return consumer.isPassing && library.isPassing && component.isPassing;
+  return hasPassed && isVerdictSound && areOtherChecksPassing;
+}
+
+function isVerdictSelfCheckPassing(): boolean {
+  const imports = ['wasi_snapshot_preview1.clock_time_get', 'wasi_snapshot_preview1.fd_write'];
+  const passing = { imports, isEveryConstantClockOutputEqual: true, isDeterministic: true };
+
+  return (
+    isSpikePassing(passing) &&
+    !isSpikePassing({ ...passing, imports: [...imports, 'wasi_snapshot_preview1.random_get'] }) &&
+    !isSpikePassing({ ...passing, imports: [...imports, 'wasi_snapshot_preview1.sock_send'] }) &&
+    !isSpikePassing({ ...passing, isEveryConstantClockOutputEqual: false }) &&
+    !isSpikePassing({ ...passing, isDeterministic: false }) &&
+    !isSpikePassing({ ...passing, isDeterministic: undefined })
+  );
 }
 
 function writeLines(lines: string[]): void {

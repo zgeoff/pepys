@@ -29,6 +29,10 @@
       "name": "@pepys/spike-durable-streams-conformance",
       "version": "0.0.0",
     },
+    "research/host-boundary": {
+      "name": "@pepys/spike-host-boundary",
+      "version": "0.0.0",
+    },
     "research/jev-terms": {
       "name": "@pepys/spike-jev-terms",
       "version": "0.0.0",
@@ -367,6 +371,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.88.0", "", { "os": "win32", "cpu": "x64" }, "sha512-3Sz6rVWe8Dy+ufsXurFN1GX2dX43F/lQMSLelK9gFjiba7nHvLlqlhR5cHlWVnCpSqUY1hN9pyCX9XToe6ve6g=="],
 
     "@pepys/spike-durable-streams-conformance": ["@pepys/spike-durable-streams-conformance@workspace:research/durable-streams-conformance"],
+
+    "@pepys/spike-host-boundary": ["@pepys/spike-host-boundary@workspace:research/host-boundary"],
 
     "@pepys/spike-jev-terms": ["@pepys/spike-jev-terms@workspace:research/jev-terms"],
 
