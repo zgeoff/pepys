@@ -18,7 +18,9 @@ async function runQuery<Row>(
 
   try {
     if (statement.reader) {
-      return { rows: await statement.all(...compiledQuery.parameters) };
+      const rows: unknown[] = await statement.all(...compiledQuery.parameters);
+
+      return { rows: narrowRows<Row>(rows) };
     }
 
     const result = await statement.run(...compiledQuery.parameters);
@@ -33,6 +35,16 @@ async function runQuery<Row>(
   }
 }
 
+// Kysely owns the row type: the caller's query builder declares it, and the driver only hands over
+// what the database returned.
+function narrowRows<Row>(rows: unknown[]): Row[] {
+  return rows.filter(isRow<Row>);
+}
+
+function isRow<Row>(value: unknown): value is Row {
+  return value !== undefined;
+}
+
 async function* streamRows<Row>(
   database: Database,
   compiledQuery: CompiledQuery,
@@ -41,7 +53,9 @@ async function* streamRows<Row>(
 
   try {
     for await (const row of statement.iterate(...compiledQuery.parameters)) {
-      yield { rows: [row] };
+      const rows: unknown[] = [row];
+
+      yield { rows: narrowRows<Row>(rows) };
     }
   } finally {
     statement.close();
