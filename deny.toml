@@ -4,10 +4,27 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+# The fixed releases are newer than the 7-day release gate. Bump wasmtime and wasmtime-wasi to
+# 49.0.4 or later and rustls-webpki to 0.103.16 or later, and drop these entries, once they pass it.
+ignore = [
+  { id = "RUSTSEC-2026-0378", reason = "component model streams; the host runs core modules only" },
+  { id = "RUSTSEC-2026-0379", reason = "aarch64 code generation; the host runs on x86_64 and the modules are pepys's own" },
+  { id = "RUSTSEC-2026-0382", reason = "distrusted emSign intermediates; the host reaches S2 over plain HTTP on the local network" },
+]
 
 [licenses]
 version = 2
-allow = ["Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0", "Zlib"]
+allow = [
+  "Apache-2.0",
+  # wasmtime and its cranelift and wasm-tools crates carry the LLVM exception
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Unicode-3.0",
+  "Zlib",
+]
 confidence-threshold = 0.9
 # the list covers licenses crates are expected to bring, before any crate uses them
 unused-allowed-license = "allow"
