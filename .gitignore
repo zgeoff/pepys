@@ -32,3 +32,6 @@ Thumbs.db
 
 # Rust build output
 /target
+
+# built consumer modules
+/build

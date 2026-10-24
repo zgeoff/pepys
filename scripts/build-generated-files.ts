@@ -6,7 +6,7 @@ import {
   generateSqliteSchema,
 } from '@pepys/schema';
 import type { ConsumerDeclaration, ConsumerFailure } from '@pepys/schema';
-import { githubPullRequestConsumer } from '@pepys/source-github';
+import { consumerSources } from './consumer-sources.ts';
 
 export interface GeneratedFile {
   path: string;
@@ -17,18 +17,15 @@ export type GeneratedFiles =
   | { ok: true; files: GeneratedFile[] }
   | { ok: false; failures: ConsumerFailure[] };
 
-// Each source package brings its consumers' declarations; none is found by walking the disk.
-const sources = [{ directory: 'packages/source-github', consumers: [githubPullRequestConsumer] }];
-
 export function buildGeneratedFiles(): GeneratedFiles {
-  const consumers: ConsumerDeclaration[] = sources.flatMap((source) => source.consumers);
+  const consumers: ConsumerDeclaration[] = consumerSources.flatMap((source) => source.consumers);
   const check = checkConsumers(consumers);
 
   if (!check.ok) {
     return check;
   }
 
-  const sourceFiles = sources.flatMap((source) =>
+  const sourceFiles = consumerSources.flatMap((source) =>
     source.consumers.flatMap((consumer) => {
       const stem = `${source.directory}/src/generated/${consumer.name.replaceAll('_', '-')}`;
 

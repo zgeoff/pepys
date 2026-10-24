@@ -4,10 +4,25 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+# rustls-webpki 0.103.16 fixes RUSTSEC-2026-0382 but is still inside the 7-day release gate. Bump
+# rustls-webpki once it passes the gate, and drop this entry.
+ignore = [
+  { id = "RUSTSEC-2026-0382", reason = "distrusted emSign intermediates; the host reaches S2 over plain HTTP on the local network" },
+]
 
 [licenses]
 version = 2
-allow = ["Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0", "Zlib"]
+allow = [
+  "Apache-2.0",
+  # wasmtime and its cranelift and wasm-tools crates carry the LLVM exception
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Unicode-3.0",
+  "Zlib",
+]
 confidence-threshold = 0.9
 # the list covers licenses crates are expected to bring, before any crate uses them
 unused-allowed-license = "allow"

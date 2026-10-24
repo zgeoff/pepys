@@ -63,4 +63,5 @@ not correct a label, because only the owner's corrections count as the test set 
 ## Open questions
 
 The [oRPC spike](../../../research/orpc-elysia-v2/README.md) checks whether oRPC's Elysia adapter
-supports Elysia v2, and which oRPC major version it needs.
+supports Elysia v2, and which oRPC major version it needs. The API mounts oRPC's fetch handler in an
+Elysia route, so only the adapter and the MCP parts of that spike stay open.

@@ -29,3 +29,106 @@ export interface GithubPullRequestKey {
 export type GithubPullRequestOperation =
   | { upsert: { github_pull_request: GithubPullRequestRow } }
   | { delete: { github_pull_request: GithubPullRequestKey } };
+
+declare function readGithubPullRequestLength(key: string): number;
+declare function readGithubPullRequestInto(key: string, row: Uint8Array): void;
+
+export function getGithubPullRequest(key: string): GithubPullRequestRow | undefined {
+  const length = readGithubPullRequestLength(key);
+
+  if (length < 0) {
+    return undefined;
+  }
+
+  const row = new Uint8Array(length);
+
+  readGithubPullRequestInto(key, row);
+
+  const parsed: unknown = JSON.parse(new TextDecoder().decode(row));
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+
+  if (!('id' in parsed) || !isEntityID(parsed.id)) {
+    return undefined;
+  }
+
+  if (!('number' in parsed) || typeof parsed.number !== 'number') {
+    return undefined;
+  }
+
+  if (!('repository_id' in parsed) || !isEntityID(parsed.repository_id)) {
+    return undefined;
+  }
+
+  if (!('title' in parsed) || typeof parsed.title !== 'string') {
+    return undefined;
+  }
+
+  if (!('state' in parsed) || typeof parsed.state !== 'string') {
+    return undefined;
+  }
+
+  if (!('is_draft' in parsed) || typeof parsed.is_draft !== 'boolean') {
+    return undefined;
+  }
+
+  if (!('is_merged' in parsed) || typeof parsed.is_merged !== 'boolean') {
+    return undefined;
+  }
+
+  if (!('author_id' in parsed) || (parsed.author_id !== null && !isEntityID(parsed.author_id))) {
+    return undefined;
+  }
+
+  if (!('url' in parsed) || typeof parsed.url !== 'string') {
+    return undefined;
+  }
+
+  if (!('merge_commit_sha' in parsed) || (parsed.merge_commit_sha !== null && typeof parsed.merge_commit_sha !== 'string')) {
+    return undefined;
+  }
+
+  if (!('created_at' in parsed) || typeof parsed.created_at !== 'string') {
+    return undefined;
+  }
+
+  if (!('updated_at' in parsed) || typeof parsed.updated_at !== 'string') {
+    return undefined;
+  }
+
+  if (!('closed_at' in parsed) || (parsed.closed_at !== null && typeof parsed.closed_at !== 'string')) {
+    return undefined;
+  }
+
+  if (!('merged_at' in parsed) || (parsed.merged_at !== null && typeof parsed.merged_at !== 'string')) {
+    return undefined;
+  }
+
+  if (!('payload' in parsed)) {
+    return undefined;
+  }
+
+  return {
+    id: parsed.id,
+    number: parsed.number,
+    repository_id: parsed.repository_id,
+    title: parsed.title,
+    state: parsed.state,
+    is_draft: parsed.is_draft,
+    is_merged: parsed.is_merged,
+    author_id: parsed.author_id,
+    url: parsed.url,
+    merge_commit_sha: parsed.merge_commit_sha,
+    created_at: parsed.created_at,
+    updated_at: parsed.updated_at,
+    closed_at: parsed.closed_at,
+    merged_at: parsed.merged_at,
+    payload: parsed.payload,
+  };
+}
+
+function isEntityID(value: unknown): value is EntityID {
+  return typeof value === 'string';
+}

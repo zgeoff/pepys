@@ -6,7 +6,24 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[[bin]]
+name = "pepys"
+path = "src/main.rs"
+
 [dependencies]
+clap.workspace = true
+pepys-schema.workspace = true
+s2-sdk.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+turso.workspace = true
+wasmtime.workspace = true
+wasmtime-wasi.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

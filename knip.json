@@ -3,12 +3,31 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/**/*.ts"],
-      "project": ["scripts/**/*.ts"]
+      "project": ["scripts/**/*.ts", "stack/**/*.ts"]
     },
     "packages/*": {
       "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"]
+    },
+    "packages/source-github": {
+      "entry": [
+        "src/**/*.test.ts",
+        "src/generated/**/*.ts",
+        "src/consumers/*.ts",
+        "src/ingest/serve-ingest.ts"
+      ]
+    },
+    "packages/api": {
+      "entry": ["src/**/*.test.ts", "src/serve.ts"]
+    },
+    "packages/kysely-turso": {
+      "entry": ["src/**/*.test.ts"]
     }
   },
   "ignoreWorkspaces": ["research/**"],
-  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/skill-gate"]
+  "ignoreDependencies": [
+    "@stylistic/eslint-plugin",
+    "@zgeoff/skill-gate",
+    "@scriptc/runtime-wasm32-wasi",
+    "scriptc"
+  ]
 }

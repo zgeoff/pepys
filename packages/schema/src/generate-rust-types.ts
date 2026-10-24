@@ -13,6 +13,34 @@ export function generateRustTypes(consumers: readonly ConsumerDeclaration[]): st
       "    pub into: &'static str,",
       '}',
     ].join('\n'),
+    [
+      '#[derive(Debug, Clone, Copy, PartialEq, Eq)]',
+      'pub enum ColumnKind {',
+      '    Text,',
+      '    Integer,',
+      '    Real,',
+      '    Boolean,',
+      '    Json,',
+      '    EntityId,',
+      '    Timestamp,',
+      '}',
+    ].join('\n'),
+    [
+      '#[derive(Debug, Clone, Copy, PartialEq, Eq)]',
+      'pub struct ColumnInfo {',
+      "    pub name: &'static str,",
+      '    pub kind: ColumnKind,',
+      '    pub nullable: bool,',
+      '}',
+    ].join('\n'),
+    [
+      '#[derive(Debug, Clone, Copy, PartialEq, Eq)]',
+      'pub struct TableInfo {',
+      "    pub name: &'static str,",
+      "    pub columns: &'static [ColumnInfo],",
+      "    pub primary_key: &'static [&'static str],",
+      '}',
+    ].join('\n'),
     ...consumers.flatMap((consumer) => formatConsumer(consumer)),
   ];
 
@@ -40,6 +68,7 @@ function formatConsumer(consumer: ConsumerDeclaration): string[] {
       `    Delete(${consumerName}Delete),`,
       '}',
     ].join('\n'),
+    formatTables(consumer),
     formatReads(consumer),
   ];
 }
@@ -154,6 +183,58 @@ function formatTableEnum(
   ]);
 
   return [derives, `pub enum ${enumName} {`, ...variants, '}'].join('\n');
+}
+
+function formatTables(consumer: ConsumerDeclaration): string {
+  const tables = Object.entries(consumer.tables);
+  const constantName = `${toSnakeCase(consumer.name).toUpperCase()}_TABLES`;
+
+  const entries = tables.flatMap(([name, table]) => [
+    'TableInfo {',
+    `    name: "${name}",`,
+    '    columns: &[',
+    ...Object.entries(table.columns).flatMap(([columnName, column]) =>
+      formatColumnInfo(columnName, column).map((line) => `        ${line}`),
+    ),
+    '    ],',
+    `    primary_key: &[${table.primaryKey.map((columnName) => `"${columnName}"`).join(', ')}],`,
+    '},',
+  ]);
+
+  // rustfmt hugs the brackets around a lone element and puts each of several on its own lines.
+  if (tables.length === 1) {
+    return [
+      `pub const ${constantName}: [TableInfo; 1] = [${entries[0]}`,
+      ...entries.slice(1, -1),
+      '}];',
+    ].join('\n');
+  }
+
+  return [
+    `pub const ${constantName}: [TableInfo; ${tables.length}] = [`,
+    ...entries.map((line) => `    ${line}`),
+    '];',
+  ].join('\n');
+}
+
+function formatColumnInfo(columnName: string, column: ColumnDeclaration): string[] {
+  const kind = match(column.kind)
+    .with('text', () => 'Text')
+    .with('integer', () => 'Integer')
+    .with('real', () => 'Real')
+    .with('boolean', () => 'Boolean')
+    .with('json', () => 'Json')
+    .with('entityID', () => 'EntityId')
+    .with('timestamp', () => 'Timestamp')
+    .exhaustive();
+
+  return [
+    'ColumnInfo {',
+    `    name: "${columnName}",`,
+    `    kind: ColumnKind::${kind},`,
+    `    nullable: ${column.nullable === true ? 'true' : 'false'},`,
+    '},',
+  ];
 }
 
 function formatReads(consumer: ConsumerDeclaration): string {

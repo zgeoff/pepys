@@ -63,4 +63,12 @@ docs/
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo nextest run` are the local Rust
   checks; `bacon` runs clippy on every save. CI also runs `cargo fmt --check`, `cargo shear`,
   `cargo deny check` and `cargo test --doc`, because nextest skips doctests.
+- `bun run consumers:build` compiles each consumer with scriptc to
+  `build/consumers/<name>/<hash>.wasm`. It needs zig 0.16.0 and wasm-tools locally, at
+  `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
+- `bun run slice:check` runs the thin slice end to end against Garage and s2-lite in Docker: a
+  signed webhook through ingest and the host to a Turso file. It needs the same two variables and
+  Docker, and CI does not run it.
+- `bun packages/api/src/serve.ts` starts the API, which serves oRPC under `/rpc` on 127.0.0.1. It
+  reads `PEPYS_STORE_DIR`, the store the host writes, and `PEPYS_API_PORT`, which defaults to 8081.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

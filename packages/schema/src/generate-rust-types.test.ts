@@ -68,6 +68,31 @@ test('it generates row structs, operation enums and read imports', () => {
         pub into: &'static str,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ColumnKind {
+        Text,
+        Integer,
+        Real,
+        Boolean,
+        Json,
+        EntityId,
+        Timestamp,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ColumnInfo {
+        pub name: &'static str,
+        pub kind: ColumnKind,
+        pub nullable: bool,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct TableInfo {
+        pub name: &'static str,
+        pub columns: &'static [ColumnInfo],
+        pub primary_key: &'static [&'static str],
+    }
+
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     pub struct TicketRow {
         pub id: String,
@@ -104,6 +129,58 @@ test('it generates row structs, operation enums and read imports', () => {
         Upsert(Box<TicketTrackerUpsert>),
         Delete(TicketTrackerDelete),
     }
+
+    pub const TICKET_TRACKER_TABLES: [TableInfo; 1] = [TableInfo {
+        name: "ticket",
+        columns: &[
+            ColumnInfo {
+                name: "id",
+                kind: ColumnKind::EntityId,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "title",
+                kind: ColumnKind::Text,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "type",
+                kind: ColumnKind::Text,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "weight",
+                kind: ColumnKind::Real,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "done",
+                kind: ColumnKind::Boolean,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "notes",
+                kind: ColumnKind::Json,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "opened_at",
+                kind: ColumnKind::Timestamp,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "owner_id",
+                kind: ColumnKind::EntityId,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "points",
+                kind: ColumnKind::Integer,
+                nullable: true,
+            },
+        ],
+        primary_key: &["id"],
+    }];
 
     pub const TICKET_TRACKER_READS: [ReadImport; 0] = [];
 
@@ -153,6 +230,46 @@ test('it generates row structs, operation enums and read imports', () => {
         Upsert(Box<TicketReportUpsert>),
         Delete(TicketReportDelete),
     }
+
+    pub const TICKET_REPORT_TABLES: [TableInfo; 2] = [
+        TableInfo {
+            name: "report",
+            columns: &[
+                ColumnInfo {
+                    name: "id",
+                    kind: ColumnKind::Text,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "ticket_count",
+                    kind: ColumnKind::Integer,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "meta",
+                    kind: ColumnKind::Json,
+                    nullable: false,
+                },
+            ],
+            primary_key: &["id"],
+        },
+        TableInfo {
+            name: "report_line",
+            columns: &[
+                ColumnInfo {
+                    name: "report_id",
+                    kind: ColumnKind::Text,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "ticket_id",
+                    kind: ColumnKind::EntityId,
+                    nullable: false,
+                },
+            ],
+            primary_key: &["report_id", "ticket_id"],
+        },
+    ];
 
     pub const TICKET_REPORT_READS: [ReadImport; 2] = [
         ReadImport {
@@ -235,6 +352,31 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         pub into: &'static str,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ColumnKind {
+        Text,
+        Integer,
+        Real,
+        Boolean,
+        Json,
+        EntityId,
+        Timestamp,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ColumnInfo {
+        pub name: &'static str,
+        pub kind: ColumnKind,
+        pub nullable: bool,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct TableInfo {
+        pub name: &'static str,
+        pub columns: &'static [ColumnInfo],
+        pub primary_key: &'static [&'static str],
+    }
+
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     pub struct TicketRow {
         pub id: String,
@@ -271,6 +413,58 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         Upsert(Box<TicketTrackerUpsert>),
         Delete(TicketTrackerDelete),
     }
+
+    pub const TICKET_TRACKER_TABLES: [TableInfo; 1] = [TableInfo {
+        name: "ticket",
+        columns: &[
+            ColumnInfo {
+                name: "id",
+                kind: ColumnKind::EntityId,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "title",
+                kind: ColumnKind::Text,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "type",
+                kind: ColumnKind::Text,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "weight",
+                kind: ColumnKind::Real,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "done",
+                kind: ColumnKind::Boolean,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "notes",
+                kind: ColumnKind::Json,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "opened_at",
+                kind: ColumnKind::Timestamp,
+                nullable: false,
+            },
+            ColumnInfo {
+                name: "owner_id",
+                kind: ColumnKind::EntityId,
+                nullable: true,
+            },
+            ColumnInfo {
+                name: "points",
+                kind: ColumnKind::Integer,
+                nullable: true,
+            },
+        ],
+        primary_key: &["id"],
+    }];
 
     pub const TICKET_TRACKER_READS: [ReadImport; 0] = [];
 
@@ -320,6 +514,46 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         Upsert(Box<TicketReportUpsert>),
         Delete(TicketReportDelete),
     }
+
+    pub const TICKET_REPORT_TABLES: [TableInfo; 2] = [
+        TableInfo {
+            name: "report",
+            columns: &[
+                ColumnInfo {
+                    name: "id",
+                    kind: ColumnKind::Text,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "ticket_count",
+                    kind: ColumnKind::Integer,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "meta",
+                    kind: ColumnKind::Json,
+                    nullable: false,
+                },
+            ],
+            primary_key: &["id"],
+        },
+        TableInfo {
+            name: "report_line",
+            columns: &[
+                ColumnInfo {
+                    name: "report_id",
+                    kind: ColumnKind::Text,
+                    nullable: false,
+                },
+                ColumnInfo {
+                    name: "ticket_id",
+                    kind: ColumnKind::EntityId,
+                    nullable: false,
+                },
+            ],
+            primary_key: &["report_id", "ticket_id"],
+        },
+    ];
 
     pub const TICKET_REPORT_READS: [ReadImport; 1] = [ReadImport {
         table: "ticket",

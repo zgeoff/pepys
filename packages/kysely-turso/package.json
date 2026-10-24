@@ -1,0 +1,11 @@
+{
+  "name": "@pepys/kysely-turso",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@tursodatabase/database": "catalog:",
+    "kysely": "catalog:",
+    "tiny-invariant": "catalog:"
+  }
+}

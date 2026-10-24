@@ -12,7 +12,7 @@
   "overrides": [
     {
       // the fact envelope names its version field `v`, and the log doc fixes that name
-      "files": ["packages/schema/src/**"],
+      "files": ["packages/*/src/**"],
       "rules": {
         "id-length": [
           "error",

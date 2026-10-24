@@ -46,8 +46,9 @@ returns all 30 rows, and a view in the main database over attached tables is ref
 
 **Cross-process reads:** a writer opened without `experimental: ["multiprocess_wal"]` locks the file
 against every second writer. With the flag in both processes, a direct read-only connection sees the
-other process's commit on its next query. An attached file sees it only after a detach and attach,
-or when a direct `multiprocess_wal` connection to the file opened in the same process first.
+other process's commit on its next query, and so does this binding beside a Rust `turso` 0.8.3
+writer with `experimental_multiprocess_wal(true)` (17 of 17). An attached file sees it only after a
+detach and attach, or when a direct `multiprocess_wal` connection to it opened in-process first.
 
 **Full-text search:** `create index doc_fts on doc using fts (body)` needs
 `experimental: ["index_method"]`. `fts_match` finds a word, a ticket key and a commit SHA, through
@@ -65,6 +66,5 @@ attach the file. Turso reopens it with every row.
 
 ## Untested
 
-- the Rust engine the host embeds, and its multiprocess WAL beside this binding's on one file
 - rusqlite on a file that holds a full-text index, and `@tursodatabase/database` 0.9.x
 - a Kysely query through a written driver, and search at the owner's volume

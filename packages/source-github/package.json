@@ -4,6 +4,12 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@pepys/schema": "workspace:*"
+    "@octokit/webhooks": "catalog:",
+    "@pepys/schema": "workspace:*",
+    "@s2-dev/streamstore": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tiny-invariant": "catalog:"
   }
 }

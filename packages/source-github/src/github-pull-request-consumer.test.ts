@@ -42,3 +42,7 @@ test('it maps the entity view to the title, URL, author and update time', () => 
     updatedAt: 'updated_at',
   });
 });
+
+test('it reads its own table, so a fact older than the stored row changes nothing', () => {
+  expect(githubPullRequestConsumer.reads).toStrictEqual(['github_pull_request']);
+});
