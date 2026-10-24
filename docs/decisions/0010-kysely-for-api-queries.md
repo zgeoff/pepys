@@ -1,6 +1,6 @@
 # 0010: The API queries with Kysely through its own Turso dialect
 
-Date: 2026-10-22
+Date: 2026-10-22 Updated: 2026-10-24
 
 ## Decision
 
@@ -18,4 +18,10 @@ reuses Kysely's SQLite pieces. The Kysely types are generated from the consumer 
 ## Why
 
 Kysely keeps the SQL visible and types it, and it builds dynamic queries well. Generating its types
-from the same declarations as the WIT and the host's Rust types keeps every language on one schema.
+from the same declarations as the module boundary's glue and the host's Rust types keeps every
+language on one schema.
+
+## Changes
+
+- 2026-10-24: the module boundary is generated glue over core-module memory, not WIT, after
+  [0022](./0022-consumers-are-core-modules.md).

@@ -9,11 +9,16 @@ produce the same output, and replay rebuilds every projection exactly.
 
 ## The contract
 
-The [host boundary spike](../../../research/host-boundary/README.md) settles the shape of the
-boundary between the host and a module: a core module or a Component Model component with a WIT
-world, how a fact goes in and the operations come out, and how a read returns a row. scriptc emits a
-WASI preview 1 core module, and a scriptc host import returns only a number, so a read that returns
-a row needs a shape the spike chooses.
+A consumer is a WASI preview 1 core module, the form scriptc emits. The host writes the fact or the
+scope into the module's exported memory, calls the consumer's export, and reads the operations back
+from memory. A scriptc host import returns only a number, so a read takes two host calls: the first
+returns the length of the row, and the second writes the row into a buffer the consumer passes.
+
+That second call relies on scriptc passing a byte buffer argument as a view of the module's own
+memory, which scriptc documents only as borrowed for the call. A scriptc that copied the buffer
+would hand the consumer an empty row, so the host's boundary tests run against every scriptc version
+before pepys moves to it. The [host boundary spike](../../../research/host-boundary/README.md)
+measured this shape against the others.
 
 A consumer reads four things from the host:
 
@@ -69,9 +74,9 @@ log.
 
 The consumer declarations are the single source for three generated artifacts: the interface of the
 module boundary, the Rust types the host uses, and the Kysely types the API queries with. A table
-cannot have one shape in TypeScript and another in Rust. The interface is a WIT world when the
-[host boundary spike](../../../research/host-boundary/README.md) picks a component, and generated
-glue for module memory when it picks a core module.
+cannot have one shape in TypeScript and another in Rust. The interface is generated glue: the host's
+Rust import and export bindings over module memory, and the consumer's TypeScript declarations of
+the read imports.
 
 ## Compiler
 
