@@ -14,7 +14,7 @@
       "@zgeoff/bun-test-extended": "0.2.1",
       "@zgeoff/checks": "0.2.4",
       "@zgeoff/commitlint-config": "0.1.0",
-      "@zgeoff/format-codemod": "0.3.1",
+      "@zgeoff/format-codemod": "0.3.2",
       "@zgeoff/oxlint-config": "0.6.4",
       "@zgeoff/skill-gate": "0.2.6",
       "@zgeoff/std": "0.3.0",
