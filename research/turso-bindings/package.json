@@ -2,5 +2,15 @@
   "name": "@pepys/spike-turso-bindings",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "check": "bun run-spike.ts",
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@tursodatabase/database": "0.8.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3"
+  }
 }
