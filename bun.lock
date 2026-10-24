@@ -6,8 +6,10 @@
       "name": "pepys",
       "devDependencies": {
         "@commitlint/cli": "catalog:",
+        "@octokit/webhooks": "catalog:",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
+        "@s2-dev/streamstore": "catalog:",
         "@scriptc/runtime-wasm32-wasi": "catalog:",
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
