@@ -72,11 +72,11 @@ log.
 
 ## One schema source
 
-The consumer declarations are the single source for three generated artifacts: the interface of the
-module boundary, the Rust types the host uses, and the Kysely types the API queries with. A table
-cannot have one shape in TypeScript and another in Rust. The interface is generated glue: the host's
-Rust import and export bindings over module memory, and the consumer's TypeScript declarations of
-the read imports.
+The consumer declarations are the single source for four generated artifacts: the interface of the
+module boundary, the Rust types the host uses, the Kysely types the API queries with, and the SQLite
+schema of each consumer file. A table cannot have one shape in TypeScript and another in Rust. The
+interface is generated glue: the host's Rust import and export bindings over module memory, and the
+consumer's TypeScript declarations of the read imports.
 
 ## Compiler
 
