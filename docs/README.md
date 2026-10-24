@@ -53,3 +53,4 @@
 - [0019: The lake is plain Parquet](./decisions/0019-plain-parquet-lake.md)
 - [0020: One API process on Elysia v2, oRPC and MCP](./decisions/0020-api-stack.md)
 - [0021: Rust tooling](./decisions/0021-rust-tooling.md)
+- [0022: Consumers are core modules that read through host-written memory](./decisions/0022-consumers-are-core-modules.md)

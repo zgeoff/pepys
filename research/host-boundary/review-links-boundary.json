@@ -1,0 +1,141 @@
+{
+  "profile_format": 1,
+  "name": "review_links",
+  "entry": "review-links-boundary.ts",
+  "emission": "llvm",
+  "abi": {
+    "prefix": "review_links_",
+    "init_symbol": "review_links_init",
+    "sink_register_symbol": "review_links_sink",
+    "callback_register_symbol": "review_links_callback"
+  },
+  "callbacks": [
+    {
+      "name": "readReviewLength",
+      "params": ["string"],
+      "returns": "f64"
+    },
+    {
+      "name": "readReviewInto",
+      "params": ["string", "bytes"],
+      "returns": "void"
+    }
+  ],
+  "exports": [
+    {
+      "export": "deriveFromInput",
+      "symbol": "review_links_from_input",
+      "params": ["string"],
+      "returns": "string"
+    },
+    {
+      "export": "deriveWithReads",
+      "symbol": "review_links_with_reads",
+      "params": ["string"],
+      "returns": "string"
+    }
+  ],
+  "sidecar": {
+    "wire_version": 1,
+    "abi_version": 1,
+    "snapshot_format": 1,
+    "build_id_symbol": "review_links_build_id",
+    "abi_version_symbol": "review_links_abi_version",
+    "model": "ReviewLinkModel",
+    "msg": "ReviewLinkMessage"
+  },
+  "determinism": {
+    "fences": [
+      {
+        "prefix": "stdlib.date."
+      },
+      {
+        "prefix": "node-builtin.perf_hooks.performance."
+      },
+      {
+        "prefix": "node-builtin.process."
+      },
+      {
+        "prefix": "node-builtin.crypto.random"
+      },
+      {
+        "prefix": "node-builtin.fs."
+      },
+      {
+        "id": "stdlib.math.random"
+      },
+      {
+        "id": "stdlib.file"
+      },
+      {
+        "id": "node-builtin.tls.getCACertificates"
+      },
+      {
+        "id": "node-builtin.tls.rootCertificates"
+      },
+      {
+        "id": "node-builtin.tls.setDefaultCACertificates"
+      },
+      {
+        "id": "node-builtin.os.arch"
+      },
+      {
+        "id": "node-builtin.os.availableParallelism"
+      },
+      {
+        "id": "node-builtin.os.constants"
+      },
+      {
+        "id": "node-builtin.os.cpus"
+      },
+      {
+        "id": "node-builtin.os.endianness"
+      },
+      {
+        "id": "node-builtin.os.freemem"
+      },
+      {
+        "id": "node-builtin.os.getPriority"
+      },
+      {
+        "id": "node-builtin.os.homedir"
+      },
+      {
+        "id": "node-builtin.os.hostname"
+      },
+      {
+        "id": "node-builtin.os.loadavg"
+      },
+      {
+        "id": "node-builtin.os.machine"
+      },
+      {
+        "id": "node-builtin.os.networkInterfaces"
+      },
+      {
+        "id": "node-builtin.os.platform"
+      },
+      {
+        "id": "node-builtin.os.release"
+      },
+      {
+        "id": "node-builtin.os.tmpdir"
+      },
+      {
+        "id": "node-builtin.os.totalmem"
+      },
+      {
+        "id": "node-builtin.os.type"
+      },
+      {
+        "id": "node-builtin.os.uptime"
+      },
+      {
+        "id": "node-builtin.os.userInfo"
+      },
+      {
+        "id": "node-builtin.os.version"
+      }
+    ]
+  }
+}
