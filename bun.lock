@@ -6,6 +6,8 @@
       "name": "pepys",
       "devDependencies": {
         "@commitlint/cli": "catalog:",
+        "@pepys/schema": "workspace:*",
+        "@pepys/source-github": "workspace:*",
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
         "@types/bun": "catalog:",
@@ -20,10 +22,29 @@
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
+        "tiny-invariant": "catalog:",
         "tombi": "catalog:",
         "tslib": "catalog:",
         "tsrs": "catalog:",
         "typescript": "catalog:",
+      },
+    },
+    "packages/schema": {
+      "name": "@pepys/schema",
+      "dependencies": {
+        "@zgeoff/std": "catalog:",
+        "ts-pattern": "catalog:",
+        "type-fest": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "tiny-invariant": "catalog:",
+      },
+    },
+    "packages/source-github": {
+      "name": "@pepys/source-github",
+      "dependencies": {
+        "@pepys/schema": "workspace:*",
       },
     },
     "research/durable-streams-conformance": {
@@ -108,15 +129,20 @@
     "@zgeoff/format-codemod": "0.3.1",
     "@zgeoff/oxlint-config": "0.6.4",
     "@zgeoff/skill-gate": "0.2.6",
+    "@zgeoff/std": "0.3.0",
     "knip": "6.41.0",
     "lefthook": "2.2.2",
     "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
     "oxlint-tsgolint": "7.0.2004",
+    "tiny-invariant": "1.3.3",
     "tombi": "1.8.5",
+    "ts-pattern": "5.9.2",
     "tslib": "2.8.1",
     "tsrs": "0.15.0-ts7.1.0-dev.20260929",
+    "type-fest": "5.10.0",
     "typescript": "7.0.2",
+    "zod": "4.6.7",
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -377,6 +403,10 @@
 
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.88.0", "", { "os": "win32", "cpu": "x64" }, "sha512-3Sz6rVWe8Dy+ufsXurFN1GX2dX43F/lQMSLelK9gFjiba7nHvLlqlhR5cHlWVnCpSqUY1hN9pyCX9XToe6ve6g=="],
 
+    "@pepys/schema": ["@pepys/schema@workspace:packages/schema"],
+
+    "@pepys/source-github": ["@pepys/source-github@workspace:packages/source-github"],
+
     "@pepys/spike-durable-streams-conformance": ["@pepys/spike-durable-streams-conformance@workspace:research/durable-streams-conformance"],
 
     "@pepys/spike-host-boundary": ["@pepys/spike-host-boundary@workspace:research/host-boundary"],
@@ -534,6 +564,8 @@
     "@zgeoff/oxlint-config": ["@zgeoff/oxlint-config@0.6.4", "", { "dependencies": { "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "oxlint": ">=1.78.0" } }, "sha512-vcz0BcMphdxLXk2zVSPPd2wTzoQgR10BKF29kLNmAL3H86dT+P5p7foUCoymC6kyVkISpFLEYudCXb6shVBZmg=="],
 
     "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.6", "", {}, "sha512-9ccggI/DFRZaSO1LBM4kOB1vk1AoutU65x79tBk7j15f+bNxCNxyMG+JPIVtpVHDx7EPlJiMrCX5NuMJBG+6SQ=="],
+
+    "@zgeoff/std": ["@zgeoff/std@0.3.0", "", {}, "sha512-I9LBwkMr8uuNCAQ9/tIoObp09b8ixnNDp1f85T9Mm1Ox10nWbVrbiqoWkf+hATCt4iyYxvYIVXl4eUFLwZaU/g=="],
 
     "acorn": ["acorn@8.19.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="],
 
@@ -791,6 +823,8 @@
 
     "tagged-tag": ["tagged-tag@1.0.0", "", {}, "sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng=="],
 
+    "tiny-invariant": ["tiny-invariant@1.3.3", "", {}, "sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg=="],
+
     "tinyexec": ["tinyexec@1.3.1", "", {}, "sha512-GCvB3aoys96IuDFBMcTB46JOR6mdMtAToqwiW8JlWhsoh1mhHi/xn9ss/Dg7N555GiJyEt2qzoG/NHCwM6h1EA=="],
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
@@ -799,7 +833,7 @@
 
     "tombi": ["tombi@1.8.5", "", { "optionalDependencies": { "@tombi-toml/cli-darwin-arm64": "1.8.5", "@tombi-toml/cli-darwin-x64": "1.8.5", "@tombi-toml/cli-linux-arm64": "1.8.5", "@tombi-toml/cli-linux-arm64-musl": "1.8.5", "@tombi-toml/cli-linux-x64": "1.8.5", "@tombi-toml/cli-linux-x64-musl": "1.8.5", "@tombi-toml/cli-sunos-x64": "1.8.5", "@tombi-toml/cli-win32-arm64": "1.8.5", "@tombi-toml/cli-win32-x64": "1.8.5" }, "bin": { "tombi": "bin/tombi" } }, "sha512-/DRdcabpxX5ROxq//b8CMqIoZWlyAxhF9s5xxpQ/9JcTEtj/9/BD/VSSUcDiNbckp72XCJlM2mRSnsq6pQJ5uA=="],
 
-    "ts-pattern": ["ts-pattern@5.9.0", "", {}, "sha512-6s5V71mX8qBUmlgbrfL33xDUwO0fq48rxAu2LBE11WBeGdpCPOsXksQbZJHvHwhrd3QjUusd3mAOM5Gg0mFBLg=="],
+    "ts-pattern": ["ts-pattern@5.9.2", "", {}, "sha512-qAf+7M7Jjk7uebZeIo9uEzyintfuRtgHdzM9dqxRKcMi2dt76Ec+FH2wW3bnU9TuGLkZIJLoLs7cCQnU7Tu8ig=="],
 
     "tslib": ["tslib@2.8.1", "", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
 
@@ -844,6 +878,8 @@
     "@eslint-community/eslint-utils/eslint-visitor-keys": ["eslint-visitor-keys@3.4.3", "", {}, "sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
 
     "@types/node/undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
+
+    "@zgeoff/checks/ts-pattern": ["ts-pattern@5.9.0", "", {}, "sha512-6s5V71mX8qBUmlgbrfL33xDUwO0fq48rxAu2LBE11WBeGdpCPOsXksQbZJHvHwhrd3QjUusd3mAOM5Gg0mFBLg=="],
 
     "cliui/string-width": ["string-width@7.2.0", "", { "dependencies": { "emoji-regex": "^10.3.0", "get-east-asian-width": "^1.0.0", "strip-ansi": "^7.1.0" } }, "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ=="],
 

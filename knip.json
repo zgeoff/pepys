@@ -6,7 +6,7 @@
       "project": ["scripts/**/*.ts"]
     },
     "packages/*": {
-      "entry": ["src/**/*.test.ts"]
+      "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"]
     }
   },
   "ignoreWorkspaces": ["research/**"],

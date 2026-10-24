@@ -1,0 +1,15 @@
+{
+  "name": "@pepys/schema",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@zgeoff/std": "catalog:",
+    "ts-pattern": "catalog:",
+    "type-fest": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tiny-invariant": "catalog:"
+  }
+}

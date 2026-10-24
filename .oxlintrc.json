@@ -11,6 +11,16 @@
   },
   "overrides": [
     {
+      // the fact envelope names its version field `v`, and the log doc fixes that name
+      "files": ["packages/schema/src/**"],
+      "rules": {
+        "id-length": [
+          "error",
+          { "min": 2, "exceptions": ["x", "y", "z", "$", "_", "v"], "checkGeneric": false }
+        ]
+      }
+    },
+    {
       // a spike is throwaway, so product code never depends on one
       "files": ["packages/**"],
       "rules": {
@@ -28,5 +38,6 @@
       }
     }
   ],
-  "ignorePatterns": [".claude/**", "docs/design/**"]
+  // generated files are written by the schema generators, so a lint fix would be overwritten
+  "ignorePatterns": [".claude/**", "docs/design/**", "packages/*/src/generated/**"]
 }
