@@ -50,7 +50,10 @@
         "@octokit/webhooks": "catalog:",
         "@pepys/schema": "workspace:*",
         "@s2-dev/streamstore": "catalog:",
-        "@zgeoff/std": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "tiny-invariant": "catalog:",
       },
     },
     "research/durable-streams-conformance": {

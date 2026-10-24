@@ -7,8 +7,21 @@
     },
     "packages/*": {
       "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"]
+    },
+    "packages/source-github": {
+      "entry": [
+        "src/**/*.test.ts",
+        "src/generated/**/*.ts",
+        "src/consumers/*.ts",
+        "src/ingest/serve-ingest.ts"
+      ]
     }
   },
   "ignoreWorkspaces": ["research/**"],
-  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/skill-gate"]
+  "ignoreDependencies": [
+    "@stylistic/eslint-plugin",
+    "@zgeoff/skill-gate",
+    "@scriptc/runtime-wasm32-wasi",
+    "scriptc"
+  ]
 }
