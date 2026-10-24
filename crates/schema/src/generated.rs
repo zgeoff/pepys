@@ -50,6 +50,88 @@ pub enum GithubPullRequestOperation {
     Delete(GithubPullRequestDelete),
 }
 
+pub const GITHUB_PULL_REQUEST_TABLES: [TableInfo; 1] = [TableInfo {
+    name: "github_pull_request",
+    columns: &[
+        ColumnInfo {
+            name: "id",
+            kind: ColumnKind::EntityId,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "number",
+            kind: ColumnKind::Integer,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "repository_id",
+            kind: ColumnKind::EntityId,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "title",
+            kind: ColumnKind::Text,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "state",
+            kind: ColumnKind::Text,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "is_draft",
+            kind: ColumnKind::Boolean,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "is_merged",
+            kind: ColumnKind::Boolean,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "author_id",
+            kind: ColumnKind::EntityId,
+            nullable: true,
+        },
+        ColumnInfo {
+            name: "url",
+            kind: ColumnKind::Text,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "merge_commit_sha",
+            kind: ColumnKind::Text,
+            nullable: true,
+        },
+        ColumnInfo {
+            name: "created_at",
+            kind: ColumnKind::Timestamp,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "updated_at",
+            kind: ColumnKind::Timestamp,
+            nullable: false,
+        },
+        ColumnInfo {
+            name: "closed_at",
+            kind: ColumnKind::Timestamp,
+            nullable: true,
+        },
+        ColumnInfo {
+            name: "merged_at",
+            kind: ColumnKind::Timestamp,
+            nullable: true,
+        },
+        ColumnInfo {
+            name: "payload",
+            kind: ColumnKind::Json,
+            nullable: false,
+        },
+    ],
+    primary_key: &["id"],
+}];
+
 pub const GITHUB_PULL_REQUEST_READS: [ReadImport; 1] = [ReadImport {
     table: "github_pull_request",
     length: "readGithubPullRequestLength",
