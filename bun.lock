@@ -60,9 +60,6 @@
         "@tursodatabase/database": "catalog:",
         "kysely": "catalog:",
       },
-      "devDependencies": {
-        "tiny-invariant": "catalog:",
-      },
     },
     "packages/schema": {
       "name": "@pepys/schema",

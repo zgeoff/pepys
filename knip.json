@@ -15,6 +15,12 @@
         "src/consumers/*.ts",
         "src/ingest/serve-ingest.ts"
       ]
+    },
+    "packages/api": {
+      "entry": ["src/**/*.test.ts", "src/serve.ts"]
+    },
+    "packages/kysely-turso": {
+      "entry": ["src/**/*.test.ts"]
     }
   },
   "ignoreWorkspaces": ["research/**"],
