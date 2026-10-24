@@ -1,6 +1,7 @@
-import type { InferSchemaInput, InferSchemaOutput, Schema } from '@orpc/server';
+import type { InferSchemaInput, InferSchemaOutput, RouterClient, Schema } from '@orpc/server';
 import type { ConsumerDeclaration, DB, Result } from '@pepys/schema';
 import type { Kysely } from 'kysely';
+import type { createRouter } from './create-router.ts';
 
 interface EntityViewRow {
   id: string;
@@ -41,3 +42,5 @@ export interface RegisteredQuery<
     input: InferSchemaOutput<Input>,
   ) => Promise<Result<InferSchemaInput<Output>, QueryFailure>>;
 }
+
+export type APIClient = RouterClient<ReturnType<typeof createRouter>>;

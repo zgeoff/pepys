@@ -4,12 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import type { RouterClient } from '@orpc/server';
 import { githubPullRequestConsumer } from '@pepys/source-github';
 import { createApp } from './create-app.ts';
-import type { createRouter } from './create-router.ts';
 import { createStoreReader } from './create-store-reader.ts';
 import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
+import type { APIClient } from './types.ts';
 
 async function setupTest() {
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-api-'));
@@ -30,7 +29,7 @@ async function setupTest() {
     fetch: (request) => app.handle(request),
   });
 
-  const client: RouterClient<ReturnType<typeof createRouter>> = createORPCClient(link);
+  const client: APIClient = createORPCClient(link);
 
   return { consumerDirectory: join(storeDirectory, 'github_pull_request'), client };
 }

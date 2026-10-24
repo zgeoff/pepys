@@ -5,6 +5,9 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
+import { createORPCClient } from '@orpc/client';
+import { RPCLink } from '@orpc/client/fetch';
+import type { APIClient } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
 import { connect } from '@tursodatabase/database';
 import type { Database } from '@tursodatabase/database';
@@ -225,6 +228,53 @@ async function runSlice(stack: RunningStack, modulePath: string): Promise<void> 
   if (!secondUp.includes('no swap')) {
     throw new Error(`expected no swap from the second up, got: ${secondUp}`);
   }
+
+  await checkAPI(hostEnvironment, synchronized, stack.stop);
+}
+
+async function checkAPI(
+  environment: Record<string, string | undefined>,
+  delivery: Delivery,
+  stop: AbortSignal,
+): Promise<void> {
+  const apiPort = readFreePort();
+
+  const api = Bun.spawn(['bun', 'packages/api/src/serve.ts'], {
+    cwd: root,
+    env: { ...environment, PEPYS_API_PORT: String(apiPort) },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  children.push(api);
+
+  const rpcURL = `http://127.0.0.1:${apiPort}/rpc`;
+
+  await waitForAPI(rpcURL, stop);
+
+  const client: APIClient = createORPCClient(new RPCLink({ url: rpcURL }));
+
+  const result = await client.get_entity({ id: 'github:pr:1874433021' });
+
+  assertEqual(result, readExpectedEntity(delivery), 'the get_entity result');
+}
+
+async function waitForAPI(url: string, stop: AbortSignal): Promise<void> {
+  const deadline = Date.now() + 30_000;
+
+  while (Date.now() < deadline) {
+    stop.throwIfAborted();
+
+    const response = await fetch(url).catch(() => null);
+
+    if (response !== null) {
+      return;
+    }
+
+    await Bun.sleep(100);
+  }
+
+  throw new Error('the API did not answer before the deadline');
 }
 
 interface Delivery {
@@ -416,6 +466,26 @@ function readExpectedRow(delivery: Delivery): unknown {
     closed_at: null,
     merged_at: null,
     payload: body.pull_request,
+  };
+}
+
+function readExpectedEntity(delivery: Delivery): unknown {
+  const row = readExpectedRow(delivery);
+
+  if (typeof row !== 'object' || row === null) {
+    throw new Error('the expected row is not an object');
+  }
+
+  return {
+    entity: {
+      id: 'github:pr:1874433021',
+      kind: 'pr',
+      title: delivery.title,
+      url: 'https://github.example/acme/harbour/pull/12',
+      actor: 'github:user:4401',
+      updated_at: delivery.updatedAt,
+    },
+    row: { ...row, is_draft: false, is_merged: false },
   };
 }
 
