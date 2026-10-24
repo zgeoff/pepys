@@ -22,5 +22,7 @@ function verbs. This skill holds only what pepys adds to it, and it never relaxe
 
 - Brand every ID with type-fest `Tagged`, and build one with `toTagged` from `@zgeoff/std`. A bare
   `string` never stands for an ID.
+- Consumer code is the exception: scriptc refuses a type-fest import, even a type-only one, so a
+  consumer brands IDs with a local brand type.
 - Write an ID string as `<source>:<kind>:<id>`, such as `github:pr:1874433021`. The source and the
   kind are lowercase, and the last part is the source's own database ID.

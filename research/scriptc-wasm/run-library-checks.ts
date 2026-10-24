@@ -17,6 +17,7 @@ const profilePath = join(import.meta.dir, 'review-links-library.json');
 
 export interface LibraryReport extends CheckReport {
   modulePath: string | undefined;
+  isDeterministic: boolean | undefined;
 }
 
 export function runLibraryChecks(context: SpikeContext): LibraryReport {
@@ -27,7 +28,7 @@ export function runLibraryChecks(context: SpikeContext): LibraryReport {
   if (build.exitCode !== 0) {
     lines.push(`library build failed:\n${build.stdout}${build.stderr}`);
 
-    return { isPassing: false, lines, modulePath: undefined };
+    return { isPassing: false, lines, modulePath: undefined, isDeterministic: undefined };
   }
 
   const text = runCommand([context.tools.wasmTools, 'print', modulePath]).stdout;
@@ -83,6 +84,7 @@ export function runLibraryChecks(context: SpikeContext): LibraryReport {
     isPassing: isEveryRunEqual && isDeterministic === true && fenceProbe.isPassing,
     lines,
     modulePath,
+    isDeterministic,
   };
 }
 

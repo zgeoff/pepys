@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { buildReviewLinks } from './build-review-links.ts';
 import { formatMs } from './format-ms.ts';
 import { isSameRun } from './is-same-run.ts';
-import { isSpikePassing } from './is-spike-passing.ts';
 import { parseReviewLinkInput } from './parse-review-link-input.ts';
 import { deniedNamespace, redirectClockImports } from './redirect-clock-imports.ts';
 import { reviewLinkCases } from './review-link-inputs.ts';
@@ -16,6 +15,8 @@ const scriptc = join(import.meta.dir, 'node_modules/.bin/scriptc');
 
 export interface ConsumerReport extends CheckReport {
   modulePath: string | undefined;
+  imports: string[];
+  isEveryConstantClockOutputEqual: boolean;
 }
 
 export function runConsumerChecks(context: SpikeContext): ConsumerReport {
@@ -38,19 +39,24 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
   if (build.exitCode !== 0) {
     lines.push(`build failed:\n${build.stderr}`);
 
-    return { isPassing: false, lines, modulePath: undefined };
+    return {
+      isPassing: false,
+      lines,
+      modulePath: undefined,
+      imports: [],
+      isEveryConstantClockOutputEqual: false,
+    };
   }
 
   lines.push(`build: ${statSync(modulePath).size} bytes in ${formatMs(build.elapsedMs)}`);
 
   const text = runCommand([context.tools.wasmTools, 'print', modulePath]).stdout;
   const imports = collectImports(text);
-  const forbidden = imports.filter((name) => isForbiddenImport(name));
 
   lines.push(
     `module kind: ${text.startsWith('(module') ? 'core module' : 'component'}`,
     `imports (${imports.length}): ${imports.join(', ')}`,
-    `clock, random or network imports: ${forbidden.join(', ') || 'none'}`,
+    `clock import: ${imports.some((name) => name.endsWith('.clock_time_get')) ? 'yes' : 'no'}`,
   );
 
   const deniedPath = writeModule(context, 'review-links-denied', redirectClockImports(text, 'own'));
@@ -69,7 +75,8 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
 
   lines.push(`wasmtime compile: ${formatMs(compile.elapsedMs)}`);
 
-  let isEveryRunEqual = true;
+  let isEveryRealClockEqual = true;
+  let isEveryConstantClockEqual = true;
   let trappedRuns = 0;
 
   for (const testCase of reviewLinkCases) {
@@ -96,13 +103,15 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
     );
 
     const hasTrapped = trapped.stderr.includes('wasm trap');
-    const isEqual = isSameRun(bun, wasmtime) && isSameRun(bun, refused) && isSameRun(bun, zero);
+    const isConstantClockEqual = isSameRun(bun, refused) && isSameRun(bun, zero);
+    const isEqual = isSameRun(bun, wasmtime) && isConstantClockEqual;
 
     if (hasTrapped) {
       trappedRuns += 1;
     }
 
-    isEveryRunEqual &&= isEqual;
+    isEveryRealClockEqual &&= isSameRun(bun, wasmtime);
+    isEveryConstantClockEqual &&= isConstantClockEqual;
 
     lines.push(
       [
@@ -117,26 +126,20 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
     );
   }
 
-  const hasPassed = isSpikePassing({
-    forbiddenImports: forbidden,
-    isEveryOutputEqual: isEveryRunEqual,
-  });
-
   // The trap count is an observation: a module with no clock import never calls the trapping clock.
-  const withoutClock = forbidden.filter((name) => !name.endsWith('.clock_time_get'));
-
   lines.push(
     `trapping clock: ${trappedRuns} of ${reviewLinkCases.length} runs trapped`,
-    `operation lists equal on every input, under the ENOSYS and the zero clock too: ${isEveryRunEqual ? 'yes' : 'no'}`,
-    `passes when: ${hasPassed ? 'pass' : 'fail'}`,
-    `passes when, for the same evidence without the clock import: ${isSpikePassing({ forbiddenImports: withoutClock, isEveryOutputEqual: isEveryRunEqual }) ? 'pass' : 'fail'}`,
+    `output equals Bun on every input with the real clock: ${isEveryRealClockEqual ? 'yes' : 'no'}`,
+    `output equals Bun on every input with the ENOSYS and the zero clock: ${isEveryConstantClockEqual ? 'yes' : 'no'}`,
   );
 
-  const isVerdictSound = isVerdictSelfCheckPassing();
-
-  lines.push(`verdict self-check on fixed evidence: ${isVerdictSound ? 'pass' : 'fail'}`);
-
-  return { isPassing: hasPassed && isVerdictSound, lines, modulePath };
+  return {
+    isPassing: isEveryRealClockEqual,
+    lines,
+    modulePath,
+    imports,
+    isEveryConstantClockOutputEqual: isEveryConstantClockEqual,
+  };
 }
 
 const importPattern = /^\s*\(import "(?<namespace>[^"]+)" "(?<name>[^"]+)"/gmu;
@@ -145,12 +148,6 @@ function collectImports(text: string): string[] {
   return [...text.matchAll(importPattern)].map(
     (match) => `${match.groups?.['namespace'] ?? ''}.${match.groups?.['name'] ?? ''}`,
   );
-}
-
-const forbiddenImportPattern = /\.(?:clock_|random_|sock_|poll_oneoff$)/u;
-
-function isForbiddenImport(name: string): boolean {
-  return forbiddenImportPattern.test(name);
 }
 
 function writeModule(context: SpikeContext, name: string, text: string): string {
@@ -188,14 +185,4 @@ function timeInProcess(stdin: string): number {
   }
 
   return performance.now() - startMs;
-}
-
-function isVerdictSelfCheckPassing(): boolean {
-  const clock = ['wasi_snapshot_preview1.clock_time_get'];
-
-  return (
-    isSpikePassing({ forbiddenImports: [], isEveryOutputEqual: true }) &&
-    !isSpikePassing({ forbiddenImports: clock, isEveryOutputEqual: true }) &&
-    !isSpikePassing({ forbiddenImports: [], isEveryOutputEqual: false })
-  );
 }
