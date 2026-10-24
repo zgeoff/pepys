@@ -1,7 +1,8 @@
 import { realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createTursoDialect } from '@pepys/kysely-turso';
-import { connect } from '@tursodatabase/database';
+import type { Result } from '@pepys/schema';
+import type { Database } from '@tursodatabase/database';
 import { Kysely } from 'kysely';
 import type { Transaction } from 'kysely';
 import type { ConsumerDB, StoreReader } from './types.ts';
@@ -13,16 +14,25 @@ interface OpenConsumer {
   isRetired: boolean;
 }
 
-export function createStoreReader(storeDirectory: string): StoreReader {
+interface StoreReaderOptions {
+  storeDirectory: string;
+  openDatabase: (path: string) => Promise<Database>;
+}
+
+export function createStoreReader(options: StoreReaderOptions): StoreReader {
   const open = new Map<string, OpenConsumer>();
   const retired = new Set<OpenConsumer>();
 
-  const withConsumer = async <Result>(
+  const withConsumer = async <Value>(
     consumerName: string,
-    work: (transaction: Transaction<ConsumerDB>) => Promise<Result>,
-  ): Promise<Result> => {
+    work: (transaction: Transaction<ConsumerDB>) => Promise<Value>,
+  ): Promise<Result<Value, { reason: 'no-current-version' }>> => {
     // the link swings to a new version directory when `pepys up` swaps, and the old file stays
-    const target = await realpath(join(storeDirectory, consumerName, 'current'));
+    const target = await readCurrentTarget(join(options.storeDirectory, consumerName, 'current'));
+
+    if (target === null) {
+      return { ok: false, failure: { reason: 'no-current-version' } };
+    }
 
     const opened = openConsumer(consumerName, target);
     const consumer = opened.consumer;
@@ -35,7 +45,7 @@ export function createStoreReader(storeDirectory: string): StoreReader {
 
     try {
       // one transaction keeps every read of a call on one connection and one snapshot
-      return await consumer.database.transaction().execute(work);
+      return { ok: true, value: await consumer.database.transaction().execute(work) };
     } finally {
       consumer.readers -= 1;
 
@@ -57,11 +67,7 @@ export function createStoreReader(storeDirectory: string): StoreReader {
       target,
       database: new Kysely<ConsumerDB>({
         dialect: createTursoDialect({
-          database: () =>
-            connect(join(target, 'consumer.db'), {
-              readonly: true,
-              experimental: ['multiprocess_wal'],
-            }),
+          database: () => options.openDatabase(join(target, 'consumer.db')),
         }),
       }),
       readers: 0,
@@ -98,4 +104,20 @@ export function createStoreReader(storeDirectory: string): StoreReader {
   };
 
   return { withConsumer, close };
+}
+
+async function readCurrentTarget(currentLink: string): Promise<string | null> {
+  try {
+    return await realpath(currentLink);
+  } catch (error: unknown) {
+    if (isMissingFileError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
 }

@@ -43,8 +43,7 @@ test('it writes a consumer file holding the row and the entity view', async () =
 
   onTestFinished(() => database.close());
 
-  const statement = await database.prepare('select id, kind, title from entity');
-  const rows = await statement.all();
+  const rows: unknown = await database.all('select id, kind, title from entity');
 
   expect(rows).toStrictEqual([{ id: 'github:pr:5', kind: 'pr', title: 'Chart the shoals' }]);
 });

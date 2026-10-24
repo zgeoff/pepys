@@ -1,3 +1,4 @@
+import { makeShutdownHandler } from '@pepys/schema';
 import { createS2Stream } from './create-s2-stream.ts';
 import { makeFactAppender } from './make-fact-appender.ts';
 import { makeWebhookReceiver } from './make-webhook-receiver.ts';
@@ -30,14 +31,16 @@ const server = Bun.serve({
 
 console.log(`ingest listening on ${server.port}`);
 
+const shutdown = makeShutdownHandler({
+  stop: () => server.stop(),
+  logError: (message, error) => {
+    console.error(message, error);
+  },
+  exit: (code) => process.exit(code),
+});
+
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     void shutdown();
   });
-}
-
-async function shutdown(): Promise<void> {
-  await server.stop();
-
-  process.exit(0);
 }

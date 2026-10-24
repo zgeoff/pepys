@@ -4,13 +4,14 @@ import { getEntityQuery } from './get-entity-query.ts';
 import type { QueryContext, RegisteredQuery } from './types.ts';
 
 export function createRouter() {
-  return { get_entity: registerQuery(getEntityQuery) };
+  return { [getEntityQuery.name]: registerQuery(getEntityQuery) };
 }
 
 function registerQuery<
+  Name extends string,
   Input extends Schema<unknown, unknown>,
   Output extends Schema<unknown, unknown>,
->(query: RegisteredQuery<Input, Output>) {
+>(query: RegisteredQuery<Name, Input, Output>) {
   return os
     .$context<QueryContext>()
     .route({ summary: query.name, description: query.description })

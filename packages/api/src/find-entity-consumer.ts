@@ -1,4 +1,6 @@
+import { parseStreamName } from '@pepys/schema';
 import type { ConsumerDeclaration, EntityIDParts, EntityViewDeclaration } from '@pepys/schema';
+import invariant from 'tiny-invariant';
 
 export interface EntityConsumer {
   consumer: ConsumerDeclaration;
@@ -21,5 +23,11 @@ export function findEntityConsumer(
 }
 
 function isFromSource(consumer: ConsumerDeclaration, source: string): boolean {
-  return consumer.streams.some((stream) => stream.split('.')[1] === source);
+  return consumer.streams.some((stream) => {
+    const parsed = parseStreamName(stream);
+
+    invariant(parsed.ok, `${consumer.name} declares a stream named facts.<source>.<family>`);
+
+    return parsed.value.source === source;
+  });
 }

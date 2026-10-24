@@ -8,6 +8,7 @@ import { githubPullRequestConsumer } from '@pepys/source-github';
 import { createApp } from './create-app.ts';
 import { createStoreReader } from './create-store-reader.ts';
 import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
+import { openConsumerDatabase } from './open-consumer-database.ts';
 import type { APIClient } from './types.ts';
 
 async function setupTest() {
@@ -15,7 +16,7 @@ async function setupTest() {
 
   onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
 
-  const store = createStoreReader(storeDirectory);
+  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
 
   onTestFinished(() => store.close());
 
@@ -130,6 +131,14 @@ test('it answers NOT_FOUND for an entity kind no consumer serves', async () => {
   const ctx = await setupTest();
 
   expect(ctx.client.get_entity({ id: 'github:issue:5' })).rejects.toMatchObject({
+    code: 'NOT_FOUND',
+  });
+});
+
+test('it answers NOT_FOUND while the consumer has no current version', async () => {
+  const ctx = await setupTest();
+
+  expect(ctx.client.get_entity({ id: 'github:pr:5' })).rejects.toMatchObject({
     code: 'NOT_FOUND',
   });
 });

@@ -15,10 +15,10 @@ interface EntityViewRow {
 export type ConsumerDB = DB & { entity: EntityViewRow };
 
 export interface StoreReader {
-  withConsumer: <Result>(
+  withConsumer: <Value>(
     consumerName: string,
-    work: (transaction: Transaction<ConsumerDB>) => Promise<Result>,
-  ) => Promise<Result>;
+    work: (transaction: Transaction<ConsumerDB>) => Promise<Value>,
+  ) => Promise<Result<Value, { reason: 'no-current-version' }>>;
   close: () => Promise<void>;
 }
 
@@ -33,10 +33,11 @@ interface QueryFailure {
 }
 
 export interface RegisteredQuery<
+  Name extends string,
   Input extends Schema<unknown, unknown>,
   Output extends Schema<unknown, unknown>,
 > {
-  name: string;
+  name: Name;
   description: string;
   input: Input;
   output: Output;

@@ -38,7 +38,7 @@ export const getEntityQuery = defineQuery({
     "Returns one entity by its ID, such as github:pr:1874433021: its row in the owning consumer's entity view, and its full row.",
   input: z.object({ id: entityIDSchema }),
   output: z.object({ entity: entitySchema, row: rowSchema }),
-  run: (context, input) => {
+  run: async (context, input) => {
     const notFound = {
       ok: false,
       failure: { code: 'NOT_FOUND', message: `no entity ${input.id.text}` },
@@ -47,10 +47,10 @@ export const getEntityQuery = defineQuery({
     const found = findEntityConsumer(context.consumers, input.id.parts);
 
     if (found === undefined) {
-      return Promise.resolve(notFound);
+      return notFound;
     }
 
-    return context.store.withConsumer(found.consumer.name, async (transaction) => {
+    const read = await context.store.withConsumer(found.consumer.name, async (transaction) => {
       const entity = await transaction
         .selectFrom('entity')
         .selectAll()
@@ -75,7 +75,9 @@ export const getEntityQuery = defineQuery({
         'an entity view row has a table row',
       );
 
-      return { ok: true, value: { entity, row: buildEntityRow(declaration, stored) } };
+      return { ok: true, value: { entity, row: buildEntityRow(declaration, stored) } } as const;
     });
+
+    return read.ok ? read.value : notFound;
   },
 });

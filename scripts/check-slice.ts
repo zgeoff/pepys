@@ -526,7 +526,7 @@ function assertEqual(actual: unknown, expected: unknown, what: string): void {
 }
 
 async function queryAll(database: Database, sql: string): Promise<unknown[]> {
-  const statement = await database.prepare(sql);
+  const rows: unknown[] = await database.all(sql);
 
-  return statement.all();
+  return rows;
 }
