@@ -101,6 +101,10 @@ async fn write_batch(
     let mut changes: Vec<Value> = Vec::new();
 
     for fact in facts {
+        if !claim_fact(&store.connection, &fact.body).await? {
+            continue;
+        }
+
         let output = runner.apply_fact(&fact.body, Arc::clone(&rows))?;
         let operations = parse_operations(spec, &output)?;
 
@@ -133,6 +137,27 @@ async fn write_batch(
     }
 
     Ok(())
+}
+
+// A log can hold one fact twice, when an append is retried. The fact ID is recorded in the
+// batch's transaction, so a redelivery never runs again and cannot reverse a later update. A body
+// with no ID cannot repeat, so it always runs.
+async fn claim_fact(connection: &Connection, body: &str) -> Result<bool, HostError> {
+    let Some(id) = serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|fact| fact.get("id").and_then(Value::as_str).map(str::to_owned))
+    else {
+        return Ok(true);
+    };
+
+    let inserted = connection
+        .execute(
+            "INSERT OR IGNORE INTO applied_facts (fact_id) VALUES (?1)",
+            vec![turso::Value::from(id)],
+        )
+        .await?;
+
+    Ok(inserted > 0)
 }
 
 // The ownership check reads the table names off the JSON before the typed parse, so a table the
@@ -406,6 +431,46 @@ mod tests {
             .collect();
 
         assert_eq!(operations, vec![&json!("insert"), &json!("update")]);
+    }
+
+    #[tokio::test]
+    async fn it_skips_a_fact_delivered_again_so_it_cannot_reverse_a_later_update() {
+        let (_directory, store, spec) = setup().await;
+        let open = r#"{"id":"delivery-1"}"#;
+        let close = r#"{"id":"delivery-2"}"#;
+        let mut canned = runner(&[
+            (open, Ok(upsert("github:pr:1", "Open"))),
+            (close, Ok(upsert("github:pr:1", "Closed"))),
+        ]);
+
+        apply_batch(&store, spec, &mut canned, &[fact(0, open), fact(1, close)])
+            .await
+            .expect("the first batch applies");
+        apply_batch(&store, spec, &mut canned, &[fact(2, open)])
+            .await
+            .expect("the redelivery applies");
+
+        let mut rows = store
+            .connection
+            .query("SELECT title FROM github_pull_request", ())
+            .await
+            .expect("a query");
+        let title: String = rows
+            .next()
+            .await
+            .expect("a row")
+            .expect("a title row")
+            .get(0)
+            .expect("a title");
+
+        assert_eq!(
+            (
+                title,
+                change_log(&store).await.len(),
+                read_offset(&store, spec.stream).await.expect("an offset")
+            ),
+            ("Closed".to_owned(), 1, Some(2))
+        );
     }
 
     #[tokio::test]

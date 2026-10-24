@@ -9,6 +9,9 @@ CREATE TABLE offsets (stream TEXT NOT NULL PRIMARY KEY, last_seq_num INTEGER NOT
 CREATE TABLE change_log (batch INTEGER NOT NULL PRIMARY KEY, changes TEXT NOT NULL);
 ";
 
+const APPLIED_FACTS_TABLE: &str =
+    "CREATE TABLE IF NOT EXISTS applied_facts (fact_id TEXT NOT NULL PRIMARY KEY)";
+
 /// One consumer file, opened with Turso's multi-process WAL so that readers in other processes
 /// see each commit.
 pub struct Store {
@@ -37,7 +40,7 @@ pub async fn open_store(path: &Path) -> Result<Store, HostError> {
 }
 
 /// Creates the consumer's tables from its generated schema and the host's own tables, when the
-/// file has none yet.
+/// file has none yet, and the table of applied fact IDs when it is missing.
 ///
 /// # Errors
 /// Fails when a statement fails.
@@ -50,14 +53,16 @@ pub async fn prepare_store(store: &Store, consumer_schema: &str) -> Result<(), H
         )
         .await?;
 
-    if rows.next().await?.is_some() {
-        return Ok(());
+    let prepared = rows.next().await?.is_some();
+
+    if !prepared {
+        store
+            .connection
+            .execute_batch(&format!("{consumer_schema}\n{HOST_TABLES}"))
+            .await?;
     }
 
-    store
-        .connection
-        .execute_batch(&format!("{consumer_schema}\n{HOST_TABLES}"))
-        .await?;
+    store.connection.execute(APPLIED_FACTS_TABLE, ()).await?;
 
     Ok(())
 }

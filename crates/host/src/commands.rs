@@ -267,14 +267,8 @@ pub async fn up(config: &HostConfig, consumer: &str, module: &Path) -> Result<St
     catch_up(&mut version, spec, &reader).await?;
     checkpoint(&version.store).await?;
 
-    if let Some(previous) = &current {
-        state
-            .move_to(consumer, previous, VersionState::Previous)
-            .await?;
-    }
-
     state
-        .move_to(consumer, &hash, VersionState::Current)
+        .swap_current(consumer, current.as_deref(), &hash)
         .await?;
     repoint_current(&consumer_dir, &hash)?;
 

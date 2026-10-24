@@ -129,18 +129,78 @@ impl HostState {
         hash: &str,
         to: VersionState,
     ) -> Result<(), HostError> {
+        self.check_edge(consumer, hash, to).await?;
+        self.write_state(consumer, hash, to).await
+    }
+
+    /// Demotes the current version and promotes the new one in one transaction, so a stop never
+    /// leaves the consumer with no recorded current version.
+    ///
+    /// # Errors
+    /// Fails, with nothing changed, when either version lacks its edge or a write fails.
+    pub async fn swap_current(
+        &self,
+        consumer: &str,
+        previous: Option<&str>,
+        hash: &str,
+    ) -> Result<(), HostError> {
+        if let Some(previous) = previous {
+            self.check_edge(consumer, previous, VersionState::Previous)
+                .await?;
+        }
+
+        self.check_edge(consumer, hash, VersionState::Current)
+            .await?;
+
+        self.store.connection.execute("BEGIN IMMEDIATE", ()).await?;
+
+        let written = async {
+            if let Some(previous) = previous {
+                self.write_state(consumer, previous, VersionState::Previous)
+                    .await?;
+            }
+
+            self.write_state(consumer, hash, VersionState::Current)
+                .await
+        }
+        .await;
+
+        if written.is_ok() {
+            self.store.connection.execute("COMMIT", ()).await?;
+        } else {
+            self.store.connection.execute("ROLLBACK", ()).await?;
+        }
+
+        written
+    }
+
+    async fn check_edge(
+        &self,
+        consumer: &str,
+        hash: &str,
+        to: VersionState,
+    ) -> Result<(), HostError> {
         let from = self
             .state(consumer, hash)
             .await?
             .ok_or_else(|| HostError::UnknownVersion(hash.to_owned()))?;
 
-        if !from.can_move_to(to) {
-            return Err(HostError::Transition {
+        if from.can_move_to(to) {
+            Ok(())
+        } else {
+            Err(HostError::Transition {
                 from: from.as_str().to_owned(),
                 to: to.as_str().to_owned(),
-            });
+            })
         }
+    }
 
+    async fn write_state(
+        &self,
+        consumer: &str,
+        hash: &str,
+        to: VersionState,
+    ) -> Result<(), HostError> {
         self.store
             .connection
             .execute(
@@ -333,6 +393,54 @@ mod tests {
                     .expect("a hash"),
             ),
             (Some("aaa".to_owned()), None)
+        );
+    }
+
+    #[tokio::test]
+    async fn it_swaps_the_current_version_in_one_step() {
+        let (_directory, state) = open_state().await;
+
+        state.register("fake", "aaa").await.expect("registered");
+        state.register("fake", "bbb").await.expect("registered");
+        state
+            .move_to("fake", "aaa", VersionState::Current)
+            .await
+            .expect("current");
+        state
+            .swap_current("fake", Some("aaa"), "bbb")
+            .await
+            .expect("swapped");
+
+        assert_eq!(
+            (
+                state.state("fake", "aaa").await.expect("a state"),
+                state.state("fake", "bbb").await.expect("a state"),
+            ),
+            (Some(VersionState::Previous), Some(VersionState::Current))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_keeps_the_current_version_when_the_swap_is_refused() {
+        let (_directory, state) = open_state().await;
+
+        state.register("fake", "aaa").await.expect("registered");
+        state
+            .move_to("fake", "aaa", VersionState::Current)
+            .await
+            .expect("current");
+
+        let refused = state.swap_current("fake", Some("aaa"), "zzz").await;
+
+        assert_eq!(
+            (
+                refused.map_err(|error| error.to_string()),
+                state.state("fake", "aaa").await.expect("a state"),
+            ),
+            (
+                Err("version zzz is not recorded".to_owned()),
+                Some(VersionState::Current)
+            )
         );
     }
 }

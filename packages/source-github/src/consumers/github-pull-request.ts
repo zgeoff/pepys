@@ -47,7 +47,8 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
 }
 
 // Two updates can share one second. A repeat of the stored row changes nothing, and a different
-// row with the same update time is a distinct update, so the later fact in the stream wins.
+// row with the same update time is a distinct update, so the later fact in the stream wins. The
+// host skips a fact it has applied before, so a redelivery never reaches this check.
 function isStale(stored: GithubPullRequestRow, row: GithubPullRequestRow): boolean {
   if (stored.updated_at !== row.updated_at) {
     return stored.updated_at > row.updated_at;
