@@ -39,11 +39,21 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
 
   const stored = getGithubPullRequest(row.id);
 
-  if (stored !== undefined && stored.updated_at >= row.updated_at) {
+  if (stored !== undefined && isStale(stored, row)) {
     return [];
   }
 
   return [{ upsert: { github_pull_request: row } }];
+}
+
+// Two updates can share one second. A repeat of the stored row changes nothing, and a different
+// row with the same update time is a distinct update, so the later fact in the stream wins.
+function isStale(stored: GithubPullRequestRow, row: GithubPullRequestRow): boolean {
+  if (stored.updated_at !== row.updated_at) {
+    return stored.updated_at > row.updated_at;
+  }
+
+  return JSON.stringify(stored) === JSON.stringify(row);
 }
 
 function readRow(factJSON: string): GithubPullRequestRow | undefined {

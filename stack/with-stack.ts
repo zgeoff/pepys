@@ -11,9 +11,9 @@ export interface RunningStack {
 const composeFile = `${import.meta.dir}/compose.yaml`;
 const signalExitCodes = { SIGINT: 130, SIGTERM: 143 } as const;
 
-// Runs the callback against Garage and s2-lite in the containers of one fresh compose project, and
-// removes the project on every exit. SIGINT or SIGTERM aborts the callback's stop signal, and the
-// run then throws a StackInterruptedError once the project is gone.
+// Runs the callback against Garage and s2-lite in one fresh compose project, and removes the project
+// on every exit once it has confirmed that the project holds nothing this run did not make.
+// SIGINT or SIGTERM aborts the stop signal, and the run then throws a StackInterruptedError.
 export async function withStack<Result>(
   run: (stack: RunningStack) => Promise<Result>,
 ): Promise<Result> {
@@ -43,6 +43,7 @@ export async function withStack<Result>(
       .quiet();
 
   let settled: { ok: true; value: Result } | { ok: false; error: unknown };
+  let owned = false;
 
   try {
     const foreign = await readProjectResources(projectName);
@@ -54,6 +55,8 @@ export async function withStack<Result>(
     }
 
     // Every resource under this project name from here on is this run's, since none existed before.
+    owned = true;
+
     await startStack(compose, stopController.signal, s2Port);
 
     const value = await run({
@@ -68,12 +71,14 @@ export async function withStack<Result>(
     settled = { ok: false, error };
   }
 
-  try {
-    await compose(['down', '--volumes', '--remove-orphans']);
+  if (owned) {
+    try {
+      await compose(['down', '--volumes', '--remove-orphans']);
 
-    console.error(`removed compose project ${projectName}`);
-  } catch (error: unknown) {
-    console.error(`could not remove compose project ${projectName}`, error);
+      console.error(`removed compose project ${projectName}`);
+    } catch (error: unknown) {
+      console.error(`could not remove compose project ${projectName}`, error);
+    }
   }
 
   for (const handler of handlers) {

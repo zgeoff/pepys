@@ -243,7 +243,47 @@ test('it returns no operations for a fact older than the stored row', () => {
   expect(JSON.parse(applyFact(factJSON))).toStrictEqual([]);
 });
 
-test('it returns no operations for a fact with the stored update time', () => {
+test('it returns no operations for a repeat of the stored fact', () => {
+  const ctx = setupTest();
+
+  const pullRequest = {
+    id: 77,
+    number: 3,
+    title: 'Title',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/3',
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-01T09:05:00Z',
+  };
+
+  ctx.rows.set(
+    'github:pr:77',
+    JSON.stringify({
+      id: 'github:pr:77',
+      number: 3,
+      repository_id: 'github:repo:902',
+      title: 'Title',
+      state: 'open',
+      is_draft: false,
+      is_merged: false,
+      author_id: null,
+      url: 'https://github.example/acme/harbour/pull/3',
+      merge_commit_sha: null,
+      created_at: '2026-10-01T09:00:00Z',
+      updated_at: '2026-10-01T09:05:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: pullRequest,
+    }),
+  );
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([]);
+});
+
+test('it upserts a different fact that has the stored update time', () => {
   const ctx = setupTest();
 
   ctx.rows.set(
@@ -267,24 +307,43 @@ test('it returns no operations for a fact with the stored update time', () => {
     }),
   );
 
-  const fact = {
-    payload: {
-      pull_request: {
-        id: 77,
-        number: 3,
-        title: 'Title',
-        state: 'open',
-        html_url: 'https://github.example/acme/harbour/pull/3',
-        base: { repo: { id: 902 } },
-        created_at: '2026-10-01T09:00:00Z',
-        updated_at: '2026-10-01T09:05:00Z',
-      },
-    },
+  const pullRequest = {
+    id: 77,
+    number: 3,
+    title: 'Title',
+    state: 'closed',
+    html_url: 'https://github.example/acme/harbour/pull/3',
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-01T09:05:00Z',
+    closed_at: '2026-10-01T09:05:00Z',
   };
 
-  const factJSON = JSON.stringify(fact);
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
 
-  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([]);
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pr:77',
+          number: 3,
+          repository_id: 'github:repo:902',
+          title: 'Title',
+          state: 'closed',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/acme/harbour/pull/3',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T09:05:00Z',
+          closed_at: '2026-10-01T09:05:00Z',
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+  ]);
 });
 
 test('it returns no operations for a fact without a pull request', () => {

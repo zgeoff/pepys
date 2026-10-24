@@ -124,6 +124,27 @@ fn repoint_current(consumer_dir: &Path, hash: &str) -> Result<(), HostError> {
     Ok(())
 }
 
+/// Makes the `current` link follow the version that `host.db` records as current, and returns that
+/// version's hash. A swap that stopped between the two writes leaves them apart, and the record is
+/// the truth. The caller holds the writer lock.
+async fn reconcile_current(
+    consumer_dir: &Path,
+    state: &HostState,
+    consumer: &str,
+) -> Result<Option<String>, HostError> {
+    let recorded = state.find_hash(consumer, VersionState::Current).await?;
+
+    if let Some(hash) = &recorded {
+        let linked = std::fs::read_link(consumer_dir.join(CURRENT_LINK)).ok();
+
+        if linked.as_deref() != Some(Path::new(hash)) {
+            repoint_current(consumer_dir, hash)?;
+        }
+    }
+
+    Ok(recorded)
+}
+
 async fn wait_for_stop() -> Result<(), HostError> {
     let mut terminate = signal(SignalKind::terminate())?;
     let mut interrupt = signal(SignalKind::interrupt())?;
@@ -152,6 +173,10 @@ pub async fn run(config: &HostConfig, consumer: &str) -> Result<(), HostError> {
     loop {
         {
             let _lock = WriterLock::acquire(&consumer_dir, LOCK_WAIT).await?;
+            let state = config.host_state().await?;
+
+            reconcile_current(&consumer_dir, &state, consumer).await?;
+
             let directory = current_hash_dir(&consumer_dir)?;
             let hash = hash_of(&directory);
 
@@ -186,26 +211,26 @@ pub async fn up(config: &HostConfig, consumer: &str, module: &Path) -> Result<St
     let spec = find_consumer(consumer)?;
     let consumer_dir = config.consumer_dir(consumer);
     let reader = StreamReader::connect(&config.s2, spec.stream)?;
-    let state = config.host_state().await?;
     let bytes = std::fs::read(module)?;
     let hash = crate::module_runner::hash_module(&bytes);
-    let current = state.find_hash(consumer, VersionState::Current).await?;
 
     std::fs::create_dir_all(&consumer_dir)?;
 
-    if current.as_deref() == Some(hash.as_str()) {
-        let directory = consumer_dir.join(&hash);
-        let _lock = WriterLock::acquire(&consumer_dir, LOCK_WAIT).await?;
-        let mut version = open_version(&directory, spec, &directory.join(MODULE_FILE)).await?;
+    if let Some(report) = keep_current(config, spec, &reader, &hash).await? {
+        return Ok(report);
+    }
 
-        catch_up(&mut version, spec, &reader).await?;
+    // One build of a hash at a time, so a second `up` of the same module never clears the files
+    // that the first is writing.
+    let _build = WriterLock::acquire(&consumer_dir.join("builds").join(&hash), LOCK_WAIT).await?;
 
-        return Ok(format!(
-            "{consumer} {hash}: no swap, the module is current\n"
-        ));
+    // The other `up` may have swapped this module in while this one waited.
+    if let Some(report) = keep_current(config, spec, &reader, &hash).await? {
+        return Ok(report);
     }
 
     let directory = consumer_dir.join(&hash);
+    let state = config.host_state().await?;
 
     match state.state(consumer, &hash).await? {
         Some(VersionState::Previous) => {}
@@ -231,6 +256,13 @@ pub async fn up(config: &HostConfig, consumer: &str, module: &Path) -> Result<St
     catch_up(&mut version, spec, &reader).await?;
 
     let _lock = WriterLock::acquire(&consumer_dir, LOCK_WAIT).await?;
+    // The state is read again under the lock: another `up` may have swapped a version in since.
+    let state = config.host_state().await?;
+    let current = reconcile_current(&consumer_dir, &state, consumer).await?;
+
+    if current.as_deref() == Some(hash.as_str()) {
+        return Ok(no_swap_report(consumer, &hash));
+    }
 
     catch_up(&mut version, spec, &reader).await?;
     checkpoint(&version.store).await?;
@@ -247,6 +279,34 @@ pub async fn up(config: &HostConfig, consumer: &str, module: &Path) -> Result<St
     repoint_current(&consumer_dir, &hash)?;
 
     Ok(format!("{consumer} {hash}: swapped\n"))
+}
+
+fn no_swap_report(consumer: &str, hash: &str) -> String {
+    format!("{consumer} {hash}: no swap, the module is current\n")
+}
+
+/// When `hash` is the current version, catches it up under the writer lock and reports no swap.
+async fn keep_current(
+    config: &HostConfig,
+    spec: &'static ConsumerSpec,
+    reader: &StreamReader,
+    hash: &str,
+) -> Result<Option<String>, HostError> {
+    let consumer_dir = config.consumer_dir(spec.name);
+    let _lock = WriterLock::acquire(&consumer_dir, LOCK_WAIT).await?;
+    let state = config.host_state().await?;
+    let current = reconcile_current(&consumer_dir, &state, spec.name).await?;
+
+    if current.as_deref() != Some(hash) {
+        return Ok(None);
+    }
+
+    let directory = consumer_dir.join(hash);
+    let mut version = open_version(&directory, spec, &directory.join(MODULE_FILE)).await?;
+
+    catch_up(&mut version, spec, reader).await?;
+
+    Ok(Some(no_swap_report(spec.name, hash)))
 }
 
 /// Replays the module into a throwaway file and returns the row diff against the current version.
@@ -296,4 +356,75 @@ async fn replay_and_compare(
     let diff: TableDiff = diff_rows(&before, &after);
 
     Ok(diff_json(&[(TABLE, diff)]))
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    async fn state_with_current(directory: &Path, hash: &str) -> HostState {
+        let state = HostState::open(&directory.join("host.db"))
+            .await
+            .expect("a host state");
+
+        state
+            .register("github_pull_request", hash)
+            .await
+            .expect("a registered version");
+        state
+            .move_to("github_pull_request", hash, VersionState::Current)
+            .await
+            .expect("a current version");
+
+        state
+    }
+
+    #[tokio::test]
+    async fn it_creates_the_current_link_that_an_interrupted_swap_never_made() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let state = state_with_current(directory.path(), "abc123").await;
+
+        let recorded = reconcile_current(directory.path(), &state, "github_pull_request")
+            .await
+            .expect("a reconciled link");
+
+        assert_eq!(recorded.as_deref(), Some("abc123"));
+        assert_eq!(
+            std::fs::read_link(directory.path().join(CURRENT_LINK)).expect("a link"),
+            Path::new("abc123")
+        );
+    }
+
+    #[tokio::test]
+    async fn it_repoints_a_current_link_that_follows_an_older_version() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let state = state_with_current(directory.path(), "new456").await;
+
+        symlink("old123", directory.path().join(CURRENT_LINK)).expect("a stale link");
+
+        reconcile_current(directory.path(), &state, "github_pull_request")
+            .await
+            .expect("a reconciled link");
+
+        assert_eq!(
+            std::fs::read_link(directory.path().join(CURRENT_LINK)).expect("a link"),
+            Path::new("new456")
+        );
+    }
+
+    #[tokio::test]
+    async fn it_leaves_the_link_alone_when_no_version_is_current() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let state = HostState::open(&directory.path().join("host.db"))
+            .await
+            .expect("a host state");
+
+        let recorded = reconcile_current(directory.path(), &state, "github_pull_request")
+            .await
+            .expect("no change");
+
+        assert_eq!(recorded, None);
+        assert!(std::fs::read_link(directory.path().join(CURRENT_LINK)).is_err());
+    }
 }
