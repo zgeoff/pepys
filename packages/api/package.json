@@ -1,0 +1,21 @@
+{
+  "name": "@pepys/api",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@orpc/server": "catalog:",
+    "@pepys/kysely-turso": "workspace:*",
+    "@pepys/schema": "workspace:*",
+    "@pepys/source-github": "workspace:*",
+    "@tursodatabase/database": "catalog:",
+    "elysia": "catalog:",
+    "kysely": "catalog:",
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@orpc/client": "catalog:",
+    "tiny-invariant": "catalog:"
+  }
+}

@@ -9,6 +9,8 @@
     "catalog": {
       "@commitlint/cli": "21.2.3",
       "@octokit/webhooks": "14.2.0",
+      "@orpc/client": "1.15.7",
+      "@orpc/server": "1.15.7",
       "@s2-dev/streamstore": "0.29.0",
       "@scriptc/runtime-wasm32-wasi": "0.3.5",
       "@stylistic/eslint-plugin": "5.10.0",
@@ -22,7 +24,9 @@
       "@zgeoff/oxlint-config": "0.6.4",
       "@zgeoff/skill-gate": "0.2.6",
       "@zgeoff/std": "0.3.0",
+      "elysia": "2.0.0-beta.32",
       "knip": "6.41.0",
+      "kysely": "0.29.6",
       "lefthook": "2.2.2",
       "oxfmt": "0.73.0",
       "oxlint": "1.88.0",
@@ -64,6 +68,8 @@
   "devDependencies": {
     "@commitlint/cli": "catalog:",
     "@octokit/webhooks": "catalog:",
+    "@orpc/client": "catalog:",
+    "@pepys/api": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@pepys/source-github": "workspace:*",
     "@s2-dev/streamstore": "catalog:",
