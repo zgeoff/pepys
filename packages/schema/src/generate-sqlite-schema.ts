@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { quoteSqlIdentifier } from './quote-sql-identifier.ts';
 import type { ColumnDeclaration, ConsumerDeclaration, EntityViewDeclaration } from './types.ts';
 
 export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
@@ -8,11 +9,10 @@ export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
     statements.push(formatCreateTable(name, table.columns, table.primaryKey));
 
     for (const index of table.indexes) {
-      const columns = index.columns.join(', ');
+      const indexName = quoteSqlIdentifier(`${name}_${index.columns.join('_')}_idx`);
+      const columns = index.columns.map((column) => quoteSqlIdentifier(column)).join(', ');
 
-      statements.push(
-        `CREATE INDEX ${name}_${index.columns.join('_')}_idx ON ${name} (${columns});`,
-      );
+      statements.push(`CREATE INDEX ${indexName} ON ${quoteSqlIdentifier(name)} (${columns});`);
     }
   }
 
@@ -30,12 +30,12 @@ function formatCreateTable(
 ): string {
   const definitions = Object.entries(columns).map(
     ([columnName, column]) =>
-      `  ${columnName} ${toSqliteType(column)}${column.nullable === true ? '' : ' NOT NULL'}`,
+      `  ${quoteSqlIdentifier(columnName)} ${toSqliteType(column)}${column.nullable === true ? '' : ' NOT NULL'}`,
   );
 
   return [
-    `CREATE TABLE ${name} (`,
-    `${[...definitions, `  PRIMARY KEY (${primaryKey.join(', ')})`].join(',\n')}`,
+    `CREATE TABLE ${quoteSqlIdentifier(name)} (`,
+    `${[...definitions, `  PRIMARY KEY (${primaryKey.map((column) => quoteSqlIdentifier(column)).join(', ')})`].join(',\n')}`,
     ');',
   ].join('\n');
 }
@@ -52,15 +52,18 @@ function formatEntityView(view: EntityViewDeclaration): string {
   const kind = `'${view.kind.replaceAll("'", "''")}'`;
 
   const selections = [
-    `${view.id} AS id`,
-    `${kind} AS kind`,
-    `${view.title} AS title`,
-    `${view.url} AS url`,
-    `${view.actor} AS actor`,
-    `${view.updatedAt} AS updated_at`,
+    `${quoteSqlIdentifier(view.id)} AS "id"`,
+    `${kind} AS "kind"`,
+    `${quoteSqlIdentifier(view.title)} AS "title"`,
+    `${quoteSqlIdentifier(view.url)} AS "url"`,
+    `${quoteSqlIdentifier(view.actor)} AS "actor"`,
+    `${quoteSqlIdentifier(view.updatedAt)} AS "updated_at"`,
   ].map((selection) => `  ${selection}`);
 
-  return ['CREATE VIEW entity AS', 'SELECT', selections.join(',\n'), `FROM ${view.table};`].join(
-    '\n',
-  );
+  return [
+    'CREATE VIEW "entity" AS',
+    'SELECT',
+    selections.join(',\n'),
+    `FROM ${quoteSqlIdentifier(view.table)};`,
+  ].join('\n');
 }
