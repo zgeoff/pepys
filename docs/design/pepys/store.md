@@ -21,8 +21,8 @@ locks the file, and a second process then cannot open it.
 If Turso fails, the host switches to rusqlite and opens the same files, with no migration and no
 replay. A file that holds a Turso full-text index is the exception: `sqlite3` rejects its schema,
 and rusqlite on such a file is unverified. The
-[Turso spike](../../../research/turso-bindings/README.md) records the TypeScript binding's behaviour
-that the API builds on.
+[Turso spike](../../../research/turso-bindings/results.md) records the TypeScript binding's
+behaviour that the API builds on.
 
 ## One file per consumer
 

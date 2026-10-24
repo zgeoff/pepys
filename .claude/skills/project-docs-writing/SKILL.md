@@ -14,8 +14,10 @@ the two disagree, this one wins.
 ## Spikes
 
 A design's evidence lives in a spike under `research/<name>/`, not in `docs/design/<work>/spikes/`.
-[research/README.md](../../../research/README.md) holds the spike layout and the index. A design doc
-links the spike instead of repeating its numbers or its method.
+Each spike takes the README and `results.md` shape in the
+[Spikes section of docs-writing's docs-tree reference](https://github.com/zgeoff/tools/blob/main/sync/skills/docs-writing/references/docs-tree.md#spikes).
+[research/README.md](../../../research/README.md) holds the index. A design doc links the spike
+instead of repeating its numbers or its method, and links `results.md` when it cites a measurement.
 
 A spike is deleted once its finding sits in the design or architecture doc that owns it. A link that
 cites a deleted spike points at the commit that last held it.
