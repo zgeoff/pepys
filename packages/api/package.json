@@ -10,12 +10,15 @@
     "@pepys/source-github": "workspace:*",
     "@tursodatabase/database": "catalog:",
     "elysia": "catalog:",
+    "exact-mirror": "catalog:",
     "kysely": "catalog:",
+    "openapi-types": "catalog:",
+    "tiny-invariant": "catalog:",
     "ts-pattern": "catalog:",
+    "typebox": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@orpc/client": "catalog:",
-    "tiny-invariant": "catalog:"
+    "@orpc/client": "catalog:"
   }
 }
