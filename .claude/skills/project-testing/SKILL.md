@@ -43,6 +43,11 @@ each lane runs under its own profile with its own per-test time limit.
 | Lane        | Real system                                                         | Run                                     | Limit |
 | ----------- | ------------------------------------------------------------------- | --------------------------------------- | ----- |
 | `e2e`       | Garage, for crash durability; the Durable Streams conformance tests | `cargo nextest run --profile e2e`       | 15 s  |
-| `model-api` | hosted models, and live GitHub and Gmail                            | `cargo nextest run --profile model-api` | 120 s |
+| `model-api` | hosted models                                                       | `cargo nextest run --profile model-api` | 120 s |
 
-The `model-api` lane runs nightly and on dispatch, never on a pull request.
+The `model-api` lane runs nightly and on dispatch, and on a pull request only through an opt-in
+label.
+
+Live GitHub and Gmail are not model APIs, so their tests take lanes of their own, with the test
+paths `github_api::` and `gmail_api::`, on the `model-api` schedule. Neither lane has a test yet, so
+neither has a profile: the first test of each adds its profile and its prefix to the default filter.
