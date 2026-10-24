@@ -36,13 +36,13 @@ unit run under the 5 s rule.
 ## Lanes
 
 A lane test lives in a module named after the lane, so its Rust test path starts with `e2e::` or
-`evals::`. The default nextest profile in [`nextest.toml`](../../../.config/nextest.toml) leaves
-both prefixes out and ends any test at 5 s; each lane runs under its own profile with its own
-per-test time limit.
+`model_api::`, because a Rust module name takes no hyphen. The default nextest profile in
+[`nextest.toml`](../../../.config/nextest.toml) leaves both prefixes out and ends any test at 5 s;
+each lane runs under its own profile with its own per-test time limit.
 
-| Lane    | Real system                                                         | Run                                 | Limit |
-| ------- | ------------------------------------------------------------------- | ----------------------------------- | ----- |
-| `e2e`   | Garage, for crash durability; the Durable Streams conformance tests | `cargo nextest run --profile e2e`   | 15 s  |
-| `evals` | hosted models, and live GitHub and Gmail                            | `cargo nextest run --profile evals` | 120 s |
+| Lane        | Real system                                                         | Run                                     | Limit |
+| ----------- | ------------------------------------------------------------------- | --------------------------------------- | ----- |
+| `e2e`       | Garage, for crash durability; the Durable Streams conformance tests | `cargo nextest run --profile e2e`       | 15 s  |
+| `model-api` | hosted models, and live GitHub and Gmail                            | `cargo nextest run --profile model-api` | 120 s |
 
-The `evals` lane runs nightly and on dispatch, never on a pull request.
+The `model-api` lane runs nightly and on dispatch, never on a pull request.
