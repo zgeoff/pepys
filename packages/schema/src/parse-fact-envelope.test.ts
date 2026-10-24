@@ -15,7 +15,9 @@ test('it accepts an envelope with every field', () => {
     payload: { number: 412, title: 'add the schema package' },
   };
 
-  expect<unknown>(parseFactEnvelope(envelope)).toStrictEqual({ ok: true, value: envelope });
+  const actual: unknown = parseFactEnvelope(envelope);
+
+  expect(actual).toStrictEqual({ ok: true, value: envelope });
 });
 
 test('it accepts an envelope with no actor and no cursor', () => {
@@ -29,7 +31,9 @@ test('it accepts an envelope with no actor and no cursor', () => {
     payload: null,
   };
 
-  expect<unknown>(parseFactEnvelope(envelope)).toStrictEqual({ ok: true, value: envelope });
+  const actual: unknown = parseFactEnvelope(envelope);
+
+  expect(actual).toStrictEqual({ ok: true, value: envelope });
 });
 
 test('it leaves the payload untouched', () => {

@@ -35,7 +35,10 @@ function formatCreateTable(
 
   return [
     `CREATE TABLE ${quoteSqlIdentifier(name)} (`,
-    `${[...definitions, `  PRIMARY KEY (${primaryKey.map((column) => quoteSqlIdentifier(column)).join(', ')})`].join(',\n')}`,
+    [
+      ...definitions,
+      `  PRIMARY KEY (${primaryKey.map((column) => quoteSqlIdentifier(column)).join(', ')})`,
+    ].join(',\n'),
     ');',
   ].join('\n');
 }
