@@ -1,0 +1,15 @@
+package pepys:spike;
+
+interface host {
+  read-pull-request-number: func(review-id: string) -> f64;
+  panic: func(message: string);
+}
+
+interface links {
+  derive: func(input: string) -> string;
+}
+
+world review-links {
+  import host;
+  export links;
+}
