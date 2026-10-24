@@ -16,5 +16,6 @@ export { generateSqliteSchema } from './generate-sqlite-schema.ts';
 export type { DB } from './generated/kysely-db.ts';
 export { parseEntityID } from './parse-entity-id.ts';
 export { parseFactEnvelope } from './parse-fact-envelope.ts';
+export { toPascalCase } from './to-pascal-case.ts';
 export type * from './types.ts';
 export type { TableRow } from './table-row.ts';

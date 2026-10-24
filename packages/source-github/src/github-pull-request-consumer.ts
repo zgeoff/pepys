@@ -36,5 +36,5 @@ export const githubPullRequestConsumer = defineConsumer({
     actor: 'author_id',
     updatedAt: 'updated_at',
   },
-  reads: [],
+  reads: ['github_pull_request'],
 });

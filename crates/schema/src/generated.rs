@@ -50,4 +50,8 @@ pub enum GithubPullRequestOperation {
     Delete(GithubPullRequestDelete),
 }
 
-pub const GITHUB_PULL_REQUEST_READS: [ReadImport; 0] = [];
+pub const GITHUB_PULL_REQUEST_READS: [ReadImport; 1] = [ReadImport {
+    table: "github_pull_request",
+    length: "readGithubPullRequestLength",
+    into: "readGithubPullRequestInto",
+}];

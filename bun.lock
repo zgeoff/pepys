@@ -8,8 +8,10 @@
         "@commitlint/cli": "catalog:",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
+        "@scriptc/runtime-wasm32-wasi": "catalog:",
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
+        "@tursodatabase/database": "catalog:",
         "@types/bun": "catalog:",
         "@zgeoff/bun-test-extended": "catalog:",
         "@zgeoff/checks": "catalog:",
@@ -22,6 +24,7 @@
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
+        "scriptc": "catalog:",
         "tiny-invariant": "catalog:",
         "tombi": "catalog:",
         "tslib": "catalog:",
@@ -44,7 +47,10 @@
     "packages/source-github": {
       "name": "@pepys/source-github",
       "dependencies": {
+        "@octokit/webhooks": "catalog:",
         "@pepys/schema": "workspace:*",
+        "@s2-dev/streamstore": "catalog:",
+        "@zgeoff/std": "catalog:",
       },
     },
     "research/durable-streams-conformance": {
@@ -120,8 +126,12 @@
   ],
   "catalog": {
     "@commitlint/cli": "21.2.3",
+    "@octokit/webhooks": "14.2.0",
+    "@s2-dev/streamstore": "0.29.0",
+    "@scriptc/runtime-wasm32-wasi": "0.3.5",
     "@stylistic/eslint-plugin": "5.10.0",
     "@tsconfig/strictest": "2.0.8",
+    "@tursodatabase/database": "0.8.3",
     "@types/bun": "1.4.3",
     "@zgeoff/bun-test-extended": "0.2.1",
     "@zgeoff/checks": "0.2.4",
@@ -135,6 +145,7 @@
     "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
     "oxlint-tsgolint": "7.0.2004",
+    "scriptc": "0.3.5",
     "tiny-invariant": "1.3.3",
     "tombi": "1.8.5",
     "ts-pattern": "5.9.2",
@@ -236,6 +247,18 @@
     "@keyv/serialize": ["@keyv/serialize@1.1.1", "", {}, "sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.5", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-HshSvXzmBxNzqejd3k/KemgQ3hdREUYFRRrgxOZ+gPljDIsO2SDZrVZMd4Z/HsxudQbE62OVyVFE8z9BCurfjA=="],
+
+    "@octokit/openapi-types": ["@octokit/openapi-types@29.0.1", "", {}, "sha512-9qWOMFNxxLokERcms42rU0PTLqQmVs7g5E41TI4mCOxmpFayD1rfC7XxOL55cG9MBZLFlC31BrR37myMKardwg=="],
+
+    "@octokit/openapi-webhooks-types": ["@octokit/openapi-webhooks-types@12.1.0", "", {}, "sha512-WiuzhOsiOvb7W3Pvmhf8d2C6qaLHXrWiLBP4nJ/4kydu+wpagV5Fkz9RfQwV2afYzv3PB+3xYgp4mAdNGjDprA=="],
+
+    "@octokit/request-error": ["@octokit/request-error@7.1.2", "", { "dependencies": { "@octokit/types": "^18.0.0" } }, "sha512-XZRuT3xZ84D3gYErI1DZvhJ33dCWVV6uzBtWkaBB4TvA/L6eOeTZodxLFVB44bBEEo3vEx7y00UfX1tBLrtLRg=="],
+
+    "@octokit/types": ["@octokit/types@18.0.0", "", { "dependencies": { "@octokit/openapi-types": "^29.0.1" } }, "sha512-l6bAF43PNxkJp6g+W4PjoUSSkxHomXw2nOum5CTftJz1NlV3vu93NImgOYtLf6CbBUb5j+fiuzW0PPQ5JTSvZA=="],
+
+    "@octokit/webhooks": ["@octokit/webhooks@14.2.0", "", { "dependencies": { "@octokit/openapi-webhooks-types": "12.1.0", "@octokit/request-error": "^7.0.0", "@octokit/webhooks-methods": "^6.0.0" } }, "sha512-da6KbdNCV5sr1/txD896V+6W0iamFWrvVl8cHkBSPT+YlvmT3DwXa4jxZnQc+gnuTEqSWbBeoSZYTayXH9wXcw=="],
+
+    "@octokit/webhooks-methods": ["@octokit/webhooks-methods@6.0.0", "", {}, "sha512-MFlzzoDJVw/GcbfzVC1RLR36QqkTLUf79vLVO3D+xn7r0QgxnFoLZgtrzxiQErAjFUOdH6fas2KeQJ1yr/qaXQ=="],
 
     "@oxc-parser/binding-android-arm-eabi": ["@oxc-parser/binding-android-arm-eabi@0.154.0", "", { "os": "android", "cpu": "arm" }, "sha512-sDdEtDl7vKdCvf54j72RJbowE3jCmyRz/+oOB6IAwQxAHZ0eI+Dcj4hvVnm0b9Dy31plUkdmfds9C+/Zt895Tg=="],
 
