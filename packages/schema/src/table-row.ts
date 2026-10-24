@@ -1,4 +1,4 @@
-import type { ColumnDeclaration, TableDeclaration } from './types.ts';
+import type { ColumnDeclaration, EntityID, TableDeclaration } from './types.ts';
 
 interface KindTypes {
   text: string;
@@ -6,7 +6,7 @@ interface KindTypes {
   real: number;
   boolean: boolean;
   json: unknown;
-  entityID: string;
+  entityID: EntityID;
   timestamp: string;
 }
 

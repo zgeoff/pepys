@@ -28,7 +28,9 @@ export function generateBoundaryGlue(parameters: BoundaryGlueParameters): string
 
   const sections = [
     ...(hasEntityID(rowTables) ? [formatBrand()] : []),
-    ...rowTables.map(([name, table]) => formatTypeScriptRow(name, table, 'EntityID')),
+    ...rowTables.map(([name, table]) =>
+      formatTypeScriptRow(name, table, { entityID: 'EntityID', boolean: 'boolean' }),
+    ),
     ...ownTables.map(([name, table]) => formatKey(name, table)),
     formatOperation(consumer.name, ownTables),
     ...readTables.map(([name]) => formatDeclarations(name)),
@@ -59,7 +61,9 @@ function formatKey(tableName: string, table: TableDeclaration): string {
 
     return column === undefined
       ? []
-      : [`  ${columnName}: ${toTypeScriptType(column, 'EntityID')};`];
+      : [
+          `  ${columnName}: ${toTypeScriptType(column, { entityID: 'EntityID', boolean: 'boolean' })};`,
+        ];
   });
 
   return [`export interface ${toPascalCase(tableName)}Key {`, ...fields, '}'].join('\n');

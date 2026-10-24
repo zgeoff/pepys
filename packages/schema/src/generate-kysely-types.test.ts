@@ -66,7 +66,7 @@ test('it generates a row interface per table and a DB interface keyed by table n
       title: string;
       type: string;
       weight: number | null;
-      done: boolean;
+      done: 0 | 1;
       notes: unknown;
       opened_at: string;
       owner_id: string | null;

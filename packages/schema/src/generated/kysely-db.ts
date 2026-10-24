@@ -6,8 +6,8 @@ export interface GithubPullRequestRow {
   repository_id: string;
   title: string;
   state: string;
-  is_draft: boolean;
-  is_merged: boolean;
+  is_draft: 0 | 1;
+  is_merged: 0 | 1;
   author_id: string | null;
   url: string;
   merge_commit_sha: string | null;

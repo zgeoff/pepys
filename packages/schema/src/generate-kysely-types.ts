@@ -5,7 +5,11 @@ import type { ConsumerDeclaration } from './types.ts';
 
 export function generateKyselyTypes(consumers: readonly ConsumerDeclaration[]): string {
   const tables = collectTables(consumers);
-  const rows = tables.map((entry) => formatTypeScriptRow(entry.name, entry.table, 'string'));
+
+  // SQLite has no boolean type, so the driver reads a boolean column back as 0 or 1
+  const rows = tables.map((entry) =>
+    formatTypeScriptRow(entry.name, entry.table, { entityID: 'string', boolean: '0 | 1' }),
+  );
 
   const database = [
     'export interface DB {',
