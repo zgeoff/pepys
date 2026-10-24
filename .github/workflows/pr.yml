@@ -22,12 +22,61 @@ jobs:
       pull-requests: write
     uses: zgeoff/tools/.github/workflows/bun-checks.yml@sync-v24
     with:
-      scripts: audit deadcode format:check lint:full check typecheck
+      scripts: audit deadcode format:check lint:full lint:toml check typecheck
+
+  # the path gate for the Rust job: a pull request that touches no Rust input
+  # skips it, and every push to main runs it
+  changes:
+    permissions:
+      contents: read
+    uses: zgeoff/tools/.github/workflows/paths-changed.yml@sync-v24
+    with:
+      paths: |
+        crates/**
+        Cargo.toml
+        Cargo.lock
+        rust-toolchain.toml
+        rustfmt.toml
+        deny.toml
+        .config/nextest.toml
+        .github/workflows/pr.yml
+
+  rust:
+    needs: [changes]
+    if: ${{ !cancelled() && needs.changes.outputs.changed != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rustup reads the channel and components from rust-toolchain.toml
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - name: Install the cargo tools
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-nextest@0.9.148,cargo-deny@0.20.2,cargo-shear@1.14.0
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Unused dependencies
+        run: cargo shear
+      - name: Advisories, licenses and sources
+        run: cargo deny --locked check
+      # nextest skips doctests, so they run on their own after it
+      - name: Tests
+        run: cargo nextest run --workspace --locked --profile ci --no-tests=pass
+      - name: Doctests
+        run: cargo test --workspace --doc --locked
 
   # the one status the main ruleset requires: it runs even when a job it needs
-  # failed or was skipped, and passes only when every one of them succeeded
+  # failed, and passes only when every one of them succeeded or was skipped by
+  # its path gate
   checks:
-    needs: [ci]
+    needs: [ci, changes, rust]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -37,7 +86,7 @@ jobs:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           for result in $RESULTS; do
-            if [ "$result" != "success" ]; then
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "a required job ended as $result" >&2
               exit 1
             fi

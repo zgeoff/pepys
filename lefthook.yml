@@ -20,6 +20,15 @@ pre-commit:
       glob: '*.{ts,tsx}'
       run: node_modules/.bin/format-codemod --quiet {staged_files}
       stage_fixed: true
+    # a check, not a fixer: rustfmt also rewrites the modules a file declares,
+    # which may hold unstaged work, so run `cargo fmt` to apply the fix
+    - name: rustfmt
+      glob: '*.rs'
+      run: rustfmt --edition 2024 --check {staged_files}
+    - name: tombi format
+      glob: '*.toml'
+      run: node_modules/.bin/tombi format {staged_files}
+      stage_fixed: true
     # after the fixers, so it checks what they wrote; skipped when no staged
     # file matches the glob
     - name: typecheck
@@ -41,3 +50,7 @@ pre-push:
   jobs:
     - name: lint:shell
       run: bun run lint:shell
+    # the workspace is small, so clippy checks all of it when any Rust changed
+    - name: clippy
+      glob: '*.{rs,toml}'
+      run: cargo clippy --workspace --all-targets --quiet -- -D warnings

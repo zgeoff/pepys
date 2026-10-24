@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99.1"
+license = "MIT"
+publish = false
+
+# The catalog: every crate version lives here once, as an exact `=x.y.z` pin,
+# and a crate depends on it with `workspace = true`.
+[workspace.dependencies]
+
+[workspace.lints.clippy]
+expect_used = "warn"
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+wildcard_enum_match_arm = "warn"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
