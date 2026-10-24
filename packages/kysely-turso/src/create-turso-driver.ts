@@ -1,5 +1,6 @@
 import type { Database } from '@tursodatabase/database';
 import type { DatabaseConnection, Driver } from 'kysely';
+import invariant from 'tiny-invariant';
 import { createTursoConnection } from './create-turso-connection.ts';
 
 export function createTursoDriver(openDatabase: () => Promise<Database>): Driver {
@@ -7,6 +8,12 @@ export function createTursoDriver(openDatabase: () => Promise<Database>): Driver
   let connection: DatabaseConnection | undefined;
   let queue: Promise<void> = Promise.resolve();
   let releaseCurrent: (() => void) | undefined;
+
+  const getDatabase = (): Database => {
+    invariant(database, 'Kysely initialises the Turso driver before it uses it');
+
+    return database;
+  };
 
   return {
     init: async () => {
@@ -17,6 +24,9 @@ export function createTursoDriver(openDatabase: () => Promise<Database>): Driver
 
     // one connection serves every query, so a transaction holds it until it ends
     acquireConnection: async () => {
+      invariant(connection, 'Kysely initialises the Turso driver before it acquires a connection');
+
+      const acquired = connection;
       const previous = queue;
       const turn = Promise.withResolvers<void>();
 
@@ -26,23 +36,20 @@ export function createTursoDriver(openDatabase: () => Promise<Database>): Driver
 
       releaseCurrent = turn.resolve;
 
-      if (connection === undefined) {
-        throw new Error('the Turso driver was used before init');
-      }
-
-      return connection;
+      return acquired;
     },
     beginTransaction: async () => {
-      await database?.exec('begin');
+      await getDatabase().exec('begin');
     },
     commitTransaction: async () => {
-      await database?.exec('commit');
+      await getDatabase().exec('commit');
     },
     rollbackTransaction: async () => {
-      await database?.exec('rollback');
+      await getDatabase().exec('rollback');
     },
     releaseConnection: () => {
-      releaseCurrent?.();
+      invariant(releaseCurrent, 'Kysely releases only a connection it acquired');
+      releaseCurrent();
 
       return Promise.resolve();
     },
@@ -50,8 +57,7 @@ export function createTursoDriver(openDatabase: () => Promise<Database>): Driver
     // a connection in use finishes before the database closes
     destroy: async () => {
       await queue;
-
-      await database?.close();
+      await getDatabase().close();
     },
   };
 }

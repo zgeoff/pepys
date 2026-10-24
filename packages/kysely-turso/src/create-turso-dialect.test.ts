@@ -146,7 +146,7 @@ test('it rolls back the writes of a failed transaction', async () => {
 
   onTestFinished(() => db.destroy());
 
-  await db
+  const failure = await db
     .transaction()
     .execute(async (transaction) => {
       await transaction.insertInto('item').values({ id: 1, kind: 'pr', number: 1 }).execute();
@@ -155,11 +155,12 @@ test('it rolls back the writes of a failed transaction', async () => {
     })
     .then(
       () => null,
-      () => null,
+      (error: unknown) => error,
     );
 
   const rows = await db.selectFrom('item').select('id').execute();
 
+  expect(failure).toStrictEqual(new Error('abandon the transaction'));
   expect(rows).toStrictEqual([]);
 });
 

@@ -5,6 +5,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@tursodatabase/database": "catalog:",
-    "kysely": "catalog:"
+    "kysely": "catalog:",
+    "tiny-invariant": "catalog:"
   }
 }
