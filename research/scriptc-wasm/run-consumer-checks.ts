@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { buildReviewLinks } from './build-review-links.ts';
 import { formatMs } from './format-ms.ts';
 import { isSameRun } from './is-same-run.ts';
+import { isSpikePassing } from './is-spike-passing.ts';
 import { parseReviewLinkInput } from './parse-review-link-input.ts';
 import { deniedNamespace, redirectClockImports } from './redirect-clock-imports.ts';
 import { reviewLinkCases } from './review-link-inputs.ts';
@@ -95,19 +96,17 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
     );
 
     const hasTrapped = trapped.stderr.includes('wasm trap');
-
-    const isExpected =
-      isSameRun(bun, wasmtime) && isSameRun(bun, refused) && isSameRun(bun, zero) && hasTrapped;
+    const isEqual = isSameRun(bun, wasmtime) && isSameRun(bun, refused) && isSameRun(bun, zero);
 
     if (hasTrapped) {
       trappedRuns += 1;
     }
 
-    isEveryRunEqual &&= isExpected;
+    isEveryRunEqual &&= isEqual;
 
     lines.push(
       [
-        `${isExpected ? 'same' : 'DIFFERENT'}: ${testCase.name}`,
+        `${isEqual ? 'same' : 'DIFFERENT'}: ${testCase.name}`,
         `operations ${countOperations(bun.stdout)}, exit ${bun.exitCode}`,
         `bun ${formatMs(bun.elapsedMs)} (function ${formatMs(timeInProcess(testCase.stdin))})`,
         `wasmtime precompiled ${formatMs(wasmtime.elapsedMs)}`,
@@ -118,15 +117,26 @@ export function runConsumerChecks(context: SpikeContext): ConsumerReport {
     );
   }
 
-  const hasPassed = isEveryRunEqual && forbidden.length === 0;
+  const hasPassed = isSpikePassing({
+    forbiddenImports: forbidden,
+    isEveryOutputEqual: isEveryRunEqual,
+  });
+
+  // The trap count is an observation: a module with no clock import never calls the trapping clock.
+  const withoutClock = forbidden.filter((name) => !name.endsWith('.clock_time_get'));
 
   lines.push(
     `trapping clock: ${trappedRuns} of ${reviewLinkCases.length} runs trapped`,
     `operation lists equal on every input, under the ENOSYS and the zero clock too: ${isEveryRunEqual ? 'yes' : 'no'}`,
     `passes when: ${hasPassed ? 'pass' : 'fail'}`,
+    `passes when, for the same evidence without the clock import: ${isSpikePassing({ forbiddenImports: withoutClock, isEveryOutputEqual: isEveryRunEqual }) ? 'pass' : 'fail'}`,
   );
 
-  return { isPassing: hasPassed, lines, modulePath };
+  const isVerdictSound = isVerdictSelfCheckPassing();
+
+  lines.push(`verdict self-check on fixed evidence: ${isVerdictSound ? 'pass' : 'fail'}`);
+
+  return { isPassing: hasPassed && isVerdictSound, lines, modulePath };
 }
 
 const importPattern = /^\s*\(import "(?<namespace>[^"]+)" "(?<name>[^"]+)"/gmu;
@@ -178,4 +188,14 @@ function timeInProcess(stdin: string): number {
   }
 
   return performance.now() - startMs;
+}
+
+function isVerdictSelfCheckPassing(): boolean {
+  const clock = ['wasi_snapshot_preview1.clock_time_get'];
+
+  return (
+    isSpikePassing({ forbiddenImports: [], isEveryOutputEqual: true }) &&
+    !isSpikePassing({ forbiddenImports: clock, isEveryOutputEqual: true }) &&
+    !isSpikePassing({ forbiddenImports: [], isEveryOutputEqual: false })
+  );
 }

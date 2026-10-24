@@ -57,19 +57,17 @@ export function runLibraryChecks(context: SpikeContext): LibraryReport {
     const refused = runWasmtime(context.tools, preloadLibrary('refusing', deniedPath), stdin.bytes);
     const trapped = runWasmtime(context.tools, preloadLibrary('trapping', deniedPath), stdin.bytes);
     const hasTrapped = trapped.stderr.includes('wasm trap');
-
-    const isExpected =
-      refused.exitCode === 0 && refused.stdout === expected && bun === expected && hasTrapped;
+    const isEqual = refused.exitCode === 0 && refused.stdout === expected && bun === expected;
 
     if (hasTrapped) {
       trappedRuns += 1;
     }
 
-    isEveryRunEqual &&= isExpected;
+    isEveryRunEqual &&= isEqual;
 
     lines.push(
       [
-        `library ${isExpected ? 'same' : 'DIFFERENT'}: ${testCase.name}`,
+        `library ${isEqual ? 'same' : 'DIFFERENT'}: ${testCase.name}`,
         `wasmtime with ENOSYS clock ${formatMs(refused.elapsedMs)}`,
         `trapping clock ${hasTrapped ? 'trapped' : 'ran'}`,
       ].join(', '),
