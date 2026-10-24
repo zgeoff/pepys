@@ -7,6 +7,31 @@ pub struct ReadImport {
     pub into: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnKind {
+    Text,
+    Integer,
+    Real,
+    Boolean,
+    Json,
+    EntityId,
+    Timestamp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColumnInfo {
+    pub name: &'static str,
+    pub kind: ColumnKind,
+    pub nullable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TableInfo {
+    pub name: &'static str,
+    pub columns: &'static [ColumnInfo],
+    pub primary_key: &'static [&'static str],
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GithubPullRequestRow {
     pub id: String,

@@ -68,6 +68,31 @@ test('it generates row structs, operation enums and read imports', () => {
         pub into: &'static str,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ColumnKind {
+        Text,
+        Integer,
+        Real,
+        Boolean,
+        Json,
+        EntityId,
+        Timestamp,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ColumnInfo {
+        pub name: &'static str,
+        pub kind: ColumnKind,
+        pub nullable: bool,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct TableInfo {
+        pub name: &'static str,
+        pub columns: &'static [ColumnInfo],
+        pub primary_key: &'static [&'static str],
+    }
+
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     pub struct TicketRow {
         pub id: String,
@@ -325,6 +350,31 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         pub table: &'static str,
         pub length: &'static str,
         pub into: &'static str,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ColumnKind {
+        Text,
+        Integer,
+        Real,
+        Boolean,
+        Json,
+        EntityId,
+        Timestamp,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ColumnInfo {
+        pub name: &'static str,
+        pub kind: ColumnKind,
+        pub nullable: bool,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct TableInfo {
+        pub name: &'static str,
+        pub columns: &'static [ColumnInfo],
+        pub primary_key: &'static [&'static str],
     }
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
