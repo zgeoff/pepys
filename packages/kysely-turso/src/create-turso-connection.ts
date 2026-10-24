@@ -38,11 +38,7 @@ async function runQuery<Row>(
 // Kysely owns the row type: the caller's query builder declares it, and the driver only hands over
 // what the database returned.
 function narrowRows<Row>(rows: unknown[]): Row[] {
-  return rows.filter(isRow<Row>);
-}
-
-function isRow<Row>(value: unknown): value is Row {
-  return value !== undefined;
+  return rows.filter((value): value is Row => value !== undefined);
 }
 
 async function* streamRows<Row>(
