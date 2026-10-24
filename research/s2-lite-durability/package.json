@@ -2,5 +2,15 @@
   "name": "@pepys/spike-s2-lite-durability",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "check": "bun run-spike.ts",
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@s2-dev/streamstore": "0.29.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3"
+  }
 }

@@ -52,6 +52,12 @@
     "research/s2-lite-durability": {
       "name": "@pepys/spike-s2-lite-durability",
       "version": "0.0.0",
+      "dependencies": {
+        "@s2-dev/streamstore": "0.29.0",
+      },
+      "devDependencies": {
+        "@types/bun": "1.4.3",
+      },
     },
     "research/scriptc-wasm": {
       "name": "@pepys/spike-scriptc-wasm",
@@ -379,6 +385,10 @@
     "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
 
     "@pepys/spike-turso-bindings": ["@pepys/spike-turso-bindings@workspace:research/turso-bindings"],
+
+    "@protobuf-ts/runtime": ["@protobuf-ts/runtime@2.11.1", "", {}, "sha512-KuDaT1IfHkugM2pyz+FwiY80ejWrkH1pAtOBOZFuR6SXEFTsnb/jiQWQ1rCIrcKx2BtyxnxW6BWwsVSA/Ie+WQ=="],
+
+    "@s2-dev/streamstore": ["@s2-dev/streamstore@0.29.0", "", { "dependencies": { "@protobuf-ts/runtime": "^2.11.1", "debug": "^4.4.3" } }, "sha512-0h9PwNwNqjfhRaKb/suSMCZtP76bgnRVQgzrWfK9EqmxrcTF+7RjOPAc5lh96fudmINGPz7RG0CEEGxv4hNMuA=="],
 
     "@scriptc/cli-darwin-arm64": ["@scriptc/cli-darwin-arm64@0.3.5", "", { "os": "darwin", "cpu": "arm64" }, "sha512-d1dC3S2WXmdxvS8QSzvpB1SVIdSX89nP1jLoOIV9N11TCpUlwQzcsD+ePOwNR6VAFwS4IAUQmIL7AqjXQLj2QA=="],
 
