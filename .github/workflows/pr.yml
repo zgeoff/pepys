@@ -19,7 +19,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: zgeoff/tools/.github/workflows/bun-checks.yml@sync-v26
+    uses: zgeoff/tools/.github/workflows/bun-checks.yml@sync-v27
     with:
       scripts: audit deadcode format:check lint:full lint:toml check schema:check test typecheck
 
@@ -28,7 +28,7 @@ jobs:
   changes:
     permissions:
       contents: read
-    uses: zgeoff/tools/.github/workflows/paths-changed.yml@sync-v26
+    uses: zgeoff/tools/.github/workflows/paths-changed.yml@sync-v27
     with:
       paths: |
         crates/**
