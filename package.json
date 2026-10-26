@@ -26,7 +26,7 @@
       "@zgeoff/std": "0.3.0",
       "elysia": "2.0.0-beta.32",
       "exact-mirror": "1.2.6",
-      "knip": "6.41.0",
+      "knip": "6.42.0",
       "kysely": "0.29.6",
       "lefthook": "2.2.2",
       "openapi-types": "12.1.3",
