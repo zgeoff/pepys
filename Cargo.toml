@@ -20,8 +20,39 @@ sha2 = "=0.11.1"
 tempfile = "=3.27.0"
 thiserror = "=2.0.21"
 tokio = { version = "=1.53.3", features = ["macros", "rt-multi-thread", "signal", "time"] }
-turso = "=0.8.3"
-wasmtime = "=49.0.4"
+# turso's default fts feature and wasmtime's default cache feature pull in zstd 0.13, which carries
+# RUSTSEC-2026-0391, RUSTSEC-2026-0398 and RUSTSEC-2026-0403. The host uses neither feature, so
+# both crates list their other default features instead.
+turso = { version = "=0.8.3", default-features = false, features = ["mimalloc"] }
+wasmtime.version = "=49.0.4"
+wasmtime.default-features = false
+wasmtime.features = [
+  "addr2line",
+  "anyhow",
+  "async",
+  "backtrace",
+  "compile-time-builtins",
+  "component-model",
+  "component-model-async",
+  "coredump",
+  "cranelift",
+  "debug",
+  "debug-builtins",
+  "demangle",
+  "gc",
+  "gc-copying",
+  "gc-drc",
+  "gc-null",
+  "parallel-compilation",
+  "pooling-allocator",
+  "profiling",
+  "runtime",
+  "stack-switching",
+  "std",
+  "threads",
+  "wat",
+  "wit-parser",
+]
 wasmtime-wasi = "=49.0.4"
 
 [workspace.lints.clippy]
