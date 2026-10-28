@@ -97,7 +97,7 @@
       "name": "@pepys/spike-host-boundary",
       "version": "0.0.0",
       "devDependencies": {
-        "@scriptc/runtime-wasm32-wasi": "0.3.6",
+        "@scriptc/runtime-wasm32-wasi": "0.4.0",
         "@types/bun": "1.4.3",
         "scriptc": "0.3.6",
       },
@@ -136,7 +136,7 @@
       "name": "@pepys/spike-scriptc-wasm",
       "version": "0.0.0",
       "devDependencies": {
-        "@scriptc/runtime-wasm32-wasi": "0.3.6",
+        "@scriptc/runtime-wasm32-wasi": "0.4.0",
         "@types/bun": "1.4.3",
         "scriptc": "0.3.6",
         "type-fest": "5.10.0",
@@ -166,7 +166,7 @@
     "@orpc/client": "1.15.7",
     "@orpc/server": "1.15.7",
     "@s2-dev/streamstore": "0.29.0",
-    "@scriptc/runtime-wasm32-wasi": "0.3.6",
+    "@scriptc/runtime-wasm32-wasi": "0.4.0",
     "@stylistic/eslint-plugin": "5.10.0",
     "@tsconfig/strictest": "2.0.8",
     "@tursodatabase/database": "0.8.3",
@@ -539,7 +539,7 @@
 
     "@scriptc/cli-win32-x64-msvc": ["@scriptc/cli-win32-x64-msvc@0.3.6", "", { "os": "win32", "cpu": "x64" }, "sha512-Q4/H0v1Wcete0wOapMOgf4xeyQA5vlgqGrTABKjSliCqFlbBcdEgC813pKPlX+JGIiRzVQjxN6lT0BiKySzMWQ=="],
 
-    "@scriptc/runtime-wasm32-wasi": ["@scriptc/runtime-wasm32-wasi@0.3.6", "", {}, "sha512-GZt1MsfcAJ97qyMp9ofQLgh0NCapI7+bareRvIewwp5kK6oqS2hFaf3JFpIEEciUH6Bp7QWFakYgNLZvpEOpmQ=="],
+    "@scriptc/runtime-wasm32-wasi": ["@scriptc/runtime-wasm32-wasi@0.4.0", "", {}, "sha512-Ctj26UTTWiJabzDBHp3GkxdECkWSqo9F8wCUV9JQ3AywqWD8FMprdKCDHU/KMzotynDmOadWX2W6HGdIlDdEZw=="],
 
     "@simple-libs/child-process-utils": ["@simple-libs/child-process-utils@2.0.0", "", { "dependencies": { "@simple-libs/stream-utils": "^2.0.0" } }, "sha512-dvNoRKLijXnD0XoJAz94pbNuB5GQgDr55UhpSPhffDkTT0Cmcqh9jSCOtwfT2d4H6MI9E7c4SgtMuJXZ6F3c6A=="],
 
