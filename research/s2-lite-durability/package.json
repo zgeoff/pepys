@@ -8,7 +8,7 @@
     "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
-    "@s2-dev/streamstore": "0.29.0"
+    "@s2-dev/streamstore": "0.30.0"
   },
   "devDependencies": {
     "@types/bun": "1.4.3"
