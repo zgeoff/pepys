@@ -9,8 +9,8 @@
     "catalog": {
       "@commitlint/cli": "21.2.4",
       "@octokit/webhooks": "14.2.0",
-      "@orpc/client": "1.15.7",
-      "@orpc/server": "1.15.7",
+      "@orpc/client": "1.16.0",
+      "@orpc/server": "1.16.0",
       "@s2-dev/streamstore": "0.30.0",
       "@scriptc/runtime-wasm32-wasi": "0.4.0",
       "@stylistic/eslint-plugin": "5.10.0",
