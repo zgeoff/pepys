@@ -10,6 +10,6 @@
   "devDependencies": {
     "@scriptc/runtime-wasm32-wasi": "0.4.0",
     "@types/bun": "1.4.3",
-    "scriptc": "0.3.6"
+    "scriptc": "0.4.0"
   }
 }
