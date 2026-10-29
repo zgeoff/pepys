@@ -21,7 +21,7 @@
       "@zgeoff/checks": "0.2.4",
       "@zgeoff/commitlint-config": "0.1.0",
       "@zgeoff/format-codemod": "0.3.3",
-      "@zgeoff/oxlint-config": "0.7.0",
+      "@zgeoff/oxlint-config": "0.7.1",
       "@zgeoff/skill-gate": "0.2.9",
       "@zgeoff/std": "0.3.0",
       "elysia": "2.0.0-exp.64",
