@@ -1,8 +1,8 @@
 ---
 name: project-code-style
 description:
-  The place for pepys's additions to the shared code-style skill: pure consumers that return
-  operations, branded IDs, and the ID string form. Load beside code-style before writing,
+  The place for pepys's additions to the shared code-style skill. They cover pure consumers that
+  return operations, branded IDs, and the ID string form. Load beside code-style before writing,
   reviewing, or renaming any TypeScript in pepys.
 ---
 

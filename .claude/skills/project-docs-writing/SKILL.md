@@ -1,7 +1,7 @@
 ---
 name: project-docs-writing
 description:
-  pepys's own rules for repo prose, on top of the shared docs-writing skill: spikes live under
+  pepys's own rules for repo prose, on top of the shared docs-writing skill. Spikes live under
   research/ and are deleted once their finding has a home. Load together with docs-writing whenever
   you write, edit, or review prose in this repo.
 ---

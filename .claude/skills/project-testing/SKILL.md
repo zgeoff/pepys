@@ -1,9 +1,9 @@
 ---
 name: project-testing
 description:
-  pepys's test facts on top of the shared testing skill: how a consumer test feeds facts and
-  asserts operations, which test regime applies, the per-run fixtures, and the lanes. Load together
-  with the testing skill when designing, writing, or reviewing pepys tests.
+  pepys's test facts on top of the shared testing skill. They cover how a consumer test feeds facts
+  and asserts operations, which test regime applies, the per-run fixtures, and the lanes. Load
+  together with the testing skill when designing, writing, or reviewing pepys tests.
 ---
 
 # pepys testing
