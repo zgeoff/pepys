@@ -66,7 +66,12 @@
     "slice:check": "bun scripts/check-slice.ts",
     "test": "bun test --randomize --path-ignore-patterns='research/**'",
     "test:related": "bun scripts/run-related-tests.ts",
-    "typecheck": "tsrs -p tsconfig.json --noEmit && bun run --if-present --filter './research/*' typecheck"
+    "typecheck": "tsrs -p tsconfig.json --noEmit && bun run --if-present --filter './research/*' typecheck",
+    "check:commits": "bun scripts/run-commits-check.ts",
+    "check:local-paths": "bun scripts/run-local-paths-check.ts",
+    "check:test-timeouts": "bun scripts/run-test-timeouts-check.ts",
+    "check:workflows": "bun scripts/run-workflows-check.ts",
+    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\""
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
