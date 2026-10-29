@@ -71,7 +71,8 @@
     "check:local-paths": "bun scripts/run-local-paths-check.ts",
     "check:test-timeouts": "bun scripts/run-test-timeouts-check.ts",
     "check:workflows": "bun scripts/run-workflows-check.ts",
-    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\""
+    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\"",
+    "check:dependency-gates": "bun scripts/dependency-gates/run-dependency-gates-check.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
