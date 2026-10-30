@@ -171,7 +171,7 @@
     "@tsconfig/strictest": "2.0.8",
     "@tursodatabase/database": "0.8.3",
     "@types/bun": "1.4.3",
-    "@zgeoff/bun-test-extended": "0.2.1",
+    "@zgeoff/bun-test-extended": "0.2.2",
     "@zgeoff/checks": "0.2.4",
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/format-codemod": "0.3.3",
@@ -647,7 +647,7 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.1", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-5PEjFsQXU7zpwA+K8rvA8X59z4o4EWE0pUDqAWnbnJPhzofKRrZBZ/XHOgKIncguNjsH99B7Pxlv9VPtPCuVNQ=="],
+    "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.2", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-YQoZhzj8syJBlLZBeH65FBu+lDe9IbYxbs1nzy+w1vsVkaVgNIKl9RmA4K9V5BTLz2vQTBBRqAdDquA4hYxN4A=="],
 
     "@zgeoff/checks": ["@zgeoff/checks@0.2.4", "", { "dependencies": { "@zgeoff/commitlint-config": "0.1.0", "gunshi": "1.0.0-rc.1", "ts-pattern": "5.9.0" }, "bin": { "zgeoff-check": "dist/cli.js" } }, "sha512-zvDWsfrmU2bbYE7nMU9AdMCKfJ5OR7esuPKmSsXzvAZdzborPqLLxeQvXNIzMOz4DsyMaOzyoL3XXko/aC+3pw=="],
 
