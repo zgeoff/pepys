@@ -21,7 +21,7 @@ unsafe_code = "forbid"
 serde_json = "=1.0.154"
 thiserror = "=2.0.21"
 wasmtime = "=49.0.3"
-wasmtime-wasi = "=49.0.3"
+wasmtime-wasi = "=49.0.5"
 
 [lints]
 workspace = true
