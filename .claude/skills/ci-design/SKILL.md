@@ -16,8 +16,8 @@ This skill holds the patterns that keep a pipeline from running a job whose resu
 Most of the CI time a pipeline loses outside its tests goes to jobs that run too often, such as a
 rerun after a rebase nobody needed, and less goes to slow setup. A job runs when its inputs change,
 builds each result once, and cancels only the runs whose result a newer commit replaces. The shared
-reusable workflows live in zgeoff/tools, and a repo calls them at a sync tag, which Renovate moves
-when a new tag is cut.
+reusable workflows live in zgeoff/tools, and a repo calls them at a commit on its `main`, which the
+repo-sync pull request moves.
 
 ## Key rules
 
@@ -138,9 +138,9 @@ one red line, and a reader opens the action's source to find which command faile
 workflow shows each of its jobs and steps in the run, with its own timings.
 
 A shared reusable workflow lives in zgeoff/tools, and a repo calls it as
-`zgeoff/tools/.github/workflows/<name>.yml@<sync tag>`. A repo-local reusable workflow sits in the
-repo's own `.github/workflows/` and is called by its path. Before writing setup steps by hand, check
-whether a tools reusable workflow covers them, and call it.
+`zgeoff/tools/.github/workflows/<name>.yml@<commit> # main`. A repo-local reusable workflow sits in
+the repo's own `.github/workflows/` and is called by its path. Before writing setup steps by hand,
+check whether a tools reusable workflow covers them, and call it.
 
 ## Step scripts
 
@@ -161,8 +161,8 @@ Logic in a script runs in the script's tests on every pull request, as the testi
   `job.workflow_repository` and `job.workflow_sha` and downloads
   [`download-step-scripts.ts`](https://github.com/zgeoff/tools/blob/main/scripts/ci/download-step-scripts.ts)
   with `curl`. That script downloads the workflow's scripts and every file they import into
-  `$RUNNER_TEMP/tools`, and refuses one that imports a package. A caller at a sync tag then runs
-  that tag's scripts.
+  `$RUNNER_TEMP/tools`, and refuses one that imports a package. A caller pinned to a commit then
+  runs that commit's scripts.
 
 ### The workflow lint
 
@@ -170,24 +170,28 @@ The workflow lint checks the `run:` rule and the rules in this skill that a pars
 exactly. The `Lint workflows` step of `bun-checks.yml` runs it after the actionlint step over the
 repo's workflows and the workflow callers that zgeoff/tools delivers. The pre-push baseline runs it
 over the workflow files a branch changes. It reports each fault as a warning and passes, so a repo
-that Renovate moves to a new sync tag keeps a green run while it clears the warnings.
+that a sync pull request moves to a new commit keeps a green run while it clears the warnings.
 
 | Rule                                    | The lint warns on                                                                                                                   |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | [One command per `run:`](#step-scripts) | a `run:` that breaks the rule, where a quoted `;`, `\|` or `&&` is part of a word                                                   |
 | [Timeouts](#timeouts)                   | a job without `timeout-minutes`, other than a job that calls a reusable workflow, where GitHub refuses the key                      |
-| [Cancelling runs](#cancelling-runs)     | a checks workflow without `cancel-in-progress: true`, or with a group that holds a per-run value such as `github.sha`               |
+| [Cancelling runs](#cancelling-runs)     | a checks workflow without `cancel-in-progress: true`, other than a gate on main that groups by `github.sha`                         |
+| [Cancelling runs](#cancelling-runs)     | a checks workflow whose group holds a per-run value, such as `github.sha`, other than a gate on main's group that never cancels     |
 | [Cancelling runs](#cancelling-runs)     | a release or deploy job without its own group and `cancel-in-progress: false`, or under a workflow-level `true`                     |
 | [No rebase churn](#no-rebase-churn)     | a `workflow_run` trigger without a `branches:` filter                                                                               |
 | [Two profiles](#two-profiles)           | a heavy check in a workflow that runs on `pull_request` or `pull_request_target`, unless the run is in a public repo                |
-| [Build once](#build-once)               | an `actions/cache` step in a job that sets up Bun with `oven-sh/setup-bun`                                                          |
+| [Build once](#build-once)               | an `actions/cache` step that caches `~/.bun/install/cache` or `node_modules` in a job that sets up Bun with `oven-sh/setup-bun`     |
 | [Checkout depth](#checkout-depth)       | an `actions/checkout` step with `fetch-depth: 0` and no `filter`, which is `blob:none`, or `''` for a job that reads many old files |
 
-The lint reads three terms by these definitions:
+The lint reads four terms by these definitions:
 
 - **A checks workflow** runs on `pull_request` or `push`. When it holds a release or deploy job,
   each of its other jobs sets its own group with `cancel-in-progress: true`; otherwise the
   workflow-level group, or a group on every job, sets it.
+- **A gate on main** is a checks workflow whose `push` trigger lists only `main` in `branches:`, and
+  which has no `pull_request` or `pull_request_target` trigger. A group that holds `github.sha` and
+  sets `cancel-in-progress: false`, or leaves it out, covers it in place of a cancelling group.
 - **A release or deploy job** has `release`, `deploy` or `migrate` in its id or its name, in any
   case.
 - **A heavy check** is a job whose `runs-on` holds any runner label but a GitHub-hosted Ubuntu
@@ -259,7 +263,7 @@ merge blocks. A job skipped by its own `if:` reports success instead. The path g
 `changes` job outputs whether the pull request touches the job's inputs, and each later job reads
 the answer.
 
-Call `zgeoff/tools/.github/workflows/paths-changed.yml@<sync tag>` as the `changes` job:
+Call `zgeoff/tools/.github/workflows/paths-changed.yml@<commit> # main` as the `changes` job:
 
 | Input or output | What it holds                                                                               |
 | --------------- | ------------------------------------------------------------------------------------------- |
@@ -278,7 +282,7 @@ jobs:
   changes:
     permissions:
       contents: read
-    uses: zgeoff/tools/.github/workflows/paths-changed.yml@<sync tag>
+    uses: zgeoff/tools/.github/workflows/paths-changed.yml@<commit> # main
     with:
       paths: |
         services/api/**
@@ -313,6 +317,18 @@ concurrency:
   cancel-in-progress: true
 ```
 
+A gate on main must pass once for each commit on main, so it never cancels. It groups its runs by
+commit, and a newer commit starts its own run beside the older one:
+
+```yaml
+on:
+  push:
+    branches: [main]
+concurrency:
+  group: gate-${{ github.sha }}
+  cancel-in-progress: false
+```
+
 A release, deploy or migrate job never cancels, because a cut-off deploy can leave a target half
 changed. Give each such job its own job-level `concurrency` group with `cancel-in-progress: false`,
 so the checks group can cancel the run's checks without reaching the deploy. A workflow-level
@@ -336,9 +352,12 @@ in one job and passes on through the registry, or through buildx with the GitHub
 of rebuilding them. A file passes on with `actions/upload-artifact` and `actions/download-artifact`.
 
 A Bun job runs `bun install --frozen-lockfile` with no `actions/cache` step for
-`~/.bun/install/cache`. On a GitHub-hosted runner, a restore of that cache takes longer than the
-install it replaces, and a job that misses the cache spends more time to save one. Each job pays for
-its own runner, checkout and install, which [Two profiles](#two-profiles) weighs against wall time.
+`~/.bun/install/cache` or `node_modules`. On a GitHub-hosted runner, a restore of that cache takes
+longer than the install it replaces, and a job that misses the cache spends more time to save one.
+The rule leaves a cache of any other path alone, such as a Nix store, which `bun install` does not
+replace. The lint skips a path line that holds a `${{ }}` expression, because GitHub resolves it
+only when the job runs. Each job pays for its own runner, checkout and install, which
+[Two profiles](#two-profiles) weighs against wall time.
 
 ## Checkout depth
 
