@@ -176,7 +176,7 @@
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/format-codemod": "0.3.4",
     "@zgeoff/oxlint-config": "0.7.5",
-    "@zgeoff/skill-gate": "0.2.9",
+    "@zgeoff/skill-gate": "0.2.11",
     "@zgeoff/std": "0.3.0",
     "elysia": "2.0.0-exp.64",
     "exact-mirror": "1.2.6",
@@ -647,6 +647,8 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
+    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.1.1", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-daR5x6N0bKbgIVb0B4Ftfre/4i2GBO+GLqx+vUtKB7UGdPwNmYRWzylbfieWsHoRePhUdh8HbQSLUthfsdrjug=="],
+
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.2", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-YQoZhzj8syJBlLZBeH65FBu+lDe9IbYxbs1nzy+w1vsVkaVgNIKl9RmA4K9V5BTLz2vQTBBRqAdDquA4hYxN4A=="],
 
     "@zgeoff/checks": ["@zgeoff/checks@0.2.4", "", { "dependencies": { "@zgeoff/commitlint-config": "0.1.0", "gunshi": "1.0.0-rc.1", "ts-pattern": "5.9.0" }, "bin": { "zgeoff-check": "dist/cli.js" } }, "sha512-zvDWsfrmU2bbYE7nMU9AdMCKfJ5OR7esuPKmSsXzvAZdzborPqLLxeQvXNIzMOz4DsyMaOzyoL3XXko/aC+3pw=="],
@@ -657,7 +659,7 @@
 
     "@zgeoff/oxlint-config": ["@zgeoff/oxlint-config@0.7.5", "", { "dependencies": { "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "oxlint": ">=1.78.0" } }, "sha512-psNr8KaTLaoX+ZqH0fZ1I0m1xx2tEhbfeyHES6oiTP8fy5ozxHrX2P9VmM0LdghN9Blv5jhxdSAfwTMq0q3cuw=="],
 
-    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.9", "", {}, "sha512-Ojjoj3Co5bmBqjpUwyoI5w6GuR/HUnCS3/b87cXAQOE0KPfbtbmaffJBhYTvH+u8+Ky190yxjMRneD+JiTssMg=="],
+    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.11", "", { "dependencies": { "@zgeoff/agent-hooks": "0.1.1" } }, "sha512-IKXyJLXMFt6n1TNhpzL7sYXXz79DrnuznljnlyrnI4NlWF1OWrBpdTVvH5zbUU3cx590T/c6ccd3GQAPVXjcSQ=="],
 
     "@zgeoff/std": ["@zgeoff/std@0.3.0", "", {}, "sha512-I9LBwkMr8uuNCAQ9/tIoObp09b8ixnNDp1f85T9Mm1Ox10nWbVrbiqoWkf+hATCt4iyYxvYIVXl4eUFLwZaU/g=="],
 
