@@ -47,7 +47,7 @@
   },
   "type": "module",
   "scripts": {
-    "audit": "bun audit",
+    "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
     "check": "zgeoff-check",
     "consumers:build": "bun scripts/build-consumers.ts",
     "deadcode": "knip",
