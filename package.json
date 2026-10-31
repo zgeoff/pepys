@@ -22,7 +22,7 @@
       "@zgeoff/commitlint-config": "0.1.0",
       "@zgeoff/format-codemod": "0.3.4",
       "@zgeoff/oxlint-config": "0.7.3",
-      "@zgeoff/skill-gate": "0.2.9",
+      "@zgeoff/skill-gate": "0.2.11",
       "@zgeoff/std": "0.3.0",
       "elysia": "2.0.0-exp.64",
       "exact-mirror": "1.2.6",
