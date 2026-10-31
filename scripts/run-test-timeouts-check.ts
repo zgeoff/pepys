@@ -273,12 +273,18 @@ function collectScriptFindings(
     const lane = name.startsWith('test:') ? name.slice('test:'.length) : null;
     const limit = pickLaneLimit(limits, lane);
 
-    return collectTimeoutValues(command)
-      .filter((timeoutMs) => timeoutMs > limit.limitMs)
-      .map((timeoutMs) => ({
-        path,
-        message: `script "${name}" passes --timeout=${timeoutMs} to bun test, above the ${limit.limitMs} ms limit of the ${limit.lane} lane; ${slowTestsHint}`,
-      }));
+    return collectTimeoutValues(command).flatMap((timeoutMs) => {
+      const breach = findTimeoutBreach(timeoutMs, limit);
+
+      return breach === undefined
+        ? []
+        : [
+            {
+              path,
+              message: `script "${name}" passes --timeout=${timeoutMs} to bun test, ${breach}; ${slowTestsHint}`,
+            },
+          ];
+    });
   });
 }
 
@@ -336,15 +342,14 @@ function collectTimeoutValues(command: string): number[] {
       continue;
     }
 
-    const start = words.findIndex(
-      (word, index) => word.text === 'bun' && words[index + 1]?.text === 'test',
-    );
+    const texts = words.map((word) => word.text);
+    const start = findTestArgsStart(texts);
 
-    if (start === -1) {
+    if (start === null) {
       continue;
     }
 
-    const args = words.slice(start + 2).map((word) => word.text);
+    const args = texts.slice(start);
 
     for (let index = 0; index < args.length; index += 1) {
       const arg = args[index] ?? '';
@@ -353,10 +358,11 @@ function collectTimeoutValues(command: string): number[] {
         break;
       }
 
-      if (arg === '--timeout') {
-        values.push(toTimeoutMs(args[index + 1]));
-      } else if (arg.startsWith('--timeout=')) {
-        values.push(toTimeoutMs(arg.slice('--timeout='.length)));
+      const value = arg === '--timeout' ? args[index + 1] : findTimeoutFlagValue(arg);
+      const timeoutMs = value === undefined ? null : parseTimeoutMs(value);
+
+      if (timeoutMs !== null) {
+        values.push(timeoutMs);
       }
 
       if (valueOptions.has(arg)) {
@@ -382,8 +388,40 @@ function collectShellCommands(words: readonly ShellWord[]): ShellWord[][] {
   return commands;
 }
 
-function toTimeoutMs(value: string | undefined): number {
-  return Number(value?.replaceAll('_', ''));
+// Bun runs its test subcommand only when each option before it takes the `--name=value` form, so
+// `bun --cwd pkg test` runs no test.
+function findTestArgsStart(texts: readonly string[]): number | null {
+  for (const [index, text] of texts.entries()) {
+    const subcommand =
+      text === 'bun' ? texts.findIndex((word, at) => at > index && !word.startsWith('-')) : -1;
+
+    if (subcommand !== -1 && texts[subcommand] === 'test') {
+      return subcommand + 1;
+    }
+  }
+
+  return null;
+}
+
+function findTimeoutFlagValue(arg: string): string | undefined {
+  return arg.startsWith('--timeout=') ? arg.slice('--timeout='.length) : undefined;
+}
+
+// Bun 1.4 reads digits and underscores, and `0` turns the timeout off. It runs an empty value with
+// the default timeout, and refuses any other value before a test runs.
+function parseTimeoutMs(value: string): number | null {
+  return /^[\d_]+$/u.test(value) && /\d/u.test(value) ? Number(value.replaceAll('_', '')) : null;
+}
+
+// Bun runs a test with no timeout at all when the timeout is 0.
+function findTimeoutBreach(timeoutMs: number, limit: LaneLimit): string | undefined {
+  const limitText = `the ${limit.limitMs} ms limit of the ${limit.lane} lane`;
+
+  if (timeoutMs === 0) {
+    return `which turns the timeout off, past ${limitText}`;
+  }
+
+  return timeoutMs > limit.limitMs ? `above ${limitText}` : undefined;
 }
 
 function collectBunfigFindings(path: string, text: string, limit: LaneLimit): TestTimeoutFinding[] {
@@ -395,16 +433,20 @@ function collectBunfigFindings(path: string, text: string, limit: LaneLimit): Te
     'timeout',
   );
 
-  if (typeof timeoutMs !== 'number' || timeoutMs <= limit.limitMs) {
+  if (typeof timeoutMs !== 'number') {
     return [];
   }
 
-  return [
-    {
-      path,
-      message: `[test] timeout = ${timeoutMs} raises every test above the ${limit.limitMs} ms limit of the ${limit.lane} lane; ${slowTestsHint}`,
-    },
-  ];
+  const breach = findTimeoutBreach(timeoutMs, limit);
+
+  return breach === undefined
+    ? []
+    : [
+        {
+          path,
+          message: `[test] timeout = ${timeoutMs} applies to every test, ${breach}; ${slowTestsHint}`,
+        },
+      ];
 }
 
 // git lists paths with forward slashes on every platform
