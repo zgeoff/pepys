@@ -17,7 +17,21 @@ The rules a task needs are not repeated here. Load the skill for the work before
 | `docs-writing`         | writing or editing any committed prose: `docs/`, READMEs, this file, skills     |
 | `project-docs-writing` | the same, beside `docs-writing` — where spikes live and when they go            |
 | `skill-writing`        | writing or editing a skill under `.claude/skills/`                              |
+| `cold-read`            | checking a skill you wrote or changed, before its PR                            |
+| `deslop`               | editing the prose of a skill you wrote or changed, before its PR                |
 | `ci-design`            | adding or changing a CI workflow, a required check, or a package script CI runs |
+
+When you write or edit a skill:
+
+1. If this repo lacks the `skill-writing`, `cold-read` or `deslop` skill, install it with
+   `npx skills add zgeoff/skills`. Commit none of the files the install writes.
+2. Do every step in the "Check it" section of
+   [skill-writing in zgeoff/skills](https://github.com/zgeoff/skills/blob/main/skills/skill-writing/SKILL.md#check-it).
+   Follow that copy: this repo's copy may be older.
+3. In the PR description, after the sections of the repo's PR template, add three `##` headings:
+   - "Skill checks": the check output.
+   - "Cold read": each cold-read finding, and how you answered it.
+   - "Deslop": each change deslop made, or "none".
 
 ## Repo structure
 
