@@ -8,9 +8,9 @@
     "typecheck": "tsrs --noEmit"
   },
   "devDependencies": {
-    "@scriptc/runtime-wasm32-wasi": "0.4.0",
-    "@types/bun": "1.4.3",
-    "scriptc": "0.4.0",
+    "@scriptc/runtime-wasm32-wasi": "0.4.5",
+    "@types/bun": "1.4.4",
+    "scriptc": "0.4.5",
     "type-fest": "5.10.0"
   }
 }
