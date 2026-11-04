@@ -59,7 +59,12 @@ pre-push:
   jobs:
     - name: lint:shell
       run: bun run lint:shell
-    # the workspace is small, so clippy checks all of it when any Rust changed
+    # the workspace is small, so clippy checks all of it when any Rust changed;
+    # a TOML file outside Cargo's inputs, such as bunfig.toml, is not Rust
     - name: clippy
-      glob: '*.{rs,toml}'
+      glob:
+        - '*.rs'
+        - '*Cargo.toml'
+        - 'Cargo.lock'
+        - 'rust-toolchain.toml'
       run: cargo clippy --workspace --all-targets --quiet -- -D warnings
