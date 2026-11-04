@@ -172,12 +172,22 @@ function runChild(command: string[], env: Record<string, string | undefined>): B
   return child;
 }
 
+// a child that exited can leave a forked process in its group, so the group gets the signal either
+// way; ESRCH means the whole group is already gone
 async function stopChild(child: Bun.Subprocess): Promise<void> {
-  if (child.exitCode === null && child.signalCode === null) {
+  try {
     process.kill(-child.pid, 'SIGTERM');
+  } catch (error: unknown) {
+    if (!isNoSuchProcess(error)) {
+      throw error;
+    }
   }
 
   await child.exited;
+}
+
+function isNoSuchProcess(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ESRCH';
 }
 
 async function runHost(args: string[]): Promise<void> {
