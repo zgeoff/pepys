@@ -2,7 +2,7 @@
 
 The spike is partial. On a development PC, Bun 1.4.3 loads `MongoDB/mdbr-leaf-ir` through
 `@huggingface/transformers` 4.3.2 and the native `onnxruntime-node` 1.30.0 binding, reproduces the
-model card's scores, and embeds one email in milliseconds. The pass check names the server's CPU and
+model card's scores, and embeds one email in milliseconds. The pass check needs the server's CPU and
 a day of the owner's email, and neither was measured: the k3s server was unreachable, and the
 owner's daily volume is unknown. The [README](README.md) holds the question and the answer.
 
