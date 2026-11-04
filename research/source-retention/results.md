@@ -53,9 +53,10 @@ page.
 ## Setup
 
 The runners use zod 4.6.7 and `@types/bun` 1.4.4, with `fetch` for every call. They typecheck under
-Bun 1.4.3, and the repo pins Bun 1.4.4. Neither runner has run against a live service. Each runner
-prints counts and times only: the GitHub runner prints no repository, event or delivery GUID, and
-the Gmail runner keeps only the HTTP status of each `history.list` call, never a message ID.
+Bun 1.4.3, and the repo pins Bun 1.4.4. The Gmail probe stored its first history ID on 2026-11-04,
+and the GitHub probe has not run. Each runner prints counts and times only: the GitHub runner prints
+no repository, event or delivery GUID, and the Gmail runner keeps only the HTTP status of each
+`history.list` call, never a message ID.
 
 ### GitHub delivery log
 
@@ -65,15 +66,16 @@ the Gmail runner keeps only the HTTP status of each `history.list` call, never a
 3. From the repo root, run the probe:
 
    ```bash
-   PEPYS_GITHUB_APP_ID=<app_id> PEPYS_GITHUB_APP_PRIVATE_KEY_PATH=<pem_path> \
+   PEPYS_GITHUB_CLIENT_ID=<client_id> PEPYS_GITHUB_APP_PRIVATE_KEY_PATH=<pem_path> \
      bun run --filter ./research/source-retention github
    ```
 
    Expect: JSON with `deliveryCount`, `failedCount`, `oldestDeliveredAt` and `oldestAgeHours`.
 
-`<app_id>` is the App ID on the App's settings page, and `<pem_path>` is the absolute path of the
-key. The step passes when `oldestAgeHours` is 72 or a little less, while the App has received
-deliveries for more than 4 days. A larger value means GitHub keeps more than it documents.
+`<client_id>` is the Client ID on the App's settings page, which GitHub accepts as the JWT issuer,
+and `<pem_path>` is the absolute path of the key. The step passes when `oldestAgeHours` is 72 or a
+little less, while the App has received deliveries for more than 4 days. A larger value means GitHub
+keeps more than it documents.
 
 ### Gmail history ID
 

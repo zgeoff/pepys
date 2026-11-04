@@ -26,7 +26,7 @@ whatever the outage length.
 ## Run it
 
 ```bash
-PEPYS_GITHUB_APP_ID=<app_id> PEPYS_GITHUB_APP_PRIVATE_KEY_PATH=<pem_path> \
+PEPYS_GITHUB_CLIENT_ID=<client_id> PEPYS_GITHUB_APP_PRIVATE_KEY_PATH=<pem_path> \
   bun run --filter ./research/source-retention github
 bun --env-file=<env_file> research/source-retention/run-gmail-probe.ts
 ```

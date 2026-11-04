@@ -2,7 +2,7 @@ import { createSign } from 'node:crypto';
 import { z } from 'zod';
 
 export interface AppCredentials {
-  readonly appID: string;
+  readonly clientID: string;
   readonly privateKeyPEM: string;
 }
 
@@ -65,7 +65,7 @@ function buildAppJWT(credentials: AppCredentials, now: Date): string {
 
   // GitHub rejects a JWT that lives longer than 10 minutes, and allows 60 s of clock drift.
   const header = { alg: 'RS256', typ: 'JWT' };
-  const payload = { iat: nowSeconds - 60, exp: nowSeconds + 540, iss: credentials.appID };
+  const payload = { iat: nowSeconds - 60, exp: nowSeconds + 540, iss: credentials.clientID };
   const unsigned = `${toBase64URL(JSON.stringify(header))}.${toBase64URL(JSON.stringify(payload))}`;
 
   const signature = createSign('RSA-SHA256')
