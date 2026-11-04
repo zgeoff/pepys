@@ -1,10 +1,11 @@
 # API
 
 The API is the only way into pepys for tools and agents. It is one Bun process running Elysia v2,
-oRPC for typed routes, and an MCP server over streamable HTTP, reachable on the owner's tailnet
-only. Every query is a registered object, so one definition gives a typed route, an MCP tool and a
-test. The API reads the store and never writes it: every write from a person or an agent becomes a
-manual fact in the log.
+oRPC for typed routes, and an MCP server over streamable HTTP. Tools and agents reach it on the
+owner's tailnet only, and enrichment reads the change feed and search on a cluster-internal port
+([runtime](./runtime.md#network)). Every query is a registered object, so one definition gives a
+typed route, an MCP tool and a test. The API reads the store and never writes it: every write from a
+person or an agent becomes a manual fact in the log.
 
 ## Callers
 
@@ -23,7 +24,7 @@ the way consumer tests do.
 
 ## The core catalog
 
-The packages ship these queries:
+The packages ship these queries. Each query's catalog key is snake_case, such as `get_entity`.
 
 | Query          | Returns                                                    |
 | -------------- | ---------------------------------------------------------- |
@@ -32,13 +33,17 @@ The packages ship these queries:
 | search         | hybrid full-text and vector results                        |
 | entity history | one entity's transitions, each marked exact or observed    |
 
-The neighbourhood walk follows links in both directions through the effective link view. It caps the
-depth, skips hub kinds such as people unless the query asks for them, filters by link type on each
-hop, and guards against cycles. A hub multiplies the rows of each hop by thousands, so skipping hubs
-keeps the walk small. The link type registry types the walk, so a walk along `closes` returns issue
-IDs.
+The neighbourhood walk follows links in both directions through the effective link view, which each
+query builds as a Kysely common table expression. It caps the depth at 3, skips hub kinds such as
+people unless the query asks for them ([entities](./entities.md#people)), filters by link type on
+each hop, and guards against cycles. A hub multiplies the rows of each hop by thousands, so skipping
+hubs keeps the walk small. The link type registry types the walk, so a walk along `closes` returns
+issue IDs.
 
-The core writes are assert link, retract link and correct label. Each one appends a manual fact.
+The core writes are assert link, retract link and correct label. Each one appends a manual fact, and
+the fact's payload records the client that wrote it. Before it appends a link, the API checks the
+link's two ends against the link type registry, and answers 422 when an end has the wrong kind. An
+MCP agent never sees the TypeScript types that would catch the wrong kind.
 
 ## The deployment catalog
 
@@ -55,10 +60,11 @@ The API runs its own OAuth 2.1 server. Each client the owner adds gets its own g
 
 ## Agent writes
 
-An agent may assert a link, with the agent as its origin, a confidence and required evidence.
-Queries treat agent links like inferred ones and filter them by confidence. An agent may correct a
-label, because the owner classifies mail by working with a model. Every correction counts as
-labelled data for the mail label job, and each one names the client that wrote it.
+An agent may assert a link, with the agent as its origin. Every manual link, from the owner or an
+agent, takes any confidence from 0 to 1 and requires evidence. Queries treat agent links like
+inferred ones and filter them by confidence. An agent may correct a label, because the owner
+classifies mail by working with a model. Every correction counts as labelled data for the mail label
+job, and each one names the client that wrote it.
 
 ## oRPC and MCP
 

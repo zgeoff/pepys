@@ -68,5 +68,5 @@ packages/example/src/
   with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
   consumers to WebAssembly, refuses a type-fest import, even a type-only one.
 - Write an entity ID as `<source>:<kind>:<id>`, such as `github:pr:1874433021`, and brand the whole
-  string. The source and the kind are one short lowercase word each, such as `pr` or `msg`, and the
-  last part is the source's own ID.
+  string. The source is one short lowercase word. The kind is lowercase with `_` between words, such
+  as `pr`, `msg` or `review_comment`. The last part is the source's own ID.

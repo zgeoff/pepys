@@ -77,7 +77,7 @@ version.
 
 | Versioned thing | Champion recorded by | Challenger compared on                                         | Score against                                       | Promoted by                    |
 | --------------- | -------------------- | -------------------------------------------------------------- | --------------------------------------------------- | ------------------------------ |
-| consumer        | the host             | every fact up to the champion's offset in its stream           | nothing: the report is the row diff                 | `pepys up <consumer> --module` |
+| consumer        | the host             | every fact up to the champion's offset in each of its streams  | nothing: the report is the row diff                 | `pepys up <consumer> --module` |
 | enrichment job  | enrichment           | the inputs the champion processed, in the challenger's buckets | see the job table below                             | `pepys up enrich <job>`        |
 | ranking         | the deployment       | the golden queries                                             | the results the owner expects for each golden query | a change to the deployment     |
 

@@ -22,9 +22,10 @@ flowchart LR
   run --> fact[write the fact]
 ```
 
-A job's fact ID is a hash of the job, the job version and the input hash. Before it runs, a job
-looks up that ID in enrichment's own Turso file, so a restart, a replay or a second trigger never
-repeats the work on the same input.
+A job's fact ID is a hash of the job, the job version and the input hash. The fact's `at` is the
+input fact's source time, so the whole fact follows from its input. Before it runs, a job looks up
+that ID in enrichment's own Turso file, so a restart, a replay or a second trigger never repeats the
+work on the same input.
 
 ## Jobs
 
@@ -39,15 +40,15 @@ repeats the work on the same input.
 
 ### Git
 
-Enrichment keeps a bare mirror of each followed repository and fetches it on each push fact. It runs
-the `git` CLI through Bun's shell. A local mirror gives complete diffs with no rate limit, and
-blame, which the GitHub API does not offer.
+Enrichment keeps a bare mirror of every repository that has a repository entity, and fetches it on
+each push fact. It runs the `git` CLI through Bun's shell. A local mirror gives complete diffs with
+no rate limit, and blame, which the GitHub API does not offer.
 
 Blame runs on every merged pull request: on the files it changed, at the parent commit, and on the
 lines it removed or changed, since new lines have no earlier author. The result maps commits to pull
 requests through each pull request's merge commit SHA, which the pull request consumer records as an
 alias. That mapping holds for squash merges. A repository that merges with merge commits or rebases
-needs each pull request's commit list, which joins when such a repository is followed.
+needs each pull request's commit list, which joins when a mirrored repository merges that way.
 
 ### Mail text
 
@@ -68,6 +69,10 @@ The link judgement job asks one question per candidate pair, each with the answe
 unrelated and unclear, and sends every pair for one input in one call. One question per pair lets an
 input link to more than one candidate. A single question over the candidate set returns one winner
 at most.
+
+A related pair becomes a link of type `relates_to`. An unclear pair writes no link, and keeps only
+its judgement row. When a preview scores a link judgement version, a manual link on a judged pair
+counts as agreement, and a retraction counts as disagreement.
 
 Jev sees the text of every email, third-party senders' mail included. TypeSafe, which runs Jev,
 never trains a model on that text. Its terms set no retention period, and let it keep telemetry
@@ -90,8 +95,10 @@ measured.
 
 A model fact records the hashes of the model, the prompt, the grammar and the input. Prompts, label
 sets and trigger rules live in versioned data files rather than code, and a change to any of them
-gives a new job version without a rebuild. Consumers read only the facts of the job's champion
-version, and the facts of other versions stay for comparison.
+gives a new job version without a rebuild. The version files live in `@pepys/deployment`, because
+label sets and prompts are personal to the owner, and `@pepys/enrichment` defines their schema.
+Consumers read only the facts of the job's champion version, and the facts of other versions stay
+for comparison.
 
 `pepys preview enrich <job>` runs a new version as a challenger on the scopes in its buckets and
 shows the labels that change. `pepys up enrich <job>` promotes it and runs it on every item. The
