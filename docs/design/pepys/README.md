@@ -7,27 +7,22 @@ question it exists to answer is "what is waiting on me, across everything?". Eve
 design follows from one split: facts are kept forever and never change, and everything built from
 them can be deleted and rebuilt by replaying the facts.
 
-pepys ships as `@pepys/*` packages plus a deployment that assembles them in code. The core packages
-hold the log, the host, the store and the API, and none of them is written for one source. A source
-is a package that brings its ingest paths, its fact families and the consumers that build its
-entities. GitHub and Gmail are the first two sources, and these docs use them as their examples.
-
-The deployment chooses its sources and holds what is personal to its owner: the owner's identity,
-queries such as "waiting on me", and consumers that only that owner wants.
+GitHub and Gmail are the first two sources, and these docs use them as their examples.
 
 ## Principles
 
 - Facts enter at one place, the log. A fact is a source event, an enrichment result or a manual
-  assertion, and nothing changes or deletes it.
+  assertion, and pepys never changes or deletes it.
 - Everything else is a projection: entity tables, links, the change feed and the search index. A
   replay of the facts rebuilds any projection.
-- The bucket is the only state. Everything durable lives in object storage, and local disks hold
+- Object storage is the only state. Everything durable lives in object storage, and local disks hold
   caches and rebuildable projections.
 - A consumer is pure. The same facts give the same output, and outside calls happen only in
   enrichment, whose results return to the log as facts.
-- Each table has one owner, and a consumer writes only the tables it owns.
-- Facts record what happened, and meaning is decided at query time. Blame runs on every merged pull
-  request, and the asker decides which of them count as fixes.
+- Each table belongs to one consumer, and a consumer writes only its own tables.
+- Facts record what happened, and each query decides what the facts mean. For example, enrichment
+  runs `git blame` on every merged pull request, and a query picks which of those pull requests
+  count as bug fixes.
 - Entities are named by global string IDs, with no foreign keys, so a link can point at an entity
   that has not arrived yet.
 
@@ -52,6 +47,33 @@ Ingest writes attachments to the blobs bucket before it appends the fact that re
 fact never points at a missing blob. The host is the only writer of the store. Enrichment reads the
 store's change feed and writes its results to the log, never to the store. The API reads the store
 and never writes it; manual links and corrections reach the log as facts.
+
+## Packages
+
+pepys is built from three kinds of package:
+
+- **Core packages** hold the parts in the pipeline, such as ingest, the host, the store and the API.
+  They are never written for one source.
+- **A source package** brings one source: how ingest receives its data, the facts it writes, and the
+  consumers that build its entities.
+- **The deployment package** picks the sources and holds what is personal to the owner: the owner's
+  identity, queries such as "waiting on me", and consumers that only the owner wants.
+
+| Package or Rust crate  | Kind       | Holds                                                           | Design doc                       |
+| ---------------------- | ---------- | --------------------------------------------------------------- | -------------------------------- |
+| `@pepys/contract`      | core       | the typed contract of every API query and write                 | [API](./api.md)                  |
+| `@pepys/schema`        | core       | the API that declares consumers and tables, and the generator   | [Consumers](./consumers.md)      |
+| `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in   | [Ingest](./ingest.md)            |
+| `@pepys/enrichment`    | core       | the enrichment jobs and the model clients they call             | [Enrichment](./enrichment.md)    |
+| `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes | [API](./api.md)                  |
+| `@pepys/kysely-turso`  | core       | the Kysely dialect for Turso                                    | [Store](./store.md)              |
+| `@pepys/source-<name>` | source     | one source, such as `source-github` or `source-gmail`           | [Ingest](./ingest.md)            |
+| `@pepys/deployment`    | deployment | the owner's identity, sources, queries and consumers            | [Entities](./entities.md#people) |
+| `pepys-host`           | core crate | the host, which runs consumers and swaps in their new versions  | [Host](./host.md)                |
+| `pepys-schema`         | core crate | the Rust types generated from `@pepys/schema`                   | [Consumers](./consumers.md)      |
+
+A source package depends on `@pepys/schema` and `@pepys/ingest`. A core package never imports a
+source package or the deployment package.
 
 ## Design docs
 
