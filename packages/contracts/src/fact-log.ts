@@ -1,11 +1,11 @@
 import type { FactEnvelope, Result } from '@pepys/schema';
-import type { FactID, StreamName, StreamOffset } from './ids.ts';
+import type { StreamName, StreamOffset } from './ids.ts';
 
 // The outcome of one append. s2-lite can land an append whose call timed out, so an unknown outcome
-// is its own case: the caller repeats the append under the same fact ID, and the log keeps one copy.
+// is its own case: the caller repeats the append under the same fact ID. The log can then hold two
+// copies, and each consumer drops the copy whose fact ID it has already applied.
 export type AppendOutcome =
   | { kind: 'acknowledged'; offset: StreamOffset }
-  | { kind: 'duplicate'; id: FactID }
   | { kind: 'rejected'; reason: 'invalid-envelope' | 'unknown-stream' }
   | { kind: 'unknown' };
 

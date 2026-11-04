@@ -1,7 +1,7 @@
 import type { ConsumerDeclaration } from '@pepys/schema';
 import type { JobDefinition } from './enrichment-job.ts';
 import type { EntityID } from './ids.ts';
-import type { Catalog } from './query-catalog.ts';
+import type { CatalogEntry } from './query-catalog.ts';
 import type { SourceDefinition } from './source.ts';
 import type {
   CandidateProposer,
@@ -29,9 +29,15 @@ export interface DeploymentDefinition<Context> {
   owner: readonly EntityID[];
   sources: readonly SourceDefinition[];
   strategies: StrategyPicks;
-  jobs: readonly JobDefinition<unknown, unknown>[];
+  jobs: readonly AnyJob[];
 
   // Consumers only this owner wants, such as the one behind "waiting on me".
   consumers: readonly ConsumerDeclaration[];
-  queries: Catalog<Record<string, { input: unknown; output: unknown }>, Context>;
+  queries: Readonly<Record<string, AnyQuery<Context>>>;
 }
+
+// A job's input type appears only in parameter positions, so `never` accepts every job; `unknown`
+// would accept only a job that takes any input.
+export type AnyJob = JobDefinition<never, unknown>;
+
+export type AnyQuery<Context> = CatalogEntry<never, unknown, Context>;

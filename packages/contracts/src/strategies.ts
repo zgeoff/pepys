@@ -37,17 +37,22 @@ export interface JudgedText {
   text: string;
 }
 
-// Jev takes a choice set of up to 255 options per call, so one call judges a subject against all
-// of its candidates at once, with "none" as one of the choices.
+// Each candidate pair gets its own judgement, because a subject can relate to several candidates.
+// Jev takes many questions in one request, so one call judges every pair of a subject.
 export type PairJudge = Provisional<
   'jev-terms',
   Strategy & {
     judge: (
       subject: JudgedText,
       candidates: readonly JudgedText[],
-    ) => Promise<Result<Judgement<EntityID | 'none'>, ModelFailure>>;
+    ) => Promise<Result<readonly PairJudgement[], ModelFailure>>;
   }
 >;
+
+export interface PairJudgement {
+  candidate: EntityID;
+  judgement: Judgement<'related' | 'unrelated' | 'unclear'>;
+}
 
 // Proposes candidates for a pair judge, such as the nearest emails to an issue's text.
 export interface CandidateProposer extends Strategy {
