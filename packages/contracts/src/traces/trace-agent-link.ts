@@ -1,22 +1,25 @@
 // Trace: an agent asserts a link over MCP, the manual-link consumer writes it, the neighbourhood
 // query serves it, and the owner retracts it. It only has to compile; no test runs it.
 import type { FactEnvelope } from '@pepys/schema';
-import type { ConsumerInput, ConsumerOutcome, ConsumerReads } from '../consumer-execution.ts';
-import type { FactLog } from '../fact-log.ts';
-import type { StreamName, StreamOffset } from '../ids.ts';
-import type { KindedID, LinkTypeDeclaration } from '../link-registry.ts';
+import type {
+  ConsumerOutcome,
+  ConsumerReads,
+  FactInput,
+  FactOperation,
+} from '../consumer-execution.ts';
+import type { StreamOffset } from '../ids.ts';
+import type { KindedID, LinkRegistryOf, LinkTypeDeclaration } from '../link-registry.ts';
 import type { Catalog, CoreQueries, CoreWrites, Principal } from '../query-catalog.ts';
 
-type Mentions = LinkTypeDeclaration<'mentions', 'gmail:msg', 'github:issue'>;
+type Registry = LinkRegistryOf<LinkTypeDeclaration<'mentions', 'gmail:msg', 'github:issue'>>;
 
 export interface AgentLinkTrace {
-  writes: Catalog<CoreWrites, unknown>;
-  queries: Catalog<CoreQueries, unknown>;
-  log: FactLog;
+  writes: Catalog<CoreWrites<Registry>, unknown>;
+  queries: Catalog<CoreQueries<Registry>, unknown>;
   manualLinks: (
-    input: ConsumerInput,
+    input: FactInput,
     reads: ConsumerReads<unknown>,
-  ) => ConsumerOutcome<unknown, Mentions>;
+  ) => ConsumerOutcome<FactOperation<unknown, Registry>>;
   reads: ConsumerReads<unknown>;
   agent: Principal;
   owner: Principal;
@@ -25,7 +28,6 @@ export interface AgentLinkTrace {
 export interface AgentLinkEvent {
   email: KindedID<'gmail:msg'>;
   issue: KindedID<'github:issue'>;
-  stream: StreamName;
   read: (offset: StreamOffset) => Promise<{ offset: StreamOffset; fact: FactEnvelope<unknown> }>;
 }
 
@@ -47,10 +49,7 @@ export async function runAgentLinkTrace(
 
   const stored = await event.read(toOffset(0));
 
-  trace.manualLinks(
-    { kind: 'fact', stream: event.stream, offset: stored.offset, fact: stored.fact },
-    trace.reads,
-  );
+  trace.manualLinks({ mode: 'fact', offset: stored.offset, fact: stored.fact }, trace.reads);
 
   const before = await trace.queries.neighbourhood.run(undefined, trace.owner, {
     id: event.email,

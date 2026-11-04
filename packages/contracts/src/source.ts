@@ -1,7 +1,5 @@
 import type { ConsumerDeclaration, FactEnvelope, Result } from '@pepys/schema';
-import type { BlobStore } from './blob-store.ts';
-import type { AppendOutcome, FactLog } from './fact-log.ts';
-import type { StreamName } from './ids.ts';
+import type { BlobHash, StreamName } from './ids.ts';
 import type { EntityKind, LinkTypeDeclaration } from './link-registry.ts';
 
 // One fact family: its stream, the fact types in it, and how a payload is checked.
@@ -14,73 +12,89 @@ export interface FactFamily<Payload> {
   parsePayload: (raw: unknown) => Result<Payload, { reason: string }>;
 }
 
-// The ports an ingest path gets. A path writes blobs before the facts that reference them, then the
-// facts, then its cursor, so a fact never points at a missing blob.
-export interface IngestPorts {
-  log: FactLog;
-  blobs: BlobStore;
-  cursors: CursorStore;
-}
-
-// The last position a poller reached in its source, kept as a fact in `facts.cursors`.
-export interface CursorStore {
-  read: (path: string) => Promise<string | undefined>;
-  write: (path: string, cursor: string) => Promise<AppendOutcome>;
-}
-
-// A path that receives pushes, such as GitHub webhooks. The deployment mounts it on one route.
-export interface PushPath {
-  kind: 'push';
-  route: string;
-
-  // Checks the request before anything is written; an unsigned request gets no further work.
-  receive: (request: Request, ports: IngestPorts) => Promise<Response>;
-}
-
-// A path that polls from a cursor, such as Gmail's `history.list`.
-export interface PollPath {
-  kind: 'poll';
-  intervalMs: number;
-  poll: (ports: IngestPorts) => Promise<PollOutcome>;
-}
-
-// The outcome of one poll. An expired cursor means the source dropped its history.
-export type PollOutcome =
-  | { kind: 'polled'; facts: number }
-  | { kind: 'cursor-expired' }
-  | { kind: 'source-unavailable'; retryAfterMs: number };
-
-// A path the owner runs by command, such as a backfill or a full resync.
-export interface CommandPath {
-  kind: 'command';
-  name: string;
-  run: (
-    ports: IngestPorts,
-    args: readonly string[],
-  ) => Promise<Result<{ facts: number }, { reason: string }>>;
-}
-
-// The source port: everything one source brings. A new source adds its own streams, tables and
-// consumers, and changes nothing another source owns.
+// The source port: everything one source brings. A source holds no log, blob store or cursor
+// store. Every path returns a batch, and the ingest core alone writes it: blobs, then facts, then
+// the cursor, repeating an unknown append under the same fact ID.
 export interface SourceDefinition {
-  // The first part of every entity ID the source names, such as `github`.
+  // The first part of every entity ID and stream the source owns, such as `github`.
   name: string;
+
+  // The core refuses a batch with a fact outside these families.
   families: readonly FactFamily<unknown>[];
   entityKinds: readonly EntityKind[];
   linkTypes: readonly LinkTypeDeclaration[];
   consumers: readonly ConsumerDeclaration[];
-  live: PushPath | PollPath;
+  live: ReceivePath | PullPath;
 
-  // Finds what the live path missed, such as failed webhook deliveries.
-  recovery: PollPath | CommandPath;
-  backfill: CommandPath;
+  // Finds what the live path missed, such as failed webhook deliveries. Gmail passes its live
+  // poll again: the same poll, resumed from the same cursor.
+  recovery: PullPath;
+  backfill: PullPath;
 
-  // Runs when recovery reports the source dropped its history: observations of every object.
-  resync: CommandPath;
+  // Runs when another path reports expired history. It starts with no cursor, and its last cursor
+  // becomes the cursor of the path that expired.
+  resync: PullPath;
 }
 
-// Builds one fact envelope for a family. Ingest paths call it so every fact is checked.
-export type BuildFact = <Payload>(
-  family: FactFamily<Payload>,
-  fact: Omit<FactEnvelope<Payload>, 'v' | 'api'>,
-) => FactEnvelope<Payload>;
+// A path the source pushes to, such as GitHub webhooks. The core mounts it on one route.
+export interface ReceivePath {
+  kind: 'receive';
+  route: string;
+
+  // Checks the request and returns a batch. It has no way to write, so a refused request writes
+  // nothing. A received batch moves no cursor.
+  receive: (request: Request) => Promise<Received>;
+}
+
+export type Received =
+  | { kind: 'refused'; status: 400 | 401 | 405 | 422; reason: string }
+  | { kind: 'ignored' }
+  | { kind: 'batch'; batch: Batch };
+
+// A path the core calls from a cursor: a poll, a redelivery sweep, a backfill or a resync.
+export interface PullPath {
+  kind: 'pull';
+
+  // Its key in `facts.cursors`, such as `gmail.history`. Two paths with one name share a cursor.
+  name: string;
+
+  // How often the core calls it. A path with none runs only by command.
+  intervalMs: number | null;
+  pull: (cursor: string | null) => Promise<Pulled>;
+}
+
+// `cursor` is where the next call starts, and holds a page token while pages remain. On `expired`
+// the core starts the resync path. On `rejected` the core writes no cursor past the page and stops
+// the path, so a page it could not turn into facts is never skipped unseen.
+export type Pulled =
+  | { kind: 'batch'; batch: Batch; cursor: string; isDone: boolean }
+  | { kind: 'expired' }
+  | { kind: 'unavailable'; retryAfterMs: number }
+  | { kind: 'rejected'; reason: string };
+
+// What one call produces. Each fact carries the blobs it names, so the core writes them first and
+// a fact never names a blob that was not written.
+export interface Batch {
+  facts: readonly PendingFact[];
+}
+
+export interface PendingFact {
+  stream: StreamName;
+  fact: FactEnvelope<unknown>;
+  blobs: readonly { hash: BlobHash; bytes: Uint8Array }[];
+}
+
+// The ingest core, built from the deployment's sources. It is the only caller of every path, and
+// one lock per source keeps a command and the timer off the same cursor.
+export interface Ingest {
+  routes: Readonly<Record<string, (request: Request) => Promise<Response>>>;
+  start: () => void;
+  stop: () => Promise<void>;
+  runCommand: (command: IngestCommand) => Promise<Result<{ facts: number }, { reason: string }>>;
+}
+
+// The operator commands. Each one comes from the source's definition, with no code per source.
+export interface IngestCommand {
+  source: string;
+  path: 'backfill' | 'recovery' | 'resync';
+}

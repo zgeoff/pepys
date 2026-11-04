@@ -1,7 +1,7 @@
 import type { FactEnvelope, Result } from '@pepys/schema';
 import type { BlobStore } from './blob-store.ts';
 import type { AppendOutcome } from './fact-log.ts';
-import type { BucketNumber, EntityID, FactID, ScopeID, VersionHash } from './ids.ts';
+import type { EntityID, FactID, ScopeID, StreamName, VersionHash } from './ids.ts';
 
 // One change from the store's change feed that a job's trigger rule matched.
 export interface JobInput<Value> {
@@ -21,6 +21,9 @@ export interface JobVersion {
 
   // The owner's threshold for the evaluation score, from the version's data file.
   scoreThreshold: number | null;
+
+  // The most model calls one input can take, so a sample's cost is known before it runs.
+  modelCallsPerInput: number;
 }
 
 // The ports a job run gets. A job never writes the store; its results return to the log.
@@ -59,16 +62,21 @@ export interface TriggerRule<Value> {
   toScope: (change: TriggerChange<Value>) => ScopeID;
 }
 
-// The scopes a challenger runs on before promotion. It sits outside the version hash.
-export interface RunConfiguration {
+// Whether a reader may see one job fact. The host builds it from a consumer version's pins and
+// applies it to the stream and to the fact index, so a challenger's facts reach no consumer.
+export type JobFactVisibility = (fact: JobFactVersion) => boolean;
+
+export interface JobFactVersion {
   job: string;
-  champion: VersionHash;
-  challenger: { version: VersionHash; buckets: readonly BucketNumber[] } | null;
+  version: VersionHash;
 }
 
 export interface JobDefinition<Value, Output> {
   name: string;
   version: JobVersion;
+
+  // Every version of the job writes here; readers see only their pinned version.
+  resultStream: StreamName;
   trigger: TriggerRule<Value>;
   run: (input: JobInput<Value>, ports: JobPorts) => Promise<Result<Output, { reason: string }>>;
 }

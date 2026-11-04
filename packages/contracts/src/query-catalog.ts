@@ -1,5 +1,14 @@
 import type { ClientID, EntityID, FactID, Reference } from './ids.ts';
-import type { EntityKind, LinkTarget } from './link-registry.ts';
+import type {
+  EntityKind,
+  KindedID,
+  LinkEnds,
+  LinkRegistry,
+  LinkTarget,
+  LinkTypeName,
+  LinkTypeSources,
+  LinkTypeTargets,
+} from './link-registry.ts';
 import type { Provisional } from './provisional.ts';
 
 // Who calls a query. The API resolves it from the OAuth token before the query runs.
@@ -25,8 +34,8 @@ export interface EntitySummary {
 }
 
 // The core catalog. Each entry becomes an oRPC route and an MCP tool from one definition, so the
-// MCP tool list is this interface's keys.
-export interface CoreQueries {
+// MCP tool list is this interface's keys. The deployment passes the generated link registry.
+export interface CoreQueries<Registry extends LinkRegistry> {
   getEntity: {
     input: { id: EntityID };
     output: {
@@ -39,11 +48,11 @@ export interface CoreQueries {
     input: {
       id: EntityID;
       depthLimit: number;
-      linkTypes: readonly string[] | null;
+      linkTypes: readonly LinkTypeName<Registry>[] | null;
       includeHubs: boolean;
       minimumConfidence: number;
     };
-    output: { entities: readonly EntitySummary[]; links: readonly NeighbourhoodLink[] };
+    output: { entities: readonly EntitySummary[]; links: readonly NeighbourhoodLink<Registry>[] };
   };
 
   search: Provisional<
@@ -59,13 +68,21 @@ export interface CoreQueries {
   };
 }
 
-export interface NeighbourhoodLink {
-  type: string;
-  from: EntityID;
-  to: LinkTarget<EntityKind>;
-  confidence: number;
-  depth: number;
-}
+// One hop of the walk. Narrowing on `type` and `direction` gives the kinds of the far end. A
+// caller that followed only some link types narrows the union with `Followed`.
+export type NeighbourhoodLink<
+  Registry extends LinkRegistry,
+  Followed extends LinkTypeName<Registry> = LinkTypeName<Registry>,
+> = {
+  [Name in Followed]: {
+    type: Name;
+    direction: 'outgoing' | 'incoming';
+    from: KindedID<LinkTypeSources<Registry, Name>>;
+    to: LinkTarget<LinkTypeTargets<Registry, Name>>;
+    confidence: number;
+    depth: number;
+  };
+}[Followed];
 
 export interface Transition {
   field: string;
@@ -77,20 +94,15 @@ export interface Transition {
 }
 
 // The core writes. Each appends one manual fact; none writes the store. An agent's link needs a
-// confidence below 1 and evidence, and only the owner may correct a label.
-export interface CoreWrites {
+// confidence below 1 and evidence, and only the owner may correct a label. The API checks the ends
+// against the registry at run time too, because an MCP agent never sees these types.
+export interface CoreWrites<Registry extends LinkRegistry> {
   assertLink: {
-    input: {
-      type: string;
-      from: EntityID;
-      to: LinkTarget<EntityKind>;
-      confidence: number;
-      evidence: string;
-    };
+    input: LinkEnds<Registry> & { confidence: number; evidence: string };
     output: { fact: FactID };
   };
   retractLink: {
-    input: { type: string; from: EntityID; to: LinkTarget<EntityKind>; reason: string };
+    input: LinkEnds<Registry> & { reason: string };
     output: { fact: FactID };
   };
   correctLabel: {
