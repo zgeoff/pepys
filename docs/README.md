@@ -14,6 +14,8 @@
 - [pepys design](./design/pepys/README.md) — the principles, the pipeline, and the index of design
   docs.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
+- [Architecture](./design/pepys/architecture.md) — ports, strategies, champion and challenger, and
+  buckets.
 - [Storage](./design/pepys/storage.md) — Garage, the buckets, and blobs.
 - [Log](./design/pepys/log.md) — streams, the fact envelope, fact IDs, cursors, events and
   observations.
@@ -54,3 +56,4 @@
 - [0020: One API process on Elysia v2, oRPC and MCP](./decisions/0020-api-stack.md)
 - [0021: Rust tooling](./decisions/0021-rust-tooling.md)
 - [0022: Consumers are core modules that read through host-written memory](./decisions/0022-consumers-are-core-modules.md)
+- [0023: Contracts follow ports, strategies and champion-challenger](./decisions/0023-ports-strategies-champion-challenger.md)
