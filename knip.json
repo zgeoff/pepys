@@ -19,6 +19,9 @@
     "packages/api": {
       "entry": ["src/**/*.test.ts", "src/serve.ts"]
     },
+    "packages/contracts": {
+      "entry": ["src/traces/*.ts"]
+    },
     "packages/kysely-turso": {
       "entry": ["src/**/*.test.ts"]
     }

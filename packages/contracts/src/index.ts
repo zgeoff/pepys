@@ -8,6 +8,7 @@ export type * from './enrichment-job.ts';
 export type * from './fact-log.ts';
 export type * from './ids.ts';
 export type * from './link-registry.ts';
+export type * from './provisional.ts';
 export type * from './query-catalog.ts';
 export type * from './source.ts';
 export type * from './strategies.ts';
