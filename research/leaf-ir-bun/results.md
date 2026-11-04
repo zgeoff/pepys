@@ -61,7 +61,7 @@ timeouts of 5 s and 10 s, timed out on port 22, so whether `windrose` is the k3s
 CPU, are unknown. The owner reproduces the timing on the server with Bun 1.4.x installed:
 
 ```bash
-git clone --depth 1 --branch research/leaf-ir-bun https://github.com/zgeoff/pepys /tmp/pepys-leaf && cd /tmp/pepys-leaf && bun install && bun run --filter ./research/leaf-ir-bun check && lscpu | head -20
+git clone --depth 1 https://github.com/zgeoff/pepys /tmp/pepys-leaf && cd /tmp/pepys-leaf && bun install && bun run --filter ./research/leaf-ir-bun check && lscpu | head -20
 ```
 
 The repo is public, so the clone needs no credential.
