@@ -11,9 +11,9 @@ conformance tests?
 
 ## Answer
 
-- The spike passes on `@durable-streams/server-conformance-tests` 0.3.7: the server passes all 118
+- The spike passes on `@durable-streams/server-conformance-tests` 0.3.7: the server passes all 129
   read tests in 3 of 3 runs, from a change log with one row per batch.
-- The read side takes 404 lines of TypeScript: catch-up, long-poll, server-sent events, ETags and
+- The read side takes 409 lines of TypeScript: catch-up, long-poll, server-sent events, ETags and
   cursors.
 - Every read test creates and fills its own stream with PUT and POST, so a read-only server can't
   run the suite. The spike adds a 236-line write path that serves only as a test fixture.

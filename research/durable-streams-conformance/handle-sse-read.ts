@@ -93,9 +93,14 @@ function formatSSEData(
   const text =
     encoding === 'base64' ? Buffer.from(payload).toString('base64') : textDecoder.decode(payload);
 
-  const lines = text.split(/\r\n|\r|\n/u).map((line) => `data:${line}`);
+  const lines = text.split(/\r\n|\r|\n/u).map((line) => `data:${toSSEFieldValue(line)}`);
 
   return `event: data\n${lines.join('\n')}\n\n`;
+}
+
+// An SSE reader drops one space after the colon, so a line that starts with a space gets one more.
+function toSSEFieldValue(line: string): string {
+  return line.startsWith(' ') ? ` ${line}` : line;
 }
 
 function formatSSEControl(

@@ -12,6 +12,7 @@ export interface StateCheckResult {
   readonly preloadMs: number;
   readonly preloadMatches: boolean;
   readonly liveBatches: number;
+  readonly isReaderWaiting: boolean;
   readonly liveMatches: boolean;
   readonly liveCatchUpMs: number | null;
 }
@@ -71,6 +72,11 @@ export async function runStateCheck(
   const seededRows = await readTableRows(changeLog, table);
 
   const preloadMatches = Bun.deepEquals(readClientRows(), seededRows);
+
+  // The live batches commit only once the client waits at the tail, so they must reach it through
+  // the commit signal.
+  const isReaderWaiting = await waitUntil(() => server.hasWaiter(path));
+
   const liveStartMs = performance.now();
 
   for (const change of buildLiveChanges()) {
@@ -95,6 +101,7 @@ export async function runStateCheck(
     preloadMs: Math.round(preloadMs),
     preloadMatches,
     liveBatches: liveBatchCount,
+    isReaderWaiting,
     liveMatches,
     liveCatchUpMs: liveCatchUpMs === null ? null : Math.round(liveCatchUpMs),
   };
@@ -214,17 +221,8 @@ async function readTableRows(changeLog: ChangeLog, table: string): Promise<Item[
   return toSortedRows(rows);
 }
 
-function buildLiveChanges(): Change[] {
-  return [
-    { operation: 'insert', item: buildItem(insertCount, 0) },
-    { operation: 'update', item: buildItem(1, 2), old: buildItem(1, 0) },
-    { operation: 'delete', old: buildItem(3, 0) },
-    { operation: 'update', item: buildItem(0, 2), old: buildItem(0, 1) },
-    { operation: 'insert', item: buildItem(insertCount + 1, 0) },
-  ];
-}
-
-const liveTimeoutMs = 5000;
+// Below the server's 2 s long-poll timeout, so a reader that missed the commit signal fails.
+const liveTimeoutMs = 1000;
 const pollMs = 5;
 
 async function waitUntil(isDone: () => boolean): Promise<boolean> {
@@ -239,4 +237,14 @@ async function waitUntil(isDone: () => boolean): Promise<boolean> {
   }
 
   return isDone();
+}
+
+function buildLiveChanges(): Change[] {
+  return [
+    { operation: 'insert', item: buildItem(insertCount, 0) },
+    { operation: 'update', item: buildItem(1, 2), old: buildItem(1, 0) },
+    { operation: 'delete', old: buildItem(3, 0) },
+    { operation: 'update', item: buildItem(0, 2), old: buildItem(0, 1) },
+    { operation: 'insert', item: buildItem(insertCount + 1, 0) },
+  ];
 }

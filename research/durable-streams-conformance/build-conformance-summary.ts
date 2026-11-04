@@ -35,10 +35,11 @@ export function buildConformanceSummary(reportText: string): ConformanceSummary 
 
   for (const result of report.testResults.flatMap((file) => file.assertionResults)) {
     const group = result.ancestorTitles.join(' > ');
-    const scope = pickScope(group);
-    const current = groups.get(group) ?? { group, scope, passed: 0, failed: 0, skipped: 0 };
+    const scope = pickScope(group, result.title);
+    const key = `${scope}:${group}`;
+    const current = groups.get(key) ?? { group, scope, passed: 0, failed: 0, skipped: 0 };
 
-    groups.set(group, {
+    groups.set(key, {
       ...current,
       passed: current.passed + (result.status === 'passed' ? 1 : 0),
       failed: current.failed + (result.status === 'failed' ? 1 : 0),
@@ -92,6 +93,21 @@ const readGroups = new Set([
   'Property-Based Tests (fast-check) > State Hash Verification',
 ]);
 
+// Read tests that sit in a group of write tests. Each one's assertions check a GET response.
+const readTestsInWriteGroups = new Set([
+  'HTTP Protocol > should return correct headers on GET',
+  'HTTP Protocol > should return empty body with up-to-date for empty stream',
+  'HTTP Protocol > should read from offset',
+  'Content-Type Validation > should return stream content-type on GET',
+  'Protocol Edge Cases > should preserve data immutability by position',
+  'Protocol Edge Cases > should generate unique, monotonically increasing offsets',
+  'Protocol Edge Cases > should reject empty offset parameter',
+  'Protocol Edge Cases > should reject multiple offset parameters',
+  'Protocol Edge Cases > should handle binary data with integrity',
+  'Protocol Edge Cases > should ignore unknown query parameters',
+  'Stream Closure > Edge Cases > offset-now-on-closed-stream: offset=now on closed stream returns Stream-Closed: true',
+]);
+
 const outOfScopePatterns = [
   /Producer/u,
   /^Fork - /u,
@@ -100,8 +116,8 @@ const outOfScopePatterns = [
   /^HEAD Metadata Edge Cases$/u,
 ];
 
-function pickScope(group: string): Scope {
-  if (readGroups.has(group)) {
+function pickScope(group: string, title: string): Scope {
+  if (readGroups.has(group) || readTestsInWriteGroups.has(`${group} > ${title}`)) {
     return 'read';
   }
 

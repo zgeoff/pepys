@@ -73,7 +73,9 @@ async function runSpike(directory: string): Promise<number> {
 
     const passed =
       conformance.totals.read.failed === 0 &&
-      [sse, longPoll].every((check) => check.preloadMatches && check.liveMatches);
+      [sse, longPoll].every(
+        (check) => check.preloadMatches && check.isReaderWaiting && check.liveMatches,
+      );
 
     return passed ? 0 : 1;
   } finally {

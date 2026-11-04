@@ -10,6 +10,9 @@ export interface ChangeFeedServer {
 
   // The host's after-commit signal: a write that bypasses HTTP calls it to wake live readers.
   notifyCommit: (path: string) => void;
+
+  // True while a live reader of the stream waits for the next commit.
+  hasWaiter: (path: string) => boolean;
   stop: () => Promise<void>;
 }
 
@@ -80,6 +83,7 @@ export function createChangeFeedServer(options: ChangeFeedServerOptions): Change
   return {
     url: `http://127.0.0.1:${server.port}`,
     notifyCommit,
+    hasWaiter: (path) => (waiters.get(path)?.size ?? 0) > 0,
     stop: () => server.stop(true),
   };
 }

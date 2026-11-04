@@ -1,6 +1,6 @@
 # Durable Streams conformance: results
 
-The spike passes: a Bun server over a Turso change log passes all 118 tests of the read subset of
+The spike passes: a Bun server over a Turso change log passes all 129 tests of the read subset of
 `@durable-streams/server-conformance-tests` 0.3.7 in 3 of 3 runs. The State Protocol client holds a
 correct copy of the table over SSE and over long-poll. The [README](README.md) holds the question
 and the answer.
@@ -50,15 +50,16 @@ is its offset, written as 16 zero-padded digits so that offsets sort as strings.
 stored as a JSON array of its messages, and a read joins the arrays of its batches into one array. A
 live reader waits on an in-process signal, which each commit sends.
 
-The read side is 404 lines over 8 files: [handle-read.ts](handle-read.ts),
+The read side is 409 lines over 8 files: [handle-read.ts](handle-read.ts),
 [handle-sse-read.ts](handle-sse-read.ts) and the helpers they import. The write fixture is 236 lines
-over 4 files. The server entry and the change log module add 161 and 267 lines, and each serves both
+over 4 files. The server entry and the change log module add 165 and 267 lines, and each serves both
 sides.
 
 ## The read subset
 
-The suite has no read tag, so the spike picks its read groups by name, in
-[build-conformance-summary.ts](build-conformance-summary.ts):
+The suite has no read tag, so the spike picks its read tests by group name, in
+[build-conformance-summary.ts](build-conformance-summary.ts). The spike also counts 11 tests from
+write groups as read tests, such as `should return correct headers on GET` in HTTP Protocol.
 
 - A read group's tests assert on a GET or HEAD response: catch-up, long-poll, SSE, offsets, ETags,
   closure, JSON responses and security headers.
@@ -73,12 +74,12 @@ seed the tests. It writes to the same change log table that the read side reads.
 
 ## Conformance results
 
-The three runs of the final runner give the same counts. The suite takes 46.8 s to 47.4 s.
+The three runs of the final runner give the same counts. The suite takes 46.3 s to 47.6 s.
 
 | Scope        | Passed | Failed | Skipped |
 | ------------ | ------ | ------ | ------- |
-| read         | 118    | 0      | 0       |
-| write        | 66     | 1      | 0       |
+| read         | 129    | 0      | 0       |
+| write        | 55     | 1      | 0       |
 | out of scope | 64     | 83     | 6       |
 
 | Read group                                    | Tests |
@@ -100,6 +101,7 @@ The three runs of the final runner give the same counts. The suite takes 46.8 s 
 | Chunking and Large Payloads                   | 2     |
 | Byte-Exactness (property)                     | 2     |
 | Immutability and Offset Validation (property) | 2     |
+| Read tests in write groups                    | 11    |
 
 The one write failure, `close-with-different-body-dedup`, sends idempotent producer headers, which
 the server ignores. The out-of-scope failures are producer and fork tests. All 30 TTL and expiry
@@ -108,7 +110,10 @@ access. The 6 skipped tests are the subscription tests, which the suite runs onl
 `subscriptions` option is set.
 
 Six read tests failed on the first run and pass after two fixes. A long-poll at `offset=now` must
-wait for data, not return at once. The SSE tests match `data:` with no space after the colon.
+wait for data, not return at once. The SSE tests match `data:` with no space after the colon. An SSE
+reader drops one space after the colon, so the server adds a space to each line that starts with
+one. A probe showed a live ` world` reaching the client as `world` before that change, and as
+` world` after it.
 
 ## State Protocol check
 
@@ -116,13 +121,15 @@ wait for data, not return at once. The SSE tests match `data:` with no space aft
 change log row in one transaction, through `@pepys/kysely-turso`. The seed has 200 inserts, 70
 updates and 30 deletes, one batch each, with invented items. `createStreamDB` then reads the stream
 with `preload()`, and the check compares its collection with the `item` table. Next, 5 more batches
-(2 inserts, 2 updates, 1 delete) commit and signal while the client stays connected. The check polls
-every 5 ms until the collection matches the table again, with a 5 s limit.
+(2 inserts, 2 updates, 1 delete) commit and signal, once the server holds the client waiting at the
+tail. The check polls every 5 ms until the collection matches the table again, with a 1 s limit. The
+limit is below the 2 s long-poll timeout, so a client that misses the signal fails the check. A
+probe with the signal switched off failed it in both live modes.
 
 | Live mode | Change log rows | Table rows | Preload  | Preload copy | Live copy | Live catch-up |
 | --------- | --------------- | ---------- | -------- | ------------ | --------- | ------------- |
-| sse       | 305             | 171        | 66–71 ms | matches      | matches   | 27–41 ms      |
-| long-poll | 305             | 171        | 59–60 ms | matches      | matches   | 28–29 ms      |
+| sse       | 305             | 171        | 65–78 ms | matches      | matches   | 27–35 ms      |
+| long-poll | 305             | 171        | 60–88 ms | matches      | matches   | 30–41 ms      |
 
 Each range covers the three runs. The live catch-up runs from the start of the first live write to
 the first poll that finds a match, so it includes the 5 writes.
