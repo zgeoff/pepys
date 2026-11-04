@@ -38,26 +38,29 @@ deletes a copied object, as [storage](./storage.md#garage) requires.
 
 ## Images and modules
 
-| Artifact         | Holds                                                                | Built by                       |
-| ---------------- | -------------------------------------------------------------------- | ------------------------------ |
-| `pepys-host`     | the `pepys` binary: the host and the CLI                             | this repo's release workflow   |
-| `pepys`          | Bun with the workspace packages: ingest, enrichment, API, compaction | this repo's release workflow   |
-| consumer modules | each consumer's WebAssembly module, named by its hash                | the same workflow, to a bucket |
+| Artifact         | Holds                                                                | Built by                             |
+| ---------------- | -------------------------------------------------------------------- | ------------------------------------ |
+| `pepys-host`     | the `pepys` binary: the host and the CLI                             | this repo's release workflow         |
+| `pepys`          | Bun with the workspace packages: ingest, enrichment, API, compaction | this repo's release workflow         |
+| consumer modules | each consumer's WebAssembly module, named by its hash                | the same workflow, into `pepys-host` |
 
 The release workflow pushes both images to `ghcr.io/zgeoff/`, as nixie's release does, and the cloud
 stack pulls them with the cluster's ghcr pull secret. Each process in the `pepys` image starts from
 its own entry file, so one image serves four processes.
 
-The release workflow writes the modules to the modules bucket, because the host loads a consumer by
-hash from there ([storage](./storage.md#buckets-and-keys)). Garage answers only on the tailnet, so
-the workflow joins the tailnet as an ephemeral node with a tag that reaches Garage's S3 port alone.
+The release workflow copies each module into the `pepys-host` image under `/modules/<hash>.wasm`.
+When `pepys up` deploys a module, the host first writes it to the modules bucket, which keeps every
+module a store row names ([storage](./storage.md#buckets-and-keys)). The workflow therefore needs no
+route into the cluster.
 
 ## Secrets
 
-The cloud apply job reads the 1Password vault `pepys` directly, so each secret has one copy, and
-Pulumi turns each item into a Kubernetes Secret that only its process mounts, as every geoff.cloud
-workload receives its secrets
-([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)).
+Each runtime secret has an item in the 1Password vault `cloud`, a copy in `cloud-deploy` for the
+apply job, and a reference in the cloud repository's `.env`. Pulumi turns each item into a
+Kubernetes Secret that only its process mounts, as every geoff.cloud workload receives its secrets
+([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)). The apply
+job refuses a reference to any other vault, so the `pepys` vault holds only the copies that
+development on the owner's machine reads. Each item in the table is named `pepys-<item>` in `cloud`.
 
 | Item               | Fields                                        | Mounted by   |
 | ------------------ | --------------------------------------------- | ------------ |
@@ -67,8 +70,9 @@ workload receives its secrets
 | `garage-<service>` | the access key and secret of one service      | that service |
 
 The owner creates each Garage key once with the Garage CLI, scoped to the buckets in the
-[storage](./storage.md#buckets-and-keys) table, and stores it in the vault as `garage-<service>`.
-Each process reads its secrets at start, so a rotation reaches it after the next rollout.
+[storage](./storage.md#buckets-and-keys) table, and stores it in `cloud` as
+`pepys-garage-<service>`. Each process reads its secrets at start, so a rotation reaches it after
+the next rollout.
 
 ## Network
 
@@ -86,8 +90,13 @@ Every pepys port is cluster-only except two routes.
 NetworkPolicies in the namespace refuse every other path in:
 
 - s2-lite admits only its four clients, as the [log](./log.md) requires.
-- Garage's S3 port admits only pepys's own pods and the release workflow's tailnet node.
+- Garage's S3 port admits only pepys's own pods.
 - The host and the API admit only the Traefik ingress.
 
-Egress goes to the internet for ingest, which calls GitHub and Gmail, and for enrichment, which
-calls Jev and fetches the git mirrors. Every other pod reaches only the namespace.
+Egress to the internet goes to three pods:
+
+- ingest, which calls GitHub and Gmail;
+- enrichment, which calls Jev and fetches the git mirrors;
+- the bucket backup, which writes to R2.
+
+Every other pod reaches only the namespace.

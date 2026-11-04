@@ -30,7 +30,7 @@ layer of encryption covers the buckets, the git mirrors and every other cache in
 | facts     | the log, through s2-lite                            | s2-lite            | no                 |
 | blobs     | attachments and raw messages, named by content hash | ingest, enrichment | no                 |
 | lake      | Parquet copies of the facts                         | the compaction job | yes, from facts    |
-| modules   | compiled consumer modules, named by content hash    | CI                 | yes, from git      |
+| modules   | compiled consumer modules, named by content hash    | the host           | yes, from git      |
 | snapshots | copies of the store's consumer files                | the host           | yes, by replay     |
 
 Each service has its own access key, scoped to the buckets it uses. A bug in the compaction job can
