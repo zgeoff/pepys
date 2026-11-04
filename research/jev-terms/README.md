@@ -1,8 +1,8 @@
 # Spike: Jev terms and choice sets
 
-Enrichment sends email text and candidate pairs to Jev for labels and judgements, so Jev will see
-the owner's email. This spike reads Jev's data terms and tries its API's choice sets, for the
-enrichment design's link judgement.
+Enrichment sends email text and candidate pairs to Jev, TypeSafe AI's decision model, for labels and
+judgements, so Jev will see the owner's email. This spike reads TypeSafe's data terms and API
+reference, for the enrichment design's link judgement.
 
 ## Question
 
@@ -11,14 +11,36 @@ these five issues, or none"?
 
 ## Answer
 
-- The spike has not run, so it holds no verdict and no numbers.
+The spike is partial: it read the sources on 2026-11-04, and the API calls wait on a Jev API key.
 
-The enrichment design holds no recommendation from this spike until it runs.
+- No TypeSafe term forbids email content, and TypeSafe never trains a model on it without the
+  customer's consent.
+- No term limits how long TypeSafe keeps the content, and TypeSafe offers zero data retention only
+  to enterprise customers.
+- TypeSafe may keep telemetry about each call, classifications included, forever and use it without
+  restriction.
+- The data processing addendum names only the customer and the customer's users as the people whose
+  data TypeSafe processes, and email senders are neither.
+- Each Choice question carries its own options, from 1 to 255, and one request can hold many
+  questions, so one call can judge a candidate set or several pairs.
+
+Send email to Jev only after the owner accepts unlimited retention and telemetry, or gets zero data
+retention.
+
+## Run it
+
+```bash
+JEV_API_KEY=<typesafe_api_key> bun run --filter ./research/jev-terms check
+```
+
+`<typesafe_api_key>` is a key from the TypeSafe console. The calls and the model are in
+[Setup](results.md#setup).
 
 ## Results
 
-[results.md](results.md) holds the method and the check the spike must pass.
+[results.md](results.md) holds each quoted clause with its URL, and the API facts.
 
 ## Untested
 
-Every step of the method, until the spike runs: [Untested](results.md#untested).
+Every API call, and which link judgement shape gives better answers:
+[Untested](results.md#untested).
