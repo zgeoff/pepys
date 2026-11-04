@@ -7,7 +7,7 @@ export async function readHistoryStatus(
 ): Promise<200 | 404> {
   const query = new URLSearchParams({ startHistoryId: historyID, maxResults: '1' });
 
-  const response = await fetch(`${historyURL}?${query}`, {
+  const response = await fetch(`${historyURL}?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
