@@ -21,7 +21,7 @@ export async function readGmailAccessToken(credentials: GmailCredentials): Promi
   });
 
   if (!response.ok) {
-    throw new Error(`POST ${tokenURL} returned HTTP ${response.status}: ${await response.text()}`);
+    throw new Error(`POST ${tokenURL} returned HTTP ${response.status}`);
   }
 
   const body: unknown = await response.json();

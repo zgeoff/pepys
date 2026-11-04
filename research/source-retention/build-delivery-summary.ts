@@ -21,7 +21,9 @@ export function buildDeliverySummary(deliveries: readonly Delivery[], now: Date)
   return {
     readAt: now.toISOString(),
     deliveryCount: deliveries.length,
-    failedCount: deliveries.filter((delivery) => delivery.statusCode >= 400).length,
+
+    // A delivery that got no response has status code 0, so the code alone misses it.
+    failedCount: deliveries.filter((delivery) => delivery.status !== 'OK').length,
     redeliveryCount: deliveries.filter((delivery) => delivery.redelivery).length,
     oldestDeliveredAt: oldestMs === null ? null : new Date(oldestMs).toISOString(),
     newestDeliveredAt: newestMs === null ? null : new Date(newestMs).toISOString(),

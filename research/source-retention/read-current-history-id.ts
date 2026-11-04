@@ -8,7 +8,7 @@ export async function readCurrentHistoryID(accessToken: string): Promise<string>
   const response = await fetch(profileURL, { headers: { Authorization: `Bearer ${accessToken}` } });
 
   if (!response.ok) {
-    throw new Error(`GET profile returned HTTP ${response.status}: ${await response.text()}`);
+    throw new Error(`GET profile returned HTTP ${response.status}`);
   }
 
   const body: unknown = await response.json();

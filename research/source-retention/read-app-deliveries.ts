@@ -8,7 +8,7 @@ export interface AppCredentials {
 
 export interface Delivery {
   readonly deliveredAt: Date;
-  readonly statusCode: number;
+  readonly status: string;
   readonly redelivery: boolean;
 }
 
@@ -17,7 +17,7 @@ const deliveriesURL = 'https://api.github.com/app/hook/deliveries?per_page=100';
 const deliveryPageSchema = z.array(
   z.object({
     delivered_at: z.iso.datetime({ offset: true }),
-    status_code: z.number(),
+    status: z.string(),
     redelivery: z.boolean(),
   }),
 );
@@ -38,7 +38,8 @@ export async function readAppDeliveries(credentials: AppCredentials): Promise<De
     });
 
     if (!response.ok) {
-      throw new Error(`GET ${pageURL} returned HTTP ${response.status}: ${await response.text()}`);
+      // The body is left out, so an error message never carries account data into a log.
+      throw new Error(`GET app deliveries returned HTTP ${response.status}`);
     }
 
     const body: unknown = await response.json();
@@ -48,7 +49,7 @@ export async function readAppDeliveries(credentials: AppCredentials): Promise<De
     for (const delivery of page) {
       deliveries.push({
         deliveredAt: new Date(delivery.delivered_at),
-        statusCode: delivery.status_code,
+        status: delivery.status,
         redelivery: delivery.redelivery,
       });
     }

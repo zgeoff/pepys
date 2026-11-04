@@ -94,7 +94,8 @@ deliveries for more than 4 days. A larger value means GitHub keeps more than it 
    ```
 
    `<state_path>` is a JSON file outside the repo, such as
-   `~/.local/state/pepys-spike/gmail-history.json`. Its folder must exist.
+   `/home/<user>/.local/state/pepys-spike/gmail-history.json`. Its folder must exist. Write the path
+   in full, because Bun keeps a `~` in an env file as a literal character.
 
 5. Run the probe once. The first run stores the mailbox's current history ID and its time:
 
