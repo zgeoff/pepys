@@ -5,7 +5,9 @@ import { os } from '@orpc/server';
 
 export function buildBrokenV1Calls() {
   return [
+    // The missing method types as an error, which the type-aware lint rejects as unsafe.
     // @ts-expect-error v2 builders have no route method, so summary and description move to meta
+    // oxlint-disable-next-line typescript/no-unsafe-call, typescript/no-unsafe-return
     () => os.$context<{ requestedBy: string }>().route({ summary: 'get_note', description: 'x' }),
 
     // @ts-expect-error v2 RPCLink takes a path as url, and the origin in its own option

@@ -9,6 +9,7 @@ import { createORPCClient as createV2Client } from '@orpc/client';
 import { RPCLink as RPCLinkV2 } from '@orpc/client/fetch';
 import { McpRegistrar } from '@orpc/mcp';
 import type { RouterClient as RouterClientV2 } from '@orpc/server';
+import type { Elysia } from 'elysia';
 import { createORPCClient as createV1Client } from 'orpc-v1-client';
 import { RPCLink as RPCLinkV1 } from 'orpc-v1-client/fetch';
 import type { RouterClient as RouterClientV1 } from 'orpc-v1-server';
@@ -63,7 +64,7 @@ process.exit(exitCode);
 
 async function runLeg(
   leg: string,
-  app: ReturnType<typeof createV1App> | ReturnType<typeof createV2App>,
+  app: Pick<Elysia, 'listen' | 'server' | 'stop'>,
   mcpPaths: readonly string[],
   buildClient: (base: string) => NoteClient,
 ) {
