@@ -114,9 +114,10 @@ report, then runs the promotion command. The command shows no prompt, as
 
 The deployment's promotion gate reads the report and decides. The default gate refuses a challenger
 whose score is below its threshold, and promotes one with no threshold, so an unattended promotion
-never installs a worse version. To promote below the threshold, the owner lowers or removes the
-threshold in the version file. The threshold sits outside the version hash, so that edit makes no
-new version and reruns no model calls. A deployment may pass its own gate.
+never installs a version that scores below its own threshold. To promote below the threshold, the
+owner lowers or removes the threshold in the version file. The threshold sits outside the version
+hash, so that edit makes no new version and reruns no model calls. A deployment may pass its own
+gate.
 
 ## Buckets
 

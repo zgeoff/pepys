@@ -42,12 +42,14 @@ Live readers wait on a signal from the host, which it sends over a local socket 
 
 ## Generations
 
-`pepys up` swaps a consumer's whole file, change log included, so the generation of a consumer's
-stream is its [consumer version](./host.md#consumer-versions). The new file's change log opens with
-a snapshot: a snapshot-start message, every row as an insert, and a snapshot-end message. The old
-generation's stream closes. A reader that sees the close asks the API for the current generation and
-reads it from the start; a new reader does the same. The tables are small, so a full snapshot costs
-little, and no reader ever needs a diff across versions.
+`pepys up` swaps a consumer's whole file, change log included. The generation of a consumer's stream
+is a number that the host increments at each swap, a rollback included, and at each restore. A
+restore keeps the [consumer version](./host.md#consumer-versions), so the generation cannot be the
+version. A newly built file's change log opens with a snapshot: a snapshot-start message, every row
+as an insert, and a snapshot-end message. The old generation's stream closes. A reader that sees the
+close asks the API for the current generation and reads it from the start; a new reader does the
+same. The tables are small, so a full snapshot costs little, and no reader ever needs a diff across
+versions.
 
 ## Retention
 

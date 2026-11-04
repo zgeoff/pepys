@@ -56,7 +56,7 @@ replays every fact. It changes nothing a reader can see, and it exists for devel
 `pepys up` deploys. It replays into a new file to the side, catches the new file up to the live head
 of the log, pauses that consumer's writer for the last few facts, swaps the new file in, and marks
 dirty every dependent scope whose input rows the diff changed. It asks nothing. `up` never reuses a
-preview's throwaway file, so a deploy always replays from the start.
+preview's throwaway file, so a deploy of a new version replays from the start.
 
 Building to the side keeps readers on the old version until the swap, so no reader sees a
 half-replayed table. The previous version's file stays on disk. `pepys up` with the previous hash
