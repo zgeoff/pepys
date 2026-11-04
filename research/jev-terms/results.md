@@ -1,8 +1,7 @@
 # Jev terms and choice sets: results
 
-The spike is partial. Step 1 read TypeSafe AI's terms and API reference on 2026-11-04. Steps 2 and 3
-need a Jev API key, which pepys does not have, so the runner exists and has not run. The
-[README](README.md) holds the question.
+Step 1 read TypeSafe AI's terms and API reference on 2026-11-04. The runner ran steps 2 and 3 on the
+same day. The [README](README.md) holds the question.
 
 ## Method
 
@@ -13,14 +12,14 @@ need a Jev API key, which pepys does not have, so the runner exists and has not 
 The spike passes when the terms allow email content, and the spike states whether link judgement
 asks one question per pair or one per candidate set.
 
-Neither half of the check is met:
+The spike passes:
 
-- **Email content: open.** No TypeSafe term forbids email as input, but the terms make the owner
+- **Email content: allowed.** No TypeSafe term forbids email as input. The terms make the owner
   answer for the rights of each third-party sender, and the DPA's list of data subjects leaves those
-  senders out. [Whether email may be sent](#whether-email-may-be-sent) quotes both clauses. Only the
-  owner can settle this half.
-- **Link judgement shape: not met.** The API accepts both shapes, and only the calls in step 2 can
-  show which shape judges better.
+  senders out. [Whether email may be sent](#whether-email-may-be-sent) quotes both clauses. The
+  owner accepted sending third-party mail on 2026-11-04.
+- **Link judgement shape: one question per pair.** Both shapes gave the same answer, so the choice
+  rests on what each shape can say. [API calls](#api-calls) gives the answers and the reason.
 
 ## Setup
 
@@ -212,14 +211,34 @@ The Choice `confidence` measures how the probabilities spread, not whether the a
 [Choice page](https://docs.typesafe.ai/primitives/choice.md) says it is "computed from how
 `probabilities` is spread".
 
+## API calls
+
+The runner ran on 2026-11-04. Each request ran 5 times, and every response named `jev-1.14.0`. The
+API accepted all three requests.
+
+| Request           | Answer, the same in all 5 runs                               | Confidence | Input tokens | Median latency |
+| ----------------- | ------------------------------------------------------------ | ---------- | ------------ | -------------- |
+| `fixed-label-set` | `invoice`                                                    | 1          | 458          | 197 ms         |
+| `candidate-set`   | `issue_57`; the companion Noul gave 0.99 that any issue fits | 1          | 586          | 199 ms         |
+| `per-pair`        | `issue_57` `related`, and the other 4 issues `unrelated`     | 0.98 to 1  | 803          | 200 ms         |
+
+Every latency fell between 194 ms and 213 ms. The two link judgement shapes agree on the fixture.
+The `per-pair` shape costs 217 more input tokens, which is $0.000009 a call at the listed price.
+
+Link judgement asks one question per pair. Its answer can mark more than one candidate as related,
+and can mark a pair `unclear`. The candidate-set shape names one winner at most, so a bug report
+that fits two issues loses one link.
+
+`GET /v1/models` listed only `jev-latest` and `jev-preview`, while the
+[Models page](https://docs.typesafe.ai/models.md) lists `jev-1.14.0` and `jev-1.13.0`. The API still
+accepted the pinned `jev-1.14.0`.
+
 ## Untested
 
-- Every API call: the runner has not run, so the spike holds no returned choice, probability or
-  latency.
-- Which link judgement shape gives better answers: one Choice over a candidate set with a companion
-  Noul, or one Choice per pair.
-- Whether the three requests pass the API's validation. The runner builds them to match the OpenAPI
-  document, and no server has checked them.
+- Which shape judges better on real mail: the fixture is one invented bug report, and both shapes
+  agree on it.
+- How long a pinned version such as `jev-1.14.0` stays callable, since the models listing leaves it
+  out.
 - Whether the options' order changes the answer.
 - TypeSafe's sub-processors, since their page did not load without JavaScript.
 - Whether an individual can sign the MCA and get zero data retention, since the legal index offers

@@ -11,7 +11,7 @@ these five issues, or none"?
 
 ## Answer
 
-The spike is partial: it read the sources on 2026-11-04, and the API calls wait on a Jev API key.
+The spike read the sources and ran the API calls on 2026-11-04.
 
 - No TypeSafe term forbids email content, and TypeSafe never trains a model on it without the
   customer's consent.
@@ -23,9 +23,11 @@ The spike is partial: it read the sources on 2026-11-04, and the API calls wait 
   data TypeSafe processes, and email senders are neither.
 - Each Choice question carries its own options, from 1 to 255, and one request can hold many
   questions, so one call can judge a candidate set or several pairs.
+- Both shapes gave the same answer on an invented bug report, in about 200 ms a call.
 
-Send email to Jev only after the owner decides that third-party senders' mail may go to TypeSafe,
-and accepts open-ended retention and telemetry.
+Link judgement asks one question per pair, because only that shape can mark two candidates as
+related, or a pair as unclear. The owner accepted that third-party senders' mail goes to TypeSafe,
+with open-ended retention and telemetry.
 
 ## Run it
 
@@ -42,5 +44,5 @@ JEV_API_KEY=<typesafe_api_key> bun run --filter ./research/jev-terms check
 
 ## Untested
 
-Every API call, and which link judgement shape gives better answers:
-[Untested](results.md#untested).
+Which link judgement shape judges better on real mail, and how long a pinned model version stays
+callable: [Untested](results.md#untested).
