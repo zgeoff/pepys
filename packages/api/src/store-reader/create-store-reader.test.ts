@@ -8,14 +8,18 @@ import { createStoreReader } from './create-store-reader.ts';
 import { openConsumerDatabase } from './open-consumer-database.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-reader-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   const openDatabase = mock(openConsumerDatabase);
   const store = createStoreReader({ storeDirectory, openDatabase });
 
-  onTestFinished(() => store.close());
+  stack.defer(() => store.close());
 
   return { store, openDatabase, consumerDirectory: join(storeDirectory, 'github_pull_request') };
 }

@@ -6,11 +6,15 @@ import { connect } from '@tursodatabase/database';
 import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'stub-consumer-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
-  return { directory };
+  return { directory, stack };
 }
 
 test('it writes a consumer file holding the row and the entity view', async () => {
@@ -41,7 +45,7 @@ test('it writes a consumer file holding the row and the entity view', async () =
 
   const database = await connect(join(versionDirectory, 'consumer.db'), { readonly: true });
 
-  onTestFinished(() => database.close());
+  ctx.stack.defer(() => database.close());
 
   const rows: unknown = await database.all('select id, kind, title from entity');
 
@@ -78,7 +82,7 @@ test('it writes the offsets and change log rows it is given beside the row', asy
 
   const database = await connect(join(versionDirectory, 'consumer.db'), { readonly: true });
 
-  onTestFinished(() => database.close());
+  ctx.stack.defer(() => database.close());
 
   const tables: unknown = {
     offsets: await database.all('select stream, last_seq_num from offsets'),
