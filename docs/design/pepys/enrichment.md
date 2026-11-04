@@ -55,7 +55,8 @@ The mail text job parses each raw MIME message with `postal-mime` and writes the
 blob plus a fact. Every later mail job reads that text. `postal-mime` returns no text for a message
 with no text part, so the job converts that message's HTML with `html-to-text`. A message that still
 yields no text gets a fact that flags it, and no later mail job runs on it. The
-[MIME spike](../../../research/mime-parsers/README.md) compared the parsers on an invented corpus.
+[MIME spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/mime-parsers/README.md)
+compared the parsers on an invented corpus.
 
 ### Models
 
@@ -70,7 +71,8 @@ at most.
 
 Jev sees the text of every email, third-party senders' mail included. TypeSafe, which runs Jev,
 never trains a model on that text. Its terms set no retention period, and let it keep telemetry
-about each call, labels included, forever. The [Jev spike](../../../research/jev-terms/README.md)
+about each call, labels included, forever. The
+[Jev spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/jev-terms/README.md)
 quotes the terms.
 
 Claude, on the owner's subscription, does agent work over MCP, such as briefs and reply drafts. That
@@ -81,7 +83,8 @@ pepys runs no local language model. LEAF-IR is a small embedding model that runs
 embedding job runs locally. The job runs LEAF-IR's fp32 weights through `@huggingface/transformers`,
 one text per call, and truncates a text past the model's 512-token limit. The q8 weights are faster,
 but a q8 vector changes with the batch it runs in, as the
-[LEAF-IR spike](../../../research/leaf-ir-bun/README.md) measured.
+[LEAF-IR spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/leaf-ir-bun/README.md)
+measured.
 
 ## Job versions
 

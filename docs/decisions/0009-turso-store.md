@@ -29,4 +29,5 @@ is the exception: the `sqlite3` tool cannot open it, and rusqlite on such a file
 
 - 2026-10-24: readers open each file through its own read-only connection instead of keeping it
   attached, and a file with a full-text index is no longer claimed to open in any SQLite tool, after
-  the [Turso spike](../../research/turso-bindings/README.md).
+  the
+  [Turso spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/turso-bindings/README.md).

@@ -32,8 +32,8 @@ The Durable Streams repository ships server conformance tests. The API passes th
 TypeScript clients and TanStack DB work against it. Each read test creates and fills its own stream
 with PUT and POST, so the conformance check mounts a write path in its own test app. The production
 entry never mounts that write path. The
-[conformance spike](../../../research/durable-streams-conformance/README.md) ran the read tests
-against a minimal server built this way.
+[conformance spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/durable-streams-conformance/README.md)
+ran the read tests against a minimal server built this way.
 
 Live readers wait on a signal from the host, which it sends over a local socket after each commit.
 
