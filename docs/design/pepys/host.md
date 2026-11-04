@@ -27,9 +27,10 @@ to, and on restart the host rebuilds the dirty set from that offset.
 
 ## Consumer versions
 
-A consumer version is a module identified by the hash of its content, and every row the host writes
-records the hash of the module that wrote it. The host owns the lifecycle of a version as a
-transition table:
+A consumer version is a module plus the champion version of each enrichment job the module reads.
+The host names a version by one hash of the module's content and those champions, so a job promotion
+gives each reader a new version. Every row the host writes records the hash of the version that
+wrote it. The host owns the lifecycle of a version as a transition table:
 
 ```mermaid
 stateDiagram-v2
@@ -66,8 +67,8 @@ facts that arrived since the earlier swap, never a full replay.
 
 ```text
 store/<consumer>/
-  <module hash>/      the database file with its write-ahead log files
-  <module hash>/
+  <version hash>/     the database file with its write-ahead log files
+  <version hash>/
   current ->          symlink to the live version's directory
 ```
 

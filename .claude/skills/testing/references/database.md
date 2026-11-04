@@ -23,10 +23,10 @@ the testing skill's rules on [setupTest](../SKILL.md#setuptest), [Cleanup](../SK
 
 ## Postgres isolation
 
-In `setupTest()`, get a handle from the repo's test-database helper in `test-utils/`, and pass the
-handle's connection to the code under test. The helper builds the schema once per run as a template,
-as [Per-run templates](./slow-tests.md#per-run-templates) describes. Never drop its databases
-yourself: the sweep at the start of each run removes the ones that earlier runs left.
+In `setupTest()`, get a handle from the repo's test-database helper in `src/test-utils/`, and pass
+the handle's connection to the code under test. The helper builds the schema once per run as a
+template, as [Per-run templates](./slow-tests.md#per-run-templates) describes. Never drop its
+databases yourself: the sweep at the start of each run removes the ones that earlier runs left.
 
 Pick one isolation level for each test file, and pass it to the helper:
 
@@ -104,7 +104,8 @@ expect(row.archived_at).toBeValidDate();
 
 A rejected call can still be rolling back its transaction when the test moves on. When the test
 reads the database after a call it expects to reject, settle the call with `.catch()` first, then
-assert the rejection with the rules in the testing skill's [Errors](../SKILL.md#errors), then read:
+assert the rejection with the rules in the testing skill's [Errors](../SKILL.md#errors) and in
+[Matchers](./matchers.md), then read:
 
 ```ts
 const request = ctx.service.archiveNote({ noteID: 'missing' });
@@ -118,8 +119,28 @@ const row = await ctx.db.selectFrom('notes').selectAll().executeTakeFirst();
 expect(row).toBeUndefined();
 ```
 
-In a test of how code recovers after several calls fail, capture each rejection as a value instead,
-as the testing skill's [Assertions](../SKILL.md#assertions) describe.
+To test how code recovers after several calls fail, such as a job that gives up after its third
+failed run, make the calls one after another in one test. Turn each outcome into a value: `null`
+when the call resolves, and the error when it rejects. A rejection left as a rejection stops the
+test at the first failed call. Then read the stored state, and assert the outcomes and the state:
+
+```ts
+const runJobOnce = () =>
+  ctx.service.runJob({ jobID: 'job_1' }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+
+const outcomes = [await runJobOnce(), await runJobOnce(), await runJobOnce()];
+const job = await ctx.service.readJob({ jobID: 'job_1' });
+
+expect(outcomes).toMatchObject([
+  { code: 'WRITE_FAILED' },
+  { code: 'WRITE_FAILED' },
+  { code: 'GAVE_UP' },
+]);
+expect(job.status).toBe('failed');
+```
 
 ## Timestamps and order
 
@@ -136,8 +157,8 @@ Give the tie its own test, with two rows that share the timestamp.
 
 In an access test, seed each user or role the rule covers. In the test body, build the client each
 one calls through, such as an API client signed in as that user, or a connection as that Postgres
-role. Then write the tests that the [testing skill](../SKILL.md#access-rules) asks for: the allowed
-user succeeds, and the other is refused or sees nothing.
+role. Then write the tests in [Access rules](./schemas-and-access.md#access-rules): the allowed user
+succeeds, and each other user or role is refused or sees nothing.
 
 ## Configuration stored in the database
 

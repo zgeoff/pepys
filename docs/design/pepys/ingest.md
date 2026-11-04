@@ -28,10 +28,11 @@ infrastructure repository. The receiver checks each webhook signature before it 
 rejects an unsigned or badly signed request with no further work.
 
 GitHub does not retry a failed delivery on its own. A sweep lists the App's recent deliveries, finds
-the ones that failed or never reached pepys, and asks GitHub to redeliver them. GitHub keeps its
-delivery log for a limited time, so after an outage longer than that, ingest polls the affected
-objects once and writes observations. The
-[source retention spike](../../../research/source-retention/README.md) measures that limit.
+the ones that failed or never reached pepys, and asks GitHub to redeliver them. GitHub lets an App
+redeliver only the deliveries of the past 3 days, so the sweep runs more often than every 3 days.
+After an outage longer than 3 days, ingest polls the affected objects once and writes observations.
+The [source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
+probes it.
 
 Backfill reads the pull request and issue timeline APIs, which return past events with their times.
 Those events go into the same stream as the live events for the same entity.
@@ -53,8 +54,10 @@ poll a source of events.
 MIME message goes to the blobs bucket, and the fact holds the Gmail metadata, the headers and a
 reference to the raw blob. The raw message keeps everything; enrichment extracts the text from it.
 
-Gmail drops old history after a limited time. When the stored history ID has expired, Gmail returns
-an error, and ingest runs one full sync from `messages.list` before it resumes polling.
+Gmail keeps a history ID valid for no fixed time: by its documentation, typically at least a week,
+and in rare cases only a few hours. When the stored history ID has expired, Gmail returns HTTP 404,
+and ingest runs one full sync from `messages.list` before it resumes polling, whatever the length of
+the outage.
 
 ## Writes
 
