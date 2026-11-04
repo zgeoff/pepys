@@ -133,6 +133,15 @@
     "research/parquet-escape-hatch": {
       "name": "@pepys/spike-parquet-escape-hatch",
       "version": "0.0.0",
+      "dependencies": {
+        "@octokit/webhooks": "14.2.0",
+        "@s2-dev/streamstore": "0.30.0",
+        "@tursodatabase/database": "0.8.3",
+        "hyparquet-writer": "0.17.0",
+      },
+      "devDependencies": {
+        "@types/bun": "1.4.4",
+      },
     },
     "research/s2-lite-durability": {
       "name": "@pepys/spike-s2-lite-durability",
@@ -898,6 +907,10 @@
     "hashery": ["hashery@1.5.1", "", { "dependencies": { "hookified": "^1.15.0" } }, "sha512-iZyKG96/JwPz1N55vj2Ie2vXbhu440zfUfJvSwEqEbeLluk7NnapfGqa7LH0mOsnDxTF85Mx8/dyR6HfqcbmbQ=="],
 
     "hookified": ["hookified@1.15.1", "", {}, "sha512-MvG/clsADq1GPM2KGo2nyfaWVyn9naPiXrqIe4jYjXNZQt238kWyOGrsyc/DmRAQ+Re6yeo6yX/yoNCG5KAEVg=="],
+
+    "hyparquet": ["hyparquet@1.31.5", "", {}, "sha512-KPVfaxW8xOiO2/4fjeiBfFNEXhGVw9tfcb9ha2iNZdJ3J/yBjEwIeAnTyyuhllFFTb9YO9wg0DfRAOnm6KCvBg=="],
+
+    "hyparquet-writer": ["hyparquet-writer@0.17.0", "", { "dependencies": { "hyparquet": "1.31.5" } }, "sha512-GZ4QeopztjSli/Sz1dSOP/TrSKtwG2ydP2yuPMxeiZnho+PCXF7x+wx8OIVtpQn8rcv559IH1EJMHnTbv0sn+Q=="],
 
     "ignore": ["ignore@5.3.2", "", {}, "sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g=="],
 
