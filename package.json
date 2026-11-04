@@ -90,7 +90,6 @@
     "@scriptc/runtime-wasm32-wasi": "catalog:",
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",
-    "@tursodatabase/database": "catalog:",
     "@types/bun": "catalog:",
     "@zgeoff/bun-test-extended": "catalog:",
     "@zgeoff/checks": "catalog:",

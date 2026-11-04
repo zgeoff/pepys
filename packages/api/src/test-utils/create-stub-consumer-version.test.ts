@@ -47,3 +47,46 @@ test('it writes a consumer file holding the row and the entity view', async () =
 
   expect(rows).toStrictEqual([{ id: 'github:pr:5', kind: 'pr', title: 'Chart the shoals' }]);
 });
+
+test('it writes the offsets and change log rows it is given beside the row', async () => {
+  const ctx = await setupTest();
+
+  const versionDirectory = join(ctx.directory, 'v1');
+
+  await createStubConsumerVersion({
+    versionDirectory,
+    row: {
+      id: 'github:pr:5',
+      number: 5,
+      repository_id: 'github:repo:2',
+      title: 'Chart the shoals',
+      state: 'open',
+      is_draft: 0,
+      is_merged: 0,
+      author_id: null,
+      url: 'https://github.example/acme/harbour/pull/5',
+      merge_commit_sha: null,
+      created_at: '2026-10-01T08:00:00Z',
+      updated_at: '2026-10-01T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: '{}',
+    },
+    offsets: [{ stream: 'facts.github.pull_request', lastSeqNum: 7 }],
+    changeLog: [{ batch: 1, changes: '[]' }],
+  });
+
+  const database = await connect(join(versionDirectory, 'consumer.db'), { readonly: true });
+
+  onTestFinished(() => database.close());
+
+  const tables: unknown = {
+    offsets: await database.all('select stream, last_seq_num from offsets'),
+    changeLog: await database.all('select batch, changes from change_log'),
+  };
+
+  expect(tables).toStrictEqual({
+    offsets: [{ stream: 'facts.github.pull_request', last_seq_num: 7 }],
+    changeLog: [{ batch: 1, changes: '[]' }],
+  });
+});

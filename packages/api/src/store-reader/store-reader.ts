@@ -10,7 +10,22 @@ interface EntityViewRow {
   updated_at: string;
 }
 
-export type ConsumerDB = DB & { entity: EntityViewRow };
+// the host creates these two tables in every consumer file, beside the consumer's own
+interface OffsetRow {
+  stream: string;
+  last_seq_num: number;
+}
+
+interface ChangeLogRow {
+  batch: number;
+  changes: string;
+}
+
+export type ConsumerDB = DB & {
+  entity: EntityViewRow;
+  offsets: OffsetRow;
+  change_log: ChangeLogRow;
+};
 
 export interface StoreReader {
   withConsumer: <Value>(

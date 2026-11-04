@@ -8,8 +8,8 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
+import { createStoreReader, openConsumerDatabase, readOffsets } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
-import { connect } from '@tursodatabase/database';
 import { withStack } from '../stack/with-stack.ts';
 import type { RunningStack } from '../stack/with-stack.ts';
 
@@ -18,16 +18,18 @@ const consumerName = 'github_pull_request';
 const streamName = 'facts.github.pull_request';
 const webhookSecret = 'thin-slice-webhook-secret';
 const host = join(root, 'target/debug/pepys');
-const children: Bun.Subprocess[] = [];
+
+// closes what the setup started in the reverse order, and runs every step even when one throws
+const cleanup = new AsyncDisposableStack();
+
 const testsDone = Promise.withResolvers<void>();
-let stackRun: Promise<void> | undefined;
-let storeDirectory: string | undefined;
 
 beforeAll(
   async () => {
     const modulePath = await readModule();
+    const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-'));
 
-    storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-'));
+    cleanup.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
     const stack = await startStack();
 
@@ -38,7 +40,7 @@ beforeAll(
       PEPYS_STORE_DIR: storeDirectory,
     });
 
-    await runSlice(stack, modulePath);
+    await runSlice({ stack, modulePath, storeDirectory });
 
     process.env['PEPYS_E2E_MODULE'] = modulePath;
 
@@ -49,21 +51,7 @@ beforeAll(
   { timeout: 300_000 },
 );
 
-afterAll(async () => {
-  for (const child of children) {
-    child.kill('SIGTERM');
-  }
-
-  await Promise.all(children.map((child) => child.exited));
-
-  testsDone.resolve();
-
-  await stackRun;
-
-  if (storeDirectory !== undefined) {
-    await rm(storeDirectory, { recursive: true, force: true });
-  }
-});
+afterAll(() => cleanup.disposeAsync());
 
 async function readModule(): Promise<string> {
   const directory = join(root, 'build/consumers', consumerName);
@@ -98,7 +86,11 @@ async function startStack(): Promise<RunningStack> {
     await testsDone.promise;
   });
 
-  stackRun = run;
+  cleanup.defer(async () => {
+    testsDone.resolve();
+
+    await run;
+  });
 
   const stack = await Promise.race([stackReady.promise, waitForStackEnd(run)]);
 
@@ -115,26 +107,25 @@ async function waitForStackEnd(run: Promise<void>): Promise<null> {
   return null;
 }
 
-async function runSlice(stack: RunningStack, modulePath: string): Promise<void> {
+interface SliceOptions {
+  stack: RunningStack;
+  modulePath: string;
+  storeDirectory: string;
+}
+
+async function runSlice(options: SliceOptions): Promise<void> {
   const ingestPort = readFreePort();
 
-  const ingest = Bun.spawn(['bun', 'packages/source-github/src/ingest/serve-ingest.ts'], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PEPYS_INGEST_PORT: String(ingestPort),
-      PEPYS_GITHUB_WEBHOOK_SECRET: webhookSecret,
-    },
-    stdout: 'inherit',
-    stderr: 'inherit',
+  runChild(['bun', 'packages/source-github/src/ingest/serve-ingest.ts'], {
+    ...process.env,
+    PEPYS_INGEST_PORT: String(ingestPort),
+    PEPYS_GITHUB_WEBHOOK_SECRET: webhookSecret,
   });
-
-  children.push(ingest);
 
   const webhookURL = `http://127.0.0.1:${ingestPort}/webhook`;
 
-  await waitForIngest(webhookURL, stack.stop);
-  await runHost(['up', consumerName, '--module', modulePath]);
+  await waitForIngest(webhookURL, options.stack.stop);
+  await runHost(['up', consumerName, '--module', options.modulePath]);
 
   const opened = buildDelivery({
     deliveryID: 'thin-slice-delivery-1',
@@ -161,20 +152,36 @@ async function runSlice(stack: RunningStack, modulePath: string): Promise<void> 
     await writeDelivery(webhookURL, delivery);
   }
 
-  const tail = await readTail(stack);
+  const tail = await readTail(options.stack);
 
-  await runUntilCaughtUp(tail, stack.stop);
+  await runUntilCaughtUp(options.storeDirectory, tail, options.stack.stop);
+}
+
+// each child leads its own process group, so cleanup also stops anything the child forked
+function runChild(command: string[], env: Record<string, string | undefined>): Bun.Subprocess {
+  const child = Bun.spawn(command, {
+    cwd: root,
+    env,
+    stdout: 'inherit',
+    stderr: 'inherit',
+    detached: true,
+  });
+
+  cleanup.defer(() => stopChild(child));
+
+  return child;
+}
+
+async function stopChild(child: Bun.Subprocess): Promise<void> {
+  if (child.exitCode === null && child.signalCode === null) {
+    process.kill(-child.pid, 'SIGTERM');
+  }
+
+  await child.exited;
 }
 
 async function runHost(args: string[]): Promise<void> {
-  const child = Bun.spawn([host, ...args], {
-    cwd: root,
-    env: process.env,
-    stdout: 'inherit',
-    stderr: 'inherit',
-  });
-
-  children.push(child);
+  const child = runChild([host, ...args], process.env);
 
   const exitCode = await child.exited;
 
@@ -270,23 +277,22 @@ async function readTail(stack: RunningStack): Promise<number> {
   return response.tail.seqNum;
 }
 
-async function runUntilCaughtUp(tail: number, stop: AbortSignal): Promise<void> {
-  const run = Bun.spawn([host, 'run', consumerName], {
-    cwd: root,
-    env: process.env,
-    stdout: 'inherit',
-    stderr: 'inherit',
-  });
-
-  children.push(run);
-
+async function runUntilCaughtUp(
+  storeDirectory: string,
+  tail: number,
+  stop: AbortSignal,
+): Promise<void> {
+  const run = runChild([host, 'run', consumerName], process.env);
+  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
   const deadline = Date.now() + 60_000;
 
   try {
     while (Date.now() < deadline) {
       stop.throwIfAborted();
 
-      if ((await readLastSeqNum()) === tail - 1) {
+      const offsets = await readOffsets(store, consumerName);
+
+      if (offsets.ok && offsets.value.some((offset) => offset.lastSeqNum === tail - 1)) {
         return;
       }
 
@@ -295,52 +301,19 @@ async function runUntilCaughtUp(tail: number, stop: AbortSignal): Promise<void> 
 
     throw new Error('pepys run did not catch up before the deadline');
   } finally {
-    run.kill('SIGTERM');
+    await store.close();
 
-    await run.exited;
-  }
-}
-
-async function readLastSeqNum(): Promise<number | undefined> {
-  if (storeDirectory === undefined) {
-    return undefined;
-  }
-
-  const databasePath = join(storeDirectory, consumerName, 'current', 'consumer.db');
-
-  try {
-    const database = await connect(databasePath, {
-      readonly: true,
-      experimental: ['multiprocess_wal'],
-    });
-
-    try {
-      const rows: unknown[] = await database.all('select last_seq_num from offsets');
-
-      const [first] = rows;
-
-      return typeof first === 'object' && first !== null && 'last_seq_num' in first
-        ? Number(first.last_seq_num)
-        : undefined;
-    } finally {
-      await database.close();
-    }
-  } catch {
-    return undefined;
+    await stopChild(run);
   }
 }
 
 async function startAPI(stop: AbortSignal): Promise<string> {
   const apiPort = readFreePort();
 
-  const api = Bun.spawn(['bun', 'packages/api/src/serve.ts'], {
-    cwd: root,
-    env: { ...process.env, PEPYS_API_PORT: String(apiPort) },
-    stdout: 'inherit',
-    stderr: 'inherit',
+  runChild(['bun', 'packages/api/src/serve.ts'], {
+    ...process.env,
+    PEPYS_API_PORT: String(apiPort),
   });
-
-  children.push(api);
 
   const rpcURL = `http://127.0.0.1:${apiPort}/rpc`;
   const deadline = Date.now() + startDeadlineMs;
