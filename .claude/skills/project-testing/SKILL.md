@@ -2,8 +2,9 @@
 name: project-testing
 description:
   pepys's test facts and departures on top of the shared testing skill. They cover where the lanes
-  and test helpers live, the Bun e2e lane and its shared slice, consumer tests, and the per-run
-  fixtures. Load together with the testing skill when designing, writing, or reviewing pepys tests.
+  and test helpers live, the Bun e2e lane and the thin slice it runs, consumer tests, and the
+  per-run fixtures. Load together with the testing skill when designing, writing, or reviewing pepys
+  tests.
 metadata:
   kind: rule-set
 ---
@@ -19,14 +20,19 @@ metadata:
 
 ## Departures
 
+The thin slice is the end-to-end path of one fact: a signed GitHub webhook into ingest, the host
+that applies it to a Turso file, and the API that serves the row.
+
 - Put a Bun e2e test in the root `e2e/` folder, in place of the package folder in
-  [Package layout](../testing/references/system-tests.md#package-layout). The thin slice drives
-  ingest, the host and the API, which three different places build.
-- Start what the Bun e2e tests share in [`start-thin-slice.ts`](../../../e2e/start-thin-slice.ts),
-  in place of the rig setup hook in
-  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts). pepys has
-  no `rig.config.ts`, so the `test:e2e` script preloads the file. The preload starts the slice once
-  for the whole lane, and sets the `PEPYS_` variables that each test reads in its `setupTest()`.
+  [Package layout](../testing/references/system-tests.md#package-layout). No one package builds the
+  slice: ingest is in `packages/source-github`, the host in `crates/host`, the API in
+  `packages/api`.
+- Start each process and each piece of data that more than one e2e test reads in
+  [`start-thin-slice.ts`](../../../e2e/start-thin-slice.ts). It replaces the rig setup hook in
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts), since
+  pepys does not use the rig test runner. The `test:e2e` script preloads the file, and the file sets
+  the `PEPYS_` variables that each test reads in its `setupTest()`.
+- Start a process that only one e2e test needs in that test's `setupTest()`.
 
 ## Pure functions
 
@@ -34,19 +40,18 @@ metadata:
 
 ## Consumer tests
 
-A consumer is the pure function that turns a fact into the operations the host applies. Its rules
-sit under Consumers in [project-code-style](../project-code-style/SKILL.md).
-
-- Feed the consumer inline facts, written in the test beside the assertion.
+- Feed a consumer inline facts, written in the test beside the assertion. The Consumers section of
+  [project-code-style](../project-code-style/SKILL.md) defines a consumer.
 - Assert the full returned operation list with `toStrictEqual`, never a single field of one
   operation, so an extra or missing operation fails the test.
 
 ## Per-run fixtures
 
-Run a test that needs one of these real systems in the unit run, under its 5 s limit. Each one
-starts fast and gives each test its own copy.
+Keep a test that needs one of these in the unit run: `bun test`, or the default nextest profile.
+Each fixture starts fast and gives each test its own copy, so the test stays under the 5 s unit
+limit.
 
-| Real system     | Fixture                                                                    |
+| The test needs  | Fixture                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | the s2-lite log | s2-lite in memory mode: start it with no `--bucket`                        |
 | the Turso store | a Turso database in a temporary file, one per test                         |
@@ -54,12 +59,12 @@ starts fast and gives each test its own copy.
 
 ## Lanes
 
-- Name the module of a Rust lane test after the lane, so its test path starts with `e2e::` or
+- Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
   `model_api::`. A Rust module name takes no hyphen. The default nextest profile leaves both
   prefixes out.
-- Before you run the Bun e2e lane, start Docker and run `bun run test:e2e:prepare`, with
-  `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN` set. It builds the host and the consumers, so run it
-  again after you change either.
+- Start Docker before you run the Bun e2e lane.
+- Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, then run `bun run test:e2e:prepare`. It builds the
+  host and the consumers. Run it again after you change either. Ingest and the API run from source.
 
 | Lane        | Real system                                                                  | Run                                     |
 | ----------- | ---------------------------------------------------------------------------- | --------------------------------------- |
@@ -71,6 +76,7 @@ The `model-api` lane runs nightly and on dispatch, and on a pull request only th
 label.
 
 Give a test of live GitHub or Gmail a lane of its own, on the `model-api` schedule, with the test
-path `github_api::` or `gmail_api::`. Neither is a model API. With the first test of such a lane,
-add the lane's profile to `nextest.toml`, and add its prefix to the prefixes the default profile
-leaves out.
+path `github_api::` or `gmail_api::`. Neither is a model API. With the first test of such a lane:
+
+1. Add the lane's profile to `nextest.toml`.
+2. Add the lane's prefix to the prefixes the default profile leaves out.
