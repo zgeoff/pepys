@@ -55,6 +55,8 @@ and never writes it; manual links and corrections reach the log as facts.
 
 ## Design docs
 
+- [Architecture](./architecture.md) — ports and adapters, strategies, champion and challenger, and
+  buckets.
 - [Storage](./storage.md) — Garage on the owner's k3s server, the buckets, and blobs.
 - [Log](./log.md) — s2-lite streams, the fact envelope, fact IDs, cursors, events and observations.
 - [Ingest](./ingest.md) — what every source does, and the GitHub and Gmail sources.

@@ -72,9 +72,11 @@ embedding job runs locally.
 
 A model fact records the hashes of the model, the prompt, the grammar and the input. Prompts, label
 sets and trigger rules live in versioned data files rather than code, and a change to any of them
-gives a new job version without a rebuild. The projection uses the newest version, and the facts of
-older versions stay for comparison.
+gives a new job version without a rebuild. Consumers read only the facts of the job's champion
+version, and the facts of other versions stay for comparison.
 
-`pepys preview enrich <job>` runs a new version on recent items and shows the labels that change.
-`pepys up enrich <job>` runs it on every item. The owner's own corrections, which the API writes as
-facts, form the test set, so a preview reports how often a new version agrees with them.
+`pepys preview enrich <job>` runs a new version as a challenger on the scopes in its buckets and
+shows the labels that change. `pepys up enrich <job>` promotes it and runs it on every item. The
+owner's own corrections, which the API writes as facts, form the test set, so a preview reports how
+often a new version agrees with them. The
+[architecture design](./architecture.md#champion-and-challenger) covers challengers and buckets.
