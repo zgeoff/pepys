@@ -64,18 +64,20 @@ oRPC client built from the admin contract in `@pepys/contract`.
 `<consumer>` is a consumer's declared name, and `<job>` is an enrichment job's name. The design doc
 in the last column defines each command.
 
-| Command group                             | Served by  | Reached at                        | Defined in                                                |
-| ----------------------------------------- | ---------- | --------------------------------- | --------------------------------------------------------- |
-| `pepys preview <consumer>`                | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
-| `pepys up <consumer>`                     | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
-| the rebuild of a consumer from the lake   | the host   | a port on 127.0.0.1 in the pod    | [history](./history.md#the-lake)                          |
-| `pepys clients`                           | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys passkeys`                          | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys grants`                            | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys preview enrich <job>`              | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
-| `pepys up enrich <job>`                   | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
-| `pepys sample enrich <job>`               | enrichment | the admin port of its k3s Service | [architecture](./architecture.md#champion-and-challenger) |
-| backfill, recovery and resync of a source | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| Command group                    | Served by  | Reached at                        | Defined in                                                |
+| -------------------------------- | ---------- | --------------------------------- | --------------------------------------------------------- |
+| `pepys preview <consumer>`       | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
+| `pepys up <consumer>`            | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
+| `pepys rebuild <consumer>`       | the host   | a port on 127.0.0.1 in the pod    | [history](./history.md#the-lake)                          |
+| `pepys clients`                  | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
+| `pepys passkeys`                 | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
+| `pepys grants`                   | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
+| `pepys preview enrich <job>`     | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
+| `pepys up enrich <job>`          | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
+| `pepys sample enrich <job>`      | enrichment | the admin port of its k3s Service | [architecture](./architecture.md#champion-and-challenger) |
+| `pepys ingest backfill <source>` | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| `pepys ingest recover <source>`  | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| `pepys ingest resync <source>`   | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
 
 The host is Rust, so it serves its admin routes as JSON over HTTP, at the method and path each
 procedure in the contract declares. The CLI calls them through oRPC's `OpenAPILink`, which calls any
@@ -85,8 +87,8 @@ contract fails the test.
 
 The admin routes never check a token. Only a process inside the pod reaches the API's admin port,
 and an operator gets inside the pod only with the cluster credentials that `kubectl exec` needs. The
-host's admin port and enrichment's admin port each admit one other pod, as [network](#network)
-lists.
+host's admin port, enrichment's admin port and ingest's admin port each admit one other pod, as
+[network](#network) lists.
 
 ## Secrets
 
@@ -146,6 +148,8 @@ NetworkPolicies in the namespace refuse every other path in:
 - The host admits only the enrichment pod, on its admin port.
 - Enrichment admits only the pod that runs the host and the API, on its admin port and its internal
   port.
+- Ingest admits the tunnel's traffic on its webhook port, and the pod that runs the host and the API
+  on its admin port.
 
 Three pods may send traffic to the internet:
 
