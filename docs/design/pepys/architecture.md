@@ -80,8 +80,10 @@ version.
 | enrichment job  | enrichment           | the inputs the champion processed, in the challenger's buckets | see the job table below                             | `pepys up enrich <job>`        |
 | ranking         | the deployment       | the golden queries                                             | the results the owner expects for each golden query | a change to the deployment     |
 
-A consumer challenger stops at the champion's offset. Facts past that offset reach only the
-challenger, so the diff would count them as changes the challenger's code made.
+A consumer version is its module plus the champion of each job it reads, so a job promotion gives
+each reader a new version, which the host builds to the side and swaps. A consumer challenger stops
+at the champion's offset. Facts past that offset reach only the challenger, so the diff would count
+them as changes the challenger's code made.
 
 An enrichment challenger writes its facts under its own version, and every consumer reads only the
 champion's facts. The owner therefore never sees the challenger's output, and that output cannot
@@ -115,8 +117,9 @@ report, then runs the promotion command. The command shows no prompt, as
 An enrichment challenger can run on a sample of its input before the owner promotes it, because each
 model call costs money. A scope is the unit that a job's work belongs to, such as a Gmail thread or
 a pull request. A hash of the scope ID puts each scope in one of 100 buckets, numbered 0 to 99. The
-job's run configuration lists the buckets the challenger runs on. The owner widens the sample by
-adding buckets, and promotion covers the remaining scopes.
+challenger's version record lists the buckets it runs on and the most model calls the run may make.
+Enrichment refuses a run that would make more before its first call. The owner widens the sample
+with `pepys sample enrich <job>`, and promotion covers the remaining scopes.
 
 The bucket list sits outside the version hash, so widening the sample keeps the facts that the
 challenger has written. A replay never reruns a job, because it reads the job's stored facts.
@@ -137,5 +140,5 @@ blocks, so the mark lives in the type, and the type check rejects a misspelt spi
 
 ## Open questions
 
-- Whether `pepys up` refuses a challenger whose score is below its threshold, or only reports the
-  score.
+- Whether the deployment's default promotion gate refuses a challenger whose score is below its
+  threshold, or only reports the score. The gate decides with no prompt either way.
