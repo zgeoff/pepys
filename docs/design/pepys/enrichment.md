@@ -51,9 +51,11 @@ needs each pull request's commit list, which joins when such a repository is fol
 
 ### Mail text
 
-The mail text job parses each raw MIME message with an npm MIME parser and writes the plain text as
-a blob plus a fact. Every later mail job reads that text. The
-[MIME spike](../../../research/mime-parsers/README.md) picks the parser.
+The mail text job parses each raw MIME message with `postal-mime` and writes the plain text as a
+blob plus a fact. Every later mail job reads that text. `postal-mime` returns no text for a message
+with no text part, so the job converts that message's HTML with `html-to-text`. A message that still
+yields no text gets a fact that flags it, and no later mail job runs on it. The
+[MIME spike](../../../research/mime-parsers/README.md) compared the parsers on an invented corpus.
 
 ### Models
 
@@ -61,12 +63,25 @@ High-volume typed decisions go to Jev, through its API. Jev returns one choice f
 defines, with a calibrated probability, which matches labelling an email or judging a candidate
 pair. Jev does not find links: code proposes each candidate pair, and Jev only judges it.
 
+The link judgement job asks one question per candidate pair, each with the answers related,
+unrelated and unclear, and sends every pair for one input in one call. One question per pair lets an
+input link to more than one candidate. A single question over the candidate set returns one winner
+at most.
+
+Jev sees the text of every email, third-party senders' mail included. TypeSafe, which runs Jev,
+never trains a model on that text. Its terms set no retention period, and let it keep telemetry
+about each call, labels included, forever. The [Jev spike](../../../research/jev-terms/README.md)
+quotes the terms.
+
 Claude, on the owner's subscription, does agent work over MCP, such as briefs and reply drafts. That
 work reads the graph and is not an enrichment job. When an agent's output must become a fact, it
 follows the same write-back pattern.
 
 pepys runs no local language model. LEAF-IR is a small embedding model that runs on the CPU, so the
-embedding job runs locally.
+embedding job runs locally. The job runs LEAF-IR's fp32 weights through `@huggingface/transformers`,
+one text per call, and truncates a text past the model's 512-token limit. The q8 weights are faster,
+but a q8 vector changes with the batch it runs in, as the
+[LEAF-IR spike](../../../research/leaf-ir-bun/README.md) measured.
 
 ## Job versions
 

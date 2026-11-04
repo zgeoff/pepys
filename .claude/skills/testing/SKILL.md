@@ -20,15 +20,19 @@ metadata:
 - [Slow tests and lanes](./references/slow-tests.md): a slow test, the run mode, and a lane.
 - [Factories](./references/factories.md): writing a factory.
 - [Matchers](./references/matchers.md): a matcher for a kind of value.
+- [Schemas and access rules](./references/schemas-and-access.md): a test of a schema, a parser or an
+  access rule.
 - [Boundaries](./references/boundaries.md): the stand-in for each boundary, and module mocks.
 - [Database](./references/database.md): a package that owns a schema.
 - [HTTP mocking](./references/http.md): a package that calls a remote service.
-- [Cleanup](./references/cleanup.md): cleanup order, and a test that fails only in the full run.
+- [Cleanup](./references/cleanup.md): adding a reset to the test preload, ordering cleanup, and
+  finding why a test fails only in the full run.
 - [Observability](./references/observability.md): code that records telemetry.
-- [System tests](./references/system-tests.md): end-to-end, evaluation, property and golden tests,
-  native timers, and stateful stand-ins.
+- [System tests](./references/system-tests.md): placing a test, and writing an end-to-end,
+  evaluation, property or golden test.
 - [Shell scripts](./references/shell.md): a script's test.
-- [Workflows](./references/workflows.md): a GitHub Actions step's logic.
+- [Workflows](./references/workflows.md): testing a GitHub Actions step's logic, or checking a
+  config file.
 - [Claude Code mod checks](./references/claude-code-mods.md): a mod's hooks.
 
 <!-- repo-sync needs ./references/frontend.md -->
@@ -58,27 +62,17 @@ metadata:
 - Test the behaviour, so a refactor that keeps it leaves every test green.
 - Bring each test you touch in line with these rules.
 - Never cut a test that checks behaviour. Never add one that checks nothing.
-- Put a helper that tests share in the package's `test-utils/`, with its own tests, and search there
-  first.
-
-## The test run
-
-- Reset shared state after each test in the test preload, the file that `bunfig.toml` lists under
-  `[test] preload`. When you add module-level state, such as a cache, add its reset there.
-- Override an environment variable through the env helper in `test-utils/`, never by assigning
-  `process.env`.
-- Start a shared resource, such as the MSW server, in the preload's `beforeAll`, never at import.
-- Run the test script with `--parallel=<N>` and `--no-isolate`, so the files share each worker's
-  process. Never turn Bun's per-file isolation back on.
 
 ## Where a test lives
 
-- Put a unit test beside its module, one test file per module, entry modules included:
-  `src/parse-entry.test.ts` beside `src/parse-entry.ts`.
-- Put a flow across several packages in `integration/`, a test of the built product in `e2e/`, and a
-  test that needs a real system, such as a browser, in a [lane](./references/slow-tests.md#lanes).
-- No other `test/`, `tests/` or `__tests__` directory. Check a config file, such as `package.json`,
-  with a script in `scripts/`, never with a test: a test needs a module beside it.
+- Put a test beside the module or script it tests: `src/record-payment.test.ts`.
+- Put a shared helper in `src/test-utils/` of the package that owns what it starts, builds or fakes,
+  with its own test beside it.
+- Put an end-to-end test, an evaluation and a benchmark of a running program where
+  [Package layout](./references/system-tests.md#package-layout) shows.
+
+[`chex test-layout`](https://github.com/zgeoff/tools/tree/main/packages/chex) fails a test outside
+this layout.
 
 ## Test shape
 
@@ -88,8 +82,8 @@ metadata:
   title with the unit: `#archiveNote rejects …`.
 - Arrange, act, assert, with no phase comments. Write one act per test. Treat an earlier act the
   test depends on, such as saving the note it archives, as arrangement, and don't assert on it.
-- Use `test.each` only for cases that differ in values, with rows of plain data or seed calls. Put
-  the value that varies in the title.
+- Use `test.each` only for cases that differ in values, with rows of plain data or seed functions.
+  Put the value that varies in the title.
 - No loop of assertions. Use `test.each`, or one collection matcher:
   `expect(listOpenNotes(store)).toSatisfyAll((note: Note) => note.archivedAt === null)`.
 
@@ -97,16 +91,16 @@ metadata:
 
 - Put per-test setup in one local `setupTest()` that each test calls, and no hook such as
   `beforeEach` in a test file.
-- In `setupTest()`, wire the temp directories, the database, the clock, servers, clients, recorders,
-  the unit, and the [seeder](./references/seeding.md#buildseeder-and-setuptest). Create no data
-  there. Give it no `if`, and no argument that a test's outcome depends on.
+- In `setupTest()`, wire the temp directories, the database, the clock, servers, clients, telemetry
+  recorders, the unit, and the [seeder](./references/seeding.md#buildseeder-and-setuptest). Create
+  no data there. Give it no `if`, and no argument that a test's outcome depends on.
 - Create each test's data in the test, even when every test needs the same. Set the time in each
   test whose code reads it.
 - Declare nothing at module level but imports, `setupTest()` and tests.
 - Keep each function that `setupTest()` returns, other than the seeder, to calls of production code,
   such as `readNotes: () => listNotes(db)`.
-- Write one `setupTest()` per file, and never share it.
-- Bind the result to one `const ctx`, never destructured.
+- Write one `setupTest()` per file, and never share it. Bind its result to one `const ctx`, never
+  destructured.
 
 ```ts
 async function setupTest() {
@@ -128,15 +122,13 @@ test('it lists the notes of a user with none as empty', async () => {
 
 - Register `onTestFinished` right after each acquisition, so a later throw still releases it. No
   `try`/`finally` in a test.
-
-```ts
-const dir = mkdtempSync(join(tmpdir(), 'notes-'));
-
-onTestFinished(() => rm(dir, { recursive: true, force: true }));
-```
-
-- When a test changes process state, register `onTestFinished` right after the change. Skip it for
-  state that the preload already resets.
+- When a test changes process state that the
+  [test preload](./references/cleanup.md#the-test-preload) doesn't reset, register `onTestFinished`
+  right after the change.
+- When you add state to production code that outlives a test, such as a cache, reset it in the test
+  preload.
+- Override an environment variable through a helper in `src/test-utils/` that restores it after the
+  test, never by assigning `process.env`.
 - Keep tests apart with the [test-database helper](./references/database.md) and a folder per test,
   never with random IDs: a list query still returns the other test's rows.
 
@@ -144,14 +136,12 @@ onTestFinished(() => rm(dir, { recursive: true, force: true }));
 
 - Keep plain inputs inline: write the literal again in the next test, never a shared fixture or a
   named constant.
-- Give a type that crosses a module boundary, such as an SDK result, a tested `buildMock<Type>`
-  [factory](./references/factories.md) in `test-utils/` on first use. Build only plain data in a
-  factory, and write no rows or files.
-- Give a fake that replaces a boundary data only: a fixed answer, `mock()`, a no-op, a map from
-  input to answer, or the answer-queue helper in `test-utils/`. Move any logic to a tested helper
-  there.
-- No `mockReturnValueOnce` or `mockResolvedValueOnce` chain: a call past the last answer returns the
-  default silently, where the answer-queue helper throws.
+- When a test first needs a type that crosses a module boundary, such as an SDK result, write a
+  tested `buildMock<Type>` [factory](./references/factories.md) for it in `src/test-utils/`. Build
+  only plain data in a factory, and write no rows or files.
+- Build a stand-in for a boundary from data only, in one of the forms
+  [Stand-ins](./references/boundaries.md#stand-ins) lists. Move any logic in a stand-in to a tested
+  helper in `src/test-utils/`.
 
 ## Stored state
 
@@ -160,18 +150,9 @@ tests may write them directly, when no seed makes the state.
 
 - Outside the module's tests, read through its code: a read function for rows, a path helper for
   files. When none exists, add one, with a test.
-- Seed through the module: `ctx.seed.archivedNote({ title: 'Groceries' })`. Write a base seed per
-  kind of record, such as `note`, and one per other state, such as `archivedNote`, as
-  [Seeding](./references/seeding.md) says.
-- Never put the call under test, a clock move or a write to another record inside a seed, so the
-  reader sees each one in the test.
-
-## Schemas and parsers
-
-- Feed inline literal payloads, never a factory's. Build each rejected payload from the valid
-  literal with one field changed.
-- Assert a rejection's issue path with `toPartiallyContain({ path: ['title'] })`, never `issues[0]`
-  or a bare `success: false`. Assert an accepted payload's `result.data` with `toStrictEqual`.
+- Seed through the module, with one seed per state, such as
+  `ctx.seed.archivedNote({ title: 'Groceries' })`. Keep the call under test and each clock move in
+  the test, as [Seeding](./references/seeding.md) says.
 
 ## Assertions
 
@@ -182,7 +163,6 @@ tests may write them directly, when no seed makes the state.
 - Assert each result in its own `expect`, and the parts of one result in one `expect`, such as a
   command's exit code, stdout and stderr.
 - Derive the expected value from the contract, never with the unit's own calculation.
-- Never take a snapshot of a component: once updated, it passes whatever renders.
 
 ## Errors
 
@@ -191,20 +171,18 @@ tests may write them directly, when no seed makes the state.
 - Give each declared error a test. For a throw that can't happen in production, delete the branch,
   or write `invariant()` from `tiny-invariant`.
 - Never assert in a `try`/`catch`: when nothing throws, nothing is asserted.
-- Write `.rejects` and `.resolves` without `await`, because Bun settles them inside the matcher.
-  Always `await` `toResolve()` and `toReject()`.
-
-## Access rules
-
-- Test that the allowed caller succeeds, and that another caller is refused, named in its title:
-  `it rejects a note owned by another user`.
-- When a read hides a record, assert the hidden result, such as `toBeNull()`.
+- Write `.rejects` and `.resolves` without `await`. Always `await` `toResolve()` and `toReject()`.
+  [Matchers](./references/matchers.md) says why.
 
 ## Narrowing
 
 - No branch in a test body. Give each path its own test.
-- Before a matcher that passes on `undefined` (any `.not`, `toBeUndefined`, `toBeFalsy`, `toBeNil`),
-  narrow with `invariant(value)`. Before any other matcher, `?.` is safe.
+- When you assert on a field of a value that may be missing:
+  - With `toBeUndefined`, `toBeFalsy`, `toBeNil` or a `.not` matcher, write `invariant(value)`
+    first, then assert on `value.field`. These matchers pass on `undefined`, so `value?.field` hides
+    a missing value.
+  - With any other matcher, assert on `value?.field`. A missing value fails that matcher.
+- To check that the value itself is absent, assert on the value, with no `invariant`.
 - Copy a value out of a callback and assert after the call returns: an assertion in a callback that
   never runs passes.
 
@@ -220,21 +198,22 @@ Use a [jest-extended matcher](./references/matchers.md) over a hand-written chec
   2. an injected clock: `ctx.clock.advance(30_000)`;
   3. fake timers, for code the repo doesn't own, restored in `onTestFinished`.
 - When you can't pass the time in, assert a range around `Date.now()`, such as `toBeWithin`.
-- Wait on a condition with the `waitFor` helper in `test-utils/`, never a sleep. When the code has
-  nothing to wait on, add a signal, such as an event.
+- Wait on a condition with the repo's `waitFor` helper, never a sleep. When the code has nothing to
+  wait on, add a signal, such as an event.
 
 ## Boundaries
 
-- Test a package at the outermost boundary it talks to: with no I/O, with
-  [HTTP mocked](./references/http.md), or with a [real database](./references/database.md). Never
-  stub `fetch`, an HTTP client or the unit's own services.
+- Pass plain values to code that does no I/O. Answer a remote service's requests with
+  [MSW](./references/http.md), and run database code against a
+  [real database](./references/database.md).
+- Never stub `fetch`, an HTTP client or the unit's own services.
 - Pass every path in from the test's `mkdtemp` folder. Never steer a module through `process.cwd()`
   or a `HOME` set after startup.
-- Reach a failure branch with a real failure, such as an address where nothing listens or an MSW
-  handler that returns the error. Never use a spy that makes a real method reject.
+- Reach a failure branch with a real failure, as
+  [Failure branches](./references/boundaries.md#failure-branches) shows.
 - Never call `mock.module` in a test file. It leaks into every later file in the worker.
 
 ## Speed
 
 - Keep each unit test under 5 s on CI. When one is slower, fix its cause from the
-  [slow-tests table](./references/slow-tests.md). Never raise the timeout or move it to a lane.
+  [slow-tests table](./references/slow-tests.md), never by raising the timeout.
