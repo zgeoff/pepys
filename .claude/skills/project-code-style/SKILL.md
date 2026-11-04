@@ -42,20 +42,21 @@ packages/example/src/
   it. A helper that two features import goes in `src/utils/`, or in `src/test-utils/` for a test
   helper.
 - No `index.ts` in a feature folder. `src/index.ts` is the only barrel.
-- Never edit a file under `src/generated/` by hand. Change its generator in `@pepys/schema`, then
-  run `bun run schema:generate`.
-- Put each consumer in `src/consumers/<consumer-name>.ts`, with its test beside it. This is the one
+- Never edit a file under `src/generated/` by hand. Change what it is generated from, such as a
+  `defineConsumer` declaration, then run `bun run schema:generate`.
+- Put each consumer in `src/consumers/<consumer-file>.ts`, with its test beside it. This is the one
   exception to a folder per feature: [`build-consumers.ts`](../../../scripts/build-consumers.ts)
-  finds a consumer only at that path.
+  finds a consumer only at that path. `<consumer-file>` is the consumer's declared name with each
+  `_` changed to `-`, so `github_pull_request` becomes `github-pull-request`.
 - Give a Rust crate the same shape. Write a feature as a `<feature>.rs` file with a `<feature>/`
   folder beside it for its adapters, and re-export the public API only from `lib.rs`.
 
 ## Consumers
 
-- Write a consumer as a pure function: it takes a fact and returns the operations for the host to
-  apply. Then the same facts always give the same operations.
+- Write a consumer as a pure function: it takes its input, a fact or a scope, and returns the
+  operations for the host to apply. Then the same input always gives the same operations.
 - Read no clock, random source, network or file in a consumer. Take a time from a field of the fact.
-- Import the row and operation types of a consumer from `src/generated/<consumer-name>-boundary.ts`.
+- Import the row and operation types of a consumer from `src/generated/<consumer-file>-boundary.ts`.
   [`github-pull-request.ts`](../../../packages/source-github/src/consumers/github-pull-request.ts)
   is a consumer to copy the shape from.
 
@@ -63,7 +64,7 @@ packages/example/src/
 
 - Brand every TypeScript ID with type-fest `Tagged`, and build one with `toTagged` from
   `@zgeoff/std`. A bare `string` never stands for an ID.
-- In a consumer, import `EntityID` from `src/generated/<consumer-name>-boundary.ts`, and build one
+- In a consumer, import `EntityID` from `src/generated/<consumer-file>-boundary.ts`, and build one
   with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
   consumers to WebAssembly, refuses a type-fest import, even a type-only one.
 - Write an entity ID as `<source>:<kind>:<id>`, such as `github:pr:1874433021`, and brand the whole

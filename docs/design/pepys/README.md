@@ -62,7 +62,7 @@ pepys is built from three kinds of package:
 | Package or Rust crate  | Kind       | Holds                                                           | Design doc                       |
 | ---------------------- | ---------- | --------------------------------------------------------------- | -------------------------------- |
 | `@pepys/contract`      | core       | the typed contract of every API query and write                 | [API](./api.md)                  |
-| `@pepys/schema`        | core       | the consumer and table declarations, and the type generator     | [Consumers](./consumers.md)      |
+| `@pepys/schema`        | core       | the API that declares consumers and tables, and the generator   | [Consumers](./consumers.md)      |
 | `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in   | [Ingest](./ingest.md)            |
 | `@pepys/enrichment`    | core       | the enrichment jobs and the model clients they call             | [Enrichment](./enrichment.md)    |
 | `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes | [API](./api.md)                  |
