@@ -95,6 +95,6 @@ version, and the facts of other versions stay for comparison.
 
 `pepys preview enrich <job>` runs a new version as a challenger on the scopes in its buckets and
 shows the labels that change. `pepys up enrich <job>` promotes it and runs it on every item. The
-owner's own corrections, which the API writes as facts, form the test set, so a preview reports how
-often a new version agrees with them. The
-[architecture design](./architecture.md#champion-and-challenger) covers challengers and buckets.
+label corrections, which the API writes as facts, form the test set, so a preview reports how often
+a new version agrees with them. The [architecture design](./architecture.md#champion-and-challenger)
+covers challengers and buckets.

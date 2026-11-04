@@ -10,7 +10,6 @@ manual fact in the log.
 
 | Caller                               | Wants                    | Through                  |
 | ------------------------------------ | ------------------------ | ------------------------ |
-| the owner's scripts and CLI          | typed queries            | oRPC                     |
 | agents such as Claude Code and Codex | tools with descriptions  | MCP                      |
 | a dashboard in the browser           | queries and live updates | oRPC and the change feed |
 | automations                          | notice of changes        | the change feed          |
@@ -50,15 +49,16 @@ it has its own change stream, and an agent can subscribe and act when something 
 
 ## Auth
 
-The API uses the OAuth connector pattern from the owner's agent control tower, built on better-auth
-with its OAuth provider and MCP plugins. Two scopes exist: read, and read plus manual writes. Each
-client gets its own grant, and every manual fact records the client that wrote it.
+The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
+`read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
+[Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats.
 
 ## Agent writes
 
-An agent may assert a link, with the agent as its origin, a confidence below full, and required
-evidence. Queries treat agent links like inferred ones and filter them by confidence. An agent may
-not correct a label, because only the owner's corrections count as the test set for model jobs.
+An agent may assert a link, with the agent as its origin, a confidence and required evidence.
+Queries treat agent links like inferred ones and filter them by confidence. An agent may correct a
+label, because the owner classifies mail by working with a model. Every correction counts as
+labelled data for the mail label job, and each one names the client that wrote it.
 
 ## oRPC and MCP
 

@@ -71,6 +71,7 @@ and never writes it; manual links and corrections reach the log as facts.
 - [Enrichment](./enrichment.md) — git, MIME, model judgements and the job model.
 - [Search](./search.md) — LEAF-IR embeddings, full-text search and hybrid ranking.
 - [API](./api.md) — the query catalog, MCP, auth and agent writes.
+- [Auth](./auth.md) — the API's OAuth server: clients, tokens, scopes and threats.
 - [Change feed](./change-feed.md) — the change log and the Durable Streams read protocol.
 - [History](./history.md) — transitions, the fact index, and the Parquet lake.
 

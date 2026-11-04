@@ -25,7 +25,7 @@ outside pepys calls a driving port.
 | blob store                   | driven  | Garage, a local folder                                        |
 | source client                | driven  | the GitHub App, Gmail, recorded fixtures                      |
 | model provider               | driven  | the Jev API, the LEAF-IR embedding model, a fixed-answer fake |
-| queries and manual writes    | driving | oRPC, MCP, the CLI                                            |
+| queries and manual writes    | driving | oRPC, MCP                                                     |
 
 [Enrichment](./enrichment.md) describes Jev and LEAF-IR. Manual writes are the links, retractions
 and label corrections that people and agents send through the [API](./api.md).
@@ -95,8 +95,8 @@ no labelled data reports the diff alone, as a consumer does.
 
 | Job                               | Score against                                           |
 | --------------------------------- | ------------------------------------------------------- |
-| mail label                        | the owner's label corrections                           |
-| link judgement                    | the owner's manual links and link retractions           |
+| mail label                        | the label corrections                                   |
+| link judgement                    | the manual links and link retractions                   |
 | embedding                         | the golden queries, run with the challenger's vectors   |
 | mail text, git diff and git blame | nothing: the report is the diff of the extracted output |
 
