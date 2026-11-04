@@ -17,12 +17,15 @@ authorization.
 
 | Client                                    | Kind    | Redirect URI                         | Holds its tokens in                     |
 | ----------------------------------------- | ------- | ------------------------------------ | --------------------------------------- |
-| the `pepys` CLI, and scripts that call it | `owner` | `http://127.0.0.1:<port>/callback`   | a file readable only by the owner       |
-| an agent, such as Claude Code or Codex    | `agent` | the agent's own loopback or callback | the agent's own credential store        |
 | the dashboard in the browser              | `owner` | the dashboard's `/callback` page     | memory only, so a reload signs in again |
+| the `pepys` CLI, and scripts that call it | `agent` | `http://127.0.0.1:<port>/callback`   | a file readable only by the owner       |
+| an agent, such as Claude Code or Codex    | `agent` | the agent's own loopback or callback | the agent's own credential store        |
 
 The kind is part of the client record, set only by the owner on the host, and never taken from a
-request. An agent's client is always `agent`, whatever scopes its grant holds.
+request. Only the dashboard is an `owner` client. Agents run as the owner's OS user, so an agent can
+run the CLI or read any token file the owner's user can read. A client whose tokens reach the disk
+is therefore an `agent` client, whatever scopes its grant holds. `pepys clients add` refuses
+`--kind owner` with a loopback redirect URI.
 
 ## Getting a grant
 
@@ -52,8 +55,17 @@ at that origin.
 
 Tokens are opaque, with better-auth's JWT plugin off, so every request checks its token against the
 database and a revoked grant fails on its next request. The database stores a hash of each token,
-never the token. `pepys grants revoke <client>` revokes every grant of one client, and
-`pepys clients remove <client>` removes the client as well.
+never the token.
+
+better-auth's refresh rotation is not atomic: two refreshes of one client that overlap can both
+succeed after a replay revoked the client's grants. The API therefore runs every token request of
+one client behind a lock keyed by the client ID, one at a time. The API is one process, so the lock
+lives in memory.
+
+A change feed stream outlives a single request. The API checks the stream's token against the
+database before it sends each batch, and closes the stream when the token has expired or its grant
+is revoked. The reader reconnects from its offset with a fresh token. `pepys grants revoke <client>`
+revokes every grant of one client, and `pepys clients remove <client>` removes the client as well.
 
 ## Scopes
 
@@ -104,19 +116,20 @@ an MCP request that carries an `Origin` header, must come from the API's own ori
 
 ## Threats
 
-| Threat                                       | Control                                                                                                                      |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| a stolen access token                        | it reaches only the tailnet, lasts 1 hour, and stops on its next request once the owner revokes its grant                    |
-| a stolen refresh token                       | rotation: when the thief or the client uses a spent refresh token, better-auth revokes every grant of that client            |
-| a stolen authorization code                  | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
-| an MCP client used as a confused deputy      | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |
-| an agent asserting a link at full confidence | the API refuses it, and the link's origin names the agent, so `retract` can remove all of one agent's links                  |
-| an agent correcting a label                  | the API refuses a correction from an `agent` client, whatever its scopes                                                     |
-| a replayed write                             | the fact ID derives from the client and the request ID, so a replay writes a duplicate that consumers drop                   |
-| a crafted authorization link                 | an unknown client or redirect URI gets an error page with fixed text, and is never redirected                                |
+| Threat                                         | Control                                                                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| a stolen access token                          | it reaches only the tailnet, lasts 1 hour, and stops on its next request or stream batch once the owner revokes its grant    |
+| a stolen refresh token                         | rotation, one token request per client at a time: a spent refresh token revokes every grant of that client                   |
+| a prompt-injected agent on the owner's machine | every client it can reach is an `agent` client, so it cannot correct a label or assert a link at full confidence             |
+| a stolen authorization code                    | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
+| an MCP client used as a confused deputy        | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |
+| an agent asserting a link at full confidence   | the API refuses it, and the link's origin names the agent, so `retract` can remove all of one agent's links                  |
+| an agent correcting a label                    | the API refuses a correction from an `agent` client, whatever its scopes                                                     |
+| a replayed write                               | the fact ID derives from the client and the request ID, so a replay writes a duplicate that consumers drop                   |
+| a crafted authorization link                   | an unknown client or redirect URI gets an error page with fixed text, and is never redirected                                |
 
 ## Open questions
 
 - Whether a script that runs without the owner present, such as an automation on the server, gets a
   `client_credentials` grant. The pick: no. It runs through the `pepys` CLI with a grant the owner
-  approved once, as any other `owner` client does.
+  approved once, as an `agent` client.
