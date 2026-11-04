@@ -4,28 +4,19 @@ The API runs its own OAuth 2.1 authorization server, so each client the owner ap
 grant, and every manual fact records the client that wrote it. The server follows the OAuth
 connector in the owner's agent control tower, atc: better-auth's OAuth provider and MCP plugins run
 the protocol, and pepys adds the owner's passkey sign-in, the client list and the scope check. The
-server serves one owner. Only clients the owner added by hand can start an authorization, and each
-authorization needs a fresh passkey sign-in.
+server serves one owner. Only clients that were added on the server can start an authorization, and
+each authorization needs a fresh passkey sign-in.
 
 ## Clients
 
-The owner adds each client once, with
-`pepys clients add <name> --kind <owner|agent> --redirect-uri <uri>`. Every client is a public
-client: it holds no secret and uses PKCE with S256. pepys offers no dynamic client registration and
-fetches no client metadata documents, so a client the owner never added cannot start an
-authorization.
+The clients are agents over MCP, such as Claude Code and Codex, and the dashboard in the browser.
+Every client is a public client: it holds no secret and uses PKCE with S256. pepys offers no dynamic
+client registration and fetches no client metadata documents, so a client that nobody added cannot
+start an authorization.
 
-| Client                                    | Kind    | Redirect URI                         | Holds its tokens in                     |
-| ----------------------------------------- | ------- | ------------------------------------ | --------------------------------------- |
-| the dashboard in the browser              | `owner` | the dashboard's `/callback` page     | memory only, so a reload signs in again |
-| the `pepys` CLI, and scripts that call it | `agent` | `http://127.0.0.1:<port>/callback`   | a file readable only by the owner       |
-| an agent, such as Claude Code or Codex    | `agent` | the agent's own loopback or callback | the agent's own credential store        |
-
-The kind is part of the client record, set only by the owner on the host, and never taken from a
-request. Only the dashboard is an `owner` client. Agents run as the owner's OS user, so an agent can
-run the CLI or read any token file the owner's user can read. A client whose tokens reach the disk
-is therefore an `agent` client, whatever scopes its grant holds. `pepys clients add` refuses
-`--kind owner` with a loopback redirect URI.
+A client is added on the server with `pepys clients add <name> --redirect-uri <uri>`, which the
+owner, or an agent the owner asks, runs once per client. All clients have the same rights, and the
+grant's scopes set what each one may do.
 
 ## Getting a grant
 
@@ -41,9 +32,8 @@ is therefore an `agent` client, whatever scopes its grant holds. `pepys clients 
    token, both bound to the one resource the API serves, its origin. The oRPC routes under `/rpc`
    and the MCP endpoint at `/mcp` accept only a token bound to that origin.
 
-The owner enrols a passkey with `pepys passkeys enroll`, which prints a one-time token that expires
-in 10 minutes. The passkey's relying party is the API's tailnet host name, so a passkey works only
-at that origin.
+`pepys passkeys enroll` prints a one-time enrolment link that expires in 10 minutes. The passkey's
+relying party is the API's tailnet host name, so a passkey works only at that origin.
 
 ## Tokens
 
@@ -71,24 +61,24 @@ revokes every grant of one client, and `pepys clients remove <client>` removes t
 
 A grant holds `read`, or `read` and `write`. Each route and each MCP tool needs one scope:
 
-| Scope   | Allows                                                                                       |
-| ------- | -------------------------------------------------------------------------------------------- |
-| `read`  | every query in the core and deployment catalogs, and every change feed stream                |
-| `write` | assert link and retract link, for any client kind; correct label, for an `owner` client only |
+| Scope   | Allows                                                                        |
+| ------- | ----------------------------------------------------------------------------- |
+| `read`  | every query in the core and deployment catalogs, and every change feed stream |
+| `write` | assert link, retract link and correct label                                   |
 
 A request without the scope it needs gets HTTP 403 with `insufficient_scope` and the missing scope,
-so a client learns what to ask for. A correct label from an `agent` client gets HTTP 403 whatever
-its scopes, because only the owner's corrections score the model jobs, as
-[agent writes](./api.md#agent-writes) sets out.
+so a client learns what to ask for.
 
 ## Manual writes
 
-The API builds each manual fact's client record from the verified token: the client's ID, name and
-kind, and the grant ID. A request body never sets them. A manual link takes its origin from that
-record, as [links](./links.md) describes.
+The API builds each manual fact's client record from the verified token: the client's ID and name,
+and the grant ID. A request body never sets them. A manual link takes its origin from that record,
+as [links](./links.md) describes, and the API refuses a link with no evidence with HTTP 422.
 
-The API refuses an agent's link with a confidence of 1, or with no evidence, with HTTP 422. An
-`owner` client may assert a link at full confidence.
+A label correction from any client joins the labelled data that scores the mail label job, as
+[agent writes](./api.md#agent-writes) sets out. Each correction names its client, so the evaluation
+report counts the corrections per client, and the owner can drop one client's corrections from the
+score.
 
 Each write carries a request ID that the client picks, and the fact ID derives from the client ID
 and the request ID, as [fact IDs](./log.md#fact-ids) sets out. A client that retries a write, or an
@@ -116,20 +106,12 @@ an MCP request that carries an `Origin` header, must come from the API's own ori
 
 ## Threats
 
-| Threat                                         | Control                                                                                                                      |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| a stolen access token                          | it reaches only the tailnet, lasts 1 hour, and stops on its next request or stream batch once the owner revokes its grant    |
-| a stolen refresh token                         | rotation, one token request per client at a time: a spent refresh token revokes every grant of that client                   |
-| a prompt-injected agent on the owner's machine | every client it can reach is an `agent` client, so it cannot correct a label or assert a link at full confidence             |
-| a stolen authorization code                    | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
-| an MCP client used as a confused deputy        | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |
-| an agent asserting a link at full confidence   | the API refuses it, and the link's origin names the agent, so `retract` can remove all of one agent's links                  |
-| an agent correcting a label                    | the API refuses a correction from an `agent` client, whatever its scopes                                                     |
-| a replayed write                               | the fact ID derives from the client and the request ID, so a replay writes a duplicate that consumers drop                   |
-| a crafted authorization link                   | an unknown client or redirect URI gets an error page with fixed text, and is never redirected                                |
-
-## Open questions
-
-- Whether a script that runs without the owner present, such as an automation on the server, gets a
-  `client_credentials` grant. The pick: no. It runs through the `pepys` CLI with a grant the owner
-  approved once, as an `agent` client.
+| Threat                                   | Control                                                                                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| a stolen access token                    | it reaches only the tailnet, lasts 1 hour, and stops on its next request or stream batch once the owner revokes its grant    |
+| a stolen refresh token                   | rotation, one token request per client at a time: a spent refresh token revokes every grant of that client                   |
+| a prompt-injected agent writing bad data | every manual fact names its client, so the owner retracts that client's links and drops its corrections from the score       |
+| a stolen authorization code              | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
+| an MCP client used as a confused deputy  | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |
+| a replayed write                         | the fact ID derives from the client and the request ID, so a replay writes a duplicate that consumers drop                   |
+| a crafted authorization link             | an unknown client or redirect URI gets an error page with fixed text, and is never redirected                                |

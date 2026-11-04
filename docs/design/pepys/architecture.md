@@ -94,8 +94,8 @@ no labelled data reports the diff alone, as a consumer does.
 
 | Job                               | Score against                                           |
 | --------------------------------- | ------------------------------------------------------- |
-| mail label                        | the owner's label corrections                           |
-| link judgement                    | the owner's manual links and link retractions           |
+| mail label                        | the label corrections                                   |
+| link judgement                    | the manual links and link retractions                   |
 | embedding                         | the golden queries, run with the challenger's vectors   |
 | mail text, git diff and git blame | nothing: the report is the diff of the extracted output |
 
