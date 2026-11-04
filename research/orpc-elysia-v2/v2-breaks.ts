@@ -10,5 +10,22 @@ export function buildBrokenV1Calls() {
 
     // @ts-expect-error v2 RPCLink takes a path as url, and the origin in its own option
     () => new RPCLink({ url: 'http://127.0.0.1:8081/rpc' }),
+
+    () =>
+      new RPCLink({
+        url: '/rpc',
+        origin: 'http://pepys.test',
+
+        // RPCLink fixes this option name. v2 passes the custom fetch a URL string where v1 passed a
+        // Request, so a handler that takes a Request no longer fits.
+        // @ts-expect-error the fetch option's first parameter is a string in v2
+        // oxlint-disable-next-line zgeoff/function-verb
+        fetch: (request: Request) => serveRequest(request),
+      }),
   ];
+}
+
+// Stands in for Elysia's app.handle, which takes a Request.
+function serveRequest(request: Request) {
+  return Promise.resolve(new Response(request.url));
 }

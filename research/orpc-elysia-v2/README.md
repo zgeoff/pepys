@@ -18,9 +18,9 @@ serve an MCP server over streamable HTTP?
 - Only oRPC v2 has an MCP integration: `@orpc/mcp` turns each procedure into a tool. It needs MCP
   SDK v2 and refuses a v1 router.
 - MCP SDK v2 (`@modelcontextprotocol/server` 2.4.0) serves the 2026-07-28 revision and falls back to
-  2025-11-25 for older clients. SDK 1.32.2 serves only 2025-11-25.
-- Moving `packages/api` to oRPC v2 breaks two calls it makes: the builder's `.route()` and a full
-  URL in `RPCLink`'s `url`.
+  2025-11-25 for older clients. SDK 1.32.2 stops at 2025-11-25 and never serves 2026-07-28.
+- Moving `packages/api` to oRPC v2 breaks three calls it makes: the builder's `.route()`, a full URL
+  in `RPCLink`'s `url`, and a custom `fetch` that takes a `Request`.
 
 Keep oRPC 1.16.1 and serve MCP through `@modelcontextprotocol/server` with tools registered by hand
 from the query definitions, then switch to `@orpc/mcp` once oRPC v2 leaves beta.

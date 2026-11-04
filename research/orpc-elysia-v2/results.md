@@ -80,8 +80,10 @@ protocol revision each client and endpoint negotiate:
 | oRPC v1, SDK 2.4.0, tool by hand  | 2026-07-28       | 2025-11-25         | 2025-11-25 |
 | oRPC v2, SDK 2.4.0, `@orpc/mcp`   | 2026-07-28       | 2025-11-25         | 2025-11-25 |
 
-SDK 2.4.0's client defaults to `legacy`, so a client reaches the 2026-07-28 revision only when it
-asks for `auto`. `createMcpHandler` serves each request from a fresh server, with no session.
+SDK 1.32.2 lists 2025-11-25 as its latest revision and also accepts 2025-06-18, 2025-03-26,
+2024-11-05 and 2024-10-07, which the spike did not request. SDK 2.4.0's client defaults to `legacy`,
+so a client reaches the 2026-07-28 revision only when it asks for `auto`. `createMcpHandler` serves
+each request from a fresh server, with no session.
 
 `@orpc/mcp` exists only as 2.0.0 betas and peer-depends on `@modelcontextprotocol/server` 2 or
 later. Handed a v1 router, it fails to type-check and throws at `register`:
@@ -94,12 +96,14 @@ SDK 1.32.2 has 17 direct dependencies, Express and Hono among them. `@modelconte
 
 ## Breaks from oRPC v1 to v2
 
-`packages/api` makes two calls that oRPC 2.0.0-beta.47 refuses, and [v2-breaks.ts](v2-breaks.ts)
-fails the type check if either starts to compile:
+`packages/api` makes three calls that oRPC 2.0.0-beta.47 refuses, and [v2-breaks.ts](v2-breaks.ts)
+fails the type check if any of them starts to compile:
 
 - The builder has no `.route()`. A procedure's summary and description move to `.meta()`, through
   `mcp.tool()` or the OpenAPI meta.
 - `RPCLink`'s `url` takes a path. The scheme and host go in a separate `origin` option.
+- `RPCLink`'s custom `fetch` gets a URL string where v1 passed a `Request`, so the API test's
+  `fetch: (request) => app.handle(request)` has to build the `Request` first.
 
 `RPCHandler.handle` still returns `{ matched, response }`, and `Schema`, `os`, `ORPCError` and
 `call` are still exported. oRPC v2 drops the `./bun-ws`, `./ws` and `./hibernation` exports of
