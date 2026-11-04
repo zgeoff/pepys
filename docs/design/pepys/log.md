@@ -60,7 +60,7 @@ drop the duplicate.
 | webhook           | the source's delivery ID                                    |
 | observation       | a hash of the source, the entity and the source update time |
 | enrichment result | a hash of the job, the job version and the input hash       |
-| manual assertion  | a UUID, since people do not repeat themselves by accident   |
+| manual assertion  | a hash of the client ID and the request ID the client sends |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
 webhooks repeat, and neither needs to prevent it at write time. s2-lite can also store an append

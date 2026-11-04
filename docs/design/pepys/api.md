@@ -50,9 +50,9 @@ it has its own change stream, and an agent can subscribe and act when something 
 
 ## Auth
 
-The API uses the OAuth connector pattern from the owner's agent control tower, built on better-auth
-with its OAuth provider and MCP plugins. Two scopes exist: read, and read plus manual writes. Each
-client gets its own grant, and every manual fact records the client that wrote it.
+The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
+`read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
+[Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats.
 
 ## Agent writes
 
