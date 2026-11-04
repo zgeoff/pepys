@@ -10,7 +10,6 @@ manual fact in the log.
 
 | Caller                               | Wants                    | Through                  |
 | ------------------------------------ | ------------------------ | ------------------------ |
-| the owner's scripts and CLI          | typed queries            | oRPC                     |
 | agents such as Claude Code and Codex | tools with descriptions  | MCP                      |
 | a dashboard in the browser           | queries and live updates | oRPC and the change feed |
 | automations                          | notice of changes        | the change feed          |
@@ -56,10 +55,10 @@ The API runs its own OAuth 2.1 server. Each client the owner adds gets its own g
 
 ## Agent writes
 
-An agent may assert a link, with the agent as its origin, a confidence below full, and required
-evidence. Queries treat agent links like inferred ones and filter them by confidence. An agent may
-correct a label, because the owner classifies mail by working with a model. Every correction counts
-as labelled data for the mail label job, and each one names the client that wrote it.
+An agent may assert a link, with the agent as its origin, a confidence and required evidence.
+Queries treat agent links like inferred ones and filter them by confidence. An agent may correct a
+label, because the owner classifies mail by working with a model. Every correction counts as
+labelled data for the mail label job, and each one names the client that wrote it.
 
 ## oRPC and MCP
 

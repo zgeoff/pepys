@@ -81,5 +81,5 @@ resolves it, and a reference that resolves to the wrong kind is left out of the 
 
 People and agents assert and retract links through the [API](./api.md), which writes them to the
 manual fact stream. A retraction removes a link for every origin. An agent's link carries the
-agent's origin, a confidence below full, and required evidence, and every manual fact records the
-client that wrote it, so all of one agent's links can be retracted together.
+agent's origin, a confidence and required evidence, and every manual fact records the client that
+wrote it, so all of one agent's links can be retracted together.
