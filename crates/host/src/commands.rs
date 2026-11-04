@@ -2,6 +2,7 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use pepys_schema::GithubPullRequestRow;
 use tokio::signal::unix::{SignalKind, signal};
 
 use crate::batch::{FactRunner, apply_batch};
@@ -12,7 +13,7 @@ use crate::error::HostError;
 use crate::lock::WriterLock;
 use crate::module_runner::ModuleRunner;
 use crate::pull_request_rows::{TABLE, load_all_rows};
-use crate::stream::{S2Settings, StreamReader};
+use crate::stream::{FactLog, S2Settings, StreamReader};
 use crate::versions::{HostState, VersionState};
 
 const DATABASE_FILE: &str = "consumer.db";
@@ -44,7 +45,7 @@ impl HostConfig {
 /// A consumer file with the module that writes it.
 struct Version {
     store: Store,
-    runner: ModuleRunner,
+    runner: Box<dyn FactRunner>,
 }
 
 async fn open_version(
@@ -60,14 +61,35 @@ async fn open_version(
 
     let (runner, _hash) = ModuleRunner::from_file(module, spec)?;
 
-    Ok(Version { store, runner })
+    Ok(Version {
+        store,
+        runner: Box::new(runner),
+    })
 }
 
-/// Applies every record after the stored offset, one read at a time, until the log's tail.
+/// Applies every record after the stored offset, one read at a time, until the log's tail. The
+/// tail is read again after each pass, so records that arrive meanwhile are applied too.
 async fn catch_up(
     version: &mut Version,
     spec: &ConsumerSpec,
-    reader: &StreamReader,
+    reader: &impl FactLog,
+) -> Result<(), HostError> {
+    loop {
+        let tail = reader.tail().await?;
+
+        if replay_to(version, spec, reader, tail).await? == 0 {
+            return Ok(());
+        }
+    }
+}
+
+/// Applies the records after the stored offset whose sequence numbers are below `stop`, one read
+/// at a time, and returns how many it applied.
+async fn replay_to(
+    version: &mut Version,
+    spec: &ConsumerSpec,
+    reader: &impl FactLog,
+    stop: u64,
 ) -> Result<u64, HostError> {
     let mut applied = 0_u64;
 
@@ -76,25 +98,42 @@ async fn catch_up(
             .await?
             .map_or(0, |offset| offset + 1);
 
-        if next >= reader.tail().await? {
+        if next >= stop {
             return Ok(applied);
         }
 
-        let facts = reader.read(next, BATCH_SIZE).await?;
+        let count = usize::try_from(stop - next).map_or(BATCH_SIZE, |left| left.min(BATCH_SIZE));
+        let facts = reader.read(next, count).await?;
 
         if facts.is_empty() {
             return Ok(applied);
         }
 
-        apply_batch(
-            &version.store,
-            spec,
-            &mut version.runner as &mut dyn FactRunner,
-            &facts,
-        )
-        .await?;
+        apply_batch(&version.store, spec, version.runner.as_mut(), &facts).await?;
         applied += facts.len() as u64;
     }
+}
+
+/// The version's rows and the sequence number after its last applied record, read in one
+/// transaction so that a writer's commit between the two reads cannot set them apart.
+async fn read_rows_and_stop(
+    store: &Store,
+    spec: &ConsumerSpec,
+) -> Result<(Vec<GithubPullRequestRow>, u64), HostError> {
+    store.connection.execute("BEGIN", ()).await?;
+
+    let read = async {
+        let stop = read_offset(store, spec.stream)
+            .await?
+            .map_or(0, |offset| offset + 1);
+
+        Ok::<_, HostError>((load_all_rows(&store.connection).await?, stop))
+    }
+    .await;
+
+    store.connection.execute("COMMIT", ()).await?;
+
+    read
 }
 
 fn current_hash_dir(consumer_dir: &Path) -> Result<PathBuf, HostError> {
@@ -333,20 +372,36 @@ async fn replay_and_compare(
     module: &Path,
     reader: &StreamReader,
 ) -> Result<serde_json::Value, HostError> {
-    let mut previewed = open_version(scratch, spec, module).await?;
+    let previewed = open_version(scratch, spec, module).await?;
 
-    catch_up(&mut previewed, spec, reader).await?;
+    compare_with_current(spec, consumer_dir, previewed, reader).await
+}
 
-    let after = load_all_rows(&previewed.store.connection).await?;
-    let before = match current_hash_dir(consumer_dir) {
+/// Replays `previewed` to the current version's offset and returns its row diff against the
+/// current version. With no current version, it replays to the log's tail.
+async fn compare_with_current(
+    spec: &ConsumerSpec,
+    consumer_dir: &Path,
+    mut previewed: Version,
+    reader: &impl FactLog,
+) -> Result<serde_json::Value, HostError> {
+    // The previewed version stops where the current one stands, so records that only the
+    // previewed version has read never show as a change.
+    let (before, stop) = match current_hash_dir(consumer_dir) {
         Ok(directory) => {
             let store = open_store(&directory.join(DATABASE_FILE)).await?;
 
-            load_all_rows(&store.connection).await?
+            read_rows_and_stop(&store, spec).await?
         }
-        Err(HostError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(HostError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            (Vec::new(), reader.tail().await?)
+        }
         Err(error) => return Err(error),
     };
+
+    replay_to(&mut previewed, spec, reader, stop).await?;
+
+    let after = load_all_rows(&previewed.store.connection).await?;
     let diff: TableDiff = diff_rows(&before, &after);
 
     Ok(diff_json(&[(TABLE, diff)]))
@@ -356,6 +411,59 @@ async fn replay_and_compare(
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::test_utils::{CannedRunner, MemoryLog, upsert_json};
+
+    async fn open_test_version(directory: &Path, runner: CannedRunner) -> Version {
+        let spec = find_consumer("github_pull_request").expect("the consumer");
+
+        std::fs::create_dir_all(directory).expect("a version directory");
+
+        let store = open_store(&directory.join(DATABASE_FILE))
+            .await
+            .expect("a store");
+
+        prepare_store(&store, spec.schema)
+            .await
+            .expect("the schema");
+
+        Version {
+            store,
+            runner: Box::new(runner),
+        }
+    }
+
+    #[tokio::test]
+    async fn it_previews_the_current_module_as_no_change_when_the_current_version_is_behind_the_log()
+     {
+        let directory = tempfile::tempdir().expect("a directory");
+        let spec = find_consumer("github_pull_request").expect("the consumer");
+        let module = || {
+            CannedRunner::new(&[
+                ("a", Ok(upsert_json("github:pr:1", "First"))),
+                ("b", Ok(upsert_json("github:pr:2", "Second"))),
+                ("c", Ok(upsert_json("github:pr:3", "Third"))),
+            ])
+        };
+        let mut current = open_test_version(&directory.path().join("abc123"), module()).await;
+
+        catch_up(&mut current, spec, &MemoryLog::new(&["a", "b"]))
+            .await
+            .expect("the current version at offset 1");
+        repoint_current(directory.path(), "abc123").expect("a current link");
+
+        let previewed = open_test_version(&directory.path().join("preview"), module()).await;
+
+        let diff = compare_with_current(
+            spec,
+            directory.path(),
+            previewed,
+            &MemoryLog::new(&["a", "b", "c"]),
+        )
+        .await
+        .expect("a diff");
+
+        assert_eq!(diff, serde_json::json!({}));
+    }
 
     async fn state_with_current(directory: &Path, hash: &str) -> HostState {
         let state = HostState::open(&directory.join("host.db"))
@@ -372,6 +480,40 @@ mod tests {
             .expect("a current version");
 
         state
+    }
+
+    #[tokio::test]
+    async fn it_previews_every_row_as_added_when_no_version_is_current() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let spec = find_consumer("github_pull_request").expect("the consumer");
+        let previewed = open_test_version(
+            &directory.path().join("preview"),
+            CannedRunner::new(&[
+                ("a", Ok(upsert_json("github:pr:1", "First"))),
+                ("b", Ok(upsert_json("github:pr:2", "Second"))),
+            ]),
+        )
+        .await;
+
+        let diff = compare_with_current(
+            spec,
+            directory.path(),
+            previewed,
+            &MemoryLog::new(&["a", "b"]),
+        )
+        .await
+        .expect("a diff");
+
+        assert_eq!(
+            diff,
+            serde_json::json!({
+                "github_pull_request": {
+                    "added": ["github:pr:1", "github:pr:2"],
+                    "changed": [],
+                    "removed": [],
+                },
+            })
+        );
     }
 
     #[tokio::test]

@@ -47,9 +47,10 @@ A version moves only along these edges, and the host is the one writer of versio
 
 ## Preview and up
 
-`pepys preview <consumer>` builds a version, replays every fact into a throwaway file, and prints
-the diff against the current version. It changes nothing a reader can see, and it exists for
-development.
+`pepys preview <consumer>` builds a version, replays the facts up to the current version's offset
+into a throwaway file, and prints the diff against the current version. Both versions have then read
+the same facts, so the diff shows only what the code changes. With no current version, the preview
+replays every fact. It changes nothing a reader can see, and it exists for development.
 
 `pepys up` deploys. It replays into a new file to the side, catches the new file up to the live head
 of the log, pauses that consumer's writer for the last few facts, swaps the new file in, and marks

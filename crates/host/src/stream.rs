@@ -15,6 +15,22 @@ pub struct S2Settings {
     pub basin: String,
 }
 
+/// The records of one stream that a version replays.
+pub(crate) trait FactLog {
+    /// The sequence number the next record will get, which is also the number of records.
+    ///
+    /// # Errors
+    /// Fails when the log cannot be reached.
+    async fn tail(&self) -> Result<u64, HostError>;
+
+    /// Up to `count` records from sequence number `from`. The caller has checked `from` is below
+    /// the tail.
+    ///
+    /// # Errors
+    /// Fails when the log cannot be read or a record is not UTF-8.
+    async fn read(&self, from: u64, count: usize) -> Result<Vec<Fact>, HostError>;
+}
+
 /// A reader of one stream of the log.
 pub struct StreamReader {
     stream: S2Stream,
@@ -39,23 +55,16 @@ impl StreamReader {
             stream: client.basin(basin_name).stream(stream_name),
         })
     }
+}
 
-    /// The sequence number the next record will get, which is also the number of records.
-    ///
-    /// # Errors
-    /// Fails when the log cannot be reached.
-    pub async fn tail(&self) -> Result<u64, HostError> {
+impl FactLog for StreamReader {
+    async fn tail(&self) -> Result<u64, HostError> {
         let position = self.stream.check_tail().await.map_err(to_stream_error)?;
 
         Ok(position.seq_num)
     }
 
-    /// Up to `count` records from sequence number `from`. The caller has checked `from` is below
-    /// the tail.
-    ///
-    /// # Errors
-    /// Fails when the log cannot be read or a record is not UTF-8.
-    pub async fn read(&self, from: u64, count: usize) -> Result<Vec<Fact>, HostError> {
+    async fn read(&self, from: u64, count: usize) -> Result<Vec<Fact>, HostError> {
         let input = ReadInput::new()
             .with_start(ReadStart::new().with_from(ReadFrom::SeqNum(from)))
             .with_stop(ReadStop::new().with_limits(ReadLimits::new().with_count(count)));
