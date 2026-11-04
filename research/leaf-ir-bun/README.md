@@ -11,15 +11,16 @@ does one embedding take on the k3s server?
 
 ## Answer
 
-- The spike passes on a development PC and is blocked on the k3s server, which ssh could not reach.
+- The spike is partial: it ran on a development PC, and the k3s server run is blocked, because ssh
+  could not reach the server.
 - `MongoDB/mdbr-leaf-ir` ships ONNX weights, and Bun 1.4.3 runs them through the native
   `onnxruntime-node` binding, with fp32 scores within 0.00005 of the model card's.
 - On an AMD Ryzen 7 9800X3D shared with other work, one email embeds in 3 ms to 11 ms at the median
-  in fp32, and in under 7 ms on one thread, so 1,000 emails take under 12 s.
+  in fp32. Scaled from measured totals, 1,000 similar emails take 6 s to 9 s.
 - For 19 of 20 invented queries the intended email ranks first, and for all 20 it ranks in the
   top 5.
-- The q8 weights run about twice as fast in a batch, but a vector changes with its batch, by a
-  cosine as low as 0.989.
+- The q8 weights take 2.3 ms to 5.2 ms an email in a batch against fp32's 4.0 ms to 11.3 ms, but a
+  q8 vector changes with its batch, by a cosine as low as 0.989.
 
 Use LEAF-IR fp32 through `@huggingface/transformers` in the embedding job, and rerun this spike on
 the k3s server before the job is sized.

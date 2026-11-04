@@ -160,10 +160,12 @@ async function runDTypeChecks(dtype: DType): Promise<string[]> {
     `lowest cosine between an email's batched and single vector: ${batchAgreement.toFixed(6)}`,
   );
 
+  const meanMs = single.timing.totalMs / single.timing.count;
+
   for (const volume of dailyVolumes) {
     console.log(
-      `projection: ${volume} emails one at a time take ` +
-        `${((single.timing.medianMs * volume) / 60_000).toFixed(2)} min at the median`,
+      `projection: ${volume} emails like these, one at a time, take ` +
+        `${((meanMs * volume) / 1000).toFixed(1)} s at round 1's mean of ${meanMs.toFixed(1)} ms`,
     );
   }
 
@@ -284,7 +286,7 @@ async function readSingleEmbeddings(
 function formatTimingSummary(timing: TimingSummary): string {
   return (
     `median ${timing.medianMs.toFixed(1)} ms, p95 ${timing.p95Ms.toFixed(1)} ms, ` +
-    `max ${timing.maxMs.toFixed(1)} ms over ${timing.count}`
+    `max ${timing.maxMs.toFixed(1)} ms, total ${timing.totalMs.toFixed(0)} ms over ${timing.count}`
   );
 }
 
