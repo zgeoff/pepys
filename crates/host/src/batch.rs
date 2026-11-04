@@ -246,44 +246,10 @@ async fn apply_operation(
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
     use crate::consumer::find_consumer;
     use crate::database::{open_store, prepare_store, read_offset};
-
-    /// Returns the operations JSON the test lists for a fact body, or fails the fact.
-    struct CannedRunner {
-        outputs: HashMap<String, Result<String, String>>,
-    }
-
-    impl FactRunner for CannedRunner {
-        fn apply_fact(
-            &mut self,
-            fact: &str,
-            _rows: Arc<dyn RowSource>,
-        ) -> Result<String, HostError> {
-            match self.outputs.get(fact) {
-                Some(Ok(output)) => Ok(output.clone()),
-                Some(Err(message)) => Err(HostError::Panicked(message.clone())),
-                None => Ok("[]".to_owned()),
-            }
-        }
-    }
-
-    fn row_json(id: &str, title: &str) -> Value {
-        json!({
-            "id": id, "number": 3, "repository_id": "github:repo:9", "title": title,
-            "state": "open", "is_draft": false, "is_merged": false, "author_id": null,
-            "url": "https://github.example/acme/harbour/pull/3", "merge_commit_sha": null,
-            "created_at": "2026-10-01T09:00:00Z", "updated_at": "2026-10-01T09:00:00Z",
-            "closed_at": null, "merged_at": null, "payload": {"k": 1}
-        })
-    }
-
-    fn upsert(id: &str, title: &str) -> String {
-        json!([{"upsert": {"github_pull_request": row_json(id, title)}}]).to_string()
-    }
+    use crate::test_utils::{CannedRunner, row_json, upsert_json};
 
     async fn setup() -> (tempfile::TempDir, Store, &'static ConsumerSpec) {
         let directory = tempfile::tempdir().expect("a temporary directory");
@@ -297,15 +263,6 @@ mod tests {
             .expect("the schema");
 
         (directory, store, spec)
-    }
-
-    fn runner(outputs: &[(&str, Result<String, String>)]) -> CannedRunner {
-        CannedRunner {
-            outputs: outputs
-                .iter()
-                .map(|(fact, output)| ((*fact).to_owned(), output.clone()))
-                .collect(),
-        }
     }
 
     fn fact(seq_num: u64, body: &str) -> Fact {
@@ -351,7 +308,7 @@ mod tests {
     #[tokio::test]
     async fn it_commits_the_rows_the_offset_and_the_change_log_row_together() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = runner(&[("a", Ok(upsert("github:pr:1", "First")))]);
+        let mut canned = CannedRunner::new(&[("a", Ok(upsert_json("github:pr:1", "First")))]);
 
         apply_batch(&store, spec, &mut canned, &[fact(4, "a")])
             .await
@@ -382,9 +339,9 @@ mod tests {
     #[tokio::test]
     async fn it_logs_an_update_with_the_old_value_for_a_key_that_exists() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = runner(&[
-            ("a", Ok(upsert("github:pr:1", "First"))),
-            ("b", Ok(upsert("github:pr:1", "Second"))),
+        let mut canned = CannedRunner::new(&[
+            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("b", Ok(upsert_json("github:pr:1", "Second"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, "a")])
@@ -412,9 +369,9 @@ mod tests {
     #[tokio::test]
     async fn it_logs_an_insert_then_an_update_for_a_key_written_twice_in_one_batch() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = runner(&[
-            ("a", Ok(upsert("github:pr:1", "First"))),
-            ("b", Ok(upsert("github:pr:1", "Second"))),
+        let mut canned = CannedRunner::new(&[
+            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("b", Ok(upsert_json("github:pr:1", "Second"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, "a"), fact(1, "b")])
@@ -438,9 +395,9 @@ mod tests {
         let (_directory, store, spec) = setup().await;
         let open = r#"{"id":"delivery-1"}"#;
         let close = r#"{"id":"delivery-2"}"#;
-        let mut canned = runner(&[
-            (open, Ok(upsert("github:pr:1", "Open"))),
-            (close, Ok(upsert("github:pr:1", "Closed"))),
+        let mut canned = CannedRunner::new(&[
+            (open, Ok(upsert_json("github:pr:1", "Open"))),
+            (close, Ok(upsert_json("github:pr:1", "Closed"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, open), fact(1, close)])
@@ -478,7 +435,10 @@ mod tests {
         let (_directory, store, spec) = setup().await;
         let delete =
             json!([{"delete": {"github_pull_request": {"id": "github:pr:1"}}}]).to_string();
-        let mut canned = runner(&[("a", Ok(upsert("github:pr:1", "First"))), ("b", Ok(delete))]);
+        let mut canned = CannedRunner::new(&[
+            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("b", Ok(delete)),
+        ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, "a")])
             .await
@@ -510,7 +470,7 @@ mod tests {
     #[tokio::test]
     async fn it_writes_the_offset_and_no_change_log_row_for_a_batch_that_changes_nothing() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = runner(&[]);
+        let mut canned = CannedRunner::new(&[]);
 
         apply_batch(&store, spec, &mut canned, &[fact(7, "a")])
             .await
@@ -529,8 +489,8 @@ mod tests {
     async fn it_rejects_an_operation_on_a_table_the_consumer_does_not_own_and_writes_nothing() {
         let (_directory, store, spec) = setup().await;
         let foreign = json!([{"upsert": {"someone_elses_table": {"id": "x"}}}]).to_string();
-        let mut canned = runner(&[
-            ("a", Ok(upsert("github:pr:1", "First"))),
+        let mut canned = CannedRunner::new(&[
+            ("a", Ok(upsert_json("github:pr:1", "First"))),
             ("b", Ok(foreign)),
         ]);
 
@@ -555,8 +515,8 @@ mod tests {
     #[tokio::test]
     async fn it_writes_nothing_when_the_consumer_fails_on_a_later_fact() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = runner(&[
-            ("a", Ok(upsert("github:pr:1", "First"))),
+        let mut canned = CannedRunner::new(&[
+            ("a", Ok(upsert_json("github:pr:1", "First"))),
             ("b", Err("boom".to_owned())),
         ]);
 

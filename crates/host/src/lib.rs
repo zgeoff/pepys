@@ -11,4 +11,6 @@ pub mod lock;
 pub mod module_runner;
 pub mod pull_request_rows;
 pub mod stream;
+#[cfg(test)]
+mod test_utils;
 pub mod versions;
