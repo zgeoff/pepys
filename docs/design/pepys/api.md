@@ -60,8 +60,12 @@ An agent may assert a link, with the agent as its origin, a confidence below ful
 evidence. Queries treat agent links like inferred ones and filter them by confidence. An agent may
 not correct a label, because only the owner's corrections count as the test set for model jobs.
 
-## Open questions
+## oRPC and MCP
 
-The [oRPC spike](../../../research/orpc-elysia-v2/README.md) checks whether oRPC's Elysia adapter
-supports Elysia v2, and which oRPC major version it needs. The API mounts oRPC's fetch handler in an
-Elysia route, so only the adapter and the MCP parts of that spike stay open.
+The API uses oRPC v2, because only v2 has an MCP integration. `@orpc/mcp` turns each query's
+procedure into an MCP tool, so the API registers no tool by hand. `@orpc/mcp` needs MCP SDK v2,
+which serves the 2026-07-28 MCP revision and falls back to 2025-11-25 for older clients.
+
+oRPC ships no Elysia package. The API mounts oRPC's fetch handler on a wildcard Elysia route with
+`parse: 'none'`, so Elysia leaves the request body to oRPC. The
+[oRPC spike](../../../research/orpc-elysia-v2/README.md) holds the versions it ran on.

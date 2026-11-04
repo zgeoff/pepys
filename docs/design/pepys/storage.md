@@ -36,8 +36,8 @@ Each service has its own access key, scoped to the buckets it uses. A bug in the
 then damage the lake and nothing else.
 
 Old consumer modules stay in the modules bucket even though git can rebuild them, because every
-store row records the hash of the module that wrote it, and a removed module would leave those
-hashes pointing at nothing.
+store row records the hash of the consumer version that wrote it, and a removed module would leave
+that version with no module.
 
 ## Blobs
 

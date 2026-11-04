@@ -45,12 +45,14 @@ test, for stores from zustand's `create` and `createStore` alike.
 
 ## Rendering
 
-- Mount through the project's `render` and `renderHook` helpers in `test-utils/`, which wrap every
-  provider the app needs, such as a new query client per render. When the repo has none, write them
-  there. Hold the results as `rendered` and `hook`, and query through `rendered`, never through the
-  global `screen`.
+- Mount through the project's `render` and `renderHook` helpers in `src/test-utils/`, which wrap
+  every provider the app needs, such as a new query client per render. When the repo has none, write
+  them there. Hold the results as `rendered` and `hook`, and query through `rendered`, never through
+  the global `screen`.
 - When a test needs one provider with a different value, call RTL's `render` with a `wrapper` that
   holds the app's providers and that one. Still query through the returned `rendered`.
+- Never take a snapshot of a component. Once someone updates the snapshot, the test passes whatever
+  the component renders.
 - Never write a helper function in a test file that renders the component under test, such as
   `renderNoteEditor()`. It hides setup that the reader needs in the test body.
 
@@ -82,7 +84,7 @@ that event in a comment.
 ```tsx
 test('it saves a note from the editor', async () => {
   const user = userEvent.setup();
-  const rendered = render(<NoteEditor />); // the project's render helper from test-utils/
+  const rendered = render(<NoteEditor />); // the project's render helper from src/test-utils/
 
   await user.type(await rendered.findByLabelText('Title'), 'groceries');
   await user.click(rendered.getByRole('button', { name: 'Save' }));
@@ -117,7 +119,7 @@ hook.rerender();
 ## Routing
 
 Mount a component that reads or changes the route through the project's router-aware render helper
-in `test-utils/`. It builds a router on memory history and returns it on the render result, as
+in `src/test-utils/`. It builds a router on memory history and returns it on the render result, as
 `rendered.router`. When the repo has no such helper, write one there that does this.
 
 Give the helper each destination the test expects, with a fixed text for each, such as its path. The
@@ -151,13 +153,20 @@ returns a plain object by calling the handler. Test only the other branches thro
 
 `bun test` can't read a real request either. To test a handler that reads one, mock
 `@tanstack/react-start/server` once, in a `register-<module>-mock.ts` preload whose stand-in reads
-from a stub store that one exported setter changes, as [Boundaries](../SKILL.md#boundaries) allows.
+from a stub store that one exported setter changes, as [Module mocks](./boundaries.md#module-mocks)
+allows.
 
-Test the React Server Components pipeline only in a smoke suite in `e2e/` against the built app.
-`bun test` loads one module graph without the `react-server` export condition, so it can't run that
-pipeline. Run each handler path that relies on the request stub in that smoke suite too.
+React Server Components need a server module graph that is built with the `react-server` export
+condition. `bun test` builds no such graph, so no unit test can render a Server Component. When the
+app renders through Server Components, write one `e2e/` test against the built app, named with the
+`runtime-` prefix, as [End-to-end suites](./system-tests.md#end-to-end-suites) says. Load a route
+that the server renders, and check its text.
 
-Assert a thrown redirect on the rejection itself, with no `await`, as in the testing skill's
-[Errors](../SKILL.md#errors):
-`expect(promise).rejects.toMatchObject({ options: { href: '/login' } })`. For the branch without a
-redirect, assert the resolved value.
+Also write an `e2e/` test that loads a route whose handler reads the request. Add it to the app's
+`runtime-` test, or write a new `runtime-` test when the app has none. The unit tests read the
+request through the stand-in above, so this test is the one place where a real request reaches the
+handler.
+
+Assert a thrown redirect on the rejection itself, with no `await`, as [Matchers](./matchers.md)
+says: `expect(promise).rejects.toMatchObject({ options: { href: '/login' } })`. For the branch
+without a redirect, assert the resolved value.
