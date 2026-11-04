@@ -50,6 +50,11 @@ is its offset, written as 16 zero-padded digits so that offsets sort as strings.
 stored as a JSON array of its messages, and a read joins the arrays of its batches into one array. A
 live reader waits on an in-process signal, which each commit sends.
 
+The read side is 404 lines over 8 files: [handle-read.ts](handle-read.ts),
+[handle-sse-read.ts](handle-sse-read.ts) and the helpers they import. The write fixture is 236 lines
+over 4 files. The server entry and the change log module add 161 and 267 lines, and each serves both
+sides.
+
 ## The read subset
 
 The suite has no read tag, so the spike picks its read groups by name, in
