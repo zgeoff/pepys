@@ -2,8 +2,8 @@ import { parseEntityID } from '@pepys/schema';
 import { sql } from 'kysely';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
+import { defineQuery } from '../define-query.ts';
 import { buildEntityRow } from './build-entity-row.ts';
-import { defineQuery } from './define-query.ts';
 import { findEntityConsumer } from './find-entity-consumer.ts';
 
 const entityIDSchema = z.string().transform((text, ctx) => {

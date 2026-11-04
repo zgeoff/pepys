@@ -3,8 +3,8 @@ import { mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
 import { createStoreReader } from './create-store-reader.ts';
-import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
 import { openConsumerDatabase } from './open-consumer-database.ts';
 
 async function setupTest() {
