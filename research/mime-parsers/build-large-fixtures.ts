@@ -22,7 +22,7 @@ function buildLargeNewsletter(): Fixture {
 
   return {
     name: 'large-html-newsletter',
-    covers: `an HTML-only newsletter of ${largeNewsletterItemCount} table rows in base64, about 170 KB`,
+    covers: `an HTML-only newsletter of ${largeNewsletterItemCount} table rows, 146,370 bytes of HTML in base64`,
     raw: buildRaw([
       'From: Deals <deals@deals.example>\n',
       'To: reader@example.net\n',

@@ -93,7 +93,7 @@ function collectAttachmentProblems(
       continue;
     }
 
-    if (want.sha256 !== null && match.sha256 !== want.sha256) {
+    if (match.sha256 !== want.sha256) {
       problems.push(
         `content differs for ${want.filename ?? want.mimeType} (${match.sizeBytes} bytes)`,
       );
@@ -130,11 +130,7 @@ function countMissing(expected: ExpectedAttachment[], parsed: ParsedAttachment[]
   return expected.filter((want) => {
     const match = findAttachment(want, parsed);
 
-    return (
-      match === undefined ||
-      (want.sha256 !== null && match.sha256 !== want.sha256) ||
-      match.inline !== want.inline
-    );
+    return match === undefined || match.sha256 !== want.sha256 || match.inline !== want.inline;
   }).length;
 }
 

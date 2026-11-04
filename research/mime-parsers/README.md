@@ -13,13 +13,13 @@ Bun?
 
 - Partial: the spike ran on an invented corpus, and the owner's real mail remains. No parser passes,
   since all lose the body when it uses a boundary other than the one its header declares.
-- `postal-mime` 4.1.4 with `html-to-text` 10.0.1 for HTML-only messages reads 23 of 24. `mailparser`
-  3.12.4 reads 21, and `postal-mime` alone 20.
+- Of the 23 messages with a body, `postal-mime` 4.1.4 with `html-to-text` 10.0.1 for HTML-only
+  messages reads 22. `mailparser` 3.12.4 reads 20, and `postal-mime` alone 19.
 - `postal-mime` returns no text for a message with no text part. `mailparser` converts the HTML, but
   not inside `multipart/related`.
 - Neither crashes. Both decode every charset tested and list every attachment with the right bytes.
-- `postal-mime` parses a small message about 3.5 times faster than `mailparser`, at about 0.02 ms
-  against 0.09 ms. `mailparser` is about 1.5 times faster on a 5 MiB attachment.
+- `postal-mime` parses a small message 3.5 to 4.5 times faster than `mailparser`, at about 0.02 ms
+  against 0.08 to 0.1 ms. `mailparser` is about 1.5 times faster on a 5 MiB attachment.
 
 On this invented corpus, use `postal-mime` with `html-to-text` when a message has no text part, and
 flag a message that yields no text.

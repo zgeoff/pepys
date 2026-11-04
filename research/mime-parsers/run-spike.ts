@@ -55,15 +55,24 @@ async function runCorpus(): Promise<number> {
     ),
   );
 
+  const fixturesWithBody = corpus.filter(
+    (fixture) => fixture.expected.textIncludes.length > 0,
+  ).length;
+
   const passing = totals
-    .filter((total) => total.crashed === 0 && total.readable === corpus.length)
+    .filter((total) => total.crashed === 0 && total.readable === fixturesWithBody)
     .map((total) => total.parser);
 
   const versions = await readVersions();
 
   console.log(
     JSON.stringify(
-      { versions, fixtures: corpus.length, results: results.map((result) => formatResult(result)) },
+      {
+        versions,
+        fixtures: corpus.length,
+        fixturesWithBody,
+        results: results.map((result) => formatResult(result)),
+      },
       null,
       2,
     ),
@@ -116,8 +125,11 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
+// A message with no expected phrase has no body to read, so it counts as neither readable nor not.
 function isReadable(score: FixtureScore): boolean {
-  return score.phrasesFound === score.phrasesTotal && score.leaks.length === 0;
+  return (
+    score.phrasesTotal > 0 && score.phrasesFound === score.phrasesTotal && score.leaks.length === 0
+  );
 }
 
 function formatResult(result: CorpusResult): Record<string, unknown> {
@@ -135,7 +147,7 @@ function formatResult(result: CorpusResult): Record<string, unknown> {
   return {
     fixture: result.fixture,
     parser: result.parser,
-    readable: isReadable(score),
+    readable: score.phrasesTotal === 0 ? 'no body expected' : isReadable(score),
     phrases: `${score.phrasesFound}/${score.phrasesTotal}`,
     missingPhrases: score.missingPhrases,
     textMissing: score.textMissing,

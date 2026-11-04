@@ -2,9 +2,7 @@ export interface ExpectedAttachment {
   filename: string | null;
   mimeType: string;
   inline: boolean;
-
-  // null when the part is cut short, so its content has no known hash.
-  sha256: string | null;
+  sha256: string;
 }
 
 export interface Expected {

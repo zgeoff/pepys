@@ -3,6 +3,7 @@
 import { buildBase64Lines } from './build-base64-lines.ts';
 import { buildRaw } from './build-raw.ts';
 import { pdfBytes } from './constants.ts';
+import { toSHA256 } from './to-sha256.ts';
 import type { Fixture } from './types.ts';
 
 export function buildMalformedFixtures(): Fixture[] {
@@ -104,6 +105,10 @@ function buildMissingClosingBoundary(): Fixture {
   };
 }
 
+// 40 base64 characters decode to 30 bytes, and the 41st is a partial group that decodes to none.
+const truncatedBase64Length = 41;
+const truncatedBytes = 30;
+
 function buildTruncatedAttachment(): Fixture {
   const base64 = buildBase64Lines(pdfBytes);
 
@@ -128,7 +133,7 @@ function buildTruncatedAttachment(): Fixture {
       'Content-Disposition: attachment; filename="scan-0042.pdf"\n',
       'Content-Transfer-Encoding: base64\n',
       '\n',
-      base64.slice(0, 41),
+      base64.slice(0, truncatedBase64Length),
     ]),
     expected: {
       subject: 'Scan 0042',
@@ -136,7 +141,12 @@ function buildTruncatedAttachment(): Fixture {
       textIncludes: ['Your scan of 3 pages is attached.'],
       htmlOnly: false,
       attachments: [
-        { filename: 'scan-0042.pdf', mimeType: 'application/pdf', inline: false, sha256: null },
+        {
+          filename: 'scan-0042.pdf',
+          mimeType: 'application/pdf',
+          inline: false,
+          sha256: toSHA256(pdfBytes.slice(0, truncatedBytes)),
+        },
       ],
       headers: {},
     },
