@@ -129,8 +129,11 @@ few queries for live statistics.
 ## Provisional contracts
 
 Mark a contract that depends on a [spike](../../../research/README.md) that has not run as
-provisional until the spike reports. Use a `@provisional <spike>` tag in its TSDoc comment, or a
-`Provisional: <spike>` line in its Rust doc comment, where `<spike>` is the spike's folder name.
+provisional until the spike reports. In TypeScript, wrap its type in `Provisional<'<spike>', …>`
+from `@pepys/contracts`, where `<spike>` is the spike's folder name; the repo's lint rule bans doc
+blocks, so the mark lives in the type, and the type check rejects a misspelt spike. In Rust, add a
+`Provisional: <spike>` line to its doc comment. When a spike reports, remove its name from the
+`UnrunSpike` union, and the type check lists every contract that still names it.
 
 ## Open questions
 
