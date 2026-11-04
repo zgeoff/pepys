@@ -8,18 +8,18 @@ and change streams. `docs/README.md` indexes the docs.
 
 The rules a task needs are not repeated here. Load the skill for the work before starting it.
 
-| Skill                  | Load before                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `code-style`           | writing, reviewing, or renaming any TypeScript                                  |
-| `project-code-style`   | the same, beside `code-style` — pepys's additions to it                         |
-| `testing`              | designing, writing, or reviewing tests                                          |
-| `project-testing`      | the same, beside `testing` — pepys's test regime                                |
-| `docs-writing`         | writing or editing any committed prose: `docs/`, READMEs, this file, skills     |
-| `project-docs-writing` | the same, beside `docs-writing` — where spikes live and when they go            |
-| `skill-writing`        | writing or editing a skill under `.claude/skills/`                              |
-| `cold-read`            | checking a skill you wrote or changed, before its PR                            |
-| `deslop`               | editing the prose of a skill you wrote or changed, before its PR                |
-| `ci-design`            | adding or changing a CI workflow, a required check, or a package script CI runs |
+| Skill                  | Load before                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `code-style`           | writing, reviewing, or renaming any TypeScript                                                    |
+| `project-code-style`   | the same, beside `code-style` — pepys's additions to it                                           |
+| `testing`              | designing, writing, or reviewing tests                                                            |
+| `project-testing`      | the same, beside `testing` — pepys's test regime                                                  |
+| `docs-writing`         | writing or editing any committed prose: `docs/`, READMEs, this file, skills                       |
+| `project-docs-writing` | the same, beside `docs-writing` — where spikes live and when they go                              |
+| `skill-writing`        | writing or editing a skill under `.claude/skills/`                                                |
+| `cold-read`            | checking a skill you wrote or changed, before its PR                                              |
+| `deslop`               | editing the prose of a skill you wrote or changed, before its PR                                  |
+| `ci-design`            | adding or changing a CI workflow, a required check, a package script CI runs, or a dependency pin |
 
 When you write or edit a skill:
 
@@ -59,8 +59,12 @@ docs/
 - `rust-toolchain.toml` pins the toolchain. A `RUSTUP_TOOLCHAIN` variable in the shell overrides the
   pin, so unset it before running cargo here.
 - Every crate version lives once in `[workspace.dependencies]` of the root `Cargo.toml`, as an exact
-  `=x.y.z` pin, and a crate depends on it with `workspace = true`. Pick the newest release at least
-  7 days old, matching `minimumReleaseAge`. `Cargo.lock` is committed.
+  `=x.y.z` pin, and a crate depends on it with `workspace = true`. `Cargo.lock` is committed.
+- Pin each crate, and each Bun package, by the
+  [Dependency exceptions](.claude/skills/ci-design/SKILL.md#dependency-exceptions) rule in
+  ci-design. For a crate you pin by hand, read the release age off crates.io yourself: `bun install`
+  holds back only a Bun package younger than the `minimumReleaseAge` in `bunfig.toml`, and pepys
+  sets no release age for cargo.
 - A crate is named `pepys-<folder>`, takes its edition, license and lints from the workspace, and
   sets `[lints] workspace = true`.
 - Errors use `thiserror` at module boundaries, and every fallible function returns `Result`.
