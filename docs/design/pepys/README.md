@@ -59,18 +59,19 @@ pepys is built from three kinds of package:
 - **The deployment package** picks the sources and holds what is personal to the owner: the owner's
   identity, queries such as "waiting on me", and consumers that only the owner wants.
 
-| Package or Rust crate  | Kind       | Holds                                                           | Design doc                       |
-| ---------------------- | ---------- | --------------------------------------------------------------- | -------------------------------- |
-| `@pepys/contract`      | core       | the typed contract of every API query and write                 | [API](./api.md)                  |
-| `@pepys/schema`        | core       | the API that declares consumers and tables, and the generator   | [Consumers](./consumers.md)      |
-| `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in   | [Ingest](./ingest.md)            |
-| `@pepys/enrichment`    | core       | the enrichment jobs and the model clients they call             | [Enrichment](./enrichment.md)    |
-| `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes | [API](./api.md)                  |
-| `@pepys/kysely-turso`  | core       | the Kysely dialect for Turso                                    | [Store](./store.md)              |
-| `@pepys/source-<name>` | source     | one source, such as `source-github` or `source-gmail`           | [Ingest](./ingest.md)            |
-| `@pepys/deployment`    | deployment | the owner's identity, sources, queries and consumers            | [Entities](./entities.md#people) |
-| `pepys-host`           | core crate | the host, which runs consumers and swaps in their new versions  | [Host](./host.md)                |
-| `pepys-schema`         | core crate | the Rust types generated from `@pepys/schema`                   | [Consumers](./consumers.md)      |
+| Package or Rust crate  | Kind       | Holds                                                            | Design doc                       |
+| ---------------------- | ---------- | ---------------------------------------------------------------- | -------------------------------- |
+| `@pepys/contract`      | core       | the oRPC contracts: API queries and writes, and the admin routes | [API](./api.md)                  |
+| `@pepys/cli`           | core       | the `pepys` CLI, which calls the admin routes                    | [Runtime](./runtime.md#the-cli)  |
+| `@pepys/schema`        | core       | the API that declares consumers and tables, and the generator    | [Consumers](./consumers.md)      |
+| `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in    | [Ingest](./ingest.md)            |
+| `@pepys/enrichment`    | core       | the enrichment jobs and the model clients they call              | [Enrichment](./enrichment.md)    |
+| `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes  | [API](./api.md)                  |
+| `@pepys/kysely-turso`  | core       | the Kysely dialect for Turso                                     | [Store](./store.md)              |
+| `@pepys/source-<name>` | source     | one source, such as `source-github` or `source-gmail`            | [Ingest](./ingest.md)            |
+| `@pepys/deployment`    | deployment | the owner's identity, sources, queries and consumers             | [Entities](./entities.md#people) |
+| `pepys-host`           | core crate | the host, which runs consumers and swaps in their new versions   | [Host](./host.md)                |
+| `pepys-schema`         | core crate | the Rust types generated from `@pepys/schema`                    | [Consumers](./consumers.md)      |
 
 A source package depends on `@pepys/schema` and `@pepys/ingest`. A core package never imports a
 source package or the deployment package.
