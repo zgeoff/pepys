@@ -113,6 +113,13 @@ sets for the score, and the cost of the run, such as the number of model calls. 
 report, then runs the promotion command. The command shows no prompt, as
 [decision 0018](../../decisions/0018-preview-and-up.md) sets out.
 
+The deployment's promotion gate reads the report and decides. The default gate refuses a challenger
+whose score is below its threshold, and promotes one with no threshold, so an unattended promotion
+never installs a version that scores below its own threshold. To promote below the threshold, the
+owner lowers or removes the threshold in the version file. The threshold sits outside the version
+hash, so that edit makes no new version and reruns no model calls. A deployment may pass its own
+gate.
+
 ## Buckets
 
 An enrichment challenger can run on a sample of its input before the owner promotes it, because each
@@ -133,10 +140,7 @@ few queries for live statistics.
 ## Provisional contracts
 
 Mark a contract that depends on a [spike](../../../research/README.md) that has not run as
-provisional until the spike reports. Use a `@provisional <spike>` tag in its TSDoc comment, or a
-`Provisional: <spike>` line in its Rust doc comment, where `<spike>` is the spike's folder name.
-
-## Open questions
-
-- Whether the deployment's default promotion gate refuses a challenger whose score is below its
-  threshold, or only reports the score. The gate decides with no prompt either way.
+provisional until the spike reports. Put a `// Provisional: <spike>` line above it in TypeScript,
+because the repo's lint rule bans doc blocks, and a `Provisional: <spike>` line in its Rust doc
+comment. `<spike>` is the spike's folder name, so a search for it lists every contract the spike
+still holds back.

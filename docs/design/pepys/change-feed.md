@@ -3,8 +3,11 @@
 The change feed tells clients which rows changed. Each consumer file holds a change log, written in
 the same transaction as the batch it describes, and the API serves each change log over the read
 side of the Durable Streams protocol. A dashboard can then hold a live local copy of a table through
-TanStack DB, and an agent can tail "waiting on me" over plain HTTP. The feed is a projection: a
-replay rebuilds it, and deploying a new consumer version starts a new generation of it.
+TanStack DB, and an agent can tail "waiting on me" over plain HTTP. A replay rebuilds every row
+exactly, but not the change log in between: the host debounces scope recomputes by time, so a replay
+can merge changes that the live run wrote apart. Every file the host rebuilds, by `pepys up` or by a
+restore, therefore starts a new generation of its stream, and no reader ever reads two histories of
+one file.
 
 ## The change log
 
@@ -39,12 +42,14 @@ Live readers wait on a signal from the host, which it sends over a local socket 
 
 ## Generations
 
-`pepys up` swaps a consumer's whole file, change log included, so the generation of a consumer's
-stream is its [consumer version](./host.md#consumer-versions). The new file's change log opens with
-a snapshot: a snapshot-start message, every row as an insert, and a snapshot-end message. The old
-generation's stream closes. A reader that sees the close asks the API for the current generation and
-reads it from the start; a new reader does the same. The tables are small, so a full snapshot costs
-little, and no reader ever needs a diff across versions.
+`pepys up` swaps a consumer's whole file, change log included. The generation of a consumer's stream
+is a number that the host increments at each swap, a rollback included, and at each restore. A
+restore keeps the [consumer version](./host.md#consumer-versions), so the generation cannot be the
+version. A newly built file's change log opens with a snapshot: a snapshot-start message, every row
+as an insert, and a snapshot-end message. The old generation's stream closes. A reader that sees the
+close asks the API for the current generation and reads it from the start; a new reader does the
+same. The tables are small, so a full snapshot costs little, and no reader ever needs a diff across
+versions.
 
 ## Retention
 

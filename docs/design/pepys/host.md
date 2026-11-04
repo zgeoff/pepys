@@ -55,8 +55,8 @@ replays every fact. It changes nothing a reader can see, and it exists for devel
 
 `pepys up` deploys. It replays into a new file to the side, catches the new file up to the live head
 of the log, pauses that consumer's writer for the last few facts, swaps the new file in, and marks
-dirty every dependent scope whose input rows the diff changed. It asks nothing. When a preview of
-the same hash exists, `up` reuses its file and replays only the facts that arrived since.
+dirty every dependent scope whose input rows the diff changed. It asks nothing. `up` never reuses a
+preview's throwaway file, so a deploy of a new version replays from the start.
 
 Building to the side keeps readers on the old version until the swap, so no reader sees a
 half-replayed table. The previous version's file stays on disk. `pepys up` with the previous hash
@@ -84,7 +84,10 @@ renamed file can pick up a stale log. The swap runs in this order:
 ## Snapshots
 
 After a checkpoint, the host copies each current file to the snapshots bucket on a schedule. A
-restore downloads the snapshots and replays only the facts after each snapshot's offsets.
+restore downloads the snapshots and replays only the facts after each snapshot's offsets. A restored
+file starts a new generation of its change stream, as `pepys up` does
+([change feed](./change-feed.md#generations)), because its replayed change log differs from the one
+readers already read.
 
 ## Waking readers
 
