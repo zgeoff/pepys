@@ -73,6 +73,7 @@ and never writes it; manual links and corrections reach the log as facts.
 - [API](./api.md) — the query catalog, MCP, auth and agent writes.
 - [Change feed](./change-feed.md) — the change log and the Durable Streams read protocol.
 - [History](./history.md) — transitions, the fact index, and the Parquet lake.
+- [Runtime](./runtime.md) — the k3s workloads, images, secrets, network routes and schedules.
 
 ## Spikes
 
