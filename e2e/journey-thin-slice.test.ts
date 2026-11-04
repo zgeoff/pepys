@@ -119,7 +119,9 @@ test('it shows an empty preview diff for the module that is already current', as
 
   const output = await ctx.runHost(['preview', 'github_pull_request', '--module', ctx.modulePath]);
 
-  expect({ exitCode: output.exitCode, diff: output.json() }).toStrictEqual({
+  const diff: unknown = output.json();
+
+  expect({ exitCode: output.exitCode, diff }).toStrictEqual({
     exitCode: 0,
     diff: {},
   });
