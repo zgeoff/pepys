@@ -39,7 +39,7 @@ packages/example/src/
 ```
 
 - Give each feature its own folder, and put each adapter in a folder inside its port's folder.
-- Put a helper that one feature uses in the smallest folder of that feature that holds every file
+- Put a helper that one feature imports in the smallest folder of that feature that holds every file
   that imports it. Put a helper that two or more features import in `src/utils/`, and a test helper
   that two or more features import in `src/test-utils/`.
 - No `index.ts` in a feature folder. `src/index.ts` is the only barrel.
@@ -52,19 +52,20 @@ packages/example/src/
 - Derive `<consumer-file>` from the name in the consumer's `defineConsumer` declaration, with each
   `_` changed to `-`, so `github_pull_request` becomes `github-pull-request`.
   [`github-pull-request-consumer.ts`](../../../packages/source-github/src/github-pull-request-consumer.ts)
-  holds a declaration. Run `bun run schema:generate` after you add one, so the boundary file the
-  consumer imports exists.
+  holds a declaration, in its own file beside `src/consumers/`. After you add a declaration, run
+  `bun run schema:generate` to write the consumer's boundary file,
+  `src/generated/<consumer-file>-boundary.ts`.
 - Give a Rust crate the same shape. Write a feature as a `<feature>.rs` file with a `<feature>/`
   folder beside it for its adapters, and re-export the public API only from `lib.rs`.
 
 ## Consumers
 
-A consumer turns facts from the log into rows in the store.
-[consumers](../../../docs/design/pepys/consumers.md) defines a consumer's input, a fact or a scope,
-and the operations it returns to the host, the Rust process that applies them.
-
-- Write a consumer as a pure function, so the same input always gives the same operations.
-- Read no clock, random source, network or file in a consumer. Take a time from a field of the fact.
+- Write a consumer as a pure function. It takes one input and returns a list of operations, and the
+  same input always gives the same list. The
+  [consumers design doc](../../../docs/design/pepys/consumers.md) defines the two input modes, fact
+  and scope, and the operations the host applies to the store.
+- Never read a clock, a random source, the network or a file in a consumer. Take a time from a field
+  of the input.
 - Import the types of the consumer's store rows and operations from
   `src/generated/<consumer-file>-boundary.ts`.
   [`github-pull-request.ts`](../../../packages/source-github/src/consumers/github-pull-request.ts)
@@ -78,7 +79,8 @@ and the operations it returns to the host, the Rust process that applies them.
   with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
   consumers to WebAssembly, refuses a type-fest import, even a type-only one.
 - Write an entity ID as `<source>:<kind>:<id>`, such as `github:pr:1874433021`, and brand the whole
-  string. The source is the lowercase name of the system the ID comes from, such as `github`,
-  `gmail` or `deployment`. The kind is lowercase, with `_` between words. Reuse a kind that
-  [entities](../../../docs/design/pepys/entities.md) lists, such as `pr` or `msg`, and write a new
-  kind in full words, such as `review_comment`. The last part is the ID that system gives the thing.
+  string. The source is a source's lowercase name, such as `github` or `gmail`, or `deployment` for
+  an ID from the owner's own configuration. The last part is the ID the source gives the thing.
+- Keep each kind that [entities](../../../docs/design/pepys/entities.md) lists as it is, such as
+  `pr` or `msg`. Write a new kind in lowercase full words with `_` between them, such as
+  `review_comment`, and add it to that doc.
