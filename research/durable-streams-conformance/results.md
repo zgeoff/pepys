@@ -50,9 +50,9 @@ is its offset, written as 16 zero-padded digits so that offsets sort as strings.
 stored as a JSON array of its messages, and a read joins the arrays of its batches into one array. A
 live reader waits on an in-process signal, which each commit sends.
 
-The read side is 409 lines over 8 files: [handle-read.ts](handle-read.ts),
+The read side is 411 lines over 8 files: [handle-read.ts](handle-read.ts),
 [handle-sse-read.ts](handle-sse-read.ts) and the helpers they import. The write fixture is 236 lines
-over 4 files. The server entry and the change log module add 165 and 267 lines, and each serves both
+over 4 files. The server entry and the change log module add 172 and 267 lines, and each serves both
 sides.
 
 ## The read subset
@@ -74,7 +74,7 @@ seed the tests. It writes to the same change log table that the read side reads.
 
 ## Conformance results
 
-The three runs of the final runner give the same counts. The suite takes 46.3 s to 47.6 s.
+The three runs of the final runner give the same counts. The suite takes 46.4 s to 46.6 s.
 
 | Scope        | Passed | Failed | Skipped |
 | ------------ | ------ | ------ | ------- |
@@ -128,8 +128,8 @@ probe with the signal switched off failed it in both live modes.
 
 | Live mode | Change log rows | Table rows | Preload  | Preload copy | Live copy | Live catch-up |
 | --------- | --------------- | ---------- | -------- | ------------ | --------- | ------------- |
-| sse       | 305             | 171        | 65–78 ms | matches      | matches   | 27–35 ms      |
-| long-poll | 305             | 171        | 60–88 ms | matches      | matches   | 30–41 ms      |
+| sse       | 305             | 171        | 63–68 ms | matches      | matches   | 26–35 ms      |
+| long-poll | 305             | 171        | 57–64 ms | matches      | matches   | 29 ms         |
 
 Each range covers the three runs. The live catch-up runs from the start of the first live write to
 the first poll that finds a match, so it includes the 5 writes.

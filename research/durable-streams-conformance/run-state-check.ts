@@ -164,7 +164,7 @@ async function writeBatch(changeLog: ChangeLog, table: string, path: string, cha
       nowMs: Date.now(),
     },
     async (transaction) => {
-      const rows = transaction.withTables<Record<string, Item>>();
+      const rows = transaction.$extendTables<Record<string, Item>>();
 
       if (change.operation === 'insert') {
         await rows.insertInto(table).values(change.item).execute();
@@ -213,7 +213,7 @@ function toSortedRows(rows: readonly Item[]): Item[] {
 
 async function readTableRows(changeLog: ChangeLog, table: string): Promise<Item[]> {
   const rows = await changeLog.db
-    .withTables<Record<string, Item>>()
+    .$extendTables<Record<string, Item>>()
     .selectFrom(table)
     .select(['id', 'title', 'number'])
     .execute();

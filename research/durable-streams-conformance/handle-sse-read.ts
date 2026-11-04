@@ -19,7 +19,9 @@ export function handleSSERead(target: ReadTarget): Response {
 
   const body = new ReadableStream<Uint8Array>({
     start: async (controller) => {
-      await writeEvents(target, encoding, (text) => controller.enqueue(textEncoder.encode(text)));
+      await writeEvents(target, encoding, (text) => {
+        controller.enqueue(textEncoder.encode(text));
+      });
 
       controller.close();
     },

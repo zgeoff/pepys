@@ -42,8 +42,15 @@ export function createChangeFeedServer(options: ChangeFeedServerOptions): Change
   const waitForCommit = async (path: string, timeoutMs: number, signal: AbortSignal) => {
     const woken = Promise.withResolvers<boolean>();
     const pending = waiters.get(path) ?? new Set<() => void>();
-    const wake = () => woken.resolve(true);
-    const abort = () => woken.resolve(false);
+
+    const wake = () => {
+      woken.resolve(true);
+    };
+
+    const abort = () => {
+      woken.resolve(false);
+    };
+
     const timer = setTimeout(abort, timeoutMs);
 
     pending.add(wake);

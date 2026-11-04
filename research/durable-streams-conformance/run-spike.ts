@@ -13,12 +13,17 @@ const sseConnectionMs = 60_000;
 const maxChunkBytes = 4096;
 
 const workDir = await mkdtemp(join(tmpdir(), 'pepys-spike-durable-streams-'));
-
-const exitCode = await runSpike(workDir).finally(() =>
-  rm(workDir, { recursive: true, force: true }),
-);
+const exitCode = await runSpikeInWorkDir(workDir);
 
 process.exit(exitCode);
+
+async function runSpikeInWorkDir(directory: string): Promise<number> {
+  try {
+    return await runSpike(directory);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
 
 async function runSpike(directory: string): Promise<number> {
   const changeLog = await createChangeLog(join(directory, 'feed.db'));
