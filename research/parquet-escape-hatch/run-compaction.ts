@@ -17,8 +17,8 @@ export interface CompactionReport {
 }
 
 // Copies the records after the recorded offset, up to the tail read at the start, into one
-// Parquet file per UTC day of the record's timestamp, then records the offset. A crash between
-// the two writes makes the next run copy records again, which the rebuild refuses as an overlap.
+// Parquet file per UTC day of the record's timestamp, then records the offset. After a crash
+// between the two writes, a day that gained records gets a second, overlapping file.
 export async function runCompaction(parameters: CompactionParameters): Promise<CompactionReport> {
   const streamDirectory = join(parameters.lakeDirectory, parameters.streamName);
   const offsetFile = Bun.file(join(streamDirectory, 'offset.json'));

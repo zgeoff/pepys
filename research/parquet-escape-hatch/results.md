@@ -151,8 +151,11 @@ the host's batch size of 100 from a private constant.
 - Day partitions by the fact's own time in place of the S2 arrival timestamp.
 - The lake in a Garage bucket, read through S3, in place of a local folder.
 - DuckDB, or any reader other than the `parquet` crate, on the files.
-- A crash of the compaction job between writing a file and writing `offset.json`. The rebuild
-  refuses the repeated records that the next run would then write, so this case needs a design.
+- A crash of the compaction job between writing a file and writing `offset.json`. The next run
+  starts from the old offset and names each file by its day's first and last record. A day whose
+  records are unchanged gets the same name, so the run replaces that file. A day that gained records
+  gets a second file that repeats the old file's records, and the rebuild refuses the lake. This
+  case needs a design.
 - A loss of s2-lite's data, in place of a stopped container.
 - A rebuild through a `pepys` command, which needs a lake adapter for the fact log.
 - A rebuild into a consumer's version directory with a swap, as `pepys up` does.
