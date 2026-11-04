@@ -35,15 +35,24 @@ unit run under the 5 s rule.
 
 ## Lanes
 
-A lane test lives in a module named after the lane, so its Rust test path starts with `e2e::` or
+A Rust lane test lives in a module named after the lane, so its test path starts with `e2e::` or
 `model_api::`, because a Rust module name takes no hyphen. The default nextest profile in
 [`nextest.toml`](../../../.config/nextest.toml) leaves both prefixes out and ends any test at 5 s;
 each lane runs under its own profile with its own per-test time limit.
 
-| Lane        | Real system                                                         | Run                                     | Limit |
-| ----------- | ------------------------------------------------------------------- | --------------------------------------- | ----- |
-| `e2e`       | Garage, for crash durability; the Durable Streams conformance tests | `cargo nextest run --profile e2e`       | 15 s  |
-| `model-api` | hosted models                                                       | `cargo nextest run --profile model-api` | 120 s |
+A Bun e2e test lives in the root `e2e/` folder, since the thin slice spans ingest, the host and the
+API. The root `test` script leaves `e2e/` out.
+
+| Lane        | Real system                                                                  | Run                                     | Limit |
+| ----------- | ---------------------------------------------------------------------------- | --------------------------------------- | ----- |
+| `e2e`, Rust | Garage, for crash durability; the Durable Streams conformance tests          | `cargo nextest run --profile e2e`       | 15 s  |
+| `e2e`, Bun  | Garage and s2-lite in Docker; ingest, the host and the API, run as processes | `bun run test:e2e`                      | 15 s  |
+| `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` | 120 s |
+
+Run `bun run test:e2e:prepare` before the Bun e2e lane. It builds the host and the consumers.
+`test:e2e` preloads [`start-thin-slice.ts`](../../../e2e/start-thin-slice.ts), which starts the
+slice once for the whole lane: the lint refuses `beforeAll` in a test file. Put the arrangement that
+the e2e tests share there, and have each test read what it started from the environment.
 
 The `model-api` lane runs nightly and on dispatch, and on a pull request only through an opt-in
 label.

@@ -1,0 +1,370 @@
+// `test:e2e` preloads this setup, which starts the thin slice once for the whole lane, so each
+// test's 15 s limit covers its own act and not the container start. Test files may not hold
+// beforeAll, and the tests read what it started through the environment.
+
+import { afterAll, beforeAll } from 'bun:test';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Webhooks } from '@octokit/webhooks';
+import { S2 } from '@s2-dev/streamstore';
+import { connect } from '@tursodatabase/database';
+import { withStack } from '../stack/with-stack.ts';
+import type { RunningStack } from '../stack/with-stack.ts';
+
+const root = join(import.meta.dir, '..');
+const consumerName = 'github_pull_request';
+const streamName = 'facts.github.pull_request';
+const webhookSecret = 'thin-slice-webhook-secret';
+const host = join(root, 'target/debug/pepys');
+const children: Bun.Subprocess[] = [];
+const testsDone = Promise.withResolvers<void>();
+let stackRun: Promise<void> | undefined;
+let storeDirectory: string | undefined;
+
+beforeAll(
+  async () => {
+    const modulePath = await readModule();
+
+    storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-'));
+
+    const stack = await startStack();
+
+    Object.assign(process.env, {
+      PEPYS_S2_ENDPOINT: stack.s2Endpoint,
+      PEPYS_S2_ACCESS_TOKEN: stack.s2AccessToken,
+      PEPYS_S2_BASIN: stack.s2Basin,
+      PEPYS_STORE_DIR: storeDirectory,
+    });
+
+    await runSlice(stack, modulePath);
+
+    process.env['PEPYS_E2E_MODULE'] = modulePath;
+
+    process.env['PEPYS_E2E_API_URL'] = await startAPI(stack.stop);
+  },
+
+  // a fresh runner pulls the Garage and s2-lite images before the stack starts
+  { timeout: 300_000 },
+);
+
+afterAll(async () => {
+  for (const child of children) {
+    child.kill('SIGTERM');
+  }
+
+  await Promise.all(children.map((child) => child.exited));
+
+  testsDone.resolve();
+
+  await stackRun;
+
+  if (storeDirectory !== undefined) {
+    await rm(storeDirectory, { recursive: true, force: true });
+  }
+});
+
+async function readModule(): Promise<string> {
+  const directory = join(root, 'build/consumers', consumerName);
+
+  if (!existsSync(host) || !existsSync(directory)) {
+    throw new Error('build the host and the consumers first: bun run test:e2e:prepare');
+  }
+
+  const names = await readdir(directory);
+
+  const modified = names
+    .filter((name) => name.endsWith('.wasm'))
+    .map((name) => ({ name, time: Bun.file(join(directory, name)).lastModified }));
+
+  const [newest] = modified.toSorted((first, second) => second.time - first.time);
+
+  if (newest === undefined) {
+    throw new Error(`no built module for ${consumerName}: bun run test:e2e:prepare`);
+  }
+
+  return join(directory, newest.name);
+}
+
+// withStack removes the compose project when its callback returns, so the callback holds the stack
+// open until the last test ends
+async function startStack(): Promise<RunningStack> {
+  const stackReady = Promise.withResolvers<RunningStack>();
+
+  const run = withStack(async (stack) => {
+    stackReady.resolve(stack);
+
+    await testsDone.promise;
+  });
+
+  stackRun = run;
+
+  const stack = await Promise.race([stackReady.promise, waitForStackEnd(run)]);
+
+  if (stack === null) {
+    throw new Error('the stack stopped before the tests started');
+  }
+
+  return stack;
+}
+
+async function waitForStackEnd(run: Promise<void>): Promise<null> {
+  await run;
+
+  return null;
+}
+
+async function runSlice(stack: RunningStack, modulePath: string): Promise<void> {
+  const ingestPort = readFreePort();
+
+  const ingest = Bun.spawn(['bun', 'packages/source-github/src/ingest/serve-ingest.ts'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PEPYS_INGEST_PORT: String(ingestPort),
+      PEPYS_GITHUB_WEBHOOK_SECRET: webhookSecret,
+    },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  children.push(ingest);
+
+  const webhookURL = `http://127.0.0.1:${ingestPort}/webhook`;
+
+  await waitForIngest(webhookURL, stack.stop);
+  await runHost(['up', consumerName, '--module', modulePath]);
+
+  const opened = buildDelivery({
+    deliveryID: 'thin-slice-delivery-1',
+    action: 'opened',
+    title: 'Add the harbour map',
+    updatedAt: '2026-10-01T09:00:00Z',
+  });
+
+  const synchronized = buildDelivery({
+    deliveryID: 'thin-slice-delivery-2',
+    action: 'synchronize',
+    title: 'Add the harbour map and tides',
+    updatedAt: '2026-10-01T10:00:00Z',
+  });
+
+  const outOfOrder = buildDelivery({
+    deliveryID: 'thin-slice-delivery-3',
+    action: 'edited',
+    title: 'An older title',
+    updatedAt: '2026-10-01T09:30:00Z',
+  });
+
+  for (const delivery of [opened, synchronized, opened, outOfOrder]) {
+    await writeDelivery(webhookURL, delivery);
+  }
+
+  const tail = await readTail(stack);
+
+  await runUntilCaughtUp(tail, stack.stop);
+}
+
+async function runHost(args: string[]): Promise<void> {
+  const child = Bun.spawn([host, ...args], {
+    cwd: root,
+    env: process.env,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  children.push(child);
+
+  const exitCode = await child.exited;
+
+  if (exitCode !== 0) {
+    throw new Error(`pepys ${args.join(' ')} exited with ${exitCode}`);
+  }
+}
+
+interface Delivery {
+  deliveryID: string;
+  body: string;
+}
+
+interface DeliveryParameters {
+  deliveryID: string;
+  action: string;
+  title: string;
+  updatedAt: string;
+}
+
+function buildDelivery(parameters: DeliveryParameters): Delivery {
+  const body = JSON.stringify({
+    action: parameters.action,
+    number: 12,
+    pull_request: {
+      id: 1_874_433_021,
+      number: 12,
+      title: parameters.title,
+      state: 'open',
+      draft: false,
+      merged: false,
+      merge_commit_sha: null,
+      html_url: 'https://github.example/acme/harbour/pull/12',
+      user: { id: 4401 },
+      base: { repo: { id: 902 } },
+      created_at: '2026-10-01T08:00:00Z',
+      updated_at: parameters.updatedAt,
+      closed_at: null,
+      merged_at: null,
+    },
+    sender: { id: 4401 },
+  });
+
+  return { deliveryID: parameters.deliveryID, body };
+}
+
+async function writeDelivery(url: string, delivery: Delivery): Promise<void> {
+  const signature = await new Webhooks({ secret: webhookSecret }).sign(delivery.body);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'x-hub-signature-256': signature,
+      'x-github-event': 'pull_request',
+      'x-github-delivery': delivery.deliveryID,
+    },
+    body: delivery.body,
+  });
+
+  if (response.status !== 202) {
+    throw new Error(`ingest answered ${response.status} to ${delivery.deliveryID}`);
+  }
+}
+
+const startDeadlineMs = 30_000;
+
+async function waitForIngest(url: string, stop: AbortSignal): Promise<void> {
+  const deadline = Date.now() + startDeadlineMs;
+
+  while (Date.now() < deadline) {
+    stop.throwIfAborted();
+
+    const response = await fetch(url, { method: 'POST' }).catch(() => null);
+
+    if (response?.status === 401) {
+      return;
+    }
+
+    await Bun.sleep(100);
+  }
+
+  throw new Error('ingest did not answer before the deadline');
+}
+
+async function readTail(stack: RunningStack): Promise<number> {
+  const client = new S2({
+    accessToken: stack.s2AccessToken,
+    endpoints: { account: stack.s2Endpoint, basin: stack.s2Endpoint },
+  });
+
+  const response = await client.basin(stack.s2Basin).stream(streamName).checkTail();
+
+  return response.tail.seqNum;
+}
+
+async function runUntilCaughtUp(tail: number, stop: AbortSignal): Promise<void> {
+  const run = Bun.spawn([host, 'run', consumerName], {
+    cwd: root,
+    env: process.env,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  children.push(run);
+
+  const deadline = Date.now() + 60_000;
+
+  try {
+    while (Date.now() < deadline) {
+      stop.throwIfAborted();
+
+      if ((await readLastSeqNum()) === tail - 1) {
+        return;
+      }
+
+      await Bun.sleep(200);
+    }
+
+    throw new Error('pepys run did not catch up before the deadline');
+  } finally {
+    run.kill('SIGTERM');
+
+    await run.exited;
+  }
+}
+
+async function readLastSeqNum(): Promise<number | undefined> {
+  if (storeDirectory === undefined) {
+    return undefined;
+  }
+
+  const databasePath = join(storeDirectory, consumerName, 'current', 'consumer.db');
+
+  try {
+    const database = await connect(databasePath, {
+      readonly: true,
+      experimental: ['multiprocess_wal'],
+    });
+
+    try {
+      const rows: unknown[] = await database.all('select last_seq_num from offsets');
+
+      const [first] = rows;
+
+      return typeof first === 'object' && first !== null && 'last_seq_num' in first
+        ? Number(first.last_seq_num)
+        : undefined;
+    } finally {
+      await database.close();
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+async function startAPI(stop: AbortSignal): Promise<string> {
+  const apiPort = readFreePort();
+
+  const api = Bun.spawn(['bun', 'packages/api/src/serve.ts'], {
+    cwd: root,
+    env: { ...process.env, PEPYS_API_PORT: String(apiPort) },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  children.push(api);
+
+  const rpcURL = `http://127.0.0.1:${apiPort}/rpc`;
+  const deadline = Date.now() + startDeadlineMs;
+
+  while (Date.now() < deadline) {
+    stop.throwIfAborted();
+
+    const response = await fetch(rpcURL).catch(() => null);
+
+    if (response !== null) {
+      return rpcURL;
+    }
+
+    await Bun.sleep(100);
+  }
+
+  throw new Error('the API did not answer before the deadline');
+}
+
+function readFreePort(): number {
+  const listener = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data: () => {} } });
+  const port = listener.port;
+
+  listener.stop(true);
+
+  return port;
+}

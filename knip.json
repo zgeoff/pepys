@@ -2,11 +2,12 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/**/*.ts"],
-      "project": ["scripts/**/*.ts", "stack/**/*.ts"]
+      "entry": ["scripts/**/*.ts", "e2e/**/*.test.ts"],
+      "project": ["scripts/**/*.ts", "stack/**/*.ts", "e2e/**/*.ts"]
     },
     "packages/*": {
-      "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"]
+      "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"],
+      "bun": false
     },
     "packages/source-github": {
       "entry": [
@@ -14,13 +15,16 @@
         "src/generated/**/*.ts",
         "src/consumers/*.ts",
         "src/ingest/serve-ingest.ts"
-      ]
+      ],
+      "bun": false
     },
     "packages/api": {
-      "entry": ["src/**/*.test.ts", "src/serve.ts"]
+      "entry": ["src/**/*.test.ts", "src/serve.ts"],
+      "bun": false
     },
     "packages/kysely-turso": {
-      "entry": ["src/**/*.test.ts"]
+      "entry": ["src/**/*.test.ts"],
+      "bun": false
     }
   },
   "ignoreWorkspaces": ["research/**"],

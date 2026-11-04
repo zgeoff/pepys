@@ -1,3 +1,5 @@
+# repo-sync owns only the zgeoff/tools pins in this file, and keeps the jobs
+# written here, such as rust and e2e.
 name: PR
 
 on:
@@ -71,22 +73,66 @@ jobs:
       - name: Doctests
         run: cargo test --workspace --doc --locked
 
+  # bun-checks installs no Rust, zig or wasm-tools, so the e2e lane runs here,
+  # with the host and the consumers built in steps of their own, outside the
+  # lane's per-test limit. Any change can break the slice, so it has no path gate.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rustup reads the channel and components from rust-toolchain.toml
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Install zig
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+      - name: Install wasm-tools
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: wasm-tools@1.262.0
+      - name: Export the zig and wasm-tools paths
+        run: bun run --silent ci:tool-paths
+      - name: Build the host
+        run: cargo build --bin pepys --locked
+      - name: Build the consumers
+        run: bun run consumers:build
+      - name: End-to-end tests
+        run: bun run test:e2e
+
   # the one status the main ruleset requires: it runs even when a job it needs
   # failed, and passes only when every one of them succeeded or was skipped by
   # its path gate
   checks:
-    needs: [ci, changes, rust]
+    needs: [ci, changes, rust, e2e]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      # the script imports nothing, so the job skips the install
       - name: Require every check
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          for result in $RESULTS; do
-            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "a required job ended as $result" >&2
-              exit 1
-            fi
-          done
+        run: bun run --silent ci:require-checks
