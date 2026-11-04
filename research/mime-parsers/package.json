@@ -2,5 +2,17 @@
   "name": "@pepys/spike-mime-parsers",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "check": "bun run-spike.ts",
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "html-to-text": "10.0.1",
+    "mailparser": "3.12.4",
+    "postal-mime": "4.1.4"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4"
+  }
 }
