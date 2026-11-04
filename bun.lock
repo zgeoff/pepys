@@ -105,6 +105,12 @@
     "research/jev-terms": {
       "name": "@pepys/spike-jev-terms",
       "version": "0.0.0",
+      "dependencies": {
+        "zod": "4.6.7",
+      },
+      "devDependencies": {
+        "@types/bun": "1.4.4",
+      },
     },
     "research/leaf-ir-bun": {
       "name": "@pepys/spike-leaf-ir-bun",
