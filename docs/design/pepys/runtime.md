@@ -55,16 +55,16 @@ route into the cluster.
 
 ## The CLI
 
-The `pepys` CLI comes from `@pepys/cli` and ships in the `pepys` image. The owner's fleet runs it
-with `kubectl exec` in the API container. The CLI owns no state: each command calls the admin routes
-of the process that owns what it changes, through an oRPC client built from the admin contract in
-`@pepys/contract`.
+The `pepys` CLI comes from `@pepys/cli` and ships in the `pepys` image. An operator, the owner or
+one of the owner's agents, runs it with `kubectl exec` in the API container. The CLI holds no state.
+Each command calls the admin routes of the process that owns what the command changes, through an
+oRPC client built from the admin contract in `@pepys/contract`.
 
-| Commands                                   | Admin routes served by | Reached at                        |
-| ------------------------------------------ | ---------------------- | --------------------------------- |
-| `preview` and `up` for a consumer          | the host               | a port on 127.0.0.1 in the pod    |
-| `clients`, `passkeys` and `grants`         | the API                | a port on 127.0.0.1 in the pod    |
-| `preview`, `up` and `sample` with `enrich` | enrichment             | the admin port of its k3s Service |
+| Command                                                                            | Admin routes served by | Reached at                        |
+| ---------------------------------------------------------------------------------- | ---------------------- | --------------------------------- |
+| `pepys preview <consumer>`, `pepys up <consumer>`                                  | the host               | a port on 127.0.0.1 in the pod    |
+| `pepys clients ...`, `pepys passkeys ...`, `pepys grants ...`                      | the API                | a port on 127.0.0.1 in the pod    |
+| `pepys preview enrich <job>`, `pepys up enrich <job>`, `pepys sample enrich <job>` | enrichment             | the admin port of its k3s Service |
 
 The host is Rust, so it serves its admin routes as JSON over HTTP, at the method and path each
 procedure in the contract declares. The CLI calls them through oRPC's `OpenAPILink`, which calls any
@@ -72,9 +72,9 @@ OpenAPI server from a contract. The host's Rust types for those routes are writt
 contract test runs the CLI's client against the host, so a route that drifts from the contract fails
 the test.
 
-The admin routes take no token. A caller reaches the host and API ports only from inside the pod,
-which takes the cluster credentials that `kubectl exec` needs. Enrichment's admin port admits only
-the host-and-API pod.
+The admin routes never check a token. Only a process inside the pod reaches the host and API admin
+ports, and an operator gets inside the pod only with the cluster credentials that `kubectl exec`
+needs. A NetworkPolicy opens enrichment's admin port only to the pod that runs the host and the API.
 
 ## Secrets
 
@@ -106,17 +106,17 @@ Every pepys port is cluster-only except two routes.
   rule matches the one path `/webhook/github` on `pepys-webhook.geoff.cloud` and sends it to
   ingest's Service. The route's exposure registry entry names its auth layer: ingest checks the
   webhook signature before it writes anything ([ingest](./ingest.md#github)).
-- **The API** answers on the tailnet only, at `pepys.geoff.cloud`, a name that points at the host's
-  tailnet address, through its own Traefik ingress in the pattern that serves nixie
-  ([nixie](https://github.com/zgeoff/cloud/blob/main/docs/architecture/workloads/nixie.md)). The
-  owner's devices reach it as tailnet members.
+- **The API** answers on the tailnet only, at `pepys.geoff.cloud`, a name that points at the
+  geoff.cloud server's tailnet address, through its own Traefik ingress in the pattern that serves
+  nixie ([nixie](https://github.com/zgeoff/cloud/blob/main/docs/architecture/workloads/nixie.md)).
+  The owner's devices reach it as tailnet members.
 
 NetworkPolicies in the namespace refuse every other path in:
 
 - s2-lite admits only its four clients, as the [log](./log.md) requires.
 - Garage's S3 port admits only pepys's own pods.
-- The host and the API admit only the Traefik ingress.
-- Enrichment admits only the host-and-API pod, on its admin port.
+- The API admits only the Traefik ingress, and the host admits nothing from outside its pod.
+- Enrichment admits only the pod that runs the host and the API, on its admin port.
 
 Egress to the internet goes to three pods:
 
