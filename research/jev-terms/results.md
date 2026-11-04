@@ -13,9 +13,14 @@ need a Jev API key, which pepys does not have, so the runner exists and has not 
 The spike passes when the terms allow email content, and the spike states whether link judgement
 asks one question per pair or one per candidate set.
 
-The first half of the check is met, with the conditions in [Data terms](#data-terms). The second
-half is not met: the API accepts both shapes, and only the calls in step 2 can show which shape
-judges better.
+Neither half of the check is met:
+
+- **Email content: open.** No TypeSafe term forbids email as input, but the terms make the owner
+  answer for the rights of each third-party sender, and the DPA's list of data subjects leaves those
+  senders out. [Whether email may be sent](#whether-email-may-be-sent) quotes both clauses. Only the
+  owner can settle this half.
+- **Link judgement shape: not met.** The API accepts both shapes, and only the calls in step 2 can
+  show which shape judges better.
 
 ## Setup
 
@@ -77,9 +82,18 @@ outside this list:
 
 > "2. Categories of Data Subjects Customer and Customer's users."
 
-The AUP forbids uses, not kinds of content. Its nearest clause, 1.1, forbids using the Services to
-"infringe, misappropriate, or violate another person's intellectual property, privacy, publicity
-(e.g., voice or likeness), or other rights".
+The AUP, section 1, starts "You may not use the Services to:". Three of its clauses bear on email:
+
+> "1.1 infringe, misappropriate, or violate another person's intellectual property, privacy,
+> publicity (e.g., voice or likeness), or other rights, whether that person is living or dead;"
+
+> "1.2 upload, process, store, or attempt to create any illegal content;"
+
+> "1.5 upload, store, post, or transmit content, including Input, that contains viruses, malware,
+> malicious code, or similar harmful materials;"
+
+Clause 1.5 matters for a raw message with an attachment. The mail text job sends the extracted plain
+text, not the raw MIME message.
 
 ### Training
 
@@ -99,7 +113,14 @@ MCA section 4.1 defines Customer Data as the Input and the Output together.
 
 ### Retention
 
-No document gives a retention period. Privacy Policy, "Retention":
+No document gives a retention period in days. The terms bound retention by purpose instead. DPA
+section 2.2:
+
+> "Typesafe will not … (b) retain, use, or disclose Customer Personal Data for any purpose other
+> than in accordance with the Documented Instructions, (c) retain, use, or disclose Customer
+> Personal Data outside of the direct business relationship between Customer and Typesafe"
+
+Privacy Policy, "Retention":
 
 > "We retain personal data about you for as long as reasonably necessary to provide you with the
 > Services, or otherwise in support of our business or commercial purposes."
