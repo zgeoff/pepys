@@ -7,6 +7,7 @@ import {
   openConsumerDatabase,
   readChangeOperations,
   readOffsets,
+  readPullRequests,
 } from '@pepys/api';
 import type { APIClient } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
@@ -48,28 +49,7 @@ function setupTest() {
     api,
     runHost: (args: readonly string[]) => $`${host} ${args}`.nothrow().quiet(),
     readTail: () => s2.basin(s2Basin).stream('facts.github.pull_request').checkTail(),
-    readPullRequests: () =>
-      store.withConsumer('github_pull_request', (transaction) =>
-        transaction
-          .selectFrom('github_pull_request')
-          .select([
-            'id',
-            'number',
-            'repository_id',
-            'title',
-            'state',
-            'is_draft',
-            'is_merged',
-            'author_id',
-            'url',
-            'merge_commit_sha',
-            'created_at',
-            'updated_at',
-            'closed_at',
-            'merged_at',
-          ])
-          .execute(),
-      ),
+    readPullRequests: () => readPullRequests(store),
     readOffsets: () => readOffsets(store, 'github_pull_request'),
     readChangeOperations: () => readChangeOperations(store, 'github_pull_request'),
   };
@@ -106,6 +86,7 @@ test('it stores the row of the newest pull request update, not the older one tha
         updated_at: '2026-10-01T10:00:00Z',
         closed_at: null,
         merged_at: null,
+        payload: expect.any(String),
       },
     ],
   });

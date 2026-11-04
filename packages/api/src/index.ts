@@ -5,3 +5,4 @@ export { createStoreReader } from './store-reader/create-store-reader.ts';
 export { openConsumerDatabase } from './store-reader/open-consumer-database.ts';
 export { readChangeOperations } from './store-reader/read-change-operations.ts';
 export { readOffsets } from './store-reader/read-offsets.ts';
+export { readPullRequests } from './store-reader/read-pull-requests.ts';
