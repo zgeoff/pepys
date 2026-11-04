@@ -103,9 +103,10 @@ path the internet reaches is the GitHub webhook, which goes to ingest and never 
 checks the webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no part
 in it.
 
-The API refuses a request whose `Host` header is not its tailnet host name, so a DNS rebinding page
-in the owner's browser cannot reach it. A form post to the sign-in, enrolment or consent page, and
-an MCP request that carries an `Origin` header, must come from the API's own origin.
+On its tailnet port, the API refuses a request whose `Host` header is not its tailnet host name, so
+a DNS rebinding page in the owner's browser cannot reach it. A form post to the sign-in, enrolment
+or consent page, and an MCP request that carries an `Origin` header, must come from the API's own
+origin.
 
 ## Threats
 

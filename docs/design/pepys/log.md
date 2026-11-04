@@ -66,9 +66,12 @@ drop the duplicate.
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
 webhooks repeat, and neither needs to prevent it at write time.
 
-s2-lite can store an append whose acknowledgement never arrived. A writer resolves an append with an
+s2-lite can store an append whose acknowledgement never arrived, so a writer sets `matchSeqNum` to
+the tail it expects on every append, the first attempt included. A writer resolves an append with an
 unknown outcome by reading the stream's tail. When the fact ID is there, the append landed.
-Otherwise the writer retries with `matchSeqNum` set to the tail, so exactly one copy lands.
+Otherwise the writer retries with `matchSeqNum` set to the new tail. A first attempt that lands late
+then fails its own guard, so exactly one copy lands
+([S2 on linearizability](https://s2.dev/blog/linearizability)).
 
 ## Cursors
 
