@@ -11,9 +11,8 @@ history ID stay valid?
 
 ## Answer
 
-The spike is partial: it read both sources' documentation on 2026-11-04, and the two live probes
-have not run, because no GitHub App or Gmail credential exists for pepys yet.
-
+- The spike is partial: it read the documentation on 2026-11-04, and the live probes wait on a
+  GitHub App and a Gmail credential.
 - GitHub documents 3 days: "You can redeliver webhook deliveries that occurred in the past 3 days."
 - GitHub never redelivers a failed delivery on its own, so the sweep must run more often than every
   3 days.

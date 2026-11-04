@@ -52,10 +52,10 @@ page.
 
 ## Setup
 
-The runners use zod 4.6.7, `@types/bun` 1.4.4 and Bun 1.4.3, with `fetch` for every call. Neither
-runner has run against a live service. Each runner prints counts and times only: the GitHub runner
-prints no repository, event or delivery GUID, and the Gmail runner keeps only the HTTP status of
-each `history.list` call, never a message ID.
+The runners use zod 4.6.7 and `@types/bun` 1.4.4, with `fetch` for every call. They typecheck under
+Bun 1.4.3, and the repo pins Bun 1.4.4. Neither runner has run against a live service. Each runner
+prints counts and times only: the GitHub runner prints no repository, event or delivery GUID, and
+the Gmail runner keeps only the HTTP status of each `history.list` call, never a message ID.
 
 ### GitHub delivery log
 
