@@ -54,9 +54,10 @@ the workflow joins the tailnet as an ephemeral node with a tag that reaches Gara
 
 ## Secrets
 
-The cloud apply job reads the 1Password vault `pepys` beside its own, and Pulumi turns each item
-into a Kubernetes Secret that only its process mounts, as every geoff.cloud workload receives its
-secrets ([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)).
+The cloud apply job reads the 1Password vault `pepys` directly, so each secret has one copy, and
+Pulumi turns each item into a Kubernetes Secret that only its process mounts, as every geoff.cloud
+workload receives its secrets
+([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)).
 
 | Item               | Fields                                        | Mounted by   |
 | ------------------ | --------------------------------------------- | ------------ |
@@ -78,7 +79,7 @@ Every pepys port is cluster-only except two routes.
   ingest's Service. The route's exposure registry entry names its auth layer: ingest checks the
   webhook signature before it writes anything ([ingest](./ingest.md#github)).
 - **The API** answers on the tailnet only, at `pepys.geoff.cloud`, a name that points at the host's
-  tailnet address, through a Traefik ingress in the pattern that serves nixie
+  tailnet address, through its own Traefik ingress in the pattern that serves nixie
   ([nixie](https://github.com/zgeoff/cloud/blob/main/docs/architecture/workloads/nixie.md)). The
   owner's devices reach it as tailnet members.
 
@@ -90,13 +91,3 @@ NetworkPolicies in the namespace refuse every other path in:
 
 Egress goes to the internet for ingest, which calls GitHub and Gmail, and for enrichment, which
 calls Jev and fetches the git mirrors. Every other pod reaches only the namespace.
-
-## Open questions
-
-- Whether the "owner's k3s server" that [storage](./storage.md) names is the geoff.cloud host. This
-  doc assumes it is, because the cloud repository runs the owner's only k3s cluster.
-- Whether the cloud apply job reads the `pepys` vault directly, or reads copies of its items in
-  `cloud-deploy`, as it does for its own secrets. This doc picks the direct read, which keeps one
-  copy of each secret.
-- Whether pepys gets its own Traefik ingress or shares nixie's. This doc picks its own, so a change
-  to one never touches the other.
