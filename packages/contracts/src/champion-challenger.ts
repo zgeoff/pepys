@@ -238,8 +238,8 @@ export type Evaluate = <S extends Subject>(
   challenger: VersionHash,
 ) => Promise<Result<EvaluationReport<S>, ChallengeFailure>>;
 
-export type Promote = <S extends Subject>(
+export type Promote = (
   champions: ChampionChallenger,
-  subject: S,
+  subject: Subject,
   challenger: VersionHash,
 ) => Promise<Result<PromotionOutcome, ChallengeFailure>>;
