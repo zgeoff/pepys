@@ -53,5 +53,5 @@ joins only if the lake gets queried often.
 The host's fact log port has a lake adapter, so a `pepys` command rebuilds a consumer from the lake
 with s2-lite stopped. The rebuild refuses a lake with a gap in its records, and a lake that holds
 fewer records than the recorded offset. The
-[escape hatch spike](../../../research/parquet-escape-hatch/README.md) rebuilt one consumer from the
-lake and got the same rows as a replay from s2-lite.
+[escape hatch spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/parquet-escape-hatch/README.md)
+rebuilt one consumer from the lake and got the same rows as a replay from s2-lite.

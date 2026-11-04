@@ -68,4 +68,5 @@ which serves the 2026-07-28 MCP revision and falls back to 2025-11-25 for older 
 
 oRPC ships no Elysia package. The API mounts oRPC's fetch handler on a wildcard Elysia route with
 `parse: 'none'`, so Elysia leaves the request body to oRPC. The
-[oRPC spike](../../../research/orpc-elysia-v2/README.md) holds the versions it ran on.
+[oRPC spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/orpc-elysia-v2/README.md)
+holds the versions it ran on.

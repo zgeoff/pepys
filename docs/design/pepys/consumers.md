@@ -17,7 +17,8 @@ returns the length of the row, and the second writes the row into a buffer the c
 That second call relies on scriptc passing a byte buffer argument as a view of the module's own
 memory, which scriptc documents only as borrowed for the call. A scriptc that copied the buffer
 would hand the consumer an empty row, so the host's boundary tests run against every scriptc version
-before pepys moves to it. The [host boundary spike](../../../research/host-boundary/README.md)
+before pepys moves to it. The
+[host boundary spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/host-boundary/README.md)
 measured this shape against the others.
 
 A consumer reads four things from the host:
@@ -84,8 +85,8 @@ scriptc compiles TypeScript and JavaScript to native code and WebAssembly using 
 TypeScript compiler checks, and supports a subset of the language. pepys uses scriptc only, with no
 second compiler. When a consumer uses something outside the subset, the consumer changes to fit.
 Consumers are small pure functions with few imports, which keeps that rare. The
-[scriptc spike](../../../research/scriptc-wasm/results.md#the-scriptc-subset) records the subset
-limits a consumer meets.
+[scriptc spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/scriptc-wasm/results.md#the-scriptc-subset)
+records the subset limits a consumer meets.
 
 Every consumer builds as a scriptc library with `determinism.fences` covering the Date, performance,
 process, random, filesystem and OS APIs. Such a build refuses a call to any of them at compile time,

@@ -38,10 +38,11 @@ Two systems have one adapter each, so they get no port:
 - The [change feed](./change-feed.md) serves one protocol, Durable Streams.
 
 Make each port report the outcomes that its system can produce. A timed-out append to s2-lite can
-still land, as the [s2-lite spike](../../../research/s2-lite-durability/results.md) measured. The
-fact log port therefore reports each append as acknowledged, rejected or unknown, and ingest repeats
-an unknown append under the same fact ID. A port that reported only success or failure would let an
-adapter turn an unknown append into a lost fact or a doubled one.
+still land, as the
+[s2-lite spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/s2-lite-durability/results.md)
+measured. The fact log port therefore reports each append as acknowledged, rejected or unknown, and
+ingest repeats an unknown append under the same fact ID. A port that reported only success or
+failure would let an adapter turn an unknown append into a lost fact or a doubled one.
 
 The host is written in Rust. Ingest and enrichment are written in TypeScript. The fact log and blob
 store ports therefore have a Rust trait and a TypeScript interface. One set of fixture files, each a

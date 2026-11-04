@@ -21,8 +21,8 @@ locks the file, and a second process then cannot open it.
 If Turso fails, the host switches to rusqlite and opens the same files, with no migration and no
 replay. A file that holds a Turso full-text index is the exception: `sqlite3` rejects its schema,
 and rusqlite on such a file is unverified. The
-[Turso spike](../../../research/turso-bindings/results.md) records the TypeScript binding's
-behaviour that the API builds on.
+[Turso spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/turso-bindings/results.md)
+records the TypeScript binding's behaviour that the API builds on.
 
 ## One file per consumer
 
@@ -57,5 +57,5 @@ The API uses the Kysely types generated from the
 [consumer declarations](./consumers.md#one-schema-source).
 
 Consumers do not use Kysely, which keeps SQL out of the module boundary and keeps the boundary
-independent of what scriptc can compile. The
-[host boundary spike](../../../research/host-boundary/README.md) settles how a consumer reads rows.
+independent of what scriptc can compile.
+[Decision 0022](../../decisions/0022-consumers-are-core-modules.md) sets how a consumer reads rows.

@@ -34,9 +34,3 @@ only each result's rank.
 Link judgement needs candidate pairs, since Jev judges pairs and never finds them. Hybrid search
 proposes them: the emails nearest to an issue's text within a time window, for example. Jev then
 judges only the top candidates, which keeps model calls to a small fraction of all possible pairs.
-
-## Open questions
-
-The [LEAF-IR spike](../../../research/leaf-ir-bun/README.md) checks that the model runs under Bun.
-The [Turso spike](../../../research/turso-bindings/README.md) checks how stable Turso's full-text
-search is.

@@ -32,5 +32,5 @@ language can replace scriptc per consumer without changing the host.
 
 - 2026-10-24: the host binds the clock to a constant instead of denying it, and every consumer
   builds with `determinism.fences` and attests deterministic, because the
-  [scriptc spike](../../research/scriptc-wasm/README.md) found that scriptc's runtime reads the
-  clock at startup.
+  [scriptc spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/scriptc-wasm/README.md)
+  found that scriptc's runtime reads the clock at startup.
