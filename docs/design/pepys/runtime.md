@@ -40,8 +40,8 @@ deletes a copied object, as [storage](./storage.md#garage) requires.
 
 | Artifact         | Holds                                                                | Built by                             |
 | ---------------- | -------------------------------------------------------------------- | ------------------------------------ |
-| `pepys-host`     | the `pepys` binary: the host and the CLI                             | this repo's release workflow         |
-| `pepys`          | Bun with the workspace packages: ingest, enrichment, API, compaction | this repo's release workflow         |
+| `pepys-host`     | the host binary                                                      | this repo's release workflow         |
+| `pepys`          | Bun with ingest, enrichment, the API, compaction and the `pepys` CLI | this repo's release workflow         |
 | consumer modules | each consumer's WebAssembly module, named by its hash                | the same workflow, into `pepys-host` |
 
 The release workflow pushes both images to `ghcr.io/zgeoff/`, as nixie's release does, and the cloud
@@ -52,6 +52,29 @@ The release workflow copies each module into the `pepys-host` image under `/modu
 When `pepys up` deploys a module, the host first writes it to the modules bucket, which keeps every
 module a store row names ([storage](./storage.md#buckets-and-keys)). The workflow therefore needs no
 route into the cluster.
+
+## The CLI
+
+The `pepys` CLI comes from `@pepys/cli` and ships in the `pepys` image. The owner's fleet runs it
+with `kubectl exec` in the API container. The CLI owns no state: each command calls the admin routes
+of the process that owns what it changes, through an oRPC client built from the admin contract in
+`@pepys/contract`.
+
+| Commands                                   | Admin routes served by | Reached at                        |
+| ------------------------------------------ | ---------------------- | --------------------------------- |
+| `preview` and `up` for a consumer          | the host               | a port on 127.0.0.1 in the pod    |
+| `clients`, `passkeys` and `grants`         | the API                | a port on 127.0.0.1 in the pod    |
+| `preview`, `up` and `sample` with `enrich` | enrichment             | the admin port of its k3s Service |
+
+The host is Rust, so it serves its admin routes as JSON over HTTP, at the method and path each
+procedure in the contract declares. The CLI calls them through oRPC's `OpenAPILink`, which calls any
+OpenAPI server from a contract. The host's Rust types for those routes are written by hand, and a
+contract test runs the CLI's client against the host, so a route that drifts from the contract fails
+the test.
+
+The admin routes take no token. A caller reaches the host and API ports only from inside the pod,
+which takes the cluster credentials that `kubectl exec` needs. Enrichment's admin port admits only
+the host-and-API pod.
 
 ## Secrets
 
@@ -93,6 +116,7 @@ NetworkPolicies in the namespace refuse every other path in:
 - s2-lite admits only its four clients, as the [log](./log.md) requires.
 - Garage's S3 port admits only pepys's own pods.
 - The host and the API admit only the Traefik ingress.
+- Enrichment admits only the host-and-API pod, on its admin port.
 
 Egress to the internet goes to three pods:
 
