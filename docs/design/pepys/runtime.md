@@ -67,6 +67,7 @@ development on the owner's machine reads. Each item in the table is named `pepys
 | `github-app`       | `client-id`, `private-key`, `webhook-secret`  | ingest       |
 | `gmail`            | `client-id`, `client-secret`, `refresh-token` | ingest       |
 | `jev`              | `credential`                                  | enrichment   |
+| `owner-identity`   | `emails`, `github-user-id`                    | ingest       |
 | `garage-<service>` | the access key and secret of one service      | that service |
 
 The owner creates each Garage key once with the Garage CLI, scoped to the buckets in the
