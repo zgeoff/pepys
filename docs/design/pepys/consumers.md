@@ -5,7 +5,7 @@ scriptc to a WebAssembly module, and run by the [host](./host.md) inside wasmtim
 random number imports and with the clock bound to a constant. The host hands a consumer either one
 fact or one scope, the consumer reads what it needs from the host, and it returns a list of
 operations that the host applies. Because a consumer can do nothing else, the same facts always
-produce the same output, and replay rebuilds every projection exactly.
+produce the same output, and replay rebuilds every row exactly.
 
 ## The contract
 
