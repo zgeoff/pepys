@@ -74,6 +74,7 @@ and never writes it; manual links and corrections reach the log as facts.
 - [Auth](./auth.md) — the API's OAuth server: clients, tokens, scopes and threats.
 - [Change feed](./change-feed.md) — the change log and the Durable Streams read protocol.
 - [History](./history.md) — transitions, the fact index, and the Parquet lake.
+- [Runtime](./runtime.md) — the k3s workloads, images, secrets, network routes and schedules.
 
 ## Spikes
 

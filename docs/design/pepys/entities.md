@@ -62,9 +62,13 @@ list, because labels have no history API.
 ## People
 
 Facts name actors by source ID, such as a GitHub user ID or an email address. An identity consumer
-groups the IDs that belong to one person into a `person` entity with same-as links. The deployment
-declares which IDs belong to the owner, so the most important person in the graph is never a guess.
-Most email senders never match a GitHub account, and they stay as a person with an email alias only.
+groups the IDs that belong to one person into a `person` entity with same-as links. The owner's own
+IDs come from the deployment's configuration, so the most important person in the graph is never a
+guess. The repository is public, so the IDs never sit in code: ingest reads them from the
+`owner-identity` secret ([runtime](./runtime.md#secrets)) and, when they differ from the last
+`facts.deployment.owner` fact, appends a new one. The identity consumer reads that fact like any
+other, so it stays pure and a replay gives the same people. Most email senders never match a GitHub
+account, and they stay as a person with an email alias only.
 
 ## Deletions
 
