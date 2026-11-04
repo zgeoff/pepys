@@ -41,7 +41,7 @@ interface RequestReport {
 
 const apiKey = process.env['JEV_API_KEY'];
 
-if (!apiKey) {
+if (apiKey === undefined || apiKey === '') {
   console.error('JEV_API_KEY is not set; the spike needs a TypeSafe API key');
   process.exit(1);
 }
