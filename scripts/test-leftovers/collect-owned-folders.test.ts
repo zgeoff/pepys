@@ -20,3 +20,7 @@ test.each([
 ])('it leaves out $kind', (row) => {
   expect(collectOwnedFolders([row.name], '4026531836')).toStrictEqual([]);
 });
+
+test('it collects nothing for a run with no PID namespace', () => {
+  expect(collectOwnedFolders(['pid4182-nsnone-ledger-a1b2c3'], 'none')).toStrictEqual([]);
+});

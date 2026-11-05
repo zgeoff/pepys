@@ -3,8 +3,8 @@ import { mkdtemp, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
-import { formatRunPrefix } from '../test-utils/format-run-prefix.ts';
-import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
+import { readOptionalText } from '../read-optional-text.ts';
+import { readRunPrefix } from '../test-utils/read-run-prefix.ts';
 import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
 async function setupTest() {
@@ -12,10 +12,7 @@ async function setupTest() {
 
   onTestFinished(() => stack.disposeAsync());
 
-  const namespace = await readPIDNamespace(readlink);
-
-  const prefix = formatRunPrefix(process.pid, namespace);
-
+  const prefix = await readRunPrefix(readlink, process.pid);
   const directory = await mkdtemp(join(tmpdir(), `${prefix}pepys-agent-sdk-bump-`));
 
   stack.defer(() => rm(directory, { recursive: true, force: true }));
@@ -76,13 +73,7 @@ async function setupTest() {
         ...env,
       }),
     outputFile,
-    readOutputFile: async () => {
-      const file = Bun.file(outputFile);
-
-      const exists = await file.exists();
-
-      return exists ? file.text() : null;
-    },
+    readOutputFile: () => readOptionalText(outputFile),
   };
 }
 
@@ -128,5 +119,5 @@ test('it exits 1 and writes nothing when GITHUB_OUTPUT is unset', async () => {
   const output = await ctx.readOutputFile();
 
   expect(result).toStrictEqual({ exitCode: 1, stderr: 'needs GITHUB_OUTPUT set\n' });
-  expect(output).toBeNull();
+  expect(output).toBeUndefined();
 });

@@ -1,27 +1,41 @@
-// Removes each temp folder that a killed test run left behind: a folder whose run prefix names this
-// PID namespace and a process that no longer runs. The test script runs it before `bun test`.
-import { readdir, readlink, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { ReadLink } from '../test-utils/read-pid-namespace.ts';
 import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
 import { collectOwnedFolders } from './collect-owned-folders.ts';
 
-const directory = tmpdir();
+export interface TestLeftoversDependencies {
+  readonly directory: string;
+  readonly readLink: ReadLink;
+  readonly readDirectory: (path: string) => Promise<readonly string[]>;
+  readonly removeFolder: (path: string) => Promise<void>;
+  readonly signalProcess: (pid: number, signal: number) => unknown;
+}
 
-const names = await readdir(directory);
-const namespace = await readPIDNamespace(readlink);
+// Removes each folder in the directory that a killed test run left behind: one whose run prefix
+// names this PID namespace and a process that no longer runs.
+export async function removeTestLeftovers(
+  dependencies: Readonly<TestLeftoversDependencies>,
+): Promise<void> {
+  const namespace = await readPIDNamespace(dependencies.readLink);
+  const names = await dependencies.readDirectory(dependencies.directory);
 
-for (const folder of collectOwnedFolders(names, namespace)) {
-  if (!probeLiveProcess(folder.pid)) {
-    await rm(join(directory, folder.name), { recursive: true, force: true });
+  for (const folder of collectOwnedFolders(names, namespace)) {
+    const isLive = probeLiveProcess(folder.pid, dependencies.signalProcess);
+
+    if (!isLive) {
+      await dependencies.removeFolder(join(dependencies.directory, folder.name));
+    }
   }
 }
 
 // Signal 0 checks only that the process exists. Any error but ESRCH, such as EPERM for another
 // user's process, means it still runs.
-function probeLiveProcess(pid: number): boolean {
+function probeLiveProcess(
+  pid: number,
+  signalProcess: TestLeftoversDependencies['signalProcess'],
+): boolean {
   try {
-    process.kill(pid, 0);
+    signalProcess(pid, 0);
 
     return true;
   } catch (error: unknown) {

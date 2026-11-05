@@ -1,90 +1,100 @@
-import { expect, onTestFinished, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, readlink, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { formatRunPrefix } from '../test-utils/format-run-prefix.ts';
-import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
-import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
+import { expect, test } from 'bun:test';
+import { removeTestLeftovers } from './remove-test-leftovers.ts';
 
-async function setupTest() {
-  const stack = new AsyncDisposableStack();
-
-  onTestFinished(() => stack.disposeAsync());
-
-  const namespace = await readPIDNamespace(readlink);
-
-  const directory = await mkdtemp(
-    join(tmpdir(), `${formatRunPrefix(process.pid, namespace)}test-leftovers-`),
-  );
-
-  stack.defer(() => rm(directory, { recursive: true, force: true }));
+function setupTest() {
+  const removed: string[] = [];
 
   return {
-    namespace,
-    seed: {
-      folder: (name: string) => mkdir(join(directory, name)),
-    },
-    runScript: async () => {
-      const child = Bun.spawn(
-        [process.execPath, join(import.meta.dir, 'remove-test-leftovers.ts')],
-        {
-          env: { PATH: process.env['PATH'], TMPDIR: directory },
-          stdout: 'ignore',
-          stderr: 'pipe',
-          detached: true,
-        },
-      );
+    removed,
+    removeFolder: (path: string) => {
+      removed.push(path);
 
-      stack.defer(() => stopProcessGroup(child));
-
-      const [stderr, exitCode] = await Promise.all([
-        new Response(child.stderr).text(),
-        child.exited,
-      ]);
-
-      return { exitCode, stderr };
-    },
-    readFolderNames: async () => {
-      const names = await readdir(directory);
-
-      return names.toSorted();
+      return Promise.resolve();
     },
   };
 }
 
 test('it removes a folder of this namespace whose process no longer runs', async () => {
-  const ctx = await setupTest();
+  const ctx = setupTest();
 
-  await ctx.seed.folder(`pid2147483647-ns${ctx.namespace}-ledger-a1b2c3`);
+  await removeTestLeftovers({
+    directory: '/scratch',
+    readLink: () => Promise.resolve('pid:[4026531836]'),
+    readDirectory: () => Promise.resolve(['pid4182-ns4026531836-ledger-a1b2c3']),
+    removeFolder: ctx.removeFolder,
+    signalProcess: () => {
+      throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+    },
+  });
 
-  const result = await ctx.runScript();
-  const names = await ctx.readFolderNames();
-
-  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
-  expect(names).toStrictEqual([]);
+  expect(ctx.removed).toStrictEqual(['/scratch/pid4182-ns4026531836-ledger-a1b2c3']);
 });
 
 test('it never removes the files of a run that is still going', async () => {
-  const ctx = await setupTest();
+  const ctx = setupTest();
 
-  await ctx.seed.folder(`pid${process.pid}-ns${ctx.namespace}-ledger-a1b2c3`);
+  await removeTestLeftovers({
+    directory: '/scratch',
+    readLink: () => Promise.resolve('pid:[4026531836]'),
+    readDirectory: () => Promise.resolve(['pid4182-ns4026531836-ledger-a1b2c3']),
+    removeFolder: ctx.removeFolder,
+    signalProcess: () => true,
+  });
 
-  const result = await ctx.runScript();
-  const names = await ctx.readFolderNames();
-
-  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
-  expect(names).toStrictEqual([`pid${process.pid}-ns${ctx.namespace}-ledger-a1b2c3`]);
+  expect(ctx.removed).toStrictEqual([]);
 });
 
-test('it never removes a folder of another namespace or one with no run prefix', async () => {
-  const ctx = await setupTest();
+test.each([
+  { code: 'EPERM', reason: "another user's process" },
+  { code: 'EINVAL', reason: 'an unexpected signal error' },
+])('it keeps a folder whose process check fails with $code, $reason', async (row) => {
+  const ctx = setupTest();
 
-  await ctx.seed.folder('ledger-a1b2c3');
-  await ctx.seed.folder('pid2147483647-ns1-ledger-a1b2c3');
+  await removeTestLeftovers({
+    directory: '/scratch',
+    readLink: () => Promise.resolve('pid:[4026531836]'),
+    readDirectory: () => Promise.resolve(['pid4182-ns4026531836-ledger-a1b2c3']),
+    removeFolder: ctx.removeFolder,
+    signalProcess: () => {
+      throw Object.assign(new Error(row.reason), { code: row.code });
+    },
+  });
 
-  const result = await ctx.runScript();
-  const names = await ctx.readFolderNames();
+  expect(ctx.removed).toStrictEqual([]);
+});
 
-  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
-  expect(names).toStrictEqual(['ledger-a1b2c3', 'pid2147483647-ns1-ledger-a1b2c3']);
+test.each([
+  { kind: 'a folder of another namespace', names: ['pid4182-ns4026532999-ledger-a1b2c3'] },
+  { kind: 'a folder with no run prefix', names: ['ledger-a1b2c3'] },
+  { kind: 'an empty temp folder', names: [] },
+])('it removes nothing from $kind', async (row) => {
+  const ctx = setupTest();
+
+  await removeTestLeftovers({
+    directory: '/scratch',
+    readLink: () => Promise.resolve('pid:[4026531836]'),
+    readDirectory: () => Promise.resolve(row.names),
+    removeFolder: ctx.removeFolder,
+    signalProcess: () => {
+      throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+    },
+  });
+
+  expect(ctx.removed).toStrictEqual([]);
+});
+
+test('it removes nothing on a host with no PID namespace', async () => {
+  const ctx = setupTest();
+
+  await removeTestLeftovers({
+    directory: '/scratch',
+    readLink: () => Promise.reject(Object.assign(new Error('no such file'), { code: 'ENOENT' })),
+    readDirectory: () => Promise.resolve(['pid4182-nsnone-ledger-a1b2c3']),
+    removeFolder: ctx.removeFolder,
+    signalProcess: () => {
+      throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+    },
+  });
+
+  expect(ctx.removed).toStrictEqual([]);
 });
