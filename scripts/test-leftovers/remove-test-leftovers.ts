@@ -1,6 +1,6 @@
 // Removes each temp folder that a killed test run left behind: a folder whose run prefix names this
 // PID namespace and a process that no longer runs. The test script runs it before `bun test`.
-import { readdir, rm } from 'node:fs/promises';
+import { readdir, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
@@ -9,7 +9,7 @@ import { collectOwnedFolders } from './collect-owned-folders.ts';
 const directory = tmpdir();
 
 const names = await readdir(directory);
-const namespace = await readPIDNamespace();
+const namespace = await readPIDNamespace(readlink);
 
 for (const folder of collectOwnedFolders(names, namespace)) {
   if (!probeLiveProcess(folder.pid)) {

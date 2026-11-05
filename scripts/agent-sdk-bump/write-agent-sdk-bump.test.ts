@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
@@ -12,7 +12,7 @@ async function setupTest() {
 
   onTestFinished(() => stack.disposeAsync());
 
-  const namespace = await readPIDNamespace();
+  const namespace = await readPIDNamespace(readlink);
 
   const prefix = formatRunPrefix(process.pid, namespace);
 

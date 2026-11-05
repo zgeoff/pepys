@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { formatRunPrefix } from '../test-utils/format-run-prefix.ts';
@@ -11,7 +11,7 @@ async function setupTest() {
 
   onTestFinished(() => stack.disposeAsync());
 
-  const namespace = await readPIDNamespace();
+  const namespace = await readPIDNamespace(readlink);
 
   const directory = await mkdtemp(
     join(tmpdir(), `${formatRunPrefix(process.pid, namespace)}test-leftovers-`),
