@@ -16,7 +16,7 @@ import type { RunningStack } from '../stack/with-stack.ts';
 const root = join(import.meta.dir, '..');
 const consumerName = 'github_pull_request';
 const streamName = 'facts.github.pull_request';
-const webhookSecret = 'thin-slice-webhook-secret';
+const webhookSecret = 'github-pr-webhook-secret';
 const host = join(root, 'target/debug/pepys');
 
 // closes what the setup started in the reverse order, and runs every step even when one throws
@@ -128,21 +128,21 @@ async function runSlice(options: SliceOptions): Promise<void> {
   await runHost(['up', consumerName, '--module', options.modulePath]);
 
   const opened = buildDelivery({
-    deliveryID: 'thin-slice-delivery-1',
+    deliveryID: 'github-pr-delivery-1',
     action: 'opened',
     title: 'Add the harbour map',
     updatedAt: '2026-10-01T09:00:00Z',
   });
 
   const synchronized = buildDelivery({
-    deliveryID: 'thin-slice-delivery-2',
+    deliveryID: 'github-pr-delivery-2',
     action: 'synchronize',
     title: 'Add the harbour map and tides',
     updatedAt: '2026-10-01T10:00:00Z',
   });
 
   const outOfOrder = buildDelivery({
-    deliveryID: 'thin-slice-delivery-3',
+    deliveryID: 'github-pr-delivery-3',
     action: 'edited',
     title: 'An older title',
     updatedAt: '2026-10-01T09:30:00Z',
