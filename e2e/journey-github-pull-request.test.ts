@@ -48,7 +48,9 @@ function setupTest() {
     modulePath,
     api,
     runHost: async (args: readonly string[]) => {
+      // the preload sets the host's variables after start-up, which a spawn without env misses
       const child = Bun.spawn([host, ...args], {
+        env: process.env,
         stdout: 'pipe',
         stderr: 'inherit',
         detached: true,
