@@ -2,9 +2,9 @@
 name: project-testing
 description:
   pepys's test facts and departures on top of the shared testing skill. They cover where the lanes
-  and test helpers live, the Bun e2e lane and the thin slice it runs, consumer tests, and the
-  per-run fixtures. Load together with the testing skill when designing, writing, or reviewing pepys
-  tests.
+  and test helpers live, the Bun e2e lane and the GitHub pull request path it runs, consumer tests,
+  and the per-run fixtures. Load together with the testing skill when designing, writing, or
+  reviewing pepys tests.
 metadata:
   kind: rule-set
 ---
@@ -20,13 +20,12 @@ metadata:
 
 ## Departures
 
-The thin slice is the end-to-end path of one fact: a signed GitHub webhook into ingest, the host
-that applies it to a Turso file, and the API that serves the row.
+The GitHub pull request path is the end-to-end path of one fact: a signed GitHub webhook into
+ingest, the host that applies it to a Turso file, and the API that serves the row.
 
 - Put a Bun e2e test in the root `e2e/` folder, in place of the package folder in
   [Package layout](../testing/references/system-tests.md#package-layout). No one package builds the
-  slice: ingest is in `packages/source-github`, the host in `crates/host`, the API in
-  `packages/api`.
+  path: ingest is in `packages/source-github`, the host in `crates/host`, the API in `packages/api`.
 - Start each process and each piece of data that more than one e2e test reads in
   [`start-stack.ts`](../../../e2e/start-stack.ts). It replaces the rig setup hook in
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts), since

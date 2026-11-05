@@ -83,9 +83,9 @@ docs/
 - `bun run consumers:build` compiles each consumer with scriptc to
   `build/consumers/<name>/<hash>.wasm`. It needs zig 0.16.0 and wasm-tools 1.262.0, the version CI
   pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
-- `bun run test:e2e` runs the e2e lane: the thin slice end to end against Garage and s2-lite in
-  Docker, a signed webhook through ingest and the host to a Turso file, then the API. It needs
-  Docker, the host built at `target/debug/pepys` and the consumers built, so run
+- `bun run test:e2e` runs the e2e lane: the GitHub pull request path end to end against Garage and
+  s2-lite in Docker, a signed webhook through ingest and the host to a Turso file, then the API. It
+  needs Docker, the host built at `target/debug/pepys` and the consumers built, so run
   `bun run test:e2e:prepare` first, with the same two variables set. The `e2e` job in `pr.yml` runs
   the lane on every pull request.
 - `bun packages/api/src/serve.ts` starts the API, which serves oRPC under `/rpc` on 127.0.0.1. It

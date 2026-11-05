@@ -75,7 +75,8 @@ jobs:
 
   # bun-checks installs no Rust, zig or wasm-tools, so the e2e lane runs here,
   # with the host and the consumers built in steps of their own, outside the
-  # lane's per-test limit. Any change can break the slice, so it has no path gate.
+  # lane's per-test limit. Any change can break the GitHub pull request
+  # path, so it has no path gate.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20

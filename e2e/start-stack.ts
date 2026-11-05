@@ -1,6 +1,6 @@
-// `test:e2e` preloads this setup, which starts the thin slice once for the whole lane, so each
-// test's 15 s limit covers its own act and not the container start. Test files may not hold
-// beforeAll, and the tests read what it started through the environment.
+// `test:e2e` preloads this setup, which starts the GitHub pull request path once for the whole
+// lane, so each test's 15 s limit covers its own act and not the container start. Test files may
+// not hold beforeAll, and the tests read what it started through the environment.
 
 import { afterAll, beforeAll } from 'bun:test';
 import { existsSync } from 'node:fs';
