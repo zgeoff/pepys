@@ -61,9 +61,15 @@ limit.
 - Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
   `model_api::`. A Rust module name takes no hyphen. The default nextest profile leaves both
   prefixes out.
-- Start Docker before you run the Bun e2e lane.
-- Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, then run `bun run test:e2e:prepare`. It builds the
-  host and the consumers. Run it again after you change either. Ingest and the API run from source.
+
+To run the Bun e2e lane:
+
+1. Start Docker.
+2. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN` to the paths of the zig and wasm-tools binaries,
+   at the versions the Commands section of [AGENTS.md](../../../AGENTS.md) pins.
+3. Run `bun run test:e2e:prepare`. It builds the host and the consumers. Run it again after you
+   change either. Ingest and the API run from source.
+4. Run `bun run test:e2e`.
 
 | Lane        | Real system                                                                  | Run                                     |
 | ----------- | ---------------------------------------------------------------------------- | --------------------------------------- |
@@ -72,11 +78,20 @@ limit.
 | `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
 
 [`model-api.yml`](../../../.github/workflows/model-api.yml) runs the `model-api` lane nightly, on
-`workflow_dispatch`, and on a pull request that changes an Agent SDK release in `bun.lock`. Every
-other pull request skips the lane.
+`workflow_dispatch`, and on a pull request that changes a release of
+`@anthropic-ai/claude-agent-sdk` in `bun.lock`. A new SDK release can change the requests that reach
+the models. A pull request that leaves those releases as they are skips the lane.
 
-Give a test of live GitHub or Gmail a lane of its own, on the `model-api` schedule, with the test
-path `github_api::` or `gmail_api::`. Neither is a model API. With the first test of such a lane:
+To run a new `model_api::` test before merge, dispatch the workflow on your branch:
+`gh workflow run model-api.yml --ref <your-branch>`.
 
-1. Add the lane's profile to `nextest.toml`.
+Give live GitHub tests one lane and live Gmail tests another, with the test path `github_api::` or
+`gmail_api::`. They call no model, so keep them out of the `model-api` lane. With the first test of
+such a lane:
+
+1. Add the lane's profile to `nextest.toml`, named after the lane, with the `model-api` profile's
+   `slow-timeout`.
 2. Add the lane's prefix to the prefixes the default profile leaves out.
+3. Add a row for the lane to the table above.
+4. Add a workflow for the lane, in the shape of `model-api.yml`, that runs nightly and on
+   `workflow_dispatch`.
