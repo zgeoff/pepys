@@ -1,3 +1,5 @@
+import { isRecord } from '../dependency-gates/is-record.ts';
+
 export function isAgentSDKBumped(baseLockfile: string, headLockfile: string): boolean {
   return collectAgentSDKVersions(baseLockfile) !== collectAgentSDKVersions(headLockfile);
 }
@@ -23,10 +25,6 @@ function collectAgentSDKVersions(lockfile: string): string {
   });
 
   return [...new Set(versions)].toSorted().join(' ');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // Array.isArray narrows to any[], which turns the type check off for each value.
