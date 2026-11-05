@@ -113,7 +113,7 @@
     "@zgeoff/format-codemod": "0.3.5",
     "@zgeoff/oxlint-config": "0.8.3",
     "@zgeoff/skill-gate": "0.2.20",
-    "@zgeoff/std": "0.4.1",
+    "@zgeoff/std": "0.4.2",
     "elysia": "2.0.0-rc.0",
     "exact-mirror": "1.2.6",
     "knip": "6.43.0",
@@ -577,7 +577,7 @@
 
     "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.20", "", { "dependencies": { "@zgeoff/agent-hooks": "0.2.4" } }, "sha512-wOsHpN1HvwOrC7+gJYwNtf0BYBUfFKSBzMGS3CHLJsWAw4o9wFrGf66RmM0i6DIiw83uAiZWy4Uh4DA+IHAH3g=="],
 
-    "@zgeoff/std": ["@zgeoff/std@0.4.1", "", {}, "sha512-Vr0Y8ZeRjaTmJAT0K+llbXpf5EazkGhL0zV8yRoACbbfqJdR+9Cql2MHqnr96uUSgu5vdqbknrRQtcsJYIa7oA=="],
+    "@zgeoff/std": ["@zgeoff/std@0.4.2", "", {}, "sha512-GZnnOkrYHe6p071BWYe7XIq5klqhvVb4j/JWOrrUTSj76uLA/ZnzlqDKIq16LblMcuRF9tjfvKvGK8sLRN8fMg=="],
 
     "acorn": ["acorn@8.19.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="],
 
