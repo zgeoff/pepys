@@ -11,7 +11,8 @@ consumers for its own kinds, and the GitHub and Gmail sections below show the fi
 
 Each table is per source, such as `github_pull_request` or `gmail_message`. It holds the columns its
 kind needs, a column with the rest of the source payload as JSON, and the source update time that
-orders updates.
+orders updates. Beside each table, the consumer owns an alias table named `<table>_alias`, which
+maps each alias to its entity ID.
 
 The `entity` view in each consumer file selects six columns from that file's tables: ID, kind,
 title, URL, actor and update time. The query layer attaches every consumer file and unions their
@@ -26,11 +27,17 @@ detail, and the `kind` column already answers cross-source questions.
 
 An entity ID has the form `<source>:<kind>:<id>`, built from the source's database ID:
 `github:pr:1874433021`, `github:user:583231`, `gmail:msg:18c4f2a9b01e`. Database IDs survive a
-repository rename or a login change, which readable forms such as `acme/api#412` do not.
+repository rename or a login change, which readable forms such as `acme/api#412` do not. A kind is
+lowercase with `_` between words, such as `review_comment`.
+
+Two kinds of entity have no database ID:
+
+- An email address is `gmail:addr:<lowercased address>`.
+- The owner is `deployment:person:owner` ([people](#people)).
 
 Each entity consumer writes aliases for its entities: readable references, URLs, a pull request's
 merge commit SHA, an email's `Message-ID` header. Link extractors store a reference as the text
-wrote it, and the query layer resolves it through the alias table. A rename adds a new alias, and
+wrote it, and the query layer resolves it through the alias tables. A rename adds a new alias, and
 links written before it keep resolving.
 
 ## GitHub entities
@@ -46,7 +53,8 @@ links written before it keep resolving.
 | commit         | `facts.github.commit`         | push webhooks                                         |
 | issue          | `facts.github.issue`          | issue webhooks and timeline backfill                  |
 
-A review thread takes the ID of its first comment. Every reply carries the ID of the comment it
+The comment kinds are `review_comment` and `issue_comment`, as in `github:review_comment:<id>`. A
+review thread takes the ID of its first comment. Every reply carries the ID of the comment it
 answers, so following those IDs back finds the first comment without another API call.
 
 Check runs, CI status, GitHub notifications as a source, and reactions stay out until a question
@@ -54,10 +62,11 @@ needs them. Each one becomes a new fact family when it joins.
 
 ## Gmail entities
 
-Gmail has one fact stream, `facts.gmail.message`, because Gmail reports changes per message. A Gmail
-thread has no events of its own: it is a grouping, so the thread consumer builds each thread from
-its messages in scope mode, with the thread as the scope. Labels come from observations of the label
-list, because labels have no history API.
+Gmail messages have one fact stream, `facts.gmail.message`, because Gmail reports changes per
+message. A Gmail thread has no events of its own: it is a grouping, so the thread consumer builds
+each thread from its messages in scope mode, with the thread as the scope. Labels have their own
+stream, `facts.gmail.label`, and their own consumer. They come from observations of the label list,
+because labels have no history API.
 
 ## People
 
@@ -66,12 +75,21 @@ groups the IDs that belong to one person into a `person` entity with same-as lin
 IDs come from the deployment's configuration, so the most important person in the graph is never a
 guess. The repository is public, so the IDs never sit in code: ingest reads them from the
 `owner-identity` secret ([runtime](./runtime.md#secrets)) and, when they differ from the last
-`facts.deployment.owner` fact, appends a new one. The identity consumer reads that fact like any
-other, so it stays pure and a replay gives the same people. Most email senders never match a GitHub
-account, and they stay as a person with an email alias only.
+`facts.deployment.owner` fact, appends a new one. That fact is an observation of the entity
+`deployment:person:owner`, with the type `deployment.owner.observed` and an observation ID
+([log](./log.md#fact-ids)). The identity consumer reads that fact like any other, so it stays pure
+and a replay gives the same people. Most email senders never match a GitHub account, and they stay
+as a person with an email alias only.
+
+`person` is a hub kind: an entity linked to thousands of others. An entity kind's declaration
+carries the hub flag, and the [neighbourhood walk](./api.md#the-core-catalog) skips hub kinds unless
+the query asks for them.
 
 ## Deletions
 
 A deletion in a source becomes a tombstone. The fact stays in the log, and the entity consumer marks
 the row as deleted, so queries skip it by default. This holds for every source, deleted email
 included.
+
+A consumer's entity view declaration may name a deleted-at column, and the generated `entity` view
+then leaves out every row where that column is set.

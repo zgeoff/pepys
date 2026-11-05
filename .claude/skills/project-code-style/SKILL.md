@@ -17,9 +17,10 @@ None.
 ## Folders
 
 Group the files in a package's `src/` by feature, so a folder never fills with unrelated files. A
-feature is one part the package owns: a port with its adapters, an enrichment job, or a CLI command.
-A port is an interface that the core calls, and an adapter is one implementation of it. The
-[architecture doc](../../../docs/design/pepys/architecture.md) lists the ports.
+feature is one part the package owns, such as a port with its adapters, a job that enrichment runs,
+or a CLI command. A port is an interface that pepys's own code calls for I/O, such as the blob
+store, and an adapter is one implementation of it. The
+[architecture doc](../../../docs/design/pepys/architecture.md#ports-and-adapters) lists the ports.
 
 An invented package, to show the shape:
 
@@ -38,25 +39,35 @@ packages/example/src/
 ```
 
 - Give each feature its own folder, and put each adapter in a folder inside its port's folder.
-- Put a helper, a test helper included, in the smallest folder that holds every file that imports
-  it. A helper that two features import goes in `src/utils/`, or in `src/test-utils/` for a test
-  helper.
+- Put a helper that one feature imports in the smallest folder of that feature that holds every file
+  that imports it. Put a helper that two or more features import in `src/utils/`, and a test helper
+  that two or more features import in `src/test-utils/`.
 - No `index.ts` in a feature folder. `src/index.ts` is the only barrel.
 - Never edit a file under `src/generated/` by hand. Change what it is generated from, such as a
   `defineConsumer` declaration, then run `bun run schema:generate`.
-- Put each consumer in `src/consumers/<consumer-file>.ts`, with its test beside it. This is the one
+- Put each consumer of a source in `src/consumers/<consumer-file>.ts` of the source's package,
+  `packages/source-<source>/`, with its test beside it as `<consumer-file>.test.ts`. This is the one
   exception to a folder per feature: [`build-consumers.ts`](../../../scripts/build-consumers.ts)
-  finds a consumer only at that path. `<consumer-file>` is the consumer's declared name with each
+  finds a consumer only at that path.
+- Derive `<consumer-file>` from the name in the consumer's `defineConsumer` declaration, with each
   `_` changed to `-`, so `github_pull_request` becomes `github-pull-request`.
+  [`github-pull-request-consumer.ts`](../../../packages/source-github/src/github-pull-request-consumer.ts)
+  holds a declaration, in its own file beside `src/consumers/`. After you add a declaration, run
+  `bun run schema:generate` to write the consumer's boundary file,
+  `src/generated/<consumer-file>-boundary.ts`.
 - Give a Rust crate the same shape. Write a feature as a `<feature>.rs` file with a `<feature>/`
   folder beside it for its adapters, and re-export the public API only from `lib.rs`.
 
 ## Consumers
 
-- Write a consumer as a pure function: it takes its input, a fact or a scope, and returns the
-  operations for the host to apply. Then the same input always gives the same operations.
-- Read no clock, random source, network or file in a consumer. Take a time from a field of the fact.
-- Import the row and operation types of a consumer from `src/generated/<consumer-file>-boundary.ts`.
+- Write a consumer as a pure function. It takes one input and returns a list of operations, and the
+  same input always gives the same list. The
+  [consumers design doc](../../../docs/design/pepys/consumers.md) defines the two input modes, fact
+  and scope, and the operations the host applies to the store.
+- Never read a clock, a random source, the network or a file in a consumer. Take a time from a field
+  of the input.
+- Import the types of the consumer's store rows and operations from
+  `src/generated/<consumer-file>-boundary.ts`.
   [`github-pull-request.ts`](../../../packages/source-github/src/consumers/github-pull-request.ts)
   is a consumer to copy the shape from.
 
@@ -68,5 +79,8 @@ packages/example/src/
   with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
   consumers to WebAssembly, refuses a type-fest import, even a type-only one.
 - Write an entity ID as `<source>:<kind>:<id>`, such as `github:pr:1874433021`, and brand the whole
-  string. The source and the kind are one short lowercase word each, such as `pr` or `msg`, and the
-  last part is the source's own ID.
+  string. The source is a source's lowercase name, such as `github` or `gmail`, or `deployment` for
+  an ID from the owner's own configuration. The last part is the ID the source gives the thing.
+- Keep each kind that [entities](../../../docs/design/pepys/entities.md) lists as it is, such as
+  `pr` or `msg`. Write a new kind in lowercase full words with `_` between them, such as
+  `review_comment`, and add it to that doc.

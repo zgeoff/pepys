@@ -96,13 +96,17 @@ the owner approves each client again, so `auth.db` has no backup.
 
 ## Network
 
-The API listens only on the owner's tailnet, behind TLS for the tailnet host name. The only path the
-internet reaches is the GitHub webhook, which goes to ingest and never to the API. Ingest checks the
-webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no part in it.
+The API serves its clients only on the owner's tailnet, behind TLS for the tailnet host name. Its
+cluster-internal port, which serves change feed reads and search to enrichment, checks no token, and
+a NetworkPolicy opens it to the enrichment pod alone ([runtime](./runtime.md#network)). The only
+path the internet reaches is the GitHub webhook, which goes to ingest and never to the API. Ingest
+checks the webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no part
+in it.
 
-The API refuses a request whose `Host` header is not its tailnet host name, so a DNS rebinding page
-in the owner's browser cannot reach it. A form post to the sign-in, enrolment or consent page, and
-an MCP request that carries an `Origin` header, must come from the API's own origin.
+On its tailnet port, the API refuses a request whose `Host` header is not its tailnet host name, so
+a DNS rebinding page in the owner's browser cannot reach it. A form post to the sign-in, enrolment
+or consent page, and an MCP request that carries an `Origin` header, must come from the API's own
+origin.
 
 ## Threats
 

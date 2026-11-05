@@ -14,10 +14,10 @@ with two volumes: a small one on SSD for its metadata database and a large one f
 Metadata on SSD speeds up every read and write.
 
 With one node, Garage keeps one copy of each object, so a failed disk loses the data that is not in
-a backup. The owner's existing backups cover the server. Each backup of the facts and blobs buckets
-copies objects and never mirrors deletions, so a bug that deletes facts cannot delete the backup
-copy on the next run. A second and third node join the cluster as more machines join the tailnet,
-and at three nodes Garage keeps three copies and survives the loss of one node.
+a backup. The owner's existing backups cover the server. Each backup of the facts, blobs and modules
+buckets copies objects and never mirrors deletions, so a bug that deletes facts cannot delete the
+backup copy on the next run. A second and third node join the cluster as more machines join the
+tailnet, and at three nodes Garage keeps three copies and survives the loss of one node.
 
 ZFS encrypts the `tank/cloud` datasets that hold the cluster's data, as the cloud repository's
 [host doc](https://github.com/zgeoff/cloud/blob/main/docs/architecture/host/host.md) sets out. One

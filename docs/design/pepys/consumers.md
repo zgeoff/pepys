@@ -40,12 +40,13 @@ no database.
 
 | Mode  | Input                                               | Used for                                                |
 | ----- | --------------------------------------------------- | ------------------------------------------------------- |
-| fact  | one fact from one stream                            | entity state from full-state events, single-event links |
+| fact  | one fact from one of its streams                    | entity state from full-state events, single-event links |
 | scope | one scope, such as a pull request or a Gmail thread | history, join links, entities built from delta events   |
 
-A fact-mode consumer reads its stream in order and keeps an offset into it. Most source events carry
-the full object, so the newest source update time wins and one fact is enough; a fact older than the
-stored row changes nothing.
+A fact-mode consumer declares one or more streams, reads each in order, and keeps one offset per
+stream. A consumer ignores a fact whose type it does not handle. It rejects a fact of its own type
+whose payload fails to parse. Most source events carry the full object, so the newest source update
+time wins and one fact is enough; a fact older than the stored row changes nothing.
 
 A scope-mode consumer runs when anything in its scope changes and recomputes everything it owns for
 that scope from the current state. The result depends only on that state, not on the order the facts
