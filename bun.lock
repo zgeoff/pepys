@@ -112,7 +112,7 @@
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/format-codemod": "0.3.5",
     "@zgeoff/oxlint-config": "0.8.5",
-    "@zgeoff/skill-gate": "0.2.20",
+    "@zgeoff/skill-gate": "0.2.21",
     "@zgeoff/std": "0.4.2",
     "elysia": "2.0.0-rc.0",
     "exact-mirror": "1.2.6",
@@ -563,7 +563,7 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.2.4", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-viHPG4t97QPtK6wFz1OgSR/lMhFYBhYwpo9aVBBmYB5aHNFx2TkS8b0RF1dTp2kf0P6gy3xTFjf26LDo+rAyUA=="],
+    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.2.5", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-szItKE8CnDB8MVx2zFh5jpKBOWQtG5UdnAlIClh2jb+kKLpkzm0neFgOzUM0pEloA4978Zuta5DDP6L7aV2qyA=="],
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.3", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-4ZNPft3LunVKp+s2esoJXSe64EaEywsu3z6Cg5/s/MJcdygmrQeAyfECioePCo5RuAIcaPfgF3lhYsPKcmVJ4w=="],
 
@@ -575,7 +575,7 @@
 
     "@zgeoff/oxlint-config": ["@zgeoff/oxlint-config@0.8.5", "", { "dependencies": { "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "oxlint": ">=1.78.0" } }, "sha512-0KyV8A9U66Ixur+0sZbTaqZ3SXpmajR2IewhuEcErzhmFcn1vue9bCFJK90Nm/6NWUAipcB4eB2NX1+ZfVR1eQ=="],
 
-    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.20", "", { "dependencies": { "@zgeoff/agent-hooks": "0.2.4" } }, "sha512-wOsHpN1HvwOrC7+gJYwNtf0BYBUfFKSBzMGS3CHLJsWAw4o9wFrGf66RmM0i6DIiw83uAiZWy4Uh4DA+IHAH3g=="],
+    "@zgeoff/skill-gate": ["@zgeoff/skill-gate@0.2.21", "", { "dependencies": { "@zgeoff/agent-hooks": "0.2.5" } }, "sha512-qYrErtpK84JX6E8iJyQ9Cfk8lCxcMc8gdnZOm098+aItyRp7wh/YICp/yGHdKlpELp5zknrdaBZwybZS4u7xjA=="],
 
     "@zgeoff/std": ["@zgeoff/std@0.4.2", "", {}, "sha512-GZnnOkrYHe6p071BWYe7XIq5klqhvVb4j/JWOrrUTSj76uLA/ZnzlqDKIq16LblMcuRF9tjfvKvGK8sLRN8fMg=="],
 
