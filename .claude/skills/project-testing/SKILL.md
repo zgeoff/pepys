@@ -71,8 +71,9 @@ limit.
 | `e2e`, Bun  | Garage and s2-lite in Docker; ingest, the host and the API, run as processes | `bun run test:e2e`                      |
 | `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
 
-The `model-api` lane runs nightly and on dispatch, and on a pull request only through an opt-in
-label.
+[`model-api.yml`](../../../.github/workflows/model-api.yml) runs the `model-api` lane nightly, on
+`workflow_dispatch`, and on a pull request that changes an Agent SDK release in `bun.lock`. Every
+other pull request skips the lane.
 
 Give a test of live GitHub or Gmail a lane of its own, on the `model-api` schedule, with the test
 path `github_api::` or `gmail_api::`. Neither is a model API. With the first test of such a lane:

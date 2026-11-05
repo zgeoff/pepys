@@ -1,0 +1,94 @@
+import { expect, onTestFinished, test } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { $ } from 'bun';
+
+async function setupTest() {
+  const directory = await mkdtemp(join(tmpdir(), 'pepys-agent-sdk-bump-'));
+
+  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+
+  const outputFile = join(directory, 'github-output');
+
+  const git = (args: readonly string[]) =>
+    $`git -c user.name=pepys-test -c user.email=pepys-test@example.com -c commit.gpgsign=false ${args}`
+      .cwd(directory)
+      .quiet();
+
+  await git(['init', '--quiet']);
+
+  return {
+    seed: {
+      lockfileCommit: async (lockfile: string) => {
+        await Bun.write(join(directory, 'bun.lock'), lockfile);
+
+        await git(['add', 'bun.lock']);
+        await git(['commit', '--quiet', '-m', 'lock']);
+      },
+    },
+    runScript: async (env: Readonly<Record<string, string | undefined>>) => {
+      const result =
+        await $`${process.execPath} ${join(import.meta.dir, 'write-agent-sdk-bump.ts')}`
+          .cwd(directory)
+          .env({ PATH: process.env['PATH'], ...env })
+          .nothrow()
+          .quiet();
+
+      return { exitCode: result.exitCode, stderr: result.stderr.toString() };
+    },
+    outputFile,
+    readOutputFile: async () => {
+      const file = Bun.file(outputFile);
+
+      const exists = await file.exists();
+
+      return exists ? file.text() : null;
+    },
+  };
+}
+
+test('it writes bumped=true to GITHUB_OUTPUT when the head commit locks a new SDK release', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.lockfileCommit(
+    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], }, }`,
+  );
+
+  await ctx.seed.lockfileCommit(
+    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.2", "", {}, "sha512-b"], }, }`,
+  );
+
+  const result = await ctx.runScript({ GITHUB_OUTPUT: ctx.outputFile });
+  const output = await ctx.readOutputFile();
+
+  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
+  expect(output).toBe('bumped=true\n');
+});
+
+test('it writes bumped=false to GITHUB_OUTPUT when the head commit keeps the SDK release', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.lockfileCommit(
+    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], "kysely": ["kysely@0.29.6", "", {}, "sha512-j"], }, }`,
+  );
+
+  await ctx.seed.lockfileCommit(
+    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], "kysely": ["kysely@0.29.7", "", {}, "sha512-k"], }, }`,
+  );
+
+  const result = await ctx.runScript({ GITHUB_OUTPUT: ctx.outputFile });
+  const output = await ctx.readOutputFile();
+
+  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
+  expect(output).toBe('bumped=false\n');
+});
+
+test('it exits 1 and writes nothing when GITHUB_OUTPUT is unset', async () => {
+  const ctx = await setupTest();
+  const result = await ctx.runScript({});
+  const output = await ctx.readOutputFile();
+
+  expect(result).toStrictEqual({ exitCode: 1, stderr: 'needs GITHUB_OUTPUT set\n' });
+  expect(output).toBeNull();
+});
