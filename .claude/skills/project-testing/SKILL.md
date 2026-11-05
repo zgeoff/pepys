@@ -28,7 +28,7 @@ that applies it to a Turso file, and the API that serves the row.
   slice: ingest is in `packages/source-github`, the host in `crates/host`, the API in
   `packages/api`.
 - Start each process and each piece of data that more than one e2e test reads in
-  [`start-thin-slice.ts`](../../../e2e/start-thin-slice.ts). It replaces the rig setup hook in
+  [`start-stack.ts`](../../../e2e/start-stack.ts). It replaces the rig setup hook in
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts), since
   pepys does not use the rig test runner. The `test:e2e` script preloads the file, and the file sets
   the `PEPYS_` variables that each test reads in its `setupTest()`.

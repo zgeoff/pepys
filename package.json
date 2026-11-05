@@ -64,7 +64,7 @@
     "schema:check": "bun scripts/generate-schema.ts --check",
     "schema:generate": "bun scripts/generate-schema.ts",
     "test": "bun test --randomize",
-    "test:e2e": "bun test --timeout=15000 --path-ignore-patterns='research/**' --preload ./e2e/start-thin-slice.ts ./e2e",
+    "test:e2e": "bun test --timeout=15000 --path-ignore-patterns='research/**' --preload ./e2e/start-stack.ts ./e2e",
     "test:e2e:prepare": "cargo build --bin pepys --locked && bun run consumers:build",
     "ci:tool-paths": "bun scripts/e2e/write-tool-paths.ts",
     "ci:require-checks": "bun scripts/checks/require-every-check.ts",

@@ -29,7 +29,7 @@ function setupTest() {
       storeDirectory !== undefined &&
       modulePath !== undefined &&
       apiURL !== undefined,
-    'run the e2e lane with bun run test:e2e, which preloads e2e/start-thin-slice.ts',
+    'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
   );
 
   const host = join(import.meta.dir, '../target/debug/pepys');
