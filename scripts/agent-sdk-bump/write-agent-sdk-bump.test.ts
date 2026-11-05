@@ -2,19 +2,56 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { $ } from 'bun';
+import invariant from 'tiny-invariant';
+import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-agent-sdk-bump-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const outputFile = join(directory, 'github-output');
 
-  const git = (args: readonly string[]) =>
-    $`git -c user.name=pepys-test -c user.email=pepys-test@example.com -c commit.gpgsign=false ${args}`
-      .cwd(directory)
-      .quiet();
+  const runProcess = async (
+    command: readonly string[],
+    env: Readonly<Record<string, string | undefined>>,
+  ) => {
+    const child = Bun.spawn([...command], {
+      cwd: directory,
+      env,
+      stdout: 'ignore',
+      stderr: 'pipe',
+      detached: true,
+    });
+
+    stack.defer(() => stopProcessGroup(child));
+
+    const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
+
+    return { exitCode, stderr };
+  };
+
+  const git = async (args: readonly string[]) => {
+    const result = await runProcess(
+      [
+        'git',
+        '-c',
+        'user.name=pepys-test',
+        '-c',
+        'user.email=pepys-test@example.com',
+        '-c',
+        'commit.gpgsign=false',
+        ...args,
+      ],
+      process.env,
+    );
+
+    invariant(result.exitCode === 0, result.stderr);
+  };
 
   await git(['init', '--quiet']);
 
@@ -27,16 +64,11 @@ async function setupTest() {
         await git(['commit', '--quiet', '-m', 'lock']);
       },
     },
-    runScript: async (env: Readonly<Record<string, string | undefined>>) => {
-      const result =
-        await $`${process.execPath} ${join(import.meta.dir, 'write-agent-sdk-bump.ts')}`
-          .cwd(directory)
-          .env({ PATH: process.env['PATH'], ...env })
-          .nothrow()
-          .quiet();
-
-      return { exitCode: result.exitCode, stderr: result.stderr.toString() };
-    },
+    runScript: (env: Readonly<Record<string, string | undefined>>) =>
+      runProcess([process.execPath, join(import.meta.dir, 'write-agent-sdk-bump.ts')], {
+        PATH: process.env['PATH'],
+        ...env,
+      }),
     outputFile,
     readOutputFile: async () => {
       const file = Bun.file(outputFile);
