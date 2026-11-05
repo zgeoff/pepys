@@ -3,6 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { formatRunPrefix } from '../test-utils/format-run-prefix.ts';
+import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
 import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
 async function setupTest() {
@@ -10,7 +12,11 @@ async function setupTest() {
 
   onTestFinished(() => stack.disposeAsync());
 
-  const directory = await mkdtemp(join(tmpdir(), 'pepys-agent-sdk-bump-'));
+  const namespace = await readPIDNamespace();
+
+  const prefix = formatRunPrefix(process.pid, namespace);
+
+  const directory = await mkdtemp(join(tmpdir(), `${prefix}pepys-agent-sdk-bump-`));
 
   stack.defer(() => rm(directory, { recursive: true, force: true }));
 
