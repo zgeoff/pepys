@@ -26,3 +26,6 @@ minimumReleaseAgeExcludes = [
 [test]
 # registers jest-extended matchers for `bun test`
 preload = ["@zgeoff/bun-test-extended"]
+# a plain `bun test` is the unit run: spikes test themselves, and the e2e lane needs the stack that
+# `test:e2e` starts
+pathIgnorePatterns = ["research/**", "e2e/**"]

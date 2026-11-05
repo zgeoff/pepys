@@ -5,7 +5,7 @@ import type { Result } from '@pepys/schema';
 import type { Database } from '@tursodatabase/database';
 import { Kysely } from 'kysely';
 import type { Transaction } from 'kysely';
-import type { ConsumerDB, StoreReader } from './types.ts';
+import type { ConsumerDB, StoreReader } from './store-reader.ts';
 
 interface OpenConsumer {
   target: string;

@@ -5,20 +5,24 @@ import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import { githubPullRequestConsumer } from '@pepys/source-github';
+import { createStoreReader } from '../store-reader/create-store-reader.ts';
+import { openConsumerDatabase } from '../store-reader/open-consumer-database.ts';
+import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
 import { createApp } from './create-app.ts';
-import { createStoreReader } from './create-store-reader.ts';
-import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
-import { openConsumerDatabase } from './open-consumer-database.ts';
-import type { APIClient } from './types.ts';
+import type { APIClient } from './create-router.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-api-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
 
-  onTestFinished(() => store.close());
+  stack.defer(() => store.close());
 
   const app = createApp({ store, consumers: [githubPullRequestConsumer] });
 

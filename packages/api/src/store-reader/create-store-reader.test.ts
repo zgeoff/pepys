@@ -3,19 +3,23 @@ import { mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
 import { createStoreReader } from './create-store-reader.ts';
-import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
 import { openConsumerDatabase } from './open-consumer-database.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-reader-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   const openDatabase = mock(openConsumerDatabase);
   const store = createStoreReader({ storeDirectory, openDatabase });
 
-  onTestFinished(() => store.close());
+  stack.defer(() => store.close());
 
   return { store, openDatabase, consumerDirectory: join(storeDirectory, 'github_pull_request') };
 }

@@ -1,7 +1,7 @@
 import { RPCHandler } from '@orpc/server/fetch';
 import { Elysia } from 'elysia';
+import type { QueryContext } from '../queries/types.ts';
 import { createRouter } from './create-router.ts';
-import type { QueryContext } from './types.ts';
 
 export function createApp(context: QueryContext) {
   const handler = new RPCHandler(createRouter());

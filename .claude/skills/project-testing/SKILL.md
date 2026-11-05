@@ -1,53 +1,81 @@
 ---
 name: project-testing
 description:
-  pepys's test facts on top of the shared testing skill. They cover how a consumer test feeds facts
-  and asserts operations, which test regime applies, the per-run fixtures, and the lanes. Load
-  together with the testing skill when designing, writing, or reviewing pepys tests.
+  pepys's test facts and departures on top of the shared testing skill. They cover where the lanes
+  and test helpers live, the Bun e2e lane and the GitHub pull request path it runs, consumer tests,
+  and the per-run fixtures. Load together with the testing skill when designing, writing, or
+  reviewing pepys tests.
+metadata:
+  kind: rule-set
 ---
 
 # pepys testing
 
-The shared testing skill holds every rule. This skill holds only the facts of pepys that a test
-author needs to follow those rules here.
+## Facts
 
-## The regime
+| Fact       | Where                                                                                                                                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with its test-path filter and `slow-timeout`. Bun: the `test:e2e` script in [`package.json`](../../../package.json), with its `--timeout` |
+| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                |
 
-The regime is Pure until a package owns a store. Tests of a pure function need no database, no
-network, and no temporary directory.
+## Departures
+
+The GitHub pull request path is the end-to-end path of one fact: a signed GitHub webhook into
+ingest, the host that applies it to a Turso file, and the API that serves the row.
+
+- Put a Bun e2e test in the root `e2e/` folder, in place of the package folder in
+  [Package layout](../testing/references/system-tests.md#package-layout). No one package builds the
+  path: ingest is in `packages/source-github`, the host in `crates/host`, the API in `packages/api`.
+- Start each process and each piece of data that more than one e2e test reads in
+  [`start-stack.ts`](../../../e2e/start-stack.ts). It replaces the rig setup hook in
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts), since
+  pepys does not use the rig test runner. The `test:e2e` script preloads the file, and the file sets
+  the `PEPYS_` variables that each test reads in its `setupTest()`.
+- Start a process that only one e2e test needs in that test's `setupTest()`.
+
+## Pure functions
+
+- Test a pure function with plain values, and give it no database, network or temporary directory.
 
 ## Consumer tests
 
-- Feed the consumer inline facts, written in the test beside the assertion.
+- Feed a consumer inline facts, written in the test beside the assertion. The Consumers section of
+  [project-code-style](../project-code-style/SKILL.md) defines a consumer.
 - Assert the full returned operation list with `toStrictEqual`, never a single field of one
   operation, so an extra or missing operation fails the test.
 
 ## Per-run fixtures
 
-Each of these real systems starts fast and isolates per test, so a test that needs one runs in the
-unit run under the 5 s rule.
+Keep a test that needs one of these in the unit run: `bun test`, or the default nextest profile.
+Each fixture starts fast and gives each test its own copy, so the test stays under the 5 s unit
+limit.
 
-| Real system     | Fixture                                                        |
-| --------------- | -------------------------------------------------------------- |
-| the s2-lite log | s2-lite in memory mode: start it with no `--bucket`            |
-| the Turso store | a Turso database in a temporary file, one per test             |
-| network faults  | `turmoil`, which simulates the network inside the test process |
+| The test needs  | Fixture                                                                    |
+| --------------- | -------------------------------------------------------------------------- |
+| the s2-lite log | s2-lite in memory mode: start it with no `--bucket`                        |
+| the Turso store | a Turso database in a temporary file, one per test                         |
+| network faults  | `turmoil`, a Rust crate that simulates the network inside the test process |
 
 ## Lanes
 
-A lane test lives in a module named after the lane, so its Rust test path starts with `e2e::` or
-`model_api::`, because a Rust module name takes no hyphen. The default nextest profile in
-[`nextest.toml`](../../../.config/nextest.toml) leaves both prefixes out and ends any test at 5 s;
-each lane runs under its own profile with its own per-test time limit.
+- Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
+  `model_api::`. A Rust module name takes no hyphen. The default nextest profile leaves both
+  prefixes out.
+- Start Docker before you run the Bun e2e lane.
+- Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, then run `bun run test:e2e:prepare`. It builds the
+  host and the consumers. Run it again after you change either. Ingest and the API run from source.
 
-| Lane        | Real system                                                         | Run                                     | Limit |
-| ----------- | ------------------------------------------------------------------- | --------------------------------------- | ----- |
-| `e2e`       | Garage, for crash durability; the Durable Streams conformance tests | `cargo nextest run --profile e2e`       | 15 s  |
-| `model-api` | hosted models                                                       | `cargo nextest run --profile model-api` | 120 s |
+| Lane        | Real system                                                                  | Run                                     |
+| ----------- | ---------------------------------------------------------------------------- | --------------------------------------- |
+| `e2e`, Rust | Garage, for crash durability; the Durable Streams conformance tests          | `cargo nextest run --profile e2e`       |
+| `e2e`, Bun  | Garage and s2-lite in Docker; ingest, the host and the API, run as processes | `bun run test:e2e`                      |
+| `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
 
 The `model-api` lane runs nightly and on dispatch, and on a pull request only through an opt-in
 label.
 
-Live GitHub and Gmail are not model APIs, so their tests take lanes of their own, with the test
-paths `github_api::` and `gmail_api::`, on the `model-api` schedule. Neither lane has a test yet, so
-neither has a profile: the first test of each adds its profile and its prefix to the default filter.
+Give a test of live GitHub or Gmail a lane of its own, on the `model-api` schedule, with the test
+path `github_api::` or `gmail_api::`. Neither is a model API. With the first test of such a lane:
+
+1. Add the lane's profile to `nextest.toml`.
+2. Add the lane's prefix to the prefixes the default profile leaves out.

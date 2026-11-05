@@ -1,11 +1,13 @@
 import { ORPCError, os } from '@orpc/server';
-import type { Schema } from '@orpc/server';
-import { getEntityQuery } from './get-entity-query.ts';
-import type { QueryContext, RegisteredQuery } from './types.ts';
+import type { RouterClient, Schema } from '@orpc/server';
+import { getEntityQuery } from '../queries/get-entity/get-entity-query.ts';
+import type { QueryContext, RegisteredQuery } from '../queries/types.ts';
 
 export function createRouter() {
   return { [getEntityQuery.name]: registerQuery(getEntityQuery) };
 }
+
+export type APIClient = RouterClient<ReturnType<typeof createRouter>>;
 
 function registerQuery<
   Name extends string,
