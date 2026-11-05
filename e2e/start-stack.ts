@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
 import { createStoreReader, openConsumerDatabase, readOffsets } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
+import { stopProcessGroup } from '../scripts/test-utils/stop-process-group.ts';
 import { withStack } from '../stack/with-stack.ts';
 import type { RunningStack } from '../stack/with-stack.ts';
 
@@ -167,27 +168,9 @@ function runChild(command: string[], env: Record<string, string | undefined>): B
     detached: true,
   });
 
-  cleanup.defer(() => stopChild(child));
+  cleanup.defer(() => stopProcessGroup(child));
 
   return child;
-}
-
-// a child that exited can leave a forked process in its group, so the group gets the signal either
-// way; ESRCH means the whole group is already gone
-async function stopChild(child: Bun.Subprocess): Promise<void> {
-  try {
-    process.kill(-child.pid, 'SIGTERM');
-  } catch (error: unknown) {
-    if (!isNoSuchProcess(error)) {
-      throw error;
-    }
-  }
-
-  await child.exited;
-}
-
-function isNoSuchProcess(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ESRCH';
 }
 
 async function runHost(args: string[]): Promise<void> {
@@ -313,7 +296,7 @@ async function runUntilCaughtUp(
   } finally {
     await store.close();
 
-    await stopChild(run);
+    await stopProcessGroup(run);
   }
 }
 

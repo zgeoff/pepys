@@ -2,11 +2,16 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-tool-paths-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const binDirectory = join(directory, 'bin');
   const environmentFile = join(directory, 'github-env');
@@ -30,7 +35,10 @@ async function setupTest() {
         },
         stdout: 'pipe',
         stderr: 'pipe',
+        detached: true,
       });
+
+      stack.defer(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([
         new Response(child.stderr).text(),

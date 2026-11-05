@@ -1,5 +1,6 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
+import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
 function setupTest() {
   return {
@@ -8,7 +9,10 @@ function setupTest() {
         env: { RESULTS: results },
         stdout: 'pipe',
         stderr: 'pipe',
+        detached: true,
       });
+
+      onTestFinished(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([
         new Response(child.stderr).text(),

@@ -11,8 +11,8 @@ import {
 } from '@pepys/api';
 import type { APIClient } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
-import { $ } from 'bun';
 import invariant from 'tiny-invariant';
+import { stopProcessGroup } from '../scripts/test-utils/stop-process-group.ts';
 
 function setupTest() {
   const s2Endpoint = process.env['PEPYS_S2_ENDPOINT'];
@@ -47,7 +47,22 @@ function setupTest() {
   return {
     modulePath,
     api,
-    runHost: (args: readonly string[]) => $`${host} ${args}`.nothrow().quiet(),
+    runHost: async (args: readonly string[]) => {
+      const child = Bun.spawn([host, ...args], {
+        stdout: 'pipe',
+        stderr: 'inherit',
+        detached: true,
+      });
+
+      onTestFinished(() => stopProcessGroup(child));
+
+      const [stdout, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        child.exited,
+      ]);
+
+      return { exitCode, stdout };
+    },
     readTail: () => s2.basin(s2Basin).stream('facts.github.pull_request').checkTail(),
     readPullRequests: () => readPullRequests(store),
     readOffsets: () => readOffsets(store, 'github_pull_request'),
@@ -122,7 +137,7 @@ test('it shows an empty preview diff for the module that is already current', as
 
   const output = await ctx.runHost(['preview', 'github_pull_request', '--module', ctx.modulePath]);
 
-  const diff: unknown = output.json();
+  const diff: unknown = JSON.parse(output.stdout);
 
   expect({ exitCode: output.exitCode, diff }).toStrictEqual({
     exitCode: 0,
@@ -135,7 +150,7 @@ test('it swaps nothing when up runs again with the same module', async () => {
 
   const output = await ctx.runHost(['up', 'github_pull_request', '--module', ctx.modulePath]);
 
-  expect({ exitCode: output.exitCode, stdout: output.text() }).toStrictEqual({
+  expect(output).toStrictEqual({
     exitCode: 0,
     stdout: expect.stringContaining('no swap'),
   });
