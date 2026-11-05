@@ -22,9 +22,12 @@ async function setupTest() {
 
       await chmod(path, 0o755);
     },
-    runScript: async () => {
+    runScript: async (hasEnvironmentFile: boolean) => {
       const child = Bun.spawn([process.execPath, join(import.meta.dir, 'write-tool-paths.ts')], {
-        env: { PATH: binDirectory, GITHUB_ENV: environmentFile },
+        env: {
+          PATH: binDirectory,
+          GITHUB_ENV: hasEnvironmentFile ? environmentFile : undefined,
+        },
         stdout: 'pipe',
         stderr: 'pipe',
       });
@@ -51,7 +54,7 @@ test('it writes the zig and wasm-tools paths to GITHUB_ENV when PATH holds both'
 
   await ctx.writeTool('zig');
   await ctx.writeTool('wasm-tools');
-  await ctx.runScript();
+  await ctx.runScript(true);
 
   const environmentFile = await ctx.readEnvironmentFile();
 
@@ -60,12 +63,16 @@ test('it writes the zig and wasm-tools paths to GITHUB_ENV when PATH holds both'
   );
 });
 
-test('it exits 1 and writes nothing when PATH has no wasm-tools', async () => {
+test.each([
+  { missing: 'wasm-tools on PATH', tools: ['zig'], hasEnvironmentFile: true },
+  { missing: 'zig on PATH', tools: ['wasm-tools'], hasEnvironmentFile: true },
+  { missing: 'GITHUB_ENV', tools: ['zig', 'wasm-tools'], hasEnvironmentFile: false },
+])('it exits 1 and writes nothing when $missing is missing', async (row) => {
   const ctx = await setupTest();
 
-  await ctx.writeTool('zig');
+  await Promise.all(row.tools.map((tool) => ctx.writeTool(tool)));
 
-  const result = await ctx.runScript();
+  const result = await ctx.runScript(row.hasEnvironmentFile);
   const environmentFile = await ctx.readEnvironmentFile();
 
   expect({ ...result, environmentFile }).toStrictEqual({
