@@ -1,123 +1,36 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, readlink, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import invariant from 'tiny-invariant';
-import { readOptionalText } from '../read-optional-text.ts';
-import { readRunPrefix } from '../test-utils/read-run-prefix.ts';
 import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
 
-async function setupTest() {
-  const stack = new AsyncDisposableStack();
-
-  onTestFinished(() => stack.disposeAsync());
-
-  const prefix = await readRunPrefix(readlink, process.pid);
-  const directory = await mkdtemp(join(tmpdir(), `${prefix}pepys-agent-sdk-bump-`));
-
-  stack.defer(() => rm(directory, { recursive: true, force: true }));
-
-  const outputFile = join(directory, 'github-output');
-
-  const runProcess = async (
-    command: readonly string[],
-    env: Readonly<Record<string, string | undefined>>,
-  ) => {
-    const child = Bun.spawn([...command], {
-      cwd: directory,
-      env,
-      stdout: 'ignore',
-      stderr: 'pipe',
-      detached: true,
-    });
-
-    stack.defer(() => stopProcessGroup(child));
-
-    const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
-
-    return { exitCode, stderr };
-  };
-
-  const git = async (args: readonly string[]) => {
-    const result = await runProcess(
-      [
-        'git',
-        '-c',
-        'user.name=pepys-test',
-        '-c',
-        'user.email=pepys-test@example.com',
-        '-c',
-        'commit.gpgsign=false',
-        ...args,
-      ],
-      process.env,
-    );
-
-    invariant(result.exitCode === 0, result.stderr);
-  };
-
-  await git(['init', '--quiet']);
-
+function setupTest() {
   return {
-    seed: {
-      lockfileCommit: async (lockfile: string) => {
-        await Bun.write(join(directory, 'bun.lock'), lockfile);
+    runScript: async (env: Readonly<Record<string, string | undefined>>) => {
+      const child = Bun.spawn(
+        [process.execPath, join(import.meta.dir, 'write-agent-sdk-bump.ts')],
+        {
+          env: { PATH: process.env['PATH'], ...env },
+          stdout: 'ignore',
+          stderr: 'pipe',
+          detached: true,
+        },
+      );
 
-        await git(['add', 'bun.lock']);
-        await git(['commit', '--quiet', '-m', 'lock']);
-      },
+      onTestFinished(() => stopProcessGroup(child));
+
+      const [stderr, exitCode] = await Promise.all([
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+
+      return { exitCode, stderr };
     },
-    runScript: (env: Readonly<Record<string, string | undefined>>) =>
-      runProcess([process.execPath, join(import.meta.dir, 'write-agent-sdk-bump.ts')], {
-        PATH: process.env['PATH'],
-        ...env,
-      }),
-    outputFile,
-    readOutputFile: () => readOptionalText(outputFile),
   };
 }
 
-test('it writes bumped=true to GITHUB_OUTPUT when the head commit locks a new SDK release', async () => {
-  const ctx = await setupTest();
+test('it exits 1 before it reads anything when GITHUB_OUTPUT is unset', async () => {
+  const ctx = setupTest();
 
-  await ctx.seed.lockfileCommit(
-    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], }, }`,
-  );
-
-  await ctx.seed.lockfileCommit(
-    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.2", "", {}, "sha512-b"], }, }`,
-  );
-
-  const result = await ctx.runScript({ GITHUB_OUTPUT: ctx.outputFile });
-  const output = await ctx.readOutputFile();
-
-  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
-  expect(output).toBe('bumped=true\n');
-});
-
-test('it writes bumped=false to GITHUB_OUTPUT when the head commit keeps the SDK release', async () => {
-  const ctx = await setupTest();
-
-  await ctx.seed.lockfileCommit(
-    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], "kysely": ["kysely@0.29.6", "", {}, "sha512-j"], }, }`,
-  );
-
-  await ctx.seed.lockfileCommit(
-    `{ "packages": { "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.1", "", {}, "sha512-a"], "kysely": ["kysely@0.29.7", "", {}, "sha512-k"], }, }`,
-  );
-
-  const result = await ctx.runScript({ GITHUB_OUTPUT: ctx.outputFile });
-  const output = await ctx.readOutputFile();
-
-  expect(result).toStrictEqual({ exitCode: 0, stderr: '' });
-  expect(output).toBe('bumped=false\n');
-});
-
-test('it exits 1 and writes nothing when GITHUB_OUTPUT is unset', async () => {
-  const ctx = await setupTest();
   const result = await ctx.runScript({});
-  const output = await ctx.readOutputFile();
 
   expect(result).toStrictEqual({ exitCode: 1, stderr: 'needs GITHUB_OUTPUT set\n' });
-  expect(output).toBeUndefined();
 });

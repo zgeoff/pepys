@@ -2,7 +2,7 @@
 // releases that bun.lock holds, and bumped=false when it leaves them as they are.
 import { appendFile } from 'node:fs/promises';
 import { $ } from 'bun';
-import { isAgentSDKBumped } from './is-agent-sdk-bumped.ts';
+import { writeAgentSDKBumpOutput } from './write-agent-sdk-bump-output.ts';
 
 const outputFile = process.env['GITHUB_OUTPUT'];
 
@@ -11,8 +11,9 @@ if (outputFile === undefined) {
   process.exit(1);
 }
 
-// A pull_request run checks out the merge commit, whose first parent is the base branch.
-const baseLockfile = await $`git show HEAD^1:bun.lock`.text();
-const headLockfile = await Bun.file('bun.lock').text();
-
-await appendFile(outputFile, `bumped=${isAgentSDKBumped(baseLockfile, headLockfile)}\n`);
+await writeAgentSDKBumpOutput({
+  // A pull_request run checks out the merge commit, whose first parent is the base branch.
+  readBaseLockfile: () => $`git show HEAD^1:bun.lock`.text(),
+  readHeadLockfile: () => Bun.file('bun.lock').text(),
+  writeOutput: (line) => appendFile(outputFile, line),
+});
