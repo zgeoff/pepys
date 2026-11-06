@@ -99,6 +99,36 @@ test('it serves get_entity from the contract: the entity view row, the full row 
   });
 });
 
+test('it answers UNPROCESSABLE_CONTENT with HTTP 422 for an assert link with no evidence', async () => {
+  const ctx = await setupTest();
+
+  expect(
+    ctx.client.assert_link({
+      requestID: 'request-1',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      confidence: 0.4,
+      evidence: '',
+    }),
+  ).rejects.toMatchObject({ code: 'UNPROCESSABLE_CONTENT', status: 422, defined: true });
+});
+
+test('it answers BAD_REQUEST for an assert link whose only fault is its confidence', async () => {
+  const ctx = await setupTest();
+
+  expect(
+    ctx.client.assert_link({
+      requestID: 'request-1',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      confidence: 1.2,
+      evidence: 'the email quotes the issue title',
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST', status: 400 });
+});
+
 test('it answers NOT_IMPLEMENTED for a contract procedure with no handler yet', async () => {
   const ctx = await setupTest();
 

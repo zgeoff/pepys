@@ -18,7 +18,7 @@ test.each([
   { procedure: 'neighbourhood', codes: ['NOT_IMPLEMENTED'] },
   { procedure: 'search', codes: ['NOT_IMPLEMENTED'] },
   { procedure: 'entity_history', codes: ['NOT_IMPLEMENTED'] },
-  { procedure: 'assert_link', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'assert_link', codes: ['NOT_IMPLEMENTED', 'UNPROCESSABLE_CONTENT'] },
   { procedure: 'retract_link', codes: ['NOT_IMPLEMENTED'] },
   { procedure: 'correct_label', codes: ['NOT_IMPLEMENTED'] },
 ] as const)('it declares the errors $codes on $procedure', (row) => {
@@ -31,6 +31,7 @@ test.each([
   { procedure: 'search', code: 'NOT_IMPLEMENTED', status: 501 },
   { procedure: 'entity_history', code: 'NOT_IMPLEMENTED', status: 501 },
   { procedure: 'assert_link', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'assert_link', code: 'UNPROCESSABLE_CONTENT', status: 422 },
   { procedure: 'retract_link', code: 'NOT_IMPLEMENTED', status: 501 },
   { procedure: 'correct_label', code: 'NOT_IMPLEMENTED', status: 501 },
 ] as const)('it gives $code on $procedure the HTTP status $status', (row) => {

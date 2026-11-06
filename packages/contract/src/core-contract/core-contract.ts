@@ -115,6 +115,11 @@ const notImplementedErrors = {
   NOT_IMPLEMENTED: { status: 501, message: 'the API has no handler for this procedure' },
 };
 
+const assertLinkErrors = {
+  ...notImplementedErrors,
+  UNPROCESSABLE_CONTENT: { status: 422, message: 'a link needs evidence' },
+};
+
 export const coreContract = {
   get_entity: oc
     .errors(notFoundErrors)
@@ -149,7 +154,7 @@ export const coreContract = {
     .input(entityHistoryInput)
     .output(entityHistoryOutput),
   assert_link: oc
-    .errors(notImplementedErrors)
+    .errors(assertLinkErrors)
     .route({
       description:
         'Asserts a link between two entities, with a confidence from 0 to 1 and the evidence for it. The link records the calling client as its origin.',
