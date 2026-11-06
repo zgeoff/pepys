@@ -6,11 +6,6 @@ export type EntityKind = `${string}:${string}`;
 // needs, and the brand a consumer generates must have the same shape.
 export type KindedID<Kind extends EntityKind> = EntityID & { readonly '~entityKind': Kind };
 
-export type IsEntityOfKind = <Kind extends EntityKind>(
-  id: EntityID,
-  kinds: readonly Kind[],
-) => id is KindedID<Kind>;
-
 export interface LinkTypeDeclaration<
   Name extends string = string,
   From extends EntityKind = EntityKind,

@@ -16,6 +16,7 @@ export { generateRustTypes } from './generate-rust-types.ts';
 export { generateSqliteSchema } from './generate-sqlite-schema.ts';
 export type { DB } from './generated/kysely-db.ts';
 export type * from './ids/ids.ts';
+export { isEntityOfKind } from './link-registry/is-entity-of-kind.ts';
 export type * from './link-registry/link-registry.ts';
 export { makeShutdownHandler } from './make-shutdown-handler.ts';
 export { parseEntityID } from './parse-entity-id.ts';
