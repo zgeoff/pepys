@@ -1,14 +1,11 @@
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
+import type { EntityID, FactID } from './ids/ids.ts';
 import { parseEntityID } from './parse-entity-id.ts';
-import type { EntityID, FactEnvelope, FactID, Result } from './types.ts';
+import type { FactEnvelope, Result } from './types.ts';
 
 const factIDPattern = new RegExp(
-  [
-    '^webhook:[a-z][a-z0-9_]*:.+$',
-    '^(?:observation|enrichment):[0-9a-f]{64}$',
-    '^manual:[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-  ]
+  ['^webhook:[a-z][a-z0-9_]*:.+$', '^(?:observation|enrichment|manual):[0-9a-f]{64}$']
     .map((pattern) => `(?:${pattern})`)
     .join('|'),
   'u',

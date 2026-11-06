@@ -3,9 +3,9 @@
 The API is the only way into pepys for tools and agents. It is one Bun process running Elysia v2,
 oRPC for typed routes, and an MCP server over streamable HTTP. Tools and agents reach it on the
 owner's tailnet only, and enrichment reads the change feed and search on a cluster-internal port
-([runtime](./runtime.md#network)). Every query is a registered object, so one definition gives a
-typed route, an MCP tool and a test. The API reads the store and never writes it: every write from a
-person or an agent becomes a manual fact in the log.
+([runtime](./runtime.md#network)). Every query and write is one procedure of an oRPC contract, so
+one definition gives a typed route, an MCP tool and a test. The API reads the store and never writes
+it: every write from a person or an agent becomes a manual fact in the log.
 
 ## Callers
 
@@ -15,12 +15,13 @@ person or an agent becomes a manual fact in the log.
 | a dashboard in the browser           | queries and live updates | oRPC and the change feed |
 | automations                          | notice of changes        | the change feed          |
 
-## Registered queries
+## The contract
 
-A query definition holds a name, a description, an input schema and a function that runs the query
-with Kysely. From that definition, the API serves an oRPC route with typed input and output, and an
-MCP tool whose description is the text the agent reads. A test runs each query against golden facts,
-the way consumer tests do.
+`@pepys/contract` holds the oRPC contract: each procedure's catalog key, its description, and the
+zod schemas of its input and output. The API implements each procedure with Kysely, through oRPC's
+contract-first `implement`, and serves it as an oRPC route with typed input and output and as an MCP
+tool whose description is the text the agent reads. A test runs each query against golden facts, the
+way consumer tests do.
 
 ## The core catalog
 

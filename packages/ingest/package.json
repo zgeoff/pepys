@@ -1,0 +1,13 @@
+{
+  "name": "@pepys/ingest",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/schema": "workspace:*",
+    "@zgeoff/std": "catalog:"
+  },
+  "devDependencies": {
+    "tiny-invariant": "catalog:"
+  }
+}

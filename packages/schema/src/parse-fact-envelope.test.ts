@@ -1,5 +1,8 @@
 import { expect, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { buildManualFactID } from './build-manual-fact-id.ts';
+import type { ClientID, RequestID } from './ids/ids.ts';
 import { parseFactEnvelope } from './parse-fact-envelope.ts';
 
 test('it accepts an envelope with every field', () => {
@@ -38,7 +41,7 @@ test('it accepts an envelope with no actor and no cursor', () => {
 
 test('it leaves the payload untouched', () => {
   const result = parseFactEnvelope({
-    id: 'manual:01939c9a-7b2e-7c3a-8d4f-5a6b7c8d9e0f',
+    id: 'manual:9c2d4e6f8a0b1c3d5e7f9a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d',
     type: 'manual.link.asserted',
     v: 1,
     api: 'pepys/1',
@@ -50,6 +53,25 @@ test('it leaves the payload untouched', () => {
   invariant(result.ok);
 
   expect(result.value.payload).toStrictEqual({ extra: ['kept', 1, null], nested: { flag: true } });
+});
+
+test('it accepts the ID that buildManualFactID gives', () => {
+  const id = buildManualFactID(
+    toTagged<ClientID>('client-ledger'),
+    toTagged<RequestID>('request-1'),
+  );
+
+  const result = parseFactEnvelope({
+    id,
+    type: 'manual.link.asserted',
+    v: 1,
+    api: 'pepys/1',
+    entity: 'github:pr:1',
+    at: '2026-10-24T01:02:03Z',
+    payload: {},
+  });
+
+  expect(result.ok).toBe(true);
 });
 
 test('it rejects an unknown envelope key', () => {

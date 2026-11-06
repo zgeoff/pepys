@@ -1,0 +1,75 @@
+import type { BlobHash, EntityID, FactID, ScopeID, StreamOffset, VersionHash } from '../ids/ids.ts';
+import type { EntityKind, LinkEnds, LinkRegistry } from '../link-registry/link-registry.ts';
+import type { FactEnvelope } from '../types.ts';
+
+export type ConsumerInput = FactInput | ScopeInput;
+
+export interface FactInput {
+  mode: 'fact';
+  offset: StreamOffset;
+  fact: FactEnvelope<unknown>;
+}
+
+export interface ScopeInput {
+  mode: 'scope';
+  scope: ScopeID;
+}
+
+export type ReadRequest =
+  | { row: { table: string; key: string } }
+  | { scan: { table: string; index: string; prefix: readonly string[] } }
+  | { facts: EntityID }
+  | { blob: BlobHash };
+
+export type ReadLimit = { mode: 'fact'; before: StreamOffset } | { mode: 'scope'; scope: ScopeID };
+
+export interface ConsumerReads<Row> {
+  getRow: (table: string, key: string) => Row | undefined;
+  scanTable: (table: string, index: string, prefix: readonly string[]) => readonly Row[];
+  readEntityFacts: (entity: EntityID) => readonly FactEnvelope<unknown>[];
+  readBlob: (hash: BlobHash) => Uint8Array | undefined;
+}
+
+export type ConsumerLink<Registry extends LinkRegistry> = LinkEnds<Registry> & {
+  confidence: number;
+  evidence: string;
+};
+
+export type FactOperation<Row, Registry extends LinkRegistry> =
+  | { upsert: { table: string; row: Row } }
+  | { delete: { table: string; key: string } }
+  | { link: ConsumerLink<Registry> }
+  | { unlink: LinkEnds<Registry> };
+
+export type ScopeOperation<Row, Registry extends LinkRegistry> =
+  | { upsert: { table: string; row: Row } }
+  | { link: ConsumerLink<Registry> };
+
+export type ConsumerOutcome<Operation> = { applied: readonly Operation[] } | { rejected: string };
+
+export interface ConsumerManifest {
+  name: string;
+  mode:
+    | { kind: 'fact'; stream: string }
+    | { kind: 'scope'; scopeKind: EntityKind; sources: Readonly<Record<string, string>> };
+  tables: Readonly<
+    Record<string, { primaryKey: readonly string[]; indexes: readonly (readonly string[])[] }>
+  >;
+  links: readonly string[];
+  schema: string;
+}
+
+export type Halt =
+  | { kind: 'rejected-fact'; offset: StreamOffset; fact: FactID; reason: string }
+  | { kind: 'rejected-scope'; scope: ScopeID; reason: string }
+  | { kind: 'refused-operation'; at: StreamOffset | ScopeID; reason: string };
+
+export type Pins = Readonly<Record<string, VersionHash>>;
+
+export interface ConsumerVersion {
+  name: string;
+  module: VersionHash;
+  pins: Pins;
+  version: VersionHash;
+  manifest: ConsumerManifest;
+}

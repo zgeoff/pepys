@@ -1,8 +1,4 @@
-import type { Tagged } from 'type-fest';
-
-export type EntityID = Tagged<string, 'EntityID'>;
-
-export type FactID = Tagged<string, 'FactID'>;
+import type { EntityID, FactID } from './ids/ids.ts';
 
 export type Result<Value, Failure> = { ok: true; value: Value } | { ok: false; failure: Failure };
 

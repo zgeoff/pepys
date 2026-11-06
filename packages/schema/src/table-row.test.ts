@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { toTagged } from '@zgeoff/std';
 import { defineTable } from './define-table.ts';
+import type { EntityID } from './ids/ids.ts';
 import type { TableRow } from './table-row.ts';
-import type { EntityID } from './types.ts';
 
 test('it declares the column names that a row of the table carries', () => {
   const table = defineTable({

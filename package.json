@@ -10,6 +10,7 @@
       "@commitlint/cli": "21.2.4",
       "@octokit/webhooks": "14.2.0",
       "@orpc/client": "1.16.1",
+      "@orpc/contract": "1.16.1",
       "@orpc/server": "1.16.1",
       "@s2-dev/streamstore": "0.30.0",
       "@scriptc/runtime-wasm32-wasi": "0.4.5",
