@@ -1,5 +1,5 @@
 import { toTagged } from '@zgeoff/std';
-import type { FactID } from './types.ts';
+import type { FactID } from './ids/ids.ts';
 
 interface WebhookFactIDParts {
   source: string;

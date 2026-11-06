@@ -1,7 +1,8 @@
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
+import type { EntityID, FactID } from './ids/ids.ts';
 import { parseEntityID } from './parse-entity-id.ts';
-import type { EntityID, FactEnvelope, FactID, Result } from './types.ts';
+import type { FactEnvelope, Result } from './types.ts';
 
 const factIDPattern = new RegExp(
   [

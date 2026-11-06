@@ -1,6 +1,6 @@
 import { toTagged } from '@zgeoff/std';
 import { buildFactHash } from './build-fact-hash.ts';
-import type { EntityID, FactID } from './types.ts';
+import type { EntityID, FactID } from './ids/ids.ts';
 
 interface ObservationFactIDParts {
   source: string;

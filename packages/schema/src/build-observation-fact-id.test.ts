@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { toTagged } from '@zgeoff/std';
 import { buildObservationFactID } from './build-observation-fact-id.ts';
+import type { EntityID } from './ids/ids.ts';
 import { parseEntityID } from './parse-entity-id.ts';
-import type { EntityID } from './types.ts';
 
 test('it starts an observation fact ID with its kind and a sha256 hex digest', () => {
   const factID = buildObservationFactID({
