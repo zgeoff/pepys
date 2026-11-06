@@ -44,11 +44,12 @@ test('it refuses a sampled run whose planned model calls pass the ceiling, befor
         pins: {},
         sample: { kind: 'buckets', buckets: [toTagged<BucketNumber>(3)], modelCallCeiling: 3 },
       },
-      pickBucket: (scope) => {
-        const bucket = scope === toTagged<ScopeID>('gmail:thread:2') ? 7 : 3;
-
-        return toTagged<BucketNumber>(bucket);
-      },
+      pickBucket: (scope) =>
+        new Map([
+          [toTagged<ScopeID>('gmail:thread:1'), toTagged<BucketNumber>(3)],
+          [toTagged<ScopeID>('gmail:thread:2'), toTagged<BucketNumber>(7)],
+          [toTagged<ScopeID>('gmail:thread:3'), toTagged<BucketNumber>(3)],
+        ]).get(scope) ?? toTagged<BucketNumber>(99),
       runJob,
       evaluate: () => Promise.resolve({ ok: false, failure: { reason: 'unknown-version' } }),
       promote: () => Promise.resolve({ ok: false, failure: { reason: 'unknown-version' } }),
@@ -117,11 +118,12 @@ test('it runs only the scopes in the challenger buckets, then reports and promot
         pins: {},
         sample: { kind: 'buckets', buckets: [toTagged<BucketNumber>(3)], modelCallCeiling: 10 },
       },
-      pickBucket: (scope) => {
-        const bucket = scope === toTagged<ScopeID>('gmail:thread:2') ? 7 : 3;
-
-        return toTagged<BucketNumber>(bucket);
-      },
+      pickBucket: (scope) =>
+        new Map([
+          [toTagged<ScopeID>('gmail:thread:1'), toTagged<BucketNumber>(3)],
+          [toTagged<ScopeID>('gmail:thread:2'), toTagged<BucketNumber>(7)],
+          [toTagged<ScopeID>('gmail:thread:3'), toTagged<BucketNumber>(3)],
+        ]).get(scope) ?? toTagged<BucketNumber>(99),
       runJob,
       evaluate: () =>
         Promise.resolve({
