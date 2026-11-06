@@ -56,6 +56,18 @@
         "@orpc/client": "catalog:",
       },
     },
+    "packages/contract": {
+      "name": "@pepys/contract",
+      "dependencies": {
+        "@orpc/contract": "catalog:",
+        "@pepys/schema": "workspace:*",
+        "@zgeoff/std": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@orpc/server": "catalog:",
+      },
+    },
     "packages/enrichment": {
       "name": "@pepys/enrichment",
       "dependencies": {
@@ -118,6 +130,7 @@
     "@commitlint/cli": "21.2.4",
     "@octokit/webhooks": "14.2.0",
     "@orpc/client": "1.16.1",
+    "@orpc/contract": "1.16.1",
     "@orpc/server": "1.16.1",
     "@s2-dev/streamstore": "0.30.0",
     "@scriptc/runtime-wasm32-wasi": "0.4.5",
@@ -446,6 +459,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.89.0", "", { "os": "win32", "cpu": "x64" }, "sha512-hLFJ/o0f/dTJh/EW0vmcbREYSQO9tYgfiAAlsOkiLFiJuRRWvYtFELUXN5o2ijpSo/tlO1n+YlWN58tZwPG18A=="],
 
     "@pepys/api": ["@pepys/api@workspace:packages/api"],
+
+    "@pepys/contract": ["@pepys/contract@workspace:packages/contract"],
 
     "@pepys/enrichment": ["@pepys/enrichment@workspace:packages/enrichment"],
 
