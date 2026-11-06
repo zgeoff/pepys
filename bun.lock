@@ -56,6 +56,13 @@
         "@orpc/client": "catalog:",
       },
     },
+    "packages/ingest": {
+      "name": "@pepys/ingest",
+      "dependencies": {
+        "@pepys/schema": "workspace:*",
+        "@zgeoff/std": "catalog:",
+      },
+    },
     "packages/kysely-turso": {
       "name": "@pepys/kysely-turso",
       "dependencies": {
@@ -428,6 +435,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.89.0", "", { "os": "win32", "cpu": "x64" }, "sha512-hLFJ/o0f/dTJh/EW0vmcbREYSQO9tYgfiAAlsOkiLFiJuRRWvYtFELUXN5o2ijpSo/tlO1n+YlWN58tZwPG18A=="],
 
     "@pepys/api": ["@pepys/api@workspace:packages/api"],
+
+    "@pepys/ingest": ["@pepys/ingest@workspace:packages/ingest"],
 
     "@pepys/kysely-turso": ["@pepys/kysely-turso@workspace:packages/kysely-turso"],
 
