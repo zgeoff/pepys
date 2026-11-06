@@ -109,8 +109,15 @@ const correctLabelInput = z.object({
   label: nameSchema,
 });
 
+const notFoundErrors = { NOT_FOUND: { status: 404, message: 'no such entity' } };
+
+const notImplementedErrors = {
+  NOT_IMPLEMENTED: { status: 501, message: 'the API has no handler for this procedure' },
+};
+
 export const coreContract = {
   get_entity: oc
+    .errors(notFoundErrors)
     .route({
       description:
         "Returns one entity by its ID, such as github:pr:1874433021: its row in the owning consumer's entity view, its full row, and the references that resolve to it.",
@@ -118,6 +125,7 @@ export const coreContract = {
     .input(getEntityInput)
     .output(getEntityOutput),
   neighbourhood: oc
+    .errors(notImplementedErrors)
     .route({
       description:
         'Returns the entities linked to one entity, in both directions, up to a depth of 3. It skips hub kinds such as people unless includeHubs is true.',
@@ -125,6 +133,7 @@ export const coreContract = {
     .input(neighbourhoodInput)
     .output(neighbourhoodOutput),
   search: oc
+    .errors(notImplementedErrors)
     .route({
       description:
         'Returns the entities that match a text, ranked by full-text and vector search together.',
@@ -132,6 +141,7 @@ export const coreContract = {
     .input(searchInput)
     .output(searchOutput),
   entity_history: oc
+    .errors(notImplementedErrors)
     .route({
       description:
         "Returns one entity's transitions, each marked event when the source recorded it or observed when pepys saw it change.",
@@ -139,6 +149,7 @@ export const coreContract = {
     .input(entityHistoryInput)
     .output(entityHistoryOutput),
   assert_link: oc
+    .errors(notImplementedErrors)
     .route({
       description:
         'Asserts a link between two entities, with a confidence from 0 to 1 and the evidence for it. The link records the calling client as its origin.',
@@ -146,12 +157,14 @@ export const coreContract = {
     .input(assertLinkInput)
     .output(factOutput),
   retract_link: oc
+    .errors(notImplementedErrors)
     .route({
       description: 'Retracts a link between two entities, whoever asserted it, with the reason.',
     })
     .input(retractLinkInput)
     .output(factOutput),
   correct_label: oc
+    .errors(notImplementedErrors)
     .route({
       description:
         "Corrects the label that an enrichment job gave an entity. The correction counts as labelled data for the job's next version.",

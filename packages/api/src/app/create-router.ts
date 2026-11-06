@@ -1,5 +1,5 @@
 import type { ContractRouterClient } from '@orpc/contract';
-import { ORPCError, implement } from '@orpc/server';
+import { implement } from '@orpc/server';
 import { coreContract } from '@pepys/contract';
 import type { CoreContract } from '@pepys/contract';
 import { readEntity } from '../queries/get-entity/read-entity.ts';
@@ -12,8 +12,10 @@ export function createRouter() {
     get_entity: api.get_entity.handler(async (options) => {
       const result = await readEntity(options.context, options.input.id);
 
+      const buildNotFound = options.errors.NOT_FOUND;
+
       if (!result.ok) {
-        throw new ORPCError(result.failure.code, { message: result.failure.message });
+        throw buildNotFound({ message: result.failure.message });
       }
 
       return result.value;
@@ -29,13 +31,12 @@ export function createRouter() {
 
 export type APIClient = ContractRouterClient<CoreContract>;
 
-interface ProcedureCall {
-  path: readonly string[];
+interface NotImplementedCall {
+  errors: { NOT_IMPLEMENTED: () => Error };
 }
 
-function throwNotImplemented(options: ProcedureCall): never {
-  throw new ORPCError('NOT_IMPLEMENTED', {
-    status: 501,
-    message: `${options.path.join('.')} has no handler yet`,
-  });
+function throwNotImplemented(options: NotImplementedCall): never {
+  const buildNotImplemented = options.errors.NOT_IMPLEMENTED;
+
+  throw buildNotImplemented();
 }

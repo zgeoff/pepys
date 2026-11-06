@@ -13,6 +13,33 @@ function setupTest() {
   return { assertLink, retractLink, correctLabel };
 }
 
+test.each([
+  { procedure: 'get_entity', codes: ['NOT_FOUND'] },
+  { procedure: 'neighbourhood', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'search', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'entity_history', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'assert_link', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'retract_link', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'correct_label', codes: ['NOT_IMPLEMENTED'] },
+] as const)('it declares the errors $codes on $procedure', (row) => {
+  expect(coreContract[row.procedure]['~orpc'].errorMap).toContainAllKeys([...row.codes]);
+});
+
+test.each([
+  { procedure: 'get_entity', code: 'NOT_FOUND', status: 404 },
+  { procedure: 'neighbourhood', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'search', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'entity_history', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'assert_link', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'retract_link', code: 'NOT_IMPLEMENTED', status: 501 },
+  { procedure: 'correct_label', code: 'NOT_IMPLEMENTED', status: 501 },
+] as const)('it gives $code on $procedure the HTTP status $status', (row) => {
+  const errorMap: Readonly<Record<string, { status?: number } | undefined>> =
+    coreContract[row.procedure]['~orpc'].errorMap;
+
+  expect(errorMap[row.code]?.status).toBe(row.status);
+});
+
 test('it refuses an assert link with an empty request ID', () => {
   const ctx = setupTest();
 
