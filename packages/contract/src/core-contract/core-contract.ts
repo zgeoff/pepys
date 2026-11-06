@@ -5,7 +5,7 @@ import type { EntityID, FactID, Reference, RequestID } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 
-const entityIDSchema = z.string().transform((text, ctx) => {
+const parsedEntityIDSchema = z.string().transform((text, ctx) => {
   const parsed = parseEntityID(text);
 
   if (!parsed.ok) {
@@ -18,9 +18,10 @@ const entityIDSchema = z.string().transform((text, ctx) => {
     return z.NEVER;
   }
 
-  return toTagged<EntityID>(text);
+  return { id: toTagged<EntityID>(text), parts: parsed.value };
 });
 
+const entityIDSchema = parsedEntityIDSchema.transform((parsed) => parsed.id);
 const nameSchema = z.string().min(1);
 const nameListSchema = z.array(nameSchema).nullable();
 
@@ -33,7 +34,7 @@ const entitySummarySchema = z.object({
   updated_at: z.string(),
 });
 
-const getEntityInput = z.object({ id: entityIDSchema });
+const getEntityInput = z.object({ id: parsedEntityIDSchema });
 
 const getEntityOutput = z.object({
   entity: entitySummarySchema,

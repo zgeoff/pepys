@@ -1,6 +1,5 @@
 import type { CoreOutputs } from '@pepys/contract';
-import { parseEntityID } from '@pepys/schema';
-import type { EntityID, Result } from '@pepys/schema';
+import type { EntityID, EntityIDParts, Result } from '@pepys/schema';
 import { sql } from 'kysely';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
@@ -11,20 +10,23 @@ import { findEntityConsumer } from './find-entity-consumer.ts';
 const storedRowSchema = z.record(z.string(), z.unknown());
 const storedRowsSchema = z.object({ rows: z.array(storedRowSchema) });
 
+interface ParsedEntityID {
+  id: EntityID;
+  parts: EntityIDParts;
+}
+
 export async function readEntity(
   context: QueryContext,
-  id: EntityID,
+  parsed: ParsedEntityID,
 ): Promise<Result<CoreOutputs['get_entity'], QueryFailure>> {
+  const id = parsed.id;
+
   const notFound = {
     ok: false,
     failure: { code: 'NOT_FOUND', message: `no entity ${id}` },
   } as const;
 
-  const parsed = parseEntityID(id);
-
-  invariant(parsed.ok, 'the contract parses the entity ID');
-
-  const found = findEntityConsumer(context.consumers, parsed.value);
+  const found = findEntityConsumer(context.consumers, parsed.parts);
 
   if (found === undefined) {
     return notFound;
