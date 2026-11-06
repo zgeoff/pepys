@@ -1,0 +1,14 @@
+{
+  "name": "@pepys/enrichment",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/ingest": "workspace:*",
+    "@pepys/schema": "workspace:*",
+    "ts-pattern": "catalog:"
+  },
+  "devDependencies": {
+    "@zgeoff/std": "catalog:"
+  }
+}

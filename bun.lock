@@ -56,6 +56,17 @@
         "@orpc/client": "catalog:",
       },
     },
+    "packages/enrichment": {
+      "name": "@pepys/enrichment",
+      "dependencies": {
+        "@pepys/ingest": "workspace:*",
+        "@pepys/schema": "workspace:*",
+        "ts-pattern": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/std": "catalog:",
+      },
+    },
     "packages/ingest": {
       "name": "@pepys/ingest",
       "dependencies": {
@@ -435,6 +446,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.89.0", "", { "os": "win32", "cpu": "x64" }, "sha512-hLFJ/o0f/dTJh/EW0vmcbREYSQO9tYgfiAAlsOkiLFiJuRRWvYtFELUXN5o2ijpSo/tlO1n+YlWN58tZwPG18A=="],
 
     "@pepys/api": ["@pepys/api@workspace:packages/api"],
+
+    "@pepys/enrichment": ["@pepys/enrichment@workspace:packages/enrichment"],
 
     "@pepys/ingest": ["@pepys/ingest@workspace:packages/ingest"],
 
