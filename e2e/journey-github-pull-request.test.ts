@@ -204,5 +204,6 @@ test("it serves the stored row through the API's get_entity", async () => {
         merged_at: null,
       },
     },
+    aliases: [],
   });
 });

@@ -38,7 +38,9 @@
     "packages/api": {
       "name": "@pepys/api",
       "dependencies": {
+        "@orpc/contract": "catalog:",
         "@orpc/server": "catalog:",
+        "@pepys/contract": "workspace:*",
         "@pepys/kysely-turso": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
@@ -54,6 +56,8 @@
       },
       "devDependencies": {
         "@orpc/client": "catalog:",
+        "@pepys/ingest": "workspace:*",
+        "@zgeoff/std": "catalog:",
       },
     },
     "packages/contract": {

@@ -4,7 +4,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
+    "@pepys/contract": "workspace:*",
     "@pepys/kysely-turso": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@pepys/source-github": "workspace:*",
@@ -19,6 +21,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@orpc/client": "catalog:"
+    "@orpc/client": "catalog:",
+    "@pepys/ingest": "workspace:*",
+    "@zgeoff/std": "catalog:"
   }
 }

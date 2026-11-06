@@ -39,7 +39,7 @@ async function setupTest() {
   return { consumerDirectory: join(storeDirectory, 'github_pull_request'), client };
 }
 
-test('it returns the entity view row and the full row of a pull request', async () => {
+test('it serves get_entity from the contract: the entity view row, the full row and the aliases', async () => {
   const ctx = await setupTest();
 
   const versionDirectory = join(ctx.consumerDirectory, 'v1');
@@ -95,7 +95,22 @@ test('it returns the entity view row and the full row of a pull request', async 
       merged_at: null,
       payload: { labels: ['map'] },
     },
+    aliases: [],
   });
+});
+
+test('it answers NOT_IMPLEMENTED for a contract procedure with no handler yet', async () => {
+  const ctx = await setupTest();
+
+  expect(
+    ctx.client.neighbourhood({
+      id: 'github:pr:5',
+      depthLimit: 1,
+      linkTypes: null,
+      includeHubs: false,
+      minimumConfidence: 0.5,
+    }),
+  ).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED', status: 501 });
 });
 
 test('it answers NOT_FOUND for an entity the consumer does not hold', async () => {

@@ -19,7 +19,19 @@
       "bun": false
     },
     "packages/api": {
-      "entry": ["src/**/*.test.ts", "src/serve.ts"],
+      "entry": ["src/**/*.test.ts", "integration/**/*.test.ts", "src/serve.ts"],
+      "bun": false
+    },
+    "packages/contract": {
+      "entry": ["src/**/*.test.ts"],
+      "bun": false
+    },
+    "packages/enrichment": {
+      "entry": ["src/**/*.test.ts"],
+      "bun": false
+    },
+    "packages/ingest": {
+      "entry": ["src/**/*.test.ts"],
       "bun": false
     },
     "packages/kysely-turso": {
