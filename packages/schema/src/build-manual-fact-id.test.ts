@@ -24,6 +24,14 @@ test('it gives another ID for the same request ID from another client', () => {
   );
 });
 
+test('it gives another ID for another request ID from the same client', () => {
+  expect(
+    buildManualFactID(toTagged<ClientID>('client-ledger'), toTagged<RequestID>('request-1')),
+  ).not.toBe(
+    buildManualFactID(toTagged<ClientID>('client-ledger'), toTagged<RequestID>('request-2')),
+  );
+});
+
 test('it keeps the boundary between the client ID and the request ID', () => {
   expect(buildManualFactID(toTagged<ClientID>('ab'), toTagged<RequestID>('c'))).not.toBe(
     buildManualFactID(toTagged<ClientID>('a'), toTagged<RequestID>('bc')),
