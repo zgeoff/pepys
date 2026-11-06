@@ -63,7 +63,7 @@
     "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
     "schema:check": "bun scripts/generate-schema.ts --check",
     "schema:generate": "bun scripts/generate-schema.ts",
-    "test": "bun test --randomize",
+    "test": "bun scripts/test-leftovers/sweep-test-leftovers.ts && bun test --randomize",
     "test:e2e": "bun test --timeout=15000 --path-ignore-patterns='research/**' --preload ./e2e/start-stack.ts ./e2e",
     "test:e2e:prepare": "cargo build --bin pepys --locked && bun run consumers:build",
     "ci:tool-paths": "bun scripts/e2e/write-tool-paths.ts",
