@@ -6,5 +6,8 @@
   "dependencies": {
     "@pepys/schema": "workspace:*",
     "@zgeoff/std": "catalog:"
+  },
+  "devDependencies": {
+    "tiny-invariant": "catalog:"
   }
 }

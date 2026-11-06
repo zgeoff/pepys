@@ -21,7 +21,7 @@ function appendFact(stored: StoredFact[] | undefined, fact: FactEnvelope<unknown
 
   const offset = toTagged<StreamOffset>(stored.length);
 
-  stored.push({ offset, fact });
+  stored.push({ offset, fact: structuredClone(fact) });
 
   return { kind: 'acknowledged', offset };
 }
@@ -37,7 +37,7 @@ function collectStoredFacts(
     return { ok: false, failure: { reason: 'unknown-stream' } };
   }
 
-  return { ok: true, value: stored.slice(from, from + count) };
+  return { ok: true, value: structuredClone(stored.slice(from, from + count)) };
 }
 
 function getTail(stored: readonly StoredFact[] | undefined): StreamRead<StreamOffset> {

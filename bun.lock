@@ -89,6 +89,9 @@
         "@pepys/schema": "workspace:*",
         "@zgeoff/std": "catalog:",
       },
+      "devDependencies": {
+        "tiny-invariant": "catalog:",
+      },
     },
     "packages/kysely-turso": {
       "name": "@pepys/kysely-turso",

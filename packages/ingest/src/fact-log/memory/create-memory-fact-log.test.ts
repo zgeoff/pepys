@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
+import invariant from 'tiny-invariant';
 import { createMemoryFactLog } from './create-memory-fact-log.ts';
 
 test('it acknowledges each append at the next offset of its stream', async () => {
@@ -83,6 +84,72 @@ test('it reads up to the count of facts from an offset, in append order', async 
       },
     ],
   });
+});
+
+test('it keeps a stored fact as appended when the caller changes the envelope afterwards', async () => {
+  const log = createMemoryFactLog([toTagged<StreamName>('facts.manual.link')]);
+
+  const fact = {
+    id: toTagged<FactID>('manual:aa'),
+    type: 'link.asserted',
+    v: 1,
+    api: 'pepys/1',
+    entity: toTagged<EntityID>('gmail:msg:17'),
+    at: '2026-10-01T08:00:00Z',
+    payload: { evidence: 'the email quotes the issue title' },
+  } as const;
+
+  await log.append(toTagged<StreamName>('facts.manual.link'), fact);
+
+  const changed: { evidence: string } = fact.payload;
+
+  changed.evidence = 'rewritten';
+
+  const read = await log.read(
+    toTagged<StreamName>('facts.manual.link'),
+    toTagged<StreamOffset>(0),
+    1,
+  );
+
+  invariant(read.ok);
+
+  expect(read.value[0]?.fact.payload).toStrictEqual({
+    evidence: 'the email quotes the issue title',
+  });
+});
+
+test('it keeps a stored fact as appended when a reader changes what it read', async () => {
+  const log = createMemoryFactLog([toTagged<StreamName>('facts.manual.link')]);
+
+  await log.append(toTagged<StreamName>('facts.manual.link'), {
+    id: toTagged<FactID>('manual:aa'),
+    type: 'link.asserted',
+    v: 1,
+    api: 'pepys/1',
+    entity: toTagged<EntityID>('gmail:msg:17'),
+    at: '2026-10-01T08:00:00Z',
+    payload: { evidence: 'the email quotes the issue title' },
+  });
+
+  const first = await log.read(
+    toTagged<StreamName>('facts.manual.link'),
+    toTagged<StreamOffset>(0),
+    1,
+  );
+
+  invariant(first.ok && first.value[0] !== undefined);
+
+  first.value[0].fact.type = 'link.retracted';
+
+  const second = await log.read(
+    toTagged<StreamName>('facts.manual.link'),
+    toTagged<StreamOffset>(0),
+    1,
+  );
+
+  invariant(second.ok);
+
+  expect(second.value[0]?.fact.type).toBe('link.asserted');
 });
 
 test('it reads an empty list at the tail', async () => {
