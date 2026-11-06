@@ -5,10 +5,80 @@ import { toTagged } from '@zgeoff/std';
 import { coreContract } from './core-contract.ts';
 
 function setupTest() {
-  const assertLink = implement(coreContract).assert_link.handler(() => ({ fact: 'manual:aa' }));
+  const contract = implement(coreContract);
+  const assertLink = contract.assert_link.handler(() => ({ fact: 'manual:aa' }));
+  const retractLink = contract.retract_link.handler(() => ({ fact: 'manual:bb' }));
+  const correctLabel = contract.correct_label.handler(() => ({ fact: 'manual:cc' }));
 
-  return { assertLink };
+  return { assertLink, retractLink, correctLabel };
 }
+
+test('it refuses an assert link with an empty request ID', () => {
+  const ctx = setupTest();
+
+  expect(
+    call(ctx.assertLink, {
+      requestID: '',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      confidence: 0.4,
+      evidence: 'the email quotes the issue title',
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+});
+
+test('it refuses a retract link with an empty request ID', () => {
+  const ctx = setupTest();
+
+  expect(
+    call(ctx.retractLink, {
+      requestID: '',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      reason: 'the email quotes another issue',
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+});
+
+test('it refuses a correct label with an empty request ID', () => {
+  const ctx = setupTest();
+
+  expect(
+    call(ctx.correctLabel, {
+      requestID: '',
+      entity: 'gmail:msg:17',
+      job: 'mail_label',
+      label: 'receipt',
+    }),
+  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+});
+
+test('it accepts a retract link and a correct label with a request ID', async () => {
+  const ctx = setupTest();
+
+  const results = await Promise.all([
+    call(ctx.retractLink, {
+      requestID: 'request-2',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      reason: 'the email quotes another issue',
+    }),
+    call(ctx.correctLabel, {
+      requestID: 'request-3',
+      entity: 'gmail:msg:17',
+      job: 'mail_label',
+      label: 'receipt',
+    }),
+  ]);
+
+  expect(results).toStrictEqual([
+    { fact: toTagged<FactID>('manual:bb') },
+    { fact: toTagged<FactID>('manual:cc') },
+  ]);
+});
 
 test('it refuses an assert link with empty evidence at the input schema', () => {
   const ctx = setupTest();
