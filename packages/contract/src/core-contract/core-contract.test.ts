@@ -9,9 +9,70 @@ function setupTest() {
   const assertLink = contract.assert_link.handler(() => ({ fact: 'manual:aa' }));
   const retractLink = contract.retract_link.handler(() => ({ fact: 'manual:bb' }));
   const correctLabel = contract.correct_label.handler(() => ({ fact: 'manual:cc' }));
+  const neighbourhood = contract.neighbourhood.handler(() => ({ entities: [], links: [] }));
+  const search = contract.search.handler(() => ({ results: [] }));
 
-  return { assertLink, retractLink, correctLabel };
+  return { assertLink, retractLink, correctLabel, neighbourhood, search };
 }
+
+test.each([0, 101, 1.5])('it refuses a search whose limit is %d', (limit) => {
+  const ctx = setupTest();
+
+  expect(call(ctx.search, { text: 'harbour map', kinds: null, limit })).rejects.toMatchObject({
+    code: 'BAD_REQUEST',
+  });
+});
+
+test.each([1, 100])('it accepts a search whose limit is %d', (limit) => {
+  const ctx = setupTest();
+
+  expect(call(ctx.search, { text: 'harbour map', kinds: null, limit })).resolves.toStrictEqual({
+    results: [],
+  });
+});
+
+test.each([
+  { depthLimit: 0, minimumConfidence: 0.5 },
+  { depthLimit: 4, minimumConfidence: 0.5 },
+  { depthLimit: 1.5, minimumConfidence: 0.5 },
+  { depthLimit: 1, minimumConfidence: -0.1 },
+  { depthLimit: 1, minimumConfidence: 1.2 },
+])(
+  'it refuses a neighbourhood with depth limit $depthLimit and minimum confidence $minimumConfidence',
+  (row) => {
+    const ctx = setupTest();
+
+    expect(
+      call(ctx.neighbourhood, {
+        id: 'gmail:msg:17',
+        depthLimit: row.depthLimit,
+        linkTypes: null,
+        includeHubs: false,
+        minimumConfidence: row.minimumConfidence,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  },
+);
+
+test.each([
+  { depthLimit: 1, minimumConfidence: 0 },
+  { depthLimit: 3, minimumConfidence: 1 },
+])(
+  'it accepts a neighbourhood with depth limit $depthLimit and minimum confidence $minimumConfidence',
+  (row) => {
+    const ctx = setupTest();
+
+    expect(
+      call(ctx.neighbourhood, {
+        id: 'gmail:msg:17',
+        depthLimit: row.depthLimit,
+        linkTypes: null,
+        includeHubs: false,
+        minimumConfidence: row.minimumConfidence,
+      }),
+    ).resolves.toStrictEqual({ entities: [], links: [] });
+  },
+);
 
 test.each([
   { procedure: 'get_entity', codes: ['NOT_FOUND'] },
