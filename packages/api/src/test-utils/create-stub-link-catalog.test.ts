@@ -1,31 +1,110 @@
 import { expect, test } from 'bun:test';
 import { createRouterClient } from '@orpc/server';
 import { createMemoryFactLog } from '@pepys/ingest';
+import type { FactLog } from '@pepys/ingest';
 import type { ClientID, EntityID, GrantID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { createStubLinkCatalog } from './create-stub-link-catalog.ts';
 
 function setupTest() {
   const log = createMemoryFactLog([toTagged<StreamName>('facts.manual.link')]);
-  const catalog = createStubLinkCatalog(log, toTagged<StreamName>('facts.manual.link'));
 
-  const client = createRouterClient(catalog, {
-    context: {
-      principal: {
-        client: toTagged<ClientID>('client-atlas'),
-        clientName: 'Atlas agent',
-        grant: toTagged<GrantID>('grant-atlas'),
-        scopes: ['read', 'write'],
-      },
+  const context = {
+    principal: {
+      client: toTagged<ClientID>('client-atlas'),
+      clientName: 'Atlas agent',
+      grant: toTagged<GrantID>('grant-atlas'),
+      scopes: ['read', 'write'] as const,
     },
-  });
+  };
+
+  const unknownLog: FactLog = {
+    append: () => Promise.resolve({ kind: 'unknown' }),
+    read: () => Promise.resolve({ ok: true, value: [] }),
+    readTail: () => Promise.resolve({ ok: true, value: toTagged<StreamOffset>(0) }),
+  };
+
+  const client = createRouterClient(
+    createStubLinkCatalog(log, toTagged<StreamName>('facts.manual.link')),
+    { context },
+  );
+
+  const rejectingClient = createRouterClient(
+    createStubLinkCatalog(log, toTagged<StreamName>('facts.manual.other')),
+    { context },
+  );
+
+  const unknownClient = createRouterClient(
+    createStubLinkCatalog(unknownLog, toTagged<StreamName>('facts.manual.link')),
+    { context },
+  );
 
   return {
     client,
+    rejectingClient,
+    unknownClient,
     readFacts: () =>
       log.read(toTagged<StreamName>('facts.manual.link'), toTagged<StreamOffset>(0), 10),
   };
 }
+
+test('it refuses an assert link that the log rejects', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.rejectingClient.assert_link({
+      requestID: 'request-1',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      confidence: 0.8,
+      evidence: 'the email quotes the issue title',
+    }),
+  ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+});
+
+test('it refuses an assert link whose append outcome is unknown', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.unknownClient.assert_link({
+      requestID: 'request-1',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      confidence: 0.8,
+      evidence: 'the email quotes the issue title',
+    }),
+  ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+});
+
+test('it refuses a retract link that the log rejects', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.rejectingClient.retract_link({
+      requestID: 'request-2',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      reason: 'the email quotes another issue',
+    }),
+  ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+});
+
+test('it refuses a retract link whose append outcome is unknown', () => {
+  const ctx = setupTest();
+
+  expect(
+    ctx.unknownClient.retract_link({
+      requestID: 'request-2',
+      type: 'mentions',
+      from: 'gmail:msg:17',
+      to: { kind: 'entity', id: 'github:issue:412' },
+      reason: 'the email quotes another issue',
+    }),
+  ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+});
 
 test('it appends an asserted link as one manual fact under the fact ID it returns', async () => {
   const ctx = setupTest();

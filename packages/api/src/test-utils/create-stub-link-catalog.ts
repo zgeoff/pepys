@@ -1,10 +1,11 @@
-import { implement } from '@orpc/server';
+import { ORPCError, implement } from '@orpc/server';
 import { coreContract } from '@pepys/contract';
 import type { FactLog, StoredFact } from '@pepys/ingest';
 import { buildManualFactID, isEntityOfKind } from '@pepys/schema';
 import type {
   ConsumerLink,
   EntityID,
+  FactEnvelope,
   LinkEnds,
   LinkRegistryOf,
   LinkTypeDeclaration,
@@ -24,7 +25,7 @@ export function createStubLinkCatalog(log: FactLog, stream: StreamName) {
     assert_link: api.assert_link.handler(async (options) => {
       const fact = buildManualFactID(options.context.principal.client, options.input.requestID);
 
-      await log.append(stream, {
+      await writeManualFact(log, stream, {
         id: fact,
         type: 'link.asserted',
         v: 1,
@@ -46,7 +47,7 @@ export function createStubLinkCatalog(log: FactLog, stream: StreamName) {
     retract_link: api.retract_link.handler(async (options) => {
       const fact = buildManualFactID(options.context.principal.client, options.input.requestID);
 
-      await log.append(stream, {
+      await writeManualFact(log, stream, {
         id: fact,
         type: 'link.retracted',
         v: 1,
@@ -86,6 +87,27 @@ export function createStubLinkCatalog(log: FactLog, stream: StreamName) {
       };
     }),
   };
+}
+
+async function writeManualFact(
+  log: FactLog,
+  stream: StreamName,
+  fact: FactEnvelope<unknown>,
+): Promise<void> {
+  const outcome = await log.append(stream, fact);
+
+  const failure = match(outcome)
+    .with({ kind: 'acknowledged' }, () => null)
+    .with(
+      { kind: 'rejected' },
+      (rejected) => `the log rejected the manual fact: ${rejected.reason}`,
+    )
+    .with({ kind: 'unknown' }, () => 'the log gave no outcome for the manual fact')
+    .exhaustive();
+
+  if (failure !== null) {
+    throw new ORPCError('INTERNAL_SERVER_ERROR', { message: failure });
+  }
 }
 
 type Registry = LinkRegistryOf<LinkTypeDeclaration<'mentions', 'gmail:msg', 'github:issue'>>;

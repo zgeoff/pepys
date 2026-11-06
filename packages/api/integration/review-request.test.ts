@@ -40,8 +40,13 @@ test('it carries a signed review request from the webhook to a waiting-on-me row
 
   invariant(received.kind === 'batch', 'the webhook accepts a signed request');
 
-  await Promise.all(
+  const appended = await Promise.all(
     received.batch.facts.map((pending) => ctx.log.append(pending.stream, pending.fact)),
+  );
+
+  invariant(
+    appended.every((outcome) => outcome.kind === 'acknowledged'),
+    'the memory log acknowledges each append',
   );
 
   await ctx.waitingOnMe.apply();
