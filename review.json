@@ -8,7 +8,6 @@
     ".github/PULL_REQUEST_TEMPLATE.md",
     ".github/ISSUE_TEMPLATE/**",
     ".github/workflows/audit-fix.yml",
-    ".github/workflows/repo-sync.yml",
     ".editorconfig",
     "socket.yml",
     ".claude/skills/ci-design/**",
@@ -16,6 +15,6 @@
     ".claude/skills/code-style/**",
     ".claude/skills/docs-writing/**",
     ".claude/skills/skill-writing/**",
-    ".claude/hooks/skill-gate/**"
+    ".claude/hooks/start.ts"
   ]
 }
