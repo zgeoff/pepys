@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: zgeoff/tools/.github/workflows/bun-checks.yml@7fd3ec923623de67c690027328dda07515bc2ad9 # main
+    uses: zgeoff/tools/.github/workflows/bun-checks.yml@da576ec0687adf80be058261cb6c8a04758dd23f # main
     with:
       scripts: audit deadcode format:check lint:full lint:toml check schema:check test typecheck
 
@@ -30,7 +30,7 @@ jobs:
   changes:
     permissions:
       contents: read
-    uses: zgeoff/tools/.github/workflows/paths-changed.yml@7fd3ec923623de67c690027328dda07515bc2ad9 # main
+    uses: zgeoff/tools/.github/workflows/paths-changed.yml@da576ec0687adf80be058261cb6c8a04758dd23f # main
     with:
       paths: |
         crates/**
