@@ -20,6 +20,7 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/diet",
   "@zgeoff/format-codemod",
   "@zgeoff/oxlint-config",
+  "@zgeoff/rig",
   "@zgeoff/skill-gate",
   "@zgeoff/std",
 ]
@@ -27,6 +28,6 @@ minimumReleaseAgeExcludes = [
 [test]
 # registers jest-extended matchers for `bun test`
 preload = ["@zgeoff/bun-test-extended"]
-# a plain `bun test` is the unit run: spikes test themselves, and the e2e lane needs the stack that
-# `test:e2e` starts
+# spikes test themselves, and the e2e lane needs the stack that `test:e2e` starts; rig's ignore
+# patterns replace this list in the unit run, so the `test` script names both folders again
 pathIgnorePatterns = ["research/**", "e2e/**"]

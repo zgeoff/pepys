@@ -13,10 +13,10 @@ metadata:
 
 ## Facts
 
-| Fact       | Where                                                                                                                                                                                                            |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with its test-path filter and `slow-timeout`. Bun: the `test:e2e` script in [`package.json`](../../../package.json), with its `--timeout` |
-| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                |
+| Fact       | Where                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with its test-path filter and `slow-timeout`. Bun: [`rig.config.ts`](../../../rig.config.ts), which declares none, and the `test:e2e` script in [`package.json`](../../../package.json), with its `--timeout` |
+| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                                                                                    |
 
 ## Departures
 
@@ -28,9 +28,10 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
   path: ingest is in `packages/source-github`, the host in `crates/host`, the API in `packages/api`.
 - Start each process and each piece of data that more than one e2e test reads in
   [`start-stack.ts`](../../../e2e/start-stack.ts). It replaces the rig setup hook in
-  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts), since
-  pepys does not use the rig test runner. The `test:e2e` script preloads the file, and the file sets
-  the `PEPYS_` variables that each test reads in its `setupTest()`.
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts). rig runs
+  the unit tests, but its e2e lane looks for an `e2e/` folder only in a package that has no
+  workspaces, and the root `package.json` has them. The `test:e2e` script preloads the file, and the
+  file sets the `PEPYS_` variables that each test reads in its `setupTest()`.
 - Start a process that only one e2e test needs in that test's `setupTest()`.
 
 ## Pure functions
@@ -46,7 +47,7 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
 
 ## Per-run fixtures
 
-Keep a test that needs one of these in the unit run: `bun test`, or the default nextest profile.
+Keep a test that needs one of these in the unit run: `bun run test`, or the default nextest profile.
 Each fixture starts fast and gives each test its own copy, so the test stays under the 5 s unit
 limit.
 
