@@ -59,7 +59,7 @@ impl FactRunner for CannedRunner {
 /// # Panics
 /// When the folder cannot be read.
 #[must_use]
-pub fn collect_fixture_files(port: &str) -> Vec<String> {
+pub fn read_fixture_files(port: &str) -> Vec<String> {
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/ingest/src")
         .join(port)

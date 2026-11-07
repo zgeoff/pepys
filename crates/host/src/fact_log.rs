@@ -70,7 +70,7 @@ pub trait FactLog {
 mod tests {
     use super::fixtures::{FACT_LOG_FIXTURES, Fixture, run_fact_log_fixture};
     use super::memory::MemoryLog;
-    use crate::test_utils::collect_fixture_files;
+    use crate::test_utils::read_fixture_files;
 
     macro_rules! memory_log_tests {
         ($($name:ident => $file:literal),* $(,)?) => {$(
@@ -95,6 +95,6 @@ mod tests {
             .map(|(name, _)| (*name).to_owned())
             .collect();
 
-        assert_eq!(listed, collect_fixture_files("fact-log"));
+        assert_eq!(listed, read_fixture_files("fact-log"));
     }
 }

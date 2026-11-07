@@ -52,7 +52,7 @@ fn is_blob_hash(text: &str) -> bool {
 mod tests {
     use super::fixtures::{BLOB_STORE_FIXTURES, Fixture, run_blob_store_fixture};
     use super::local_folder::LocalFolderBlobStore;
-    use crate::test_utils::collect_fixture_files;
+    use crate::test_utils::read_fixture_files;
 
     macro_rules! local_folder_tests {
         ($($name:ident => $file:literal),* $(,)?) => {$(
@@ -79,6 +79,6 @@ mod tests {
             .map(|(name, _)| (*name).to_owned())
             .collect();
 
-        assert_eq!(listed, collect_fixture_files("blob-store"));
+        assert_eq!(listed, read_fixture_files("blob-store"));
     }
 }
