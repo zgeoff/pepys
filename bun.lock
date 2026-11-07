@@ -94,9 +94,9 @@
         "@s2-dev/streamstore": "catalog:",
         "@zgeoff/std": "catalog:",
         "tiny-invariant": "catalog:",
+        "ts-pattern": "catalog:",
       },
       "devDependencies": {
-        "ts-pattern": "catalog:",
         "zod": "catalog:",
       },
     },
@@ -127,11 +127,7 @@
         "@pepys/ingest": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@zgeoff/std": "catalog:",
-        "ts-pattern": "catalog:",
         "zod": "catalog:",
-      },
-      "devDependencies": {
-        "tiny-invariant": "catalog:",
       },
     },
     "research/source-retention": {

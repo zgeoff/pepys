@@ -1,6 +1,5 @@
-import { createS2FactLog } from '@pepys/ingest';
+import { createS2FactLog, makeFactAppender } from '@pepys/ingest';
 import { makeShutdownHandler } from '@pepys/schema';
-import { makeFactAppender } from './make-fact-appender.ts';
 import { makeWebhookReceiver } from './make-webhook-receiver.ts';
 import { pullRequestStream } from './pull-request-stream.ts';
 import { readIngestConfig } from './read-ingest-config.ts';

@@ -1,7 +1,7 @@
-import type { AppendOutcome, FactLog } from '@pepys/ingest';
 import type { FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { match } from 'ts-pattern';
+import type { AppendOutcome, FactLog } from './fact-log.ts';
 
 interface FactAppenderOptions {
   log: FactLog;

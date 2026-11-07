@@ -8,10 +8,6 @@
     "@pepys/ingest": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@zgeoff/std": "catalog:",
-    "ts-pattern": "catalog:",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "tiny-invariant": "catalog:"
   }
 }
