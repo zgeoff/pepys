@@ -28,7 +28,15 @@ wasmtime.workspace = true
 wasmtime-wasi.workspace = true
 
 [dev-dependencies]
+hyper = { workspace = true, features = ["http2", "server"] }
+hyper-util = { workspace = true, features = ["http2"] }
+prost.workspace = true
+s2-api.workspace = true
+# The hidden feature lets a test hand the client the simulated network's connector.
+s2-sdk = { workspace = true, features = ["_hidden"] }
 tempfile.workspace = true
+tower-service.workspace = true
+turmoil.workspace = true
 
 [lints]
 workspace = true

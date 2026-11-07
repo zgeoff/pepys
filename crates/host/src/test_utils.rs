@@ -1,5 +1,7 @@
 //! Stand-ins that the host's tests share.
 
+pub mod stub_s2;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

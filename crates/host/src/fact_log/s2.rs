@@ -179,3 +179,78 @@ fn to_read_error(stream: &str, error: &ReadError) -> HostError {
         to_stream_error(error)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use super::*;
+    use crate::test_utils::stub_s2::{
+        STUB_S2_HOST, StubS2State, TurmoilConnector, WRITER_HOST, serve_stub_s2,
+    };
+
+    const FACT: &str = r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#;
+
+    /// Runs `appends` on a log that reaches the stub over turmoil's simulated network, with the
+    /// reply to the first append held back until it times out, and returns each outcome.
+    fn run_appends_with_first_reply_lost(appends: usize) -> Vec<AppendOutcome> {
+        let state = Arc::new(Mutex::new(StubS2State {
+            records: 0,
+            is_next_reply_held: true,
+        }));
+        let outcomes = Arc::new(Mutex::new(Vec::new()));
+        let mut sim = turmoil::Builder::new()
+            .simulation_duration(Duration::from_secs(60))
+            .build();
+        let served = Arc::clone(&state);
+
+        sim.host(STUB_S2_HOST, move || serve_stub_s2(Arc::clone(&served)));
+
+        let recorded = Arc::clone(&outcomes);
+
+        sim.client(WRITER_HOST, async move {
+            let settings = S2Settings {
+                endpoint: format!("http://{STUB_S2_HOST}"),
+                access_token: "unused".to_owned(),
+                basin: "conformance".to_owned(),
+            };
+            let client = S2::new_with_connector(build_config(&settings)?, TurmoilConnector)?;
+            let log = S2Log::from_client(&client, &settings.basin)?;
+
+            for _ in 0..appends {
+                let outcome = log.append("facts.manual.link", FACT, 0).await?;
+
+                turmoil::release(STUB_S2_HOST, WRITER_HOST);
+                recorded.lock().expect("the outcomes").push(outcome);
+            }
+
+            Ok(())
+        });
+
+        sim.run().expect("the simulation");
+
+        outcomes.lock().expect("the outcomes").clone()
+    }
+
+    #[test]
+    fn it_reports_an_unknown_outcome_for_an_append_whose_reply_is_lost() {
+        let outcomes = run_appends_with_first_reply_lost(1);
+
+        assert_eq!(outcomes, vec![AppendOutcome::Unknown]);
+    }
+
+    #[test]
+    fn it_rejects_a_repeat_of_an_append_whose_reply_is_lost_as_a_tail_mismatch() {
+        let outcomes = run_appends_with_first_reply_lost(2);
+
+        assert_eq!(
+            outcomes,
+            vec![
+                AppendOutcome::Unknown,
+                AppendOutcome::Rejected(RejectReason::TailMismatch)
+            ]
+        );
+    }
+}
