@@ -275,3 +275,63 @@ test('it does not retry a refusal from the log', async () => {
 
   expect(log.append).toHaveBeenCalledTimes(1);
 });
+
+test('it fails with the error of an append the log throws, without a retry', () => {
+  const parsed = parseFactEnvelope({
+    id: 'webhook:github:d-1',
+    type: 'github.pull_request.opened',
+    v: 1,
+    api: 'github/2022-11-28',
+    entity: 'github:pr:77',
+    at: '2026-10-02T10:30:00Z',
+    payload: {},
+  });
+
+  invariant(parsed.ok);
+
+  const memoryLog = createMemoryFactLog([toTagged<StreamName>('facts.github.pull_request')]);
+  const append = mock(memoryLog.append).mockRejectedValueOnce(new Error('the token cannot append'));
+
+  const appended = makeFactAppender({
+    log: { ...memoryLog, append },
+    stream: toTagged<StreamName>('facts.github.pull_request'),
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(parsed.value);
+
+  expect(appended).rejects.toThrow('the token cannot append');
+});
+
+test('it appends the fact after a tail read that failed', async () => {
+  const parsed = parseFactEnvelope({
+    id: 'webhook:github:d-1',
+    type: 'github.pull_request.opened',
+    v: 1,
+    api: 'github/2022-11-28',
+    entity: 'github:pr:77',
+    at: '2026-10-02T10:30:00Z',
+    payload: {},
+  });
+
+  invariant(parsed.ok);
+
+  const memoryLog = createMemoryFactLog([toTagged<StreamName>('facts.github.pull_request')]);
+  const readTail = mock(memoryLog.readTail).mockRejectedValueOnce(new Error('connection reset'));
+
+  await makeFactAppender({
+    log: { ...memoryLog, readTail },
+    stream: toTagged<StreamName>('facts.github.pull_request'),
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(parsed.value);
+
+  const read = await memoryLog.read(
+    toTagged<StreamName>('facts.github.pull_request'),
+    toTagged<StreamOffset>(0),
+    10,
+  );
+
+  invariant(read.ok);
+
+  expect(read.value.map((stored) => stored.body)).toStrictEqual([JSON.stringify(parsed.value)]);
+});

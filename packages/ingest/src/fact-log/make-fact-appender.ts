@@ -1,7 +1,9 @@
 import type { FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { match } from 'ts-pattern';
-import type { AppendOutcome, FactLog } from './fact-log.ts';
+import type { FactLog, StoredFact } from './fact-log.ts';
+import { pickAppendStep } from './pick-append-step.ts';
+import type { AppendStep } from './pick-append-step.ts';
 
 interface FactAppenderOptions {
   log: FactLog;
@@ -39,6 +41,8 @@ interface AppendState {
   isUncertain: boolean;
 }
 
+// A failed read stored nothing, so the next attempt repeats it. An error the append throws is a
+// refusal the log gives no outcome for, such as a bad token, and a retry cannot change it.
 async function appendWithRetries(
   options: FactAppenderOptions,
   fact: FactEnvelope<unknown>,
@@ -46,28 +50,15 @@ async function appendWithRetries(
   const state: AppendState = { start: null, isUncertain: false };
 
   for (let attempt = 1; ; attempt += 1) {
-    const outcome = await appendOnce(options, fact, state).catch(
-      (error: unknown): AppendOutcome => {
-        console.error('an append attempt failed', error);
+    const step = await readAppendStep(options, fact.id, state).catch((error: unknown) => {
+      console.error('a read before an append failed', error);
 
-        return { kind: 'unknown' };
-      },
-    );
+      return null;
+    });
 
-    const isDone = match(outcome)
-      .with({ kind: 'acknowledged' }, () => true)
-      .with({ kind: 'rejected', reason: 'tail-mismatch' }, () => false)
-      .with({ kind: 'rejected' }, (rejected) => {
-        throw new Error(`the log refused the fact: ${rejected.reason}`);
-      })
-      .with({ kind: 'unknown' }, () => {
-        state.isUncertain = true;
+    const isStored = step === null ? false : await runAppendStep(options, fact, step, state);
 
-        return false;
-      })
-      .exhaustive();
-
-    if (isDone) {
+    if (isStored) {
       return;
     }
 
@@ -79,58 +70,85 @@ async function appendWithRetries(
   }
 }
 
-async function appendOnce(
+async function readAppendStep(
   options: FactAppenderOptions,
-  fact: FactEnvelope<unknown>,
+  id: FactID,
   state: AppendState,
-): Promise<AppendOutcome> {
+): Promise<AppendStep> {
   const tail = await options.log.readTail(options.stream);
 
   if (!tail.ok) {
-    return { kind: 'rejected', reason: tail.failure.reason };
+    return pickAppendStep(id, tail, []);
   }
 
   state.start ??= tail.value;
 
-  if (state.isUncertain) {
-    const offset = await readFactOffset(options, fact.id, state.start, tail.value);
+  const storedFacts = state.isUncertain
+    ? await readFactsBetween(options, state.start, tail.value)
+    : [];
 
-    if (offset !== null) {
-      return { kind: 'acknowledged', offset };
-    }
-  }
-
-  return options.log.append(options.stream, fact, tail.value);
+  return pickAppendStep(id, tail, storedFacts);
 }
 
-async function readFactOffset(
+async function readFactsBetween(
   options: FactAppenderOptions,
-  id: FactID,
   from: StreamOffset,
   tail: StreamOffset,
-): Promise<StreamOffset | null> {
+): Promise<StoredFact[]> {
+  const storedFacts: StoredFact[] = [];
   let next = from;
 
   while (next < tail) {
     const read = await options.log.read(options.stream, next, tail - next);
 
-    if (!read.ok) {
-      return null;
+    const last = read.ok ? read.value.at(-1) : undefined;
+
+    if (!read.ok || last === undefined) {
+      return storedFacts;
     }
 
-    const stored = read.value.find((candidate) => candidate.fact.id === id);
-    const last = read.value.at(-1);
-
-    if (stored !== undefined) {
-      return stored.offset;
-    }
-
-    if (last === undefined) {
-      return null;
-    }
+    storedFacts.push(...read.value);
 
     next = toTagged<StreamOffset>(last.offset + 1);
   }
 
-  return null;
+  return storedFacts;
+}
+
+// Returns whether the fact is in the log.
+function runAppendStep(
+  options: FactAppenderOptions,
+  fact: FactEnvelope<unknown>,
+  step: AppendStep,
+  state: AppendState,
+): Promise<boolean> {
+  return match(step)
+    .with({ kind: 'found' }, () => Promise.resolve(true))
+    .with({ kind: 'refused' }, (refused) =>
+      Promise.reject(new Error(`the log refused the fact: ${refused.reason}`)),
+    )
+    .with({ kind: 'append' }, (append) => appendAtTail(options, fact, append.expectedTail, state))
+    .exhaustive();
+}
+
+async function appendAtTail(
+  options: FactAppenderOptions,
+  fact: FactEnvelope<unknown>,
+  expectedTail: StreamOffset,
+  state: AppendState,
+): Promise<boolean> {
+  const outcome = await options.log.append(options.stream, fact, expectedTail);
+
+  return match(outcome)
+    .with({ kind: 'acknowledged' }, () => true)
+    .with({ kind: 'rejected', reason: 'tail-mismatch' }, () => false)
+    .with({ kind: 'rejected' }, (rejected) => {
+      throw new Error(`the log refused the fact: ${rejected.reason}`);
+    })
+    .with({ kind: 'unknown' }, () => {
+      state.isUncertain = true;
+
+      return false;
+    })
+    .exhaustive();
 }
