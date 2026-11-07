@@ -1,5 +1,5 @@
-// Removes the temp folders that a killed test run left behind. The test script runs it before
-// `bun test`, so the sweep runs once per run.
+// Removes the temp folders that a killed test run left behind. The test and related-tests scripts
+// run it before rig, so the sweep runs once per run.
 import { readdir, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { removeTestLeftovers } from './remove-test-leftovers.ts';

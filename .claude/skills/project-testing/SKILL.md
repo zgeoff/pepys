@@ -80,9 +80,9 @@ To run the Bun e2e lane:
 | `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
 
 [`model-api.yml`](../../../.github/workflows/model-api.yml) runs the `model-api` lane nightly, on
-`workflow_dispatch`, and on a pull request that changes the version of
+`workflow_dispatch`, and on a pull request that changes a release of
 `@anthropic-ai/claude-agent-sdk` in `bun.lock`. A new SDK release can change the requests that reach
-the models. A pull request that leaves that version as it is skips the lane.
+the models. A pull request that leaves those releases as they are skips the lane.
 
 To run a new `model_api::` test before merge, dispatch the workflow on your branch:
 `gh workflow run model-api.yml --ref <your-branch>`.
