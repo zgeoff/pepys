@@ -1,8 +1,8 @@
 import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import type { AppendOutcome, FactLog, StoredFact } from '../fact-log.ts';
+import { parseStoredBody } from '../parse-stored-body.ts';
 import { parseStoredFact } from '../parse-stored-fact.ts';
-import { toStoredBody } from '../to-stored-body.ts';
 
 export interface MemoryFactLog extends FactLog {
   // The next append is stored, and its outcome is reported as unknown, as when a reply is lost.
@@ -44,7 +44,7 @@ function appendRecord(
   fact: FactEnvelope<unknown>,
   expectedTail: StreamOffset,
 ): AppendOutcome {
-  const body = toStoredBody(fact);
+  const body = parseStoredBody(fact);
 
   if (body === null) {
     return { kind: 'rejected', reason: 'invalid-envelope' };

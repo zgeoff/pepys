@@ -3,7 +3,7 @@ import type { FactEnvelope } from '@pepys/schema';
 
 // Checks the JSON a log would store, so a field that JSON drops, such as a function, cannot leave
 // a stored record that fails the envelope parse on read.
-export function toStoredBody(fact: FactEnvelope<unknown>): string | null {
+export function parseStoredBody(fact: FactEnvelope<unknown>): string | null {
   let body: string;
 
   try {

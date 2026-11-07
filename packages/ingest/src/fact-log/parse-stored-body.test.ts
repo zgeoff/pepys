@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
 import type { EntityID, FactID } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
-import { toStoredBody } from './to-stored-body.ts';
+import { parseStoredBody } from './parse-stored-body.ts';
 
 test('it returns the JSON of an envelope that parses', () => {
-  const body = toStoredBody({
+  const body = parseStoredBody({
     id: toTagged<FactID>('webhook:github:d-1'),
     type: 'github.pull_request.opened',
     v: 1,
@@ -23,7 +23,7 @@ test.each([
   ['a payload that JSON drops', () => 'not JSON'],
   ['a payload that JSON cannot hold', 77n],
 ])('it returns null for %s', (_title, payload) => {
-  const body = toStoredBody({
+  const body = parseStoredBody({
     id: toTagged<FactID>('webhook:github:d-1'),
     type: 'github.pull_request.opened',
     v: 1,
@@ -37,7 +37,7 @@ test.each([
 });
 
 test('it returns null for an envelope whose fact ID fails the envelope parse', () => {
-  const body = toStoredBody({
+  const body = parseStoredBody({
     id: toTagged<FactID>('not-a-fact-id'),
     type: 'github.pull_request.opened',
     v: 1,

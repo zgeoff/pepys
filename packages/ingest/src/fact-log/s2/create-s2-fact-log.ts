@@ -9,8 +9,8 @@ import {
 import type { S2Basin, StreamConfig } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
 import type { AppendOutcome, FactLog, StoredFact } from '../fact-log.ts';
+import { parseStoredBody } from '../parse-stored-body.ts';
 import { parseStoredFact } from '../parse-stored-fact.ts';
-import { toStoredBody } from '../to-stored-body.ts';
 import { findAppendOutcome, isUnknownStream } from './find-append-outcome.ts';
 
 interface S2FactLogParameters {
@@ -83,7 +83,7 @@ async function appendFact(
   fact: FactEnvelope<unknown>,
   expectedTail: StreamOffset,
 ): Promise<AppendOutcome> {
-  const body = toStoredBody(fact);
+  const body = parseStoredBody(fact);
 
   if (body === null) {
     return { kind: 'rejected', reason: 'invalid-envelope' };
