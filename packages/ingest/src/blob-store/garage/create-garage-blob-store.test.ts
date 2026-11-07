@@ -11,7 +11,9 @@ function setupTest() {
     socket: { data: () => {} },
   });
 
-  onTestFinished(() => listener.stop(true));
+  onTestFinished(() => {
+    listener.stop(true);
+  });
 
   return {
     store: createGarageBlobStore({
