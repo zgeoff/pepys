@@ -49,20 +49,26 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
 
 ## Per-run fixtures
 
-Keep a test that needs one of the fixtures below in the unit run: `bun run test`, or the default
-nextest profile. Each fixture starts fast and gives each test its own copy, so the test stays under
-the 5 s unit limit.
+The unit run is `bun run test` for Bun and the default nextest profile for Rust. Its time limit per
+test is the `slow-timeout` in [`nextest.toml`](../../../.config/nextest.toml). Keep these tests in
+it, with a copy of the fixture per test:
 
-| The test needs  | Fixture                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| the s2-lite log | s2-lite in memory mode: start it with no `--bucket`                        |
-| the Turso store | a Turso database in a temporary file, one per test                         |
-| network faults  | `turmoil`, a Rust crate that simulates the network inside the test process |
+- Give a test that needs the Turso store a Turso database in a temporary file.
+- Run a test that needs a network fault on `turmoil`, a Rust crate that simulates the network inside
+  the test process.
+
+Put a test that needs s2-lite or Garage in the `e2e` lane of its language. A runner without the
+s2-lite image takes about 8 s to pull the image and start s2-lite, past the unit limit. Give each
+s2-lite test a basin, the S2 namespace that holds streams, under a name no other test in the run
+uses.
 
 ## Lanes
 
 - Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
-  `model_api::`. A Rust module name takes no hyphen.
+  `model_api::`. A Rust module name takes no hyphen. The host's `e2e` tests live in
+  [`crates/host/src/e2e.rs`](../../../crates/host/src/e2e.rs).
+- Read the fact log and blob store fixtures from `packages/ingest/src/<port>/fixtures/`, in both
+  languages, so a change to a port fails the other language's test.
 
 To run the Bun e2e lane:
 
@@ -73,11 +79,20 @@ To run the Bun e2e lane:
    change either. Ingest and the API run from source.
 4. Run `bun run test:e2e`.
 
-| Lane        | Real system                                                                  | Run                                     |
-| ----------- | ---------------------------------------------------------------------------- | --------------------------------------- |
-| `e2e`, Rust | Garage, for crash durability; the Durable Streams conformance tests          | `cargo nextest run --profile e2e`       |
-| `e2e`, Bun  | Garage and s2-lite in Docker; ingest, the host and the API, run as processes | `bun run test:e2e`                      |
-| `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
+To run the Rust e2e lane:
+
+1. Start Docker.
+2. Install `cargo-nextest`.
+3. Run `bun run test:e2e:rust`. It starts Garage and s2-lite in Docker with
+   [`run-with-stack.ts`](../../../scripts/e2e/run-with-stack.ts), then runs the nextest `e2e`
+   profile. A test reads the stack's addresses from the variables in
+   [`build-stack-env.ts`](../../../stack/build-stack-env.ts), and fails when one is unset.
+
+| Lane        | Real system                  | What it tests                                                                          | Run                                     |
+| ----------- | ---------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------- |
+| `e2e`, Rust | Garage and s2-lite in Docker | the host's fact log and blob store adapters                                            | `bun run test:e2e:rust`                 |
+| `e2e`, Bun  | Garage and s2-lite in Docker | the `@pepys/ingest` fact log and blob store adapters, and the GitHub pull request path | `bun run test:e2e`                      |
+| `model-api` | hosted models                | the requests that reach the models                                                     | `cargo nextest run --profile model-api` |
 
 [`model-api.yml`](../../../.github/workflows/model-api.yml) runs the `model-api` lane nightly, on
 `workflow_dispatch`, and on a pull request that changes a release of
