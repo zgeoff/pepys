@@ -8,6 +8,7 @@
     "packages/*/integration/**/*.ts",
     "scripts/**/*.ts",
     "stack/**/*.ts",
-    "e2e/**/*.ts"
+    "e2e/**/*.ts",
+    "rig.config.ts"
   ]
 }
