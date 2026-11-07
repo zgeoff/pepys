@@ -20,7 +20,7 @@
       "@types/bun": "1.4.4",
       "@zgeoff/bun-test-extended": "0.2.3",
       "@zgeoff/checks": "0.2.4",
-      "@zgeoff/diet": "0.2.1",
+      "@zgeoff/diet": "0.2.2",
       "@zgeoff/commitlint-config": "0.1.0",
       "@zgeoff/format-codemod": "0.3.5",
       "@zgeoff/oxlint-config": "0.8.6",
