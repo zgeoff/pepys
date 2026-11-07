@@ -34,6 +34,9 @@ jobs:
     with:
       paths: |
         crates/**
+        packages/ingest/src/fact-log/fixtures/**
+        packages/ingest/src/blob-store/fixtures/**
+        packages/source-github/src/generated/github-pull-request.sql
         Cargo.toml
         Cargo.lock
         rust-toolchain.toml
@@ -100,10 +103,10 @@ jobs:
         uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: 0.16.0
-      - name: Install wasm-tools
+      - name: Install wasm-tools and nextest
         uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
-          tool: wasm-tools@1.262.0
+          tool: wasm-tools@1.262.0,cargo-nextest@0.9.148
       - name: Export the zig and wasm-tools paths
         run: bun run --silent ci:tool-paths
       - name: Build the host
@@ -112,6 +115,9 @@ jobs:
         run: bun run consumers:build
       - name: End-to-end tests
         run: bun run test:e2e
+      # the Rust lane starts a stack of its own, so the Bun lane's stack is gone by then
+      - name: Rust end-to-end tests
+        run: bun run test:e2e:rust
 
   # the one status the main ruleset requires: it runs even when a job it needs
   # failed, and passes only when every one of them succeeded or was skipped by

@@ -9,6 +9,7 @@
         "@octokit/webhooks": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/api": "workspace:*",
+        "@pepys/ingest": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
         "@s2-dev/streamstore": "catalog:",

@@ -8,15 +8,9 @@ use turso::Connection;
 use crate::consumer::ConsumerSpec;
 use crate::database::Store;
 use crate::error::HostError;
+use crate::fact_log::StoredFact;
 use crate::module_runner::RowSource;
 use crate::pull_request_rows::{delete_row, load_row, write_row};
-
-/// One record of the log: its sequence number and the fact JSON.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Fact {
-    pub seq_num: u64,
-    pub body: String,
-}
 
 /// Runs a consumer on one fact and returns its operations as JSON.
 pub trait FactRunner {
@@ -68,7 +62,7 @@ pub async fn apply_batch(
     store: &Store,
     spec: &ConsumerSpec,
     runner: &mut dyn FactRunner,
-    facts: &[Fact],
+    facts: &[StoredFact],
 ) -> Result<(), HostError> {
     let Some(last) = facts.last() else {
         return Ok(());
@@ -76,7 +70,7 @@ pub async fn apply_batch(
 
     store.connection.execute("BEGIN IMMEDIATE", ()).await?;
 
-    match write_batch(store, spec, runner, facts, last.seq_num).await {
+    match write_batch(store, spec, runner, facts, last.offset).await {
         Ok(()) => {
             store.connection.execute("COMMIT", ()).await?;
 
@@ -94,7 +88,7 @@ async fn write_batch(
     store: &Store,
     spec: &ConsumerSpec,
     runner: &mut dyn FactRunner,
-    facts: &[Fact],
+    facts: &[StoredFact],
     last_seq_num: u64,
 ) -> Result<(), HostError> {
     let rows: Arc<dyn RowSource> = Arc::new(StoreRows::new(store));
@@ -265,10 +259,11 @@ mod tests {
         (directory, store, spec)
     }
 
-    fn fact(seq_num: u64, body: &str) -> Fact {
-        Fact {
-            seq_num,
+    fn fact(offset: u64, body: &str) -> StoredFact {
+        StoredFact {
+            offset,
             body: body.to_owned(),
+            appended_at_ms: 0,
         }
     }
 

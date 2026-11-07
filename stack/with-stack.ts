@@ -1,15 +1,29 @@
 import { $ } from 'bun';
 import { StackInterruptedError } from './stack-interrupted-error.ts';
 
+interface GarageAccess {
+  endpoint: string;
+  region: string;
+  blobsBucket: string;
+  accessKeyID: string;
+  secretAccessKey: string;
+}
+
 export interface RunningStack {
   s2Endpoint: string;
   s2AccessToken: string;
   s2Basin: string;
+  garage: GarageAccess;
   stop: AbortSignal;
 }
 
 const composeFile = `${import.meta.dir}/compose.yaml`;
 const signalExitCodes = { SIGINT: 130, SIGTERM: 143 } as const;
+
+// Invented local fixtures, matching compose.yaml.
+const garageKeyID = 'GK000000000000000000000000';
+const garageSecretKey = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+const garageBlobsBucket = 'blobs';
 
 // Runs the callback against Garage and s2-lite in one fresh compose project, and removes the project
 // on every exit once it has confirmed that the project holds nothing this run did not make.
@@ -19,6 +33,7 @@ export async function withStack<Result>(
 ): Promise<Result> {
   const projectName = `pepys-stack-${crypto.randomUUID().slice(0, 8)}`;
   const s2Port = readFreePort();
+  const garagePort = readFreePort();
 
   const stopController = new AbortController();
 
@@ -39,7 +54,7 @@ export async function withStack<Result>(
 
   const compose = (args: readonly string[]): Promise<$.ShellOutput> =>
     $`docker compose --project-name ${projectName} --file ${composeFile} --profile s2-lite ${args}`
-      .env({ ...process.env, S2_LITE_PORT: String(s2Port) })
+      .env({ ...process.env, S2_LITE_PORT: String(s2Port), GARAGE_PORT: String(garagePort) })
       .quiet();
 
   let settled: { ok: true; value: Result } | { ok: false; error: unknown };
@@ -63,6 +78,13 @@ export async function withStack<Result>(
       s2Endpoint: `http://127.0.0.1:${s2Port}`,
       s2AccessToken: 'ignored',
       s2Basin: 'pepys-local',
+      garage: {
+        endpoint: `http://127.0.0.1:${garagePort}`,
+        region: 'garage',
+        blobsBucket: garageBlobsBucket,
+        accessKeyID: garageKeyID,
+        secretAccessKey: garageSecretKey,
+      },
       stop: stopController.signal,
     });
 
@@ -137,9 +159,6 @@ async function startStack(compose: Compose, stop: AbortSignal, s2Port: number): 
   await waitForHealth(`http://127.0.0.1:${s2Port}`, stop);
 }
 
-// Invented local fixtures, matching compose.yaml.
-const garageKeyID = 'GK000000000000000000000000';
-const garageSecretKey = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 const garageBucket = 'facts';
 
 async function createGarageBucket(compose: Compose, stop: AbortSignal): Promise<void> {
@@ -150,19 +169,22 @@ async function createGarageBucket(compose: Compose, stop: AbortSignal): Promise<
 
   await runGarage(['layout', 'assign', '-z', 'dc1', '-c', '1G', nodeID]);
   await runGarage(['layout', 'apply', '--version', '1']);
-  await runGarage(['bucket', 'create', garageBucket]);
   await runGarage(['key', 'import', '--yes', '-n', 's2-lite', garageKeyID, garageSecretKey]);
 
-  await runGarage([
-    'bucket',
-    'allow',
-    '--read',
-    '--write',
-    '--owner',
-    garageBucket,
-    '--key',
-    's2-lite',
-  ]);
+  for (const bucket of [garageBucket, garageBlobsBucket]) {
+    await runGarage(['bucket', 'create', bucket]);
+
+    await runGarage([
+      'bucket',
+      'allow',
+      '--read',
+      '--write',
+      '--owner',
+      bucket,
+      '--key',
+      's2-lite',
+    ]);
+  }
 }
 
 const healthTimeoutMs = 60_000;

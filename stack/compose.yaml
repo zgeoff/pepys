@@ -7,6 +7,8 @@ services:
       - ./garage.toml:/etc/garage.toml:ro
       - garage-meta:/var/lib/garage/meta
       - garage-data:/var/lib/garage/data
+    ports:
+      - 127.0.0.1:${GARAGE_PORT:?set GARAGE_PORT}:3900
 
   s2-lite:
     image: ghcr.io/s2-streamstore/s2:0.43.2@sha256:214a7ea92c7bbf5e4b79c57fba642f95765b68eaa143cd11173bcda6d3c4ed09

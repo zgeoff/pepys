@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use clap::{Args, Parser, Subcommand};
 use pepys_host::commands::{self, HostConfig};
 use pepys_host::error::HostError;
-use pepys_host::stream::S2Settings;
+use pepys_host::fact_log::s2::S2Settings;
 
 #[derive(Debug, Parser)]
 #[command(name = "pepys", about = "Runs pepys consumers")]

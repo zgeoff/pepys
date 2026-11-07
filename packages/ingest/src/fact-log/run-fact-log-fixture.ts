@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { P, match } from 'ts-pattern';
@@ -43,7 +43,8 @@ const fixtureSchema = z.strictObject({
   calls: z.array(callSchema),
 });
 
-export type FactLogFixture = z.infer<typeof fixtureSchema>;
+// The name is the fixture's file name without `.json`.
+export type FactLogFixture = z.infer<typeof fixtureSchema> & { name: string };
 
 const fixturesDirectory = join(import.meta.dir, 'fixtures');
 
@@ -54,7 +55,7 @@ export function readFactLogFixtures(): FactLogFixture[] {
     .map((name) => {
       const json: unknown = JSON.parse(readFileSync(join(fixturesDirectory, name), 'utf8'));
 
-      return fixtureSchema.parse(json);
+      return Object.assign(fixtureSchema.parse(json), { name: basename(name, '.json') });
     });
 }
 

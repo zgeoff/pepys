@@ -12,6 +12,12 @@ pub enum HostError {
     Io(#[from] std::io::Error),
     #[error("s2: {0}")]
     Stream(String),
+    #[error("the log has no stream {0}")]
+    UnknownStream(String),
+    #[error("no blob {0}")]
+    MissingBlob(String),
+    #[error("the blob store is unavailable: {0}")]
+    BlobUnavailable(String),
     #[error("the consumer returned an operation on {table}, which it does not own")]
     NotOwned { table: String },
     #[error("the consumer returned an operation the host cannot read: {0}")]
