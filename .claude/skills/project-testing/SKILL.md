@@ -3,8 +3,8 @@ name: project-testing
 description:
   pepys's test facts and departures on top of the shared testing skill. They cover where the lanes
   and test helpers live, the Bun e2e lane and the GitHub pull request path it runs, consumer tests,
-  and the per-run fixtures. Load together with the testing skill when designing, writing, or
-  reviewing pepys tests.
+  the per-run fixtures, and the Rust e2e, model-api and live-API lanes. Load together with the
+  testing skill when designing, writing, or reviewing pepys tests.
 metadata:
   kind: rule-set
 ---
@@ -13,10 +13,10 @@ metadata:
 
 ## Facts
 
-| Fact       | Where                                                                                                                                                                                                                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with its test-path filter and `slow-timeout`. Bun: [`rig.config.ts`](../../../rig.config.ts), which declares none, and the `test:e2e` script in [`package.json`](../../../package.json), with its `--timeout` |
-| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                                                                                    |
+| Fact       | Where                                                                                                                                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with its test-path filter and `slow-timeout`. Bun: the `test:e2e` script in [`package.json`](../../../package.json), with its `--timeout` |
+| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                |
 
 ## Departures
 
@@ -26,13 +26,15 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
 - Put a Bun e2e test in the root `e2e/` folder, in place of the package folder in
   [Package layout](../testing/references/system-tests.md#package-layout). No one package builds the
   path: ingest is in `packages/source-github`, the host in `crates/host`, the API in `packages/api`.
-- Start each process and each piece of data that more than one e2e test reads in
-  [`start-stack.ts`](../../../e2e/start-stack.ts). It replaces the rig setup hook in
-  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts). rig runs
-  the unit tests, but its e2e lane looks for an `e2e/` folder only in a package that has no
-  workspaces, and the root `package.json` has them. The `test:e2e` script preloads the file, and the
-  file sets the `PEPYS_` variables that each test reads in its `setupTest()`.
-- Start a process that only one e2e test needs in that test's `setupTest()`.
+- When more than one e2e test needs a process or seeded data, start or seed it in
+  [`start-stack.ts`](../../../e2e/start-stack.ts), in place of the rig setup hook in
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
+  `bun run test:e2e` runs the `e2e/` folder with plain `bun test` and preloads `start-stack.ts`. The
+  `@zgeoff/rig` test runner runs only the unit tests here, and declares no lane in
+  [`rig.config.ts`](../../../rig.config.ts): its e2e lane never finds an `e2e/` folder at the root
+  of a repo with workspaces, as pepys is.
+- Read the stack's addresses in each test's `setupTest()`, from the `PEPYS_` variables that
+  `start-stack.ts` sets.
 
 ## Pure functions
 
@@ -47,9 +49,9 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
 
 ## Per-run fixtures
 
-Keep a test that needs one of these in the unit run: `bun run test`, or the default nextest profile.
-Each fixture starts fast and gives each test its own copy, so the test stays under the 5 s unit
-limit.
+Keep a test that needs one of the fixtures below in the unit run: `bun run test`, or the default
+nextest profile. Each fixture starts fast and gives each test its own copy, so the test stays under
+the 5 s unit limit.
 
 | The test needs  | Fixture                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
@@ -60,8 +62,7 @@ limit.
 ## Lanes
 
 - Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
-  `model_api::`. A Rust module name takes no hyphen. The default nextest profile leaves both
-  prefixes out.
+  `model_api::`. A Rust module name takes no hyphen.
 
 To run the Bun e2e lane:
 
@@ -79,9 +80,9 @@ To run the Bun e2e lane:
 | `model-api` | hosted models                                                                | `cargo nextest run --profile model-api` |
 
 [`model-api.yml`](../../../.github/workflows/model-api.yml) runs the `model-api` lane nightly, on
-`workflow_dispatch`, and on a pull request that changes a release of
+`workflow_dispatch`, and on a pull request that changes the version of
 `@anthropic-ai/claude-agent-sdk` in `bun.lock`. A new SDK release can change the requests that reach
-the models. A pull request that leaves those releases as they are skips the lane.
+the models. A pull request that leaves that version as it is skips the lane.
 
 To run a new `model_api::` test before merge, dispatch the workflow on your branch:
 `gh workflow run model-api.yml --ref <your-branch>`.
