@@ -1,4 +1,4 @@
-//! The envelope parse that an append runs, matching `parseFactEnvelope` in `@pepys/schema`.
+//! The envelope check an append runs, the same check the TypeScript adapters run before an append.
 
 use serde_json::{Map, Value};
 
