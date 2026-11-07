@@ -29,5 +29,6 @@ minimumReleaseAgeExcludes = [
 # registers jest-extended matchers for `bun test`
 preload = ["@zgeoff/bun-test-extended"]
 # spikes test themselves, and the e2e lane needs the stack that `test:e2e` starts; rig's ignore
-# patterns replace this list in the unit run, so the `test` script names both folders again
+# patterns replace this list in the unit run, so the ignore list in rig.config.ts names both
+# folders again
 pathIgnorePatterns = ["research/**", "e2e/**"]
