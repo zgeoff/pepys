@@ -19,6 +19,7 @@
         "@zgeoff/bun-test-extended": "catalog:",
         "@zgeoff/checks": "catalog:",
         "@zgeoff/commitlint-config": "catalog:",
+        "@zgeoff/diet": "catalog:",
         "@zgeoff/format-codemod": "catalog:",
         "@zgeoff/oxlint-config": "catalog:",
         "@zgeoff/skill-gate": "catalog:",
@@ -148,6 +149,7 @@
     "@zgeoff/bun-test-extended": "0.2.3",
     "@zgeoff/checks": "0.2.4",
     "@zgeoff/commitlint-config": "0.1.0",
+    "@zgeoff/diet": "0.2.1",
     "@zgeoff/format-codemod": "0.3.5",
     "@zgeoff/oxlint-config": "0.8.5",
     "@zgeoff/skill-gate": "0.2.22",
@@ -614,6 +616,8 @@
     "@zgeoff/checks": ["@zgeoff/checks@0.2.4", "", { "dependencies": { "@zgeoff/commitlint-config": "0.1.0", "gunshi": "1.0.0-rc.1", "ts-pattern": "5.9.0" }, "bin": { "zgeoff-check": "dist/cli.js" } }, "sha512-zvDWsfrmU2bbYE7nMU9AdMCKfJ5OR7esuPKmSsXzvAZdzborPqLLxeQvXNIzMOz4DsyMaOzyoL3XXko/aC+3pw=="],
 
     "@zgeoff/commitlint-config": ["@zgeoff/commitlint-config@0.1.0", "", { "peerDependencies": { "@commitlint/cli": ">=21.0.0" } }, "sha512-HEx06TxSmccoaQDNH8Honuv/pxp6I4GU8XpBvWGnibPLf3EKTskc9gJVdKMy43dox4t2i288vTC/mWHmWufUkg=="],
+
+    "@zgeoff/diet": ["@zgeoff/diet@0.2.1", "", { "bin": { "diet": "diet.sh" } }, "sha512-8xzPM1AlurcFcXt3aDdyGblvEtdtlDP2CAie3lf/AVGWkK4y1Qz40RGz22fl9Ad9SioEb+9EJHUPGshEtt7fjw=="],
 
     "@zgeoff/format-codemod": ["@zgeoff/format-codemod@0.3.5", "", { "dependencies": { "gunshi": "1.0.0-rc.1", "oxc-parser": "0.155.0" }, "bin": { "format-codemod": "dist/cli.js" } }, "sha512-aVHu3c5pYTISM68OL5fPjo2Go5DwemqB70chqFLsOnjlDJsEYBB2jdzyufv8QxrOwtTishnMV/v7EexmLZhIyQ=="],
 
