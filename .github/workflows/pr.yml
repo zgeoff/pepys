@@ -37,6 +37,7 @@ jobs:
         packages/ingest/src/fact-log/fixtures/**
         packages/ingest/src/blob-store/fixtures/**
         packages/source-github/src/generated/github-pull-request.sql
+        packages/schema/src/fact-envelope-cases.json
         Cargo.toml
         Cargo.lock
         rust-toolchain.toml

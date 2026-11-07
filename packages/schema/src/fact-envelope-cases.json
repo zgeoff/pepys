@@ -1,0 +1,359 @@
+{
+  "cases": [
+    {
+      "title": "accepts a webhook fact ID",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an observation fact ID",
+      "envelope": {
+        "id": "observation:0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an enrichment fact ID",
+      "envelope": {
+        "id": "enrichment:b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a manual fact ID",
+      "envelope": {
+        "id": "manual:c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an actor and a cursor",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {},
+        "actor": "github:user:583231",
+        "cursor": "page-7"
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts fractional seconds",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00.123456Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a leap day",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2028-02-29T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "refuses an ID of no fact kind",
+      "envelope": {
+        "id": "not-a-fact-id",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a manual fact ID with a short hash",
+      "envelope": {
+        "id": "manual:abc",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a webhook fact ID with an upper-case source",
+      "envelope": {
+        "id": "webhook:GitHub:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a webhook fact ID with a line feed",
+      "envelope": {
+        "id": "webhook:github:d\n1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a webhook fact ID with a carriage return",
+      "envelope": {
+        "id": "webhook:github:d\r1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a webhook fact ID with a line separator",
+      "envelope": {
+        "id": "webhook:github:d\u20281",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a webhook fact ID with a paragraph separator",
+      "envelope": {
+        "id": "webhook:github:d\u20291",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an empty type",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an envelope version other than 1",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 2,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an api that is not text",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": 7,
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an entity ID with no kind",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an entity ID whose source is a fact kind",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "manual:pr:7",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an actor that is not an entity ID",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {},
+        "actor": "github:7"
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a time with no seconds",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a time with an offset",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00+01:00",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a day the calendar lacks",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-02-30T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses the hour 24",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T24:00:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a cursor that is not text",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {},
+        "cursor": 3
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a field the envelope lacks",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {},
+        "extra": 1
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an envelope without a payload",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pr:77",
+        "at": "2026-10-02T10:30:00Z"
+      },
+      "isValid": false
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-//! The envelope check an append runs, the same check the TypeScript adapters run before an append.
+//! The envelope check an append runs. It and the TypeScript check run the same cases, in
+//! `packages/schema/src/fact-envelope-cases.json`.
 
 use serde_json::{Map, Value};
 
@@ -114,89 +115,27 @@ fn days_in_month(year: u32, month: u32) -> u32 {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
-    fn envelope_with(field: &str, value: &str) -> String {
-        let mut envelope = serde_json::json!({
-            "id": "webhook:github:d-1",
-            "type": "github.pull_request.opened",
-            "v": 1,
-            "api": "github/2022-11-28",
-            "entity": "github:pr:77",
-            "at": "2026-10-02T10:30:00Z",
-            "payload": {}
-        });
-
-        envelope[field] = serde_json::from_str(value).unwrap_or(Value::Null);
-
-        envelope.to_string()
-    }
+    const CASES: &str = include_str!("../../../../packages/schema/src/fact-envelope-cases.json");
 
     #[test]
-    fn it_accepts_each_kind_of_fact_id() {
-        let ids = [
-            r#""webhook:github:d-1""#,
-            &format!(r#""observation:{}""#, "0a".repeat(32)),
-            &format!(r#""enrichment:{}""#, "b1".repeat(32)),
-            &format!(r#""manual:{}""#, "c2".repeat(32)),
-        ];
+    fn it_gives_each_shared_envelope_case_its_verdict() {
+        let cases: Value = serde_json::from_str(CASES).expect("the cases");
 
-        let accepted: Vec<bool> = ids
+        let wrong: Vec<&str> = cases["cases"]
+            .as_array()
+            .expect("a list of cases")
             .iter()
-            .map(|id| is_fact_envelope(&envelope_with("id", id)))
+            .filter(|case| {
+                is_fact_envelope(&case["envelope"].to_string())
+                    != case["isValid"].as_bool().expect("a verdict")
+            })
+            .map(|case| case["title"].as_str().expect("a title"))
             .collect();
 
-        assert_eq!(accepted, vec![true; 4]);
-    }
-
-    #[test]
-    fn it_refuses_each_field_the_envelope_parse_refuses() {
-        let refused = [
-            ("id", r#""not-a-fact-id""#),
-            ("id", r#""manual:abc""#),
-            ("id", r#""webhook:GitHub:d-1""#),
-            ("id", r#""webhook:github:d\n1""#),
-            ("id", r#""webhook:github:d\r1""#),
-            ("id", r#""webhook:github:d\u20281""#),
-            ("id", r#""webhook:github:d\u20291""#),
-            ("type", r#""""#),
-            ("v", "2"),
-            ("api", "7"),
-            ("entity", r#""github:pr""#),
-            ("entity", r#""manual:pr:7""#),
-            ("actor", r#""github:7""#),
-            ("at", r#""2026-10-02T10:30Z""#),
-            ("at", r#""2026-10-02T10:30:00+01:00""#),
-            ("at", r#""2026-02-30T10:30:00Z""#),
-            ("at", r#""2026-10-02T24:00:00Z""#),
-            ("cursor", "3"),
-            ("extra", "1"),
-        ];
-
-        let accepted: Vec<(&str, &str)> = refused
-            .iter()
-            .filter(|(field, value)| is_fact_envelope(&envelope_with(field, value)))
-            .copied()
-            .collect();
-
-        assert_eq!(accepted, Vec::<(&str, &str)>::new());
-    }
-
-    #[test]
-    fn it_accepts_fractional_seconds_and_a_leap_day() {
-        let accepted = [
-            is_fact_envelope(&envelope_with("at", r#""2026-10-02T10:30:00.123456Z""#)),
-            is_fact_envelope(&envelope_with("at", r#""2028-02-29T10:30:00Z""#)),
-        ];
-
-        assert_eq!(accepted, [true, true]);
-    }
-
-    #[test]
-    fn it_refuses_an_envelope_without_a_payload() {
-        let body = r#"{"id":"webhook:github:d-1","type":"t","v":1,"api":"a","entity":"github:pr:7","at":"2026-10-02T10:30:00Z"}"#;
-
-        assert!(!is_fact_envelope(body));
+        assert_eq!(wrong, Vec::<&str>::new());
     }
 }
