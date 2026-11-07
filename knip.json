@@ -42,7 +42,7 @@
   "ignoreWorkspaces": ["research/**"],
   "ignoreDependencies": [
     "@stylistic/eslint-plugin",
-    "@zgeoff/skill-gate",
+    "@zgeoff/agent-hooks",
     "@scriptc/runtime-wasm32-wasi",
     "scriptc"
   ]
