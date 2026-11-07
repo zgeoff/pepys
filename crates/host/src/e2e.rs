@@ -29,7 +29,7 @@ async fn create_s2_log(basin: &str, streams: &[String]) -> S2Log {
         .await
         .expect("a basin");
 
-    let log = S2Log::from_client(&client, basin).expect("a log");
+    let log = S2Log::connect(&settings).expect("a log");
     let created = client.basin(basin.parse().expect("a basin name"));
 
     for stream in streams {
@@ -53,6 +53,7 @@ fn connect_garage() -> GarageBlobStore {
         bucket: read_variable("PEPYS_GARAGE_BUCKET"),
         access_key_id: read_variable("PEPYS_GARAGE_ACCESS_KEY_ID"),
         secret_access_key: read_variable("PEPYS_GARAGE_SECRET_ACCESS_KEY"),
+        request_timeout: std::time::Duration::from_secs(5),
     })
     .expect("a Garage client")
 }

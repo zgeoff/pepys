@@ -21,12 +21,21 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 pub const STUB_S2_HOST: &str = "s2";
 pub const WRITER_HOST: &str = "writer";
 
-/// What the stub holds: the number of records on its one stream, and whether it holds back the
-/// reply to the next append.
+/// What the stub holds: the number of records on its one stream, the number of appends it got,
+/// whether it holds back the reply to the next append, and the error it answers every append with.
 #[derive(Default)]
 pub struct StubS2State {
     pub records: u64,
+    pub appends_received: u64,
     pub is_next_reply_held: bool,
+    pub failure: Option<StubFailure>,
+}
+
+/// An S2 error answer: its status and the code in its JSON body.
+#[derive(Clone, Copy)]
+pub struct StubFailure {
+    pub status: StatusCode,
+    pub code: &'static str,
 }
 
 /// Answers appends on port 80 of the simulated host it runs on. An append whose `matchSeqNum` is
@@ -64,6 +73,17 @@ fn answer_append(state: &Mutex<StubS2State>, body: &[u8]) -> Response<Full<Bytes
     let Ok(input) = AppendInput::decode(body) else {
         return reply(StatusCode::BAD_REQUEST, Bytes::new());
     };
+
+    state.appends_received += 1;
+
+    if let Some(failure) = state.failure {
+        let body = format!(
+            r#"{{"code":"{}","message":"the stub fails"}}"#,
+            failure.code
+        );
+
+        return reply(failure.status, Bytes::from(body));
+    }
 
     if input.match_seq_num != Some(state.records) {
         let mismatch = format!(r#"{{"seq_num_mismatch":{}}}"#, state.records);
@@ -161,5 +181,93 @@ impl AsyncWrite for TurmoilStream {
 
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.0).poll_shutdown(context)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    fn encode_append(match_seq_num: u64) -> Vec<u8> {
+        AppendInput {
+            records: vec![s2_api::v1::stream::proto::AppendRecord {
+                body: Bytes::from_static(b"the night ferry"),
+                ..Default::default()
+            }],
+            match_seq_num: Some(match_seq_num),
+            ..Default::default()
+        }
+        .encode_to_vec()
+    }
+
+    async fn read_body(response: Response<Full<Bytes>>) -> Bytes {
+        let collected = response.into_body().collect().await;
+
+        collected.expect("a body").to_bytes()
+    }
+
+    #[tokio::test]
+    async fn it_acknowledges_an_append_at_the_tail_from_the_old_tail() {
+        let state = Mutex::new(StubS2State {
+            records: 2,
+            ..StubS2State::default()
+        });
+
+        let response = answer_append(&state, &encode_append(2));
+
+        let status = response.status();
+        let ack = AppendAck::decode(read_body(response).await).expect("an ack");
+
+        assert_eq!(
+            (status, ack.start.map(|position| position.seq_num)),
+            (StatusCode::OK, Some(2))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_answers_an_append_behind_the_tail_with_the_tail() {
+        let state = Mutex::new(StubS2State {
+            records: 2,
+            ..StubS2State::default()
+        });
+
+        let response = answer_append(&state, &encode_append(1));
+
+        assert_eq!(
+            (response.status(), read_body(response).await),
+            (
+                StatusCode::PRECONDITION_FAILED,
+                Bytes::from_static(br#"{"seq_num_mismatch":2}"#)
+            )
+        );
+    }
+
+    #[test]
+    fn it_stores_nothing_for_an_append_it_fails() {
+        let state = Mutex::new(StubS2State {
+            failure: Some(StubFailure {
+                status: StatusCode::FORBIDDEN,
+                code: "permission_denied",
+            }),
+            ..StubS2State::default()
+        });
+
+        let response = answer_append(&state, &encode_append(0));
+
+        assert_eq!(
+            (response.status(), state.lock().expect("the state").records),
+            (StatusCode::FORBIDDEN, 0)
+        );
+    }
+
+    #[test]
+    fn it_counts_each_append_it_receives() {
+        let state = Mutex::new(StubS2State::default());
+
+        answer_append(&state, &encode_append(0));
+        answer_append(&state, &encode_append(0));
+
+        assert_eq!(state.lock().expect("the state").appends_received, 2);
     }
 }

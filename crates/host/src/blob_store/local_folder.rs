@@ -9,15 +9,17 @@ use crate::error::HostError;
 
 pub struct LocalFolderBlobStore {
     directory: PathBuf,
-    writes: AtomicU64,
 }
+
+/// Counts writes across every store in the process, so two stores on one folder never share a
+/// partial file name.
+static WRITES: AtomicU64 = AtomicU64::new(0);
 
 impl LocalFolderBlobStore {
     #[must_use]
     pub fn new(directory: &Path) -> Self {
         Self {
             directory: directory.to_owned(),
-            writes: AtomicU64::new(0),
         }
     }
 }
@@ -41,7 +43,7 @@ impl LocalFolderBlobStore {
     /// one.
     fn write_file(&self, bytes: &[u8]) -> Result<String, HostError> {
         let hash = build_blob_hash(bytes);
-        let write = self.writes.fetch_add(1, Ordering::Relaxed);
+        let write = WRITES.fetch_add(1, Ordering::Relaxed);
         let partial = self
             .directory
             .join(format!("{hash}.{}-{write}.partial", std::process::id()));

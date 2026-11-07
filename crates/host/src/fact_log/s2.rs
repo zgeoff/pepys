@@ -22,9 +22,10 @@ pub struct S2Settings {
     pub basin: String,
 }
 
-/// The streams of one basin.
+/// The streams of one basin, with a client for reads and another for appends.
 pub struct S2Log {
     basin: S2Basin,
+    append_basin: S2Basin,
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -37,38 +38,47 @@ impl S2Log {
     /// # Errors
     /// Fails when the endpoint or the basin name is not valid.
     pub fn connect(settings: &S2Settings) -> Result<Self, HostError> {
-        let client = S2::new(build_config(settings)?).map_err(to_stream_error)?;
+        let reader = S2::new(build_config(settings)?).map_err(to_stream_error)?;
+        let writer = S2::new(build_append_config(settings)?).map_err(to_stream_error)?;
 
-        Self::from_client(&client, &settings.basin)
+        Self::from_clients(&reader, &writer, &settings.basin)
     }
 
     /// # Errors
     /// Fails when the basin name is not valid.
-    pub fn from_client(client: &S2, basin: &str) -> Result<Self, HostError> {
+    pub fn from_clients(reader: &S2, writer: &S2, basin: &str) -> Result<Self, HostError> {
         let basin_name: BasinName = basin.parse().map_err(to_stream_error)?;
 
         Ok(Self {
-            basin: client.basin(basin_name),
+            basin: reader.basin(basin_name.clone()),
+            append_basin: writer.basin(basin_name),
         })
     }
 
-    fn stream(&self, stream: &str) -> Result<S2Stream, HostError> {
+    fn stream(basin: &S2Basin, stream: &str) -> Result<S2Stream, HostError> {
         let stream_name: StreamName = stream.parse().map_err(to_stream_error)?;
 
-        Ok(self.basin.stream(stream_name))
+        Ok(basin.stream(stream_name))
     }
 }
 
-/// The client settings: one attempt per call, since a client retry could store a record twice
-/// before the writer knows, and the writer owns retries.
+/// The client settings for reads, with the client's own retries.
 ///
 /// # Errors
 /// Fails when the endpoint is not valid.
 pub fn build_config(settings: &S2Settings) -> Result<S2Config, HostError> {
     Ok(S2Config::new(settings.access_token.as_str())
         .with_endpoints(S2Endpoints::for_endpoint(&settings.endpoint).map_err(to_stream_error)?)
-        .with_request_timeout(REQUEST_TIMEOUT)
-        .with_retry(RetryConfig::new().with_max_attempts(NonZeroU32::MIN)))
+        .with_request_timeout(REQUEST_TIMEOUT))
+}
+
+/// The client settings for appends: one attempt per call, since a client retry could store a
+/// record twice before the writer knows, and the writer owns retries.
+///
+/// # Errors
+/// Fails when the endpoint is not valid.
+pub fn build_append_config(settings: &S2Settings) -> Result<S2Config, HostError> {
+    Ok(build_config(settings)?.with_retry(RetryConfig::new().with_max_attempts(NonZeroU32::MIN)))
 }
 
 impl FactLog for S2Log {
@@ -86,7 +96,10 @@ impl FactLog for S2Log {
         let records = AppendRecordBatch::try_from_iter([record]).map_err(to_stream_error)?;
         let input = AppendInput::new(records).with_match_seq_num(expected_tail);
 
-        match self.stream(stream)?.append(input).await {
+        match Self::stream(&self.append_basin, stream)?
+            .append(input)
+            .await
+        {
             Ok(ack) => Ok(AppendOutcome::Acknowledged {
                 offset: ack.start.seq_num,
             }),
@@ -104,7 +117,7 @@ impl FactLog for S2Log {
             .with_start(ReadStart::new().with_from(ReadFrom::SeqNum(from)))
             .with_stop(ReadStop::new().with_limits(ReadLimits::new().with_count(count)));
 
-        match self.stream(stream)?.read(input).await {
+        match Self::stream(&self.basin, stream)?.read(input).await {
             Ok(batch) => batch.records.iter().map(to_stored_fact).collect(),
             // s2-lite answers 416 to a read that starts at the tail or past it.
             Err(ReadError::ReadUnwritten(_)) => Ok(Vec::new()),
@@ -113,8 +126,7 @@ impl FactLog for S2Log {
     }
 
     async fn read_tail(&self, stream: &str) -> Result<u64, HostError> {
-        let position = self
-            .stream(stream)?
+        let position = Self::stream(&self.basin, stream)?
             .check_tail()
             .await
             .map_err(|error| to_read_error(stream, &error))?;
@@ -188,18 +200,18 @@ mod tests {
 
     use super::*;
     use crate::test_utils::stub_s2::{
-        STUB_S2_HOST, StubS2State, TurmoilConnector, WRITER_HOST, serve_stub_s2,
+        STUB_S2_HOST, StubFailure, StubS2State, TurmoilConnector, WRITER_HOST, serve_stub_s2,
     };
 
-    const FACT: &str = r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#;
-
-    /// Runs `appends` on a log that reaches the stub over turmoil's simulated network, with the
-    /// reply to the first append held back until it times out, and returns each outcome.
-    fn run_appends_with_first_reply_lost(appends: usize) -> Vec<AppendOutcome> {
-        let state = Arc::new(Mutex::new(StubS2State {
-            records: 0,
-            is_next_reply_held: true,
-        }));
+    /// Runs `appends` of `body` at offset 0 on a log that reaches the stub over turmoil's simulated
+    /// network, releasing any held reply after each one. Returns each outcome, with an error as its
+    /// text, and the stub's state at the end.
+    fn run_appends(
+        state: StubS2State,
+        body: &'static str,
+        appends: usize,
+    ) -> (Vec<Result<AppendOutcome, String>>, StubS2State) {
+        let state = Arc::new(Mutex::new(state));
         let outcomes = Arc::new(Mutex::new(Vec::new()));
         let mut sim = turmoil::Builder::new()
             .simulation_duration(Duration::from_secs(60))
@@ -216,14 +228,18 @@ mod tests {
                 access_token: "unused".to_owned(),
                 basin: "conformance".to_owned(),
             };
-            let client = S2::new_with_connector(build_config(&settings)?, TurmoilConnector)?;
-            let log = S2Log::from_client(&client, &settings.basin)?;
+            let reader = S2::new_with_connector(build_config(&settings)?, TurmoilConnector)?;
+            let writer = S2::new_with_connector(build_append_config(&settings)?, TurmoilConnector)?;
+            let log = S2Log::from_clients(&reader, &writer, &settings.basin)?;
 
             for _ in 0..appends {
-                let outcome = log.append("facts.manual.link", FACT, 0).await?;
+                let outcome = log.append("facts.manual.link", body, 0).await;
 
                 turmoil::release(STUB_S2_HOST, WRITER_HOST);
-                recorded.lock().expect("the outcomes").push(outcome);
+                recorded
+                    .lock()
+                    .expect("the outcomes")
+                    .push(outcome.map_err(|error| error.to_string()));
             }
 
             Ok(())
@@ -231,26 +247,91 @@ mod tests {
 
         sim.run().expect("the simulation");
 
-        outcomes.lock().expect("the outcomes").clone()
+        let outcomes = outcomes.lock().expect("the outcomes").clone();
+        let state = std::mem::take(&mut *state.lock().expect("the state"));
+
+        (outcomes, state)
     }
 
     #[test]
     fn it_reports_an_unknown_outcome_for_an_append_whose_reply_is_lost() {
-        let outcomes = run_appends_with_first_reply_lost(1);
+        let state = StubS2State {
+            is_next_reply_held: true,
+            ..StubS2State::default()
+        };
 
-        assert_eq!(outcomes, vec![AppendOutcome::Unknown]);
+        let (outcomes, _) = run_appends(
+            state,
+            r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+            1,
+        );
+
+        assert_eq!(outcomes, vec![Ok(AppendOutcome::Unknown)]);
     }
 
     #[test]
     fn it_rejects_a_repeat_of_an_append_whose_reply_is_lost_as_a_tail_mismatch() {
-        let outcomes = run_appends_with_first_reply_lost(2);
+        let state = StubS2State {
+            is_next_reply_held: true,
+            ..StubS2State::default()
+        };
+
+        let (outcomes, _) = run_appends(
+            state,
+            r#"{"id":"manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+            2,
+        );
 
         assert_eq!(
             outcomes,
             vec![
-                AppendOutcome::Unknown,
-                AppendOutcome::Rejected(RejectReason::TailMismatch)
+                Ok(AppendOutcome::Unknown),
+                Ok(AppendOutcome::Rejected(RejectReason::TailMismatch))
             ]
+        );
+    }
+
+    #[test]
+    fn it_returns_an_error_for_an_append_the_server_refuses() {
+        let state = StubS2State {
+            failure: Some(StubFailure {
+                status: hyper::StatusCode::FORBIDDEN,
+                code: "permission_denied",
+            }),
+            ..StubS2State::default()
+        };
+
+        let (outcomes, _) = run_appends(
+            state,
+            r#"{"id":"manual:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+            1,
+        );
+
+        assert!(
+            matches!(outcomes.as_slice(), [Err(error)] if error.contains("permission_denied")),
+            "{outcomes:?}"
+        );
+    }
+
+    #[test]
+    fn it_sends_an_append_the_server_fails_once() {
+        let state = StubS2State {
+            failure: Some(StubFailure {
+                status: hyper::StatusCode::SERVICE_UNAVAILABLE,
+                code: "unavailable",
+            }),
+            ..StubS2State::default()
+        };
+
+        let (outcomes, state) = run_appends(
+            state,
+            r#"{"id":"manual:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+            1,
+        );
+
+        assert_eq!(
+            (outcomes, state.appends_received),
+            (vec![Ok(AppendOutcome::Unknown)], 1)
         );
     }
 }

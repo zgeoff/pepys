@@ -163,8 +163,6 @@ fn append_record(
 mod tests {
     use super::*;
 
-    const FACT: &str = r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#;
-
     #[tokio::test]
     async fn it_reports_an_unknown_outcome_for_an_append_whose_reply_is_lost() {
         let log = MemoryLog::new(&["facts.manual.link".to_owned()]);
@@ -172,7 +170,11 @@ mod tests {
         log.lose_next_reply();
 
         let outcome = log
-            .append("facts.manual.link", FACT, 0)
+            .append(
+                "facts.manual.link",
+                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+                0,
+            )
             .await
             .expect("an outcome");
 
@@ -184,7 +186,11 @@ mod tests {
         let log = MemoryLog::new(&["facts.manual.link".to_owned()]);
 
         log.lose_next_reply();
-        log.append("facts.manual.link", FACT, 0)
+        log.append(
+                "facts.manual.link",
+                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+                0,
+            )
             .await
             .expect("an outcome");
 
@@ -198,12 +204,20 @@ mod tests {
         let log = MemoryLog::new(&["facts.manual.link".to_owned()]);
 
         log.lose_next_reply();
-        log.append("facts.manual.link", FACT, 0)
+        log.append(
+                "facts.manual.link",
+                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+                0,
+            )
             .await
             .expect("an outcome");
 
         let outcome = log
-            .append("facts.manual.link", FACT, 0)
+            .append(
+                "facts.manual.link",
+                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
+                0,
+            )
             .await
             .expect("an outcome");
 

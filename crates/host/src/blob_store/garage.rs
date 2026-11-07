@@ -22,12 +22,14 @@ pub struct GarageSettings {
     pub bucket: String,
     pub access_key_id: String,
     pub secret_access_key: String,
+    pub request_timeout: Duration,
 }
 
 pub struct GarageBlobStore {
     bucket: Bucket,
     credentials: Credentials,
     client: Client<HttpConnector, Full<Bytes>>,
+    request_timeout: Duration,
 }
 
 const SIGNATURE_LIFETIME: Duration = Duration::from_mins(1);
@@ -56,10 +58,29 @@ impl GarageBlobStore {
             bucket,
             credentials: Credentials::new(&settings.access_key_id, &settings.secret_access_key),
             client: Client::builder(TokioExecutor::new()).build_http(),
+            request_timeout: settings.request_timeout,
         })
     }
 
+    /// Sends one request, and fails as unavailable when the answer takes longer than the request
+    /// timeout: the HTTP client has no timeout of its own.
     async fn send(
+        &self,
+        method: Method,
+        url: &Url,
+        body: Bytes,
+    ) -> Result<(StatusCode, Bytes), HostError> {
+        tokio::time::timeout(self.request_timeout, self.send_once(method, url, body))
+            .await
+            .map_err(|_| {
+                to_unavailable(format!(
+                    "Garage had no answer after {:?}",
+                    self.request_timeout
+                ))
+            })?
+    }
+
+    async fn send_once(
         &self,
         method: Method,
         url: &Url,
@@ -114,7 +135,7 @@ impl BlobStore for GarageBlobStore {
             .sign(SIGNATURE_LIFETIME);
         let (status, bytes) = self.send(Method::GET, &url, Bytes::new()).await?;
 
-        if status == StatusCode::NOT_FOUND {
+        if is_missing_key(status, &bytes) {
             return Err(HostError::MissingBlob(hash.to_owned()));
         }
 
@@ -125,5 +146,70 @@ impl BlobStore for GarageBlobStore {
         }
 
         Ok(bytes.to_vec())
+    }
+}
+
+/// Garage answers 404 for a missing bucket too, so only a `NoSuchKey` error marks a missing blob.
+fn is_missing_key(status: StatusCode, body: &[u8]) -> bool {
+    status == StatusCode::NOT_FOUND
+        && body
+            .windows(NO_SUCH_KEY.len())
+            .any(|window| window == NO_SUCH_KEY)
+}
+
+const NO_SUCH_KEY: &[u8] = b"<Code>NoSuchKey</Code>";
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_marks_only_a_no_such_key_answer_as_a_missing_blob() {
+        let answers = [
+            (
+                StatusCode::NOT_FOUND,
+                &b"<Error><Code>NoSuchKey</Code></Error>"[..],
+            ),
+            (
+                StatusCode::NOT_FOUND,
+                &b"<Error><Code>NoSuchBucket</Code></Error>"[..],
+            ),
+            (
+                StatusCode::FORBIDDEN,
+                &b"<Error><Code>NoSuchKey</Code></Error>"[..],
+            ),
+        ];
+
+        let missing: Vec<bool> = answers
+            .iter()
+            .map(|(status, body)| is_missing_key(*status, body))
+            .collect();
+
+        assert_eq!(missing, vec![true, false, false]);
+    }
+
+    #[tokio::test]
+    async fn it_reports_a_read_from_a_store_that_never_answers_as_unavailable() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("a port");
+        let address = listener.local_addr().expect("an address");
+        let store = GarageBlobStore::connect(&GarageSettings {
+            endpoint: format!("http://{address}"),
+            region: "garage".to_owned(),
+            bucket: "blobs".to_owned(),
+            access_key_id: "GK0000000000000000000000ab".to_owned(),
+            secret_access_key: "a-secret-for-a-store-that-never-answers".to_owned(),
+            request_timeout: Duration::from_millis(50),
+        })
+        .expect("a store");
+
+        let read = store.read(&"ab".repeat(32)).await;
+
+        assert!(
+            matches!(read, Err(HostError::BlobUnavailable(_))),
+            "{read:?}"
+        );
     }
 }

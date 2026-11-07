@@ -35,7 +35,7 @@ fn is_fact_id(text: &str) -> bool {
     if let Some(rest) = text.strip_prefix("webhook:") {
         return rest
             .split_once(':')
-            .is_some_and(|(source, id)| is_name_part(source) && !id.is_empty());
+            .is_some_and(|(source, id)| is_name_part(source) && is_one_line(id));
     }
 
     ["observation:", "enrichment:", "manual:"]
@@ -48,6 +48,11 @@ fn is_fact_id(text: &str) -> bool {
                         .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
             })
         })
+}
+
+/// Not empty, and free of the characters that end a line for `.` in a JavaScript pattern.
+fn is_one_line(text: &str) -> bool {
+    !text.is_empty() && !text.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
 }
 
 fn is_entity_id(text: &str) -> bool {
@@ -151,6 +156,10 @@ mod tests {
             ("id", r#""not-a-fact-id""#),
             ("id", r#""manual:abc""#),
             ("id", r#""webhook:GitHub:d-1""#),
+            ("id", r#""webhook:github:d\n1""#),
+            ("id", r#""webhook:github:d\r1""#),
+            ("id", r#""webhook:github:d\u20281""#),
+            ("id", r#""webhook:github:d\u20291""#),
             ("type", r#""""#),
             ("v", "2"),
             ("api", "7"),

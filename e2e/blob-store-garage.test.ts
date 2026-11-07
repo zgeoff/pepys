@@ -23,7 +23,14 @@ function setupTest() {
   );
 
   return {
-    store: createGarageBlobStore({ endpoint, region, bucket, accessKeyID, secretAccessKey }),
+    store: createGarageBlobStore({
+      endpoint,
+      region,
+      bucket,
+      accessKeyID,
+      secretAccessKey,
+      requestTimeoutMs: 5000,
+    }),
   };
 }
 
