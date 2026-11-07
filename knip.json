@@ -43,6 +43,7 @@
   "ignoreDependencies": [
     "@stylistic/eslint-plugin",
     "@zgeoff/agent-hooks",
+    "@zgeoff/diet",
     "@scriptc/runtime-wasm32-wasi",
     "scriptc"
   ]
