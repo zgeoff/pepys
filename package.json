@@ -26,7 +26,7 @@
       "@zgeoff/format-codemod": "0.3.5",
       "@zgeoff/oxlint-config": "0.8.6",
       "@zgeoff/rig": "0.1.6",
-      "@zgeoff/std": "0.4.2",
+      "@zgeoff/std": "0.4.3",
       "elysia": "2.0.0-rc.0",
       "exact-mirror": "1.2.6",
       "knip": "6.43.0",
