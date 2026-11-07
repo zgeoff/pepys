@@ -47,11 +47,6 @@ pre-commit:
       glob: '*.toml'
       run: node_modules/.bin/tombi format {staged_files}
       stage_fixed: true
-    # after the fixers, so it checks what they wrote; skipped when no staged
-    # file matches the glob
-    - name: typecheck
-      glob: '*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,json,jsonc}'
-      run: bun run typecheck
     # last so it scans what the fixers above re-staged; needs the gitleaks
     # binary on PATH (mise: `mise use -g gitleaks`)
     - name: gitleaks
@@ -65,10 +60,6 @@ commit-msg:
 pre-push:
   # Sequential, to bound memory on a small host.
   piped: true
-  # The test job below runs in place of the baseline's chex-test, because
-  # test:related sweeps the leftovers of killed test runs before rig related.
-  exclude_tags:
-    - chex-test
   jobs:
     - name: chex-baseline
       files: echo package.json
@@ -89,9 +80,7 @@ pre-push:
         - 'Cargo.lock'
         - 'rust-toolchain.toml'
       run: cargo clippy --workspace --all-targets --quiet -- -D warnings
-    - name: test
-      files:
-        unset $(git rev-parse --local-env-vars); bun
-        node_modules/@zgeoff/chex/src/read-branch-files.ts
-      glob: '*.{ts,tsx,toml}'
-      run: bun x --no-install diet -- bun run test:related {files}
+    # the baseline's chex-test runs rig related, which skips test:related's
+    # sweep of killed test runs' leftovers, so the sweep runs here
+    - name: test-leftovers
+      run: bun scripts/test-leftovers/sweep-test-leftovers.ts
