@@ -1,0 +1,9 @@
+{
+  "title": "reports a missing blob for an unknown hash",
+  "calls": [
+    {
+      "read": { "hash": "1e9235ef9eea62853718d748d756259eb51bfd343feba26b9e2cdd6f3e072d66" },
+      "returns": { "ok": false, "failure": { "reason": "missing" } }
+    }
+  ]
+}

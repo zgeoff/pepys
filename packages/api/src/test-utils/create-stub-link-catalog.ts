@@ -1,6 +1,6 @@
 import { ORPCError, implement } from '@orpc/server';
 import { coreContract } from '@pepys/contract';
-import type { FactLog, StoredFact } from '@pepys/ingest';
+import type { AppendOutcome, FactLog, StoredFact } from '@pepys/ingest';
 import { buildManualFactID, isEntityOfKind } from '@pepys/schema';
 import type {
   ConsumerLink,
@@ -94,7 +94,11 @@ async function writeManualFact(
   stream: StreamName,
   fact: FactEnvelope<unknown>,
 ): Promise<void> {
-  const outcome = await log.append(stream, fact);
+  const tail = await log.readTail(stream);
+
+  const outcome: AppendOutcome = tail.ok
+    ? await log.append(stream, fact, tail.value)
+    : { kind: 'rejected', reason: tail.failure.reason };
 
   const failure = match(outcome)
     .with({ kind: 'acknowledged' }, () => null)

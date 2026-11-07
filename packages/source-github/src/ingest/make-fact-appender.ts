@@ -1,48 +1,59 @@
-import type { FactEnvelope } from '@pepys/schema';
-import { AppendInput, AppendRecord, S2Error } from '@s2-dev/streamstore';
-
-interface AppendTarget {
-  append: (input: AppendInput) => Promise<unknown>;
-}
+import type { AppendOutcome, FactLog } from '@pepys/ingest';
+import type { FactEnvelope, StreamName } from '@pepys/schema';
+import { match } from 'ts-pattern';
 
 interface FactAppenderOptions {
-  stream: AppendTarget;
+  log: FactLog;
+  stream: StreamName;
   maxAttempts: number;
   retryDelayMs: number;
 }
 
-// An append that fails without a definite refusal may still have been stored, so the appender
-// sends it again; the fact ID makes a stored copy harmless to the consumers.
+// Each attempt appends at the tail it reads first. An attempt whose outcome is unknown may still
+// have been stored, so the appender sends the fact again; the fact ID makes a stored copy harmless
+// to the consumers.
 export function makeFactAppender(
   options: FactAppenderOptions,
 ): (fact: FactEnvelope<unknown>) => Promise<void> {
   return async (fact) => {
-    const body = JSON.stringify(fact);
-
     for (let attempt = 1; ; attempt += 1) {
-      try {
-        await options.stream.append(AppendInput.create([AppendRecord.string({ body })]));
+      const outcome = await appendAtTail(options, fact).catch((error: unknown): AppendOutcome => {
+        console.error('an append attempt failed', error);
 
+        return { kind: 'unknown' };
+      });
+
+      const isDone = match(outcome)
+        .with({ kind: 'acknowledged' }, () => true)
+        .with({ kind: 'rejected', reason: 'tail-mismatch' }, () => false)
+        .with({ kind: 'rejected' }, (rejected) => {
+          throw new Error(`the log refused the fact: ${rejected.reason}`);
+        })
+        .with({ kind: 'unknown' }, () => false)
+        .exhaustive();
+
+      if (isDone) {
         return;
-      } catch (error: unknown) {
-        if (isDefiniteRefusal(error) || attempt >= options.maxAttempts) {
-          throw error;
-        }
-
-        await Bun.sleep(options.retryDelayMs * attempt);
       }
+
+      if (attempt >= options.maxAttempts) {
+        throw new Error(`the fact has no acknowledged append after ${attempt} attempts`);
+      }
+
+      await Bun.sleep(options.retryDelayMs * attempt);
     }
   };
 }
 
-// A client error from the server means the record was not stored; 408 and 429 ask for a retry.
-function isDefiniteRefusal(error: unknown): boolean {
-  return (
-    error instanceof S2Error &&
-    error.origin === 'server' &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    error.status !== 408 &&
-    error.status !== 429
-  );
+async function appendAtTail(
+  options: FactAppenderOptions,
+  fact: FactEnvelope<unknown>,
+): Promise<AppendOutcome> {
+  const tail = await options.log.readTail(options.stream);
+
+  if (!tail.ok) {
+    return { kind: 'rejected', reason: tail.failure.reason };
+  }
+
+  return options.log.append(options.stream, fact, tail.value);
 }

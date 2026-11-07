@@ -19,19 +19,23 @@ function setupTest() {
 test("it serves a change message for a review request of the owner's", async () => {
   const ctx = setupTest();
 
-  await ctx.log.append(toTagged<StreamName>('facts.github.pull_request'), {
-    id: toTagged<FactID>('webhook:github:delivery-7'),
-    type: 'pull_request.review_requested',
-    v: 1,
-    api: 'github/2022-11-28',
-    entity: toTagged<EntityID>('github:pr:12'),
-    at: '2026-10-01T08:00:00Z',
-    payload: {
-      action: 'review_requested',
-      pull_request: { id: 12, title: 'Add the harbour map and tides' },
-      requested_reviewer: { id: 4401 },
+  await ctx.log.append(
+    toTagged<StreamName>('facts.github.pull_request'),
+    {
+      id: toTagged<FactID>('webhook:github:delivery-7'),
+      type: 'pull_request.review_requested',
+      v: 1,
+      api: 'github/2022-11-28',
+      entity: toTagged<EntityID>('github:pr:12'),
+      at: '2026-10-01T08:00:00Z',
+      payload: {
+        action: 'review_requested',
+        pull_request: { id: 12, title: 'Add the harbour map and tides' },
+        requested_reviewer: { id: 4401 },
+      },
     },
-  });
+    toTagged<StreamOffset>(0),
+  );
 
   await ctx.waitingOnMe.apply();
 
@@ -65,19 +69,23 @@ test("it serves a change message for a review request of the owner's", async () 
 test('it serves no change message for a review request of someone else', async () => {
   const ctx = setupTest();
 
-  await ctx.log.append(toTagged<StreamName>('facts.github.pull_request'), {
-    id: toTagged<FactID>('webhook:github:delivery-8'),
-    type: 'pull_request.review_requested',
-    v: 1,
-    api: 'github/2022-11-28',
-    entity: toTagged<EntityID>('github:pr:13'),
-    at: '2026-10-01T08:00:00Z',
-    payload: {
-      action: 'review_requested',
-      pull_request: { id: 13, title: 'Mark the reefs' },
-      requested_reviewer: { id: 5150 },
+  await ctx.log.append(
+    toTagged<StreamName>('facts.github.pull_request'),
+    {
+      id: toTagged<FactID>('webhook:github:delivery-8'),
+      type: 'pull_request.review_requested',
+      v: 1,
+      api: 'github/2022-11-28',
+      entity: toTagged<EntityID>('github:pr:13'),
+      at: '2026-10-01T08:00:00Z',
+      payload: {
+        action: 'review_requested',
+        pull_request: { id: 13, title: 'Mark the reefs' },
+        requested_reviewer: { id: 5150 },
+      },
     },
-  });
+    toTagged<StreamOffset>(0),
+  );
 
   await ctx.waitingOnMe.apply();
 

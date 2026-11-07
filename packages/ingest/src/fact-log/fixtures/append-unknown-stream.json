@@ -1,0 +1,22 @@
+{
+  "title": "rejects an append to a stream that does not exist",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "append": {
+        "stream": "facts.github.pull_request",
+        "expectedTail": 0,
+        "fact": {
+          "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T08:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "rejected", "reason": "unknown-stream" }
+    }
+  ]
+}

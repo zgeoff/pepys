@@ -5,9 +5,12 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@pepys/schema": "workspace:*",
-    "@zgeoff/std": "catalog:"
+    "@s2-dev/streamstore": "catalog:",
+    "@zgeoff/std": "catalog:",
+    "tiny-invariant": "catalog:"
   },
   "devDependencies": {
-    "tiny-invariant": "catalog:"
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
   }
 }

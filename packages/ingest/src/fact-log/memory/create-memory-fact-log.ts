@@ -1,35 +1,70 @@
+import { parseFactEnvelope } from '@pepys/schema';
 import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import type { AppendOutcome, FactLog, StoredFact } from '../fact-log.ts';
+import { parseStoredFact } from '../parse-stored-fact.ts';
 
-export function createMemoryFactLog(streams: readonly StreamName[]): FactLog {
-  const facts = new Map<StreamName, StoredFact[]>(streams.map((stream) => [stream, []]));
+export interface MemoryFactLog extends FactLog {
+  // The next append is stored, and its outcome is reported as unknown, as when a reply is lost.
+  loseNextReply: () => void;
+}
+
+interface MemoryRecord {
+  body: string;
+  appendedAtMs: number;
+}
+
+export function createMemoryFactLog(streams: readonly StreamName[]): MemoryFactLog {
+  const records = new Map<StreamName, MemoryRecord[]>(streams.map((stream) => [stream, []]));
+
+  const faults = { isReplyLost: false };
 
   return {
-    append: (stream: StreamName, fact: FactEnvelope<unknown>) =>
-      Promise.resolve(appendFact(facts.get(stream), fact)),
+    append: (stream: StreamName, fact: FactEnvelope<unknown>, expectedTail: StreamOffset) => {
+      const outcome = appendRecord(records.get(stream), fact, expectedTail);
+      const isReplyLost = faults.isReplyLost && outcome.kind === 'acknowledged';
+
+      faults.isReplyLost = false;
+
+      const reply: AppendOutcome = isReplyLost ? { kind: 'unknown' } : outcome;
+
+      return Promise.resolve(reply);
+    },
     read: (stream: StreamName, from: StreamOffset, count: number) =>
-      Promise.resolve(collectStoredFacts(facts.get(stream), from, count)),
-    readTail: (stream: StreamName) => Promise.resolve(getTail(facts.get(stream))),
+      Promise.resolve(collectStoredFacts(records.get(stream), from, count)),
+    readTail: (stream: StreamName) => Promise.resolve(getTail(records.get(stream))),
+    loseNextReply: () => {
+      faults.isReplyLost = true;
+    },
   };
 }
 
-function appendFact(stored: StoredFact[] | undefined, fact: FactEnvelope<unknown>): AppendOutcome {
+function appendRecord(
+  stored: MemoryRecord[] | undefined,
+  fact: FactEnvelope<unknown>,
+  expectedTail: StreamOffset,
+): AppendOutcome {
+  if (!parseFactEnvelope(fact).ok) {
+    return { kind: 'rejected', reason: 'invalid-envelope' };
+  }
+
   if (stored === undefined) {
     return { kind: 'rejected', reason: 'unknown-stream' };
   }
 
-  const offset = toTagged<StreamOffset>(stored.length);
+  if (expectedTail !== stored.length) {
+    return { kind: 'rejected', reason: 'tail-mismatch' };
+  }
 
-  stored.push({ offset, fact: structuredClone(fact) });
+  stored.push({ body: JSON.stringify(fact), appendedAtMs: Date.now() });
 
-  return { kind: 'acknowledged', offset };
+  return { kind: 'acknowledged', offset: toTagged<StreamOffset>(stored.length - 1) };
 }
 
 type StreamRead<Value> = Result<Value, { reason: 'unknown-stream' }>;
 
 function collectStoredFacts(
-  stored: readonly StoredFact[] | undefined,
+  stored: readonly MemoryRecord[] | undefined,
   from: StreamOffset,
   count: number,
 ): StreamRead<readonly StoredFact[]> {
@@ -37,10 +72,17 @@ function collectStoredFacts(
     return { ok: false, failure: { reason: 'unknown-stream' } };
   }
 
-  return { ok: true, value: structuredClone(stored.slice(from, from + count)) };
+  return {
+    ok: true,
+    value: stored
+      .slice(from, from + count)
+      .map((record, index) =>
+        parseStoredFact(toTagged<StreamOffset>(from + index), record.body, record.appendedAtMs),
+      ),
+  };
 }
 
-function getTail(stored: readonly StoredFact[] | undefined): StreamRead<StreamOffset> {
+function getTail(stored: readonly MemoryRecord[] | undefined): StreamRead<StreamOffset> {
   if (stored === undefined) {
     return { ok: false, failure: { reason: 'unknown-stream' } };
   }
