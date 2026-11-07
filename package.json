@@ -74,7 +74,7 @@
     "ci:agent-sdk-bump": "bun scripts/agent-sdk-bump/write-agent-sdk-bump.ts",
     "test:related": "bun scripts/test-leftovers/sweep-test-leftovers.ts && rig related",
     "typecheck": "tsrs -p tsconfig.json --noEmit && bun run --if-present --filter './research/*' typecheck",
-    "check:docs": "chex prose length links skill"
+    "check:docs": "chex prose length links readmes skill"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
