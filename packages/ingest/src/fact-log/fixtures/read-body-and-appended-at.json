@@ -1,0 +1,43 @@
+{
+  "title": "returns each stored fact's body and appended-at time on read",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "fact": {
+          "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T08:00:00Z",
+          "payload": { "evidence": "the email quotes the issue title" }
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 0 }
+    },
+    {
+      "read": { "stream": "facts.manual.link", "from": 0, "count": 10 },
+      "returns": {
+        "ok": true,
+        "value": [
+          {
+            "offset": 0,
+            "body": {
+              "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T08:00:00Z",
+              "payload": { "evidence": "the email quotes the issue title" }
+            },
+            "appendedAtMs": "during-fixture"
+          }
+        ]
+      }
+    }
+  ]
+}

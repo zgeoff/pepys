@@ -1,4 +1,4 @@
-import { noPIDNamespace } from '../test-utils/read-pid-namespace.ts';
+import { noPIDNamespace } from '../utils/read-pid-namespace.ts';
 
 export interface OwnedFolder {
   readonly name: string;

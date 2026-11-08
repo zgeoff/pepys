@@ -1,0 +1,14 @@
+{
+  "title": "rejects a read and a tail read of a stream that does not exist",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "read": { "stream": "facts.github.pull_request", "from": 0, "count": 10 },
+      "returns": { "ok": false, "failure": { "reason": "unknown-stream" } }
+    },
+    {
+      "readTail": { "stream": "facts.github.pull_request" },
+      "returns": { "ok": false, "failure": { "reason": "unknown-stream" } }
+    }
+  ]
+}

@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
 import { createStoreReader, openConsumerDatabase, readOffsets } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
-import { stopProcessGroup } from '../scripts/test-utils/stop-process-group.ts';
+import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
+import { buildStackEnv } from '../stack/build-stack-env.ts';
 import { withStack } from '../stack/with-stack.ts';
 import type { RunningStack } from '../stack/with-stack.ts';
 
@@ -34,12 +35,7 @@ beforeAll(
 
     const stack = await startStack();
 
-    Object.assign(process.env, {
-      PEPYS_S2_ENDPOINT: stack.s2Endpoint,
-      PEPYS_S2_ACCESS_TOKEN: stack.s2AccessToken,
-      PEPYS_S2_BASIN: stack.s2Basin,
-      PEPYS_STORE_DIR: storeDirectory,
-    });
+    Object.assign(process.env, { ...buildStackEnv(stack), PEPYS_STORE_DIR: storeDirectory });
 
     await runSlice({ stack, modulePath, storeDirectory });
 

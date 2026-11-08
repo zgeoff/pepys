@@ -1,0 +1,23 @@
+{
+  "title": "returns the same hash for the same bytes written twice",
+  "calls": [
+    {
+      "write": { "text": "the tide table" },
+      "returns": {
+        "ok": true,
+        "value": "c929402bacafd8efddd0ce5c25693abb670610ab04c78165e79c871eda2b0ef5"
+      }
+    },
+    {
+      "write": { "text": "the tide table" },
+      "returns": {
+        "ok": true,
+        "value": "c929402bacafd8efddd0ce5c25693abb670610ab04c78165e79c871eda2b0ef5"
+      }
+    },
+    {
+      "read": { "hash": "c929402bacafd8efddd0ce5c25693abb670610ab04c78165e79c871eda2b0ef5" },
+      "returns": { "ok": true, "value": { "text": "the tide table" } }
+    }
+  ]
+}

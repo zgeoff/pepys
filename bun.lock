@@ -9,6 +9,7 @@
         "@octokit/webhooks": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/api": "workspace:*",
+        "@pepys/ingest": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
         "@s2-dev/streamstore": "catalog:",
@@ -90,10 +91,13 @@
       "name": "@pepys/ingest",
       "dependencies": {
         "@pepys/schema": "workspace:*",
+        "@s2-dev/streamstore": "catalog:",
         "@zgeoff/std": "catalog:",
+        "tiny-invariant": "catalog:",
+        "ts-pattern": "catalog:",
       },
       "devDependencies": {
-        "tiny-invariant": "catalog:",
+        "zod": "catalog:",
       },
     },
     "packages/kysely-turso": {
@@ -120,12 +124,10 @@
       "name": "@pepys/source-github",
       "dependencies": {
         "@octokit/webhooks": "catalog:",
+        "@pepys/ingest": "workspace:*",
         "@pepys/schema": "workspace:*",
-        "@s2-dev/streamstore": "catalog:",
+        "@zgeoff/std": "catalog:",
         "zod": "catalog:",
-      },
-      "devDependencies": {
-        "tiny-invariant": "catalog:",
       },
     },
     "research/source-retention": {

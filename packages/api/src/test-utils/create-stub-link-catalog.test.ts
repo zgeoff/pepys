@@ -141,6 +141,8 @@ test('it appends an asserted link as one manual fact under the fact ID it return
             evidence: 'the email quotes the issue title',
           },
         },
+        body: expect.any(String),
+        appendedAtMs: expect.any(Number),
       },
     ],
   });

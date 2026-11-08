@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import type { ReadLink } from '../test-utils/read-pid-namespace.ts';
-import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
+import type { ReadLink } from '../utils/read-pid-namespace.ts';
+import { readPIDNamespace } from '../utils/read-pid-namespace.ts';
 import { collectOwnedFolders } from './collect-owned-folders.ts';
 import type { FolderOwnerState } from './pick-abandoned-folders.ts';
 import { pickAbandonedFolders } from './pick-abandoned-folders.ts';

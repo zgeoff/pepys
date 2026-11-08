@@ -2,8 +2,17 @@ import { expect, test } from 'bun:test';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildManualFactID } from './build-manual-fact-id.ts';
+import envelopeCases from './fact-envelope-cases.json' with { type: 'json' };
 import type { ClientID, RequestID } from './ids/ids.ts';
 import { parseFactEnvelope } from './parse-fact-envelope.ts';
+
+// The host's envelope check runs the same cases, so the two checks cannot drift apart unseen.
+test.each(envelopeCases.cases.map((envelopeCase) => [envelopeCase.title, envelopeCase] as const))(
+  'it %s, in the shared envelope cases',
+  (_title, envelopeCase) => {
+    expect(parseFactEnvelope(envelopeCase.envelope).ok).toBe(envelopeCase.isValid);
+  },
+);
 
 test('it accepts an envelope with every field', () => {
   const envelope = {

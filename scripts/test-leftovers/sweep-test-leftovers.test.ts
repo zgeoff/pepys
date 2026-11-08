@@ -2,9 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, readdir, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readPIDNamespace } from '../test-utils/read-pid-namespace.ts';
 import { readRunPrefix } from '../test-utils/read-run-prefix.ts';
-import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
+import { readPIDNamespace } from '../utils/read-pid-namespace.ts';
+import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 async function setupTest() {
   const stack = new AsyncDisposableStack();
