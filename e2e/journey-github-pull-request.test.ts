@@ -12,7 +12,7 @@ import {
 import type { APIClient } from '@pepys/api';
 import { S2 } from '@s2-dev/streamstore';
 import invariant from 'tiny-invariant';
-import { stopProcessGroup } from '../scripts/test-utils/stop-process-group.ts';
+import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 
 function setupTest() {
   const s2Endpoint = process.env['PEPYS_S2_ENDPOINT'];

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
 import { readRunPrefix } from '../test-utils/read-run-prefix.ts';
-import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
+import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 async function setupTest() {
   const stack = new AsyncDisposableStack();

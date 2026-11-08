@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
-import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
+import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 function setupTest() {
   return {

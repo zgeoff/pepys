@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { stopProcessGroup } from '../test-utils/stop-process-group.ts';
+import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 async function setupTest() {
   const stack = new AsyncDisposableStack();
