@@ -20,8 +20,15 @@ metadata:
 
 ## Departures
 
-The GitHub pull request path is the end-to-end path of one fact: a signed GitHub webhook into
-ingest, the host that applies it to a Turso file, and the API that serves the row.
+- Put a test that needs s2-lite or Garage in the `e2e` lane of its language, in place of a
+  `<name>.docker.test.ts` file in the `docker` lane of
+  [Lanes](../testing/references/slow-tests.md#lanes). pepys runs no `docker` lane. The unit run
+  can't hold these tests either: on a machine without the s2-lite image, a pull of the image and a
+  start of s2-lite took 7.9 s, past the 5 s unit limit.
+
+The bullets below apply to the Bun e2e lane only. Besides the adapter fixtures, it runs the GitHub
+pull request path, the end-to-end path of one fact: a signed GitHub webhook into ingest, the host
+that applies it to a Turso file, and the API that serves the row.
 
 - Put a Bun e2e test in the root `e2e/` folder, in place of the package folder in
   [Package layout](../testing/references/system-tests.md#package-layout). No one package builds the
@@ -49,26 +56,29 @@ ingest, the host that applies it to a Turso file, and the API that serves the ro
 
 ## Per-run fixtures
 
-The unit run is `bun run test` for Bun and the default nextest profile for Rust. Its time limit per
-test is the `slow-timeout` in [`nextest.toml`](../../../.config/nextest.toml). Keep these tests in
-it, with a copy of the fixture per test:
+Keep a test in the unit run when the only real system it needs is in the list below, and give each
+test its own copy of that system. Each starts fast enough to keep a test under the 5 s unit limit:
+the `slow-timeout` of the default profile in [`nextest.toml`](../../../.config/nextest.toml) for
+Rust, and Bun's default test timeout for `bun run test`.
 
-- Give a test that needs the Turso store a Turso database in a temporary file.
-- Run a test that needs a network fault on `turmoil`, a Rust crate that simulates the network inside
-  the test process.
-
-Put a test that needs s2-lite or Garage in the `e2e` lane of its language. A runner without the
-s2-lite image takes about 8 s to pull the image and start s2-lite, past the unit limit. Give each
-s2-lite test a basin, the S2 namespace that holds streams, under a name no other test in the run
-uses.
+- For the Turso store, give the test a Turso database in a temporary file.
+- For a network fault in a Rust test, run the test on `turmoil`, a crate that simulates the network
+  inside the test process.
 
 ## Lanes
 
 - Name the module of a Rust test in a lane after the lane, so its test path starts with `e2e::` or
   `model_api::`. A Rust module name takes no hyphen. The host's `e2e` tests live in
   [`crates/host/src/e2e.rs`](../../../crates/host/src/e2e.rs).
-- Read the fact log and blob store fixtures from `packages/ingest/src/<port>/fixtures/`, in both
-  languages, so a change to a port fails the other language's test.
+- Read the shared fixture files of a port from `packages/ingest/src/<port>/fixtures/`, in both
+  languages. `<port>` is `fact-log` or `blob-store`, the ports that the Folders section of
+  [project-code-style](../project-code-style/SKILL.md) defines. Each fixture file then runs against
+  the adapters of both languages. The fact envelope cases in
+  [`fact-envelope-cases.json`](../../../packages/schema/src/fact-envelope-cases.json) work the same
+  way, in the unit run.
+- Give each s2-lite test, in either language, a basin, the S2 namespace that holds streams, under a
+  name no other test in the run uses, such as `conformance-<fixture file name>` in
+  [`e2e.rs`](../../../crates/host/src/e2e.rs).
 
 To run the Bun e2e lane:
 
