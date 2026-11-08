@@ -104,6 +104,10 @@ async function appendFact(
       throw error;
     }
 
+    if (outcome.kind === 'unknown') {
+      console.error('an s2 append has an unknown outcome', error);
+    }
+
     return outcome;
   }
 }
