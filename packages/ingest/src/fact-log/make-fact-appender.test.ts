@@ -3,9 +3,9 @@ import { parseFactEnvelope } from '@pepys/schema';
 import type { FactID, StreamName, StreamOffset } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { buildStubFactLog } from '../test-utils/build-stub-fact-log.ts';
 import { makeFactAppender } from './make-fact-appender.ts';
 import { createMemoryFactLog } from './memory/create-memory-fact-log.ts';
+import { buildStubFactLog } from './test-utils/build-stub-fact-log.ts';
 
 test('it appends the fact as one JSON record', async () => {
   const parsed = parseFactEnvelope({
