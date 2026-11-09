@@ -1,5 +1,5 @@
+import { parseEntityID } from '../entity-ids/parse-entity-id.ts';
 import type { EntityID } from '../ids/types.ts';
-import { parseEntityID } from '../parse-entity-id.ts';
 import type { EntityKind, KindedID } from './link-registry.ts';
 
 export function isEntityOfKind<Kind extends EntityKind>(

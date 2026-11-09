@@ -7,8 +7,7 @@
   },
   "rules": {
     // pepys is ES modules throughout, so a module loads through an import
-    "typescript/no-require-imports": "error",
-    "zgeoff/feature-folders": ["error", { "pending": ["packages/schema"] }]
+    "typescript/no-require-imports": "error"
   },
   "overrides": [
     {
