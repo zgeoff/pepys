@@ -1,4 +1,4 @@
-import type { ClientID, EntityID, FactID, Reference } from '../ids/ids.ts';
+import type { ClientID, EntityID, FactID, Reference } from '../ids/types.ts';
 
 export type EntityKind = `${string}:${string}`;
 

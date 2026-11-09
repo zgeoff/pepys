@@ -3,7 +3,7 @@ import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildManualFactID } from './build-manual-fact-id.ts';
 import envelopeCases from './fact-envelope-cases.json' with { type: 'json' };
-import type { ClientID, RequestID } from './ids/ids.ts';
+import type { ClientID, RequestID } from './ids/types.ts';
 import { parseFactEnvelope } from './parse-fact-envelope.ts';
 
 // The host's envelope check runs the same cases, so the two checks cannot drift apart unseen.

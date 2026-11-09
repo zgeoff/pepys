@@ -1,4 +1,4 @@
-import type { EntityID } from '../ids/ids.ts';
+import type { EntityID } from '../ids/types.ts';
 import { parseEntityID } from '../parse-entity-id.ts';
 import type { EntityKind, KindedID } from './link-registry.ts';
 

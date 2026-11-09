@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { toTagged } from '@zgeoff/std';
 import { buildManualFactID } from './build-manual-fact-id.ts';
-import type { ClientID, RequestID } from './ids/ids.ts';
+import type { ClientID, RequestID } from './ids/types.ts';
 import { parseEntityID } from './parse-entity-id.ts';
 
 test('it starts a manual fact ID with its kind and a sha256 hash', () => {

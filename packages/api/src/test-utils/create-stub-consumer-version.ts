@@ -1,3 +1,4 @@
+// oxlint-disable zgeoff/seed-only -- stands in for the Rust host, which writes the file the store reader reads
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { githubPullRequestSchemaPath } from '@pepys/source-github';

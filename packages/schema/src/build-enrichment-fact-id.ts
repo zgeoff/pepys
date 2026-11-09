@@ -1,6 +1,6 @@
 import { toTagged } from '@zgeoff/std';
 import { buildFactHash } from './build-fact-hash.ts';
-import type { FactID } from './ids/ids.ts';
+import type { FactID } from './ids/types.ts';
 
 interface EnrichmentFactIDParts {
   job: string;
