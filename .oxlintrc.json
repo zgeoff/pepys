@@ -7,9 +7,17 @@
   },
   "rules": {
     // pepys is ES modules throughout, so a module loads through an import
-    "typescript/no-require-imports": "error"
+    "typescript/no-require-imports": "error",
+    "zgeoff/feature-folders": ["error", { "pending": ["packages/schema"] }]
   },
   "overrides": [
+    {
+      // the consumer build finds this file by the consumer's name and calls fixed export names
+      "files": ["packages/source-*/src/consumers/*.ts"],
+      "rules": {
+        "zgeoff/file-named-for-export": "off"
+      }
+    },
     {
       // the fact envelope names its version field `v`, and the log doc fixes that name
       "files": ["packages/*/src/**", "packages/*/integration/**"],

@@ -1,4 +1,4 @@
-import type { EntityID } from './ids/ids.ts';
+import type { EntityID } from './ids/types.ts';
 import type { ColumnDeclaration, TableDeclaration } from './types.ts';
 
 interface KindTypes {

@@ -3,14 +3,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { connect } from '@tursodatabase/database';
-import { createStubConsumerVersion } from './create-stub-consumer-version.ts';
+import { seedConsumerVersion } from './seed-consumer-version.ts';
 
 async function setupTest() {
   const stack = new AsyncDisposableStack();
 
   onTestFinished(() => stack.disposeAsync());
 
-  const directory = await mkdtemp(join(tmpdir(), 'stub-consumer-'));
+  const directory = await mkdtemp(join(tmpdir(), 'consumer-version-'));
 
   stack.defer(() => rm(directory, { recursive: true, force: true }));
 
@@ -22,7 +22,7 @@ test('it writes a consumer file holding the row and the entity view', async () =
 
   const versionDirectory = join(ctx.directory, 'v1');
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory,
     row: {
       id: 'github:pr:5',
@@ -57,7 +57,7 @@ test('it writes the offsets and change log rows it is given beside the row', asy
 
   const versionDirectory = join(ctx.directory, 'v1');
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory,
     row: {
       id: 'github:pr:5',

@@ -1,4 +1,11 @@
-import type { BlobHash, EntityID, FactID, ScopeID, StreamOffset, VersionHash } from '../ids/ids.ts';
+import type {
+  BlobHash,
+  EntityID,
+  FactID,
+  ScopeID,
+  StreamOffset,
+  VersionHash,
+} from '../ids/types.ts';
 import type { EntityKind, LinkEnds, LinkRegistry } from '../link-registry/link-registry.ts';
 import type { FactEnvelope } from '../types.ts';
 

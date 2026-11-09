@@ -1,6 +1,6 @@
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
-import type { EntityID, FactID } from './ids/ids.ts';
+import type { EntityID, FactID } from './ids/types.ts';
 import { parseEntityID } from './parse-entity-id.ts';
 import type { FactEnvelope, Result } from './types.ts';
 

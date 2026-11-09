@@ -7,7 +7,7 @@ import { RPCLink } from '@orpc/client/fetch';
 import { githubPullRequestConsumer } from '@pepys/source-github';
 import { createStoreReader } from '../store-reader/create-store-reader.ts';
 import { openConsumerDatabase } from '../store-reader/open-consumer-database.ts';
-import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
+import { seedConsumerVersion } from '../test-utils/seed-consumer-version.ts';
 import { createApp } from './create-app.ts';
 import type { APIClient } from './create-router.ts';
 
@@ -44,7 +44,7 @@ test('it serves get_entity from the contract: the entity view row, the full row 
 
   const versionDirectory = join(ctx.consumerDirectory, 'v1');
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory,
     row: {
       id: 'github:pr:5',
@@ -148,7 +148,7 @@ test('it answers NOT_FOUND for an entity the consumer does not hold', async () =
 
   const versionDirectory = join(ctx.consumerDirectory, 'v1');
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory,
     row: {
       id: 'github:pr:5',
@@ -207,7 +207,7 @@ test('it serves the new row after the current link is repointed', async () => {
   const secondDirectory = join(ctx.consumerDirectory, 'v2');
   const currentLink = join(ctx.consumerDirectory, 'current');
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
       id: 'github:pr:5',
@@ -228,7 +228,7 @@ test('it serves the new row after the current link is repointed', async () => {
     },
   });
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
       id: 'github:pr:5',

@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
+import { seedConsumerVersion } from '../test-utils/seed-consumer-version.ts';
 import { createStoreReader } from './create-store-reader.ts';
 import { openConsumerDatabase } from './open-consumer-database.ts';
 import { readPullRequests } from './read-pull-requests.ts';
@@ -26,7 +26,7 @@ async function setupTest() {
 test('it reads each stored pull request row of the current version', async () => {
   const ctx = await setupTest();
 
-  await createStubConsumerVersion({
+  await seedConsumerVersion({
     versionDirectory: join(ctx.consumerDirectory, 'v1'),
     row: {
       id: 'github:pr:5',

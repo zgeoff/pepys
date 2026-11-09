@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { toTagged } from '@zgeoff/std';
-import type { EntityID } from '../ids/ids.ts';
+import type { EntityID } from '../ids/types.ts';
 import { isEntityOfKind } from './is-entity-of-kind.ts';
 
 test.each([

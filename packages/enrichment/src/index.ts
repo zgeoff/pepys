@@ -7,4 +7,4 @@ export type {
 
 export { runLabelChallenger } from './champion-challenger/label-challenger.ts';
 export type * from './jobs/job-definition.ts';
-export type * from './strategies/strategies.ts';
+export type * from './strategies/types.ts';
