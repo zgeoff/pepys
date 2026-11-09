@@ -3,7 +3,7 @@ import { mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
-import { seedConsumerVersion } from '../test-utils/seed-consumer-version.ts';
+import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
 import { createStoreReader } from './create-store-reader.ts';
 import { openConsumerDatabase } from './open-consumer-database.ts';
 
@@ -31,7 +31,7 @@ test('it finishes a read that spans a swap of the current link', async () => {
   const secondDirectory = join(ctx.consumerDirectory, 'v2');
   const currentLink = join(ctx.consumerDirectory, 'current');
 
-  await seedConsumerVersion({
+  await createStubConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
       id: 'github:pr:5',
@@ -52,7 +52,7 @@ test('it finishes a read that spans a swap of the current link', async () => {
     },
   });
 
-  await seedConsumerVersion({
+  await createStubConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
       id: 'github:pr:5',
@@ -119,7 +119,7 @@ test('it serves concurrent reads of a new target from one database', async () =>
   const secondDirectory = join(ctx.consumerDirectory, 'v2');
   const currentLink = join(ctx.consumerDirectory, 'current');
 
-  await seedConsumerVersion({
+  await createStubConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
       id: 'github:pr:5',
@@ -140,7 +140,7 @@ test('it serves concurrent reads of a new target from one database', async () =>
     },
   });
 
-  await seedConsumerVersion({
+  await createStubConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
       id: 'github:pr:5',
@@ -195,7 +195,7 @@ test('it keeps one snapshot for a read that spans a commit to the same file', as
 
   const versionDirectory = join(ctx.consumerDirectory, 'v1');
 
-  await seedConsumerVersion({
+  await createStubConsumerVersion({
     versionDirectory,
     row: {
       id: 'github:pr:5',
