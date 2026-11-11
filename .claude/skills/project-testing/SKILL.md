@@ -35,9 +35,10 @@ metadata:
   test in `e2e/` needs it, in place of the setup hook of the `@zgeoff/rig` test runner in
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
   `bun run test:e2e` runs the `e2e/` folder with plain `bun test` and loads `start-stack.ts` first.
-- Leave `lanes` empty in [`rig.config.ts`](../../../rig.config.ts). pepys runs only `bun run test`
-  through the `@zgeoff/rig` test runner, and rig never looks for an `e2e/` folder at the root of a
-  repo with workspaces.
+- Leave `lanes` empty in [`rig.config.ts`](../../../rig.config.ts), in place of the `e2e` entry that
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts) puts there.
+  pepys runs only `bun run test` through the `@zgeoff/rig` test runner, and rig never looks for an
+  `e2e/` folder at the root of a repo with workspaces.
 
 ## Where each test goes
 
