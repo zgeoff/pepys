@@ -321,6 +321,122 @@ mod tests {
             .expect("an integer")
     }
 
+    // Upserts a row of a one-column key of `kind` written as `value`, then deletes it by the same
+    // text, in two batches. Returns the rows left and each change log entry's operation and key.
+    async fn run_upsert_then_delete(
+        kind: &str,
+        sql_type: &str,
+        value: &str,
+    ) -> (i64, Vec<(String, String)>) {
+        let directory = tempfile::tempdir().expect("a temporary directory");
+        let mut manifest = stub_manifest();
+
+        manifest.tables = serde_json::from_value(json!({
+            "item": {
+                "columns": {"id": {"kind": kind, "nullable": false}},
+                "primaryKey": ["id"],
+                "indexes": []
+            }
+        }))
+        .expect("the tables");
+        manifest.schema = format!("CREATE TABLE item (id {sql_type} NOT NULL PRIMARY KEY);");
+
+        let manifest = Arc::new(manifest);
+        let store = open_store(&directory.path().join("consumer.db"))
+            .await
+            .expect("a store");
+
+        prepare_store(&store, &manifest.schema)
+            .await
+            .expect("the schema");
+
+        let mut canned = CannedRunner::new(&[
+            (
+                "a",
+                Ok(format!(r#"[{{"upsert":{{"item":{{"id":{value}}}}}}}]"#)),
+            ),
+            (
+                "b",
+                Ok(format!(r#"[{{"delete":{{"item":{{"id":{value}}}}}}}]"#)),
+            ),
+        ]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the upsert");
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(1, "b")])
+            .await
+            .expect("the delete");
+
+        let mut rows = store
+            .connection
+            .query("SELECT count(*) FROM item", ())
+            .await
+            .expect("a count");
+        let left: i64 = rows
+            .next()
+            .await
+            .expect("a row")
+            .expect("a count row")
+            .get(0)
+            .expect("an integer");
+        let entries = change_log(&store)
+            .await
+            .into_iter()
+            .flat_map(|(_, changes)| changes.as_array().cloned().unwrap_or_default())
+            .map(|entry| {
+                (
+                    entry["headers"]["operation"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_owned(),
+                    entry["key"].as_str().unwrap_or("").to_owned(),
+                )
+            })
+            .collect();
+
+        (left, entries)
+    }
+
+    fn insert_then_delete(key: &str) -> Vec<(String, String)> {
+        vec![
+            ("insert".to_owned(), key.to_owned()),
+            ("delete".to_owned(), key.to_owned()),
+        ]
+    }
+
+    #[tokio::test]
+    async fn it_deletes_a_real_key_halfway_between_two_shortest_texts_by_the_key_it_wrote() {
+        assert_eq!(
+            run_upsert_then_delete("real", "REAL", "1000000000000000.2").await,
+            (0, insert_then_delete("[1000000000000000.2]"))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_deletes_a_real_key_with_a_long_fraction_by_the_key_it_wrote() {
+        assert_eq!(
+            run_upsert_then_delete("real", "REAL", "3713064193725.5859").await,
+            (0, insert_then_delete("[3713064193725.586]"))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_deletes_a_real_key_past_2_to_the_53_by_the_key_it_wrote() {
+        assert_eq!(
+            run_upsert_then_delete("real", "REAL", "9007199254740993").await,
+            (0, insert_then_delete("[9007199254740992]"))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_deletes_a_json_key_written_as_2_0_by_the_key_it_wrote() {
+        assert_eq!(
+            run_upsert_then_delete("json", "TEXT", "2.0").await,
+            (0, insert_then_delete("[2]"))
+        );
+    }
+
     #[tokio::test]
     async fn it_rolls_the_batch_back_when_the_change_log_write_fails() {
         let (_directory, store, manifest) = setup().await;

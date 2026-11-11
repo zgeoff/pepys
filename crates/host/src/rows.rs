@@ -88,18 +88,18 @@ pub fn key_of(table: &str, info: &TableInfo, row: &Row) -> Result<String, HostEr
         })
         .collect::<Result<Vec<Value>, HostError>>()?;
 
-    Ok(format_key_json(&Value::Array(values)))
+    Ok(format_js_json(&Value::Array(values)))
 }
 
-// JSON text as `JSON.stringify` writes it, so that the test store and the host give one key for a
-// value. Each number is a double, written as JavaScript writes one.
-fn format_key_json(value: &Value) -> String {
+// JSON text as `JSON.stringify` writes it, so that the test store and the host give one key and
+// one stored JSON column for a value. Each number is a double, written as JavaScript writes one.
+fn format_js_json(value: &Value) -> String {
     match value {
         Value::Number(number) => number
             .as_f64()
             .map_or_else(|| number.to_string(), format_js_number),
         Value::Array(items) => {
-            let items: Vec<String> = items.iter().map(format_key_json).collect();
+            let items: Vec<String> = items.iter().map(format_js_json).collect();
 
             format!("[{}]", items.join(","))
         }
@@ -107,7 +107,7 @@ fn format_key_json(value: &Value) -> String {
             let entries: Vec<String> = map
                 .iter()
                 .map(|(name, item)| {
-                    format!("{}:{}", Value::String(name.clone()), format_key_json(item))
+                    format!("{}:{}", Value::String(name.clone()), format_js_json(item))
                 })
                 .collect();
 
@@ -117,17 +117,15 @@ fn format_key_json(value: &Value) -> String {
     }
 }
 
-// ECMAScript's Number::toString for a finite double. Rust's `{:e}` gives the same shortest digits
-// that round-trip; JavaScript places the point by the exponent.
+// ECMAScript's Number::toString for a finite double: the shortest digits that round-trip, the
+// point placed by the exponent.
 fn format_js_number(number: f64) -> String {
     if number == 0.0 {
         return "0".to_owned();
     }
 
-    let scientific = format!("{:e}", number.abs());
-    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((&scientific, "0"));
-    let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
-    let point = exponent.parse::<i32>().unwrap_or(0) + 1;
+    let (digits, exponent) = pick_shortest_digits(number.abs());
+    let point = exponent + 1;
     let count = i32::try_from(digits.len()).unwrap_or(i32::MAX);
     let sign = if number < 0.0 { "-" } else { "" };
     let zeros = |count: i32| "0".repeat(usize::try_from(count).unwrap_or(0));
@@ -154,6 +152,79 @@ fn format_js_number(number: f64) -> String {
     };
 
     format!("{sign}{text}")
+}
+
+// The shortest digits of a positive double and the power of ten of the first digit. Rust's `{:e}`
+// gives shortest digits that round-trip, but when the double lies exactly halfway between two such
+// texts it takes the upper one, and ECMAScript takes the one whose last digit is even.
+fn pick_shortest_digits(magnitude: f64) -> (String, i32) {
+    let (digits, exponent) = to_digits_and_exponent(&format!("{magnitude:e}"));
+    // 1100 digits hold the exact expansion of every double.
+    let (exact, exact_exponent) = to_digits_and_exponent(&format!("{magnitude:.1100e}"));
+
+    if exact_exponent != exponent || exact.len() <= digits.len() {
+        return (digits, exponent);
+    }
+
+    let (lower, rest) = exact.split_at(digits.len());
+    let is_halfway = rest.starts_with('5') && rest[1..].bytes().all(|digit| digit == b'0');
+    let upper = increment_digits(lower);
+
+    if !is_halfway || upper.len() != lower.len() {
+        return (digits, exponent);
+    }
+
+    let round_trips = |candidate: &str| {
+        let (first, others) = candidate.split_at(1);
+
+        format!("{first}.{others}e{exponent}").parse::<f64>() == Ok(magnitude)
+    };
+    let even = [lower, upper.as_str()].into_iter().find(|candidate| {
+        candidate
+            .bytes()
+            .last()
+            .is_some_and(|digit| (digit - b'0').is_multiple_of(2))
+            && round_trips(candidate)
+    });
+
+    match even {
+        Some(candidate) => {
+            let trimmed = candidate.trim_end_matches('0');
+
+            (
+                if trimmed.is_empty() { "0" } else { trimmed }.to_owned(),
+                exponent,
+            )
+        }
+        None => (digits, exponent),
+    }
+}
+
+// "1.25e3" as ("125", 3).
+fn to_digits_and_exponent(scientific: &str) -> (String, i32) {
+    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((scientific, "0"));
+
+    (
+        mantissa.chars().filter(char::is_ascii_digit).collect(),
+        exponent.parse().unwrap_or(0),
+    )
+}
+
+// The decimal digits plus one in the last place, such as "129" to "130" and "99" to "100".
+fn increment_digits(digits: &str) -> String {
+    let mut bytes = digits.as_bytes().to_vec();
+
+    for byte in bytes.iter_mut().rev() {
+        if *byte == b'9' {
+            *byte = b'0';
+        } else {
+            *byte += 1;
+
+            return String::from_utf8_lossy(&bytes).into_owned();
+        }
+    }
+
+    format!("1{}", String::from_utf8_lossy(&bytes))
 }
 
 /// The key of a delete operation, which holds the key's columns as a row and no other column.
@@ -236,7 +307,8 @@ fn quote(name: &str) -> String {
 fn to_sql(table: &str, kind: ColumnKind, value: &Value) -> Result<turso::Value, HostError> {
     Ok(match (value, kind) {
         (Value::Null, _) => turso::Value::Null,
-        (_, ColumnKind::Json) => turso::Value::from(serde_json::to_string(value)?),
+        // The text the key holds, so that a JSON key binds what the row stored.
+        (_, ColumnKind::Json) => turso::Value::from(format_js_json(value)),
         (Value::String(text), _) => turso::Value::from(text.as_str()),
         (Value::Bool(flag), _) => turso::Value::from(i64::from(*flag)),
         (Value::Number(number), ColumnKind::Real) => turso::Value::from(
@@ -530,50 +602,53 @@ mod tests {
             "indexes": [],
         }))
         .expect("a table");
-        let keys: Vec<(&str, String)> = [
-            "2.0",
-            "1.25",
-            "1e21",
-            "1e20",
-            "1e-7",
-            "0.000001",
-            "-0.0",
-            "-2.5",
-            "1.5e-7",
-            "9007199254740993",
-            "123456789.125",
-            r#"["a",2.50,true,null]"#,
-        ]
-        .into_iter()
-        .map(|text| {
-            let value: Value = serde_json::from_str(text).expect("a value");
+        let expected: Vec<(&str, &str)> = vec![
+            ("2.0", "[2]"),
+            ("1.25", "[1.25]"),
+            ("1e21", "[1e+21]"),
+            ("1e20", "[100000000000000000000]"),
+            ("1e-7", "[1e-7]"),
+            ("0.000001", "[0.000001]"),
+            ("-0.0", "[0]"),
+            ("-2.5", "[-2.5]"),
+            ("1.5e-7", "[1.5e-7]"),
+            ("123456789.125", "[123456789.125]"),
+            (r#"["a",2.50,true,null]"#, r#"[["a",2.5,true,null]]"#),
+            ("0.30000000000000004", "[0.30000000000000004]"),
+            ("5e-324", "[5e-324]"),
+            ("1.7976931348623157e308", "[1.7976931348623157e+308]"),
+            // Near 2^53, where a double holds no fraction and steps by 2.
+            ("9007199254740993", "[9007199254740992]"),
+            ("9007199254740995", "[9007199254740996]"),
+            ("9007199254740991.5", "[9007199254740992]"),
+            ("4503599627370495.5", "[4503599627370495.5]"),
+            // Long texts that a fast float parse rounds to a neighbouring double.
+            ("3713064193725.5859", "[3713064193725.586]"),
+            ("1.5515404846519232e-9", "[1.5515404846519232e-9]"),
+            ("-0.0038866138458251956", "[-0.0038866138458251956]"),
+            // Doubles halfway between two shortest texts: JavaScript takes the even last digit.
+            ("1000000000000000.2", "[1000000000000000.2]"),
+            ("83897829055786.125", "[83897829055786.12]"),
+            ("95844.268798828125", "[95844.26879882812]"),
+        ];
+        let keys: Vec<(&str, String)> = expected
+            .iter()
+            .map(|(text, _)| {
+                let value: Value = serde_json::from_str(text).expect("a value");
 
-            (
-                text,
-                key_of("item", &info, &row(json!({ "id": value }))).expect("a key"),
-            )
-        })
-        .collect();
+                (
+                    *text,
+                    key_of("item", &info, &row(json!({ "id": value }))).expect("a key"),
+                )
+            })
+            .collect();
 
         assert_eq!(
             keys,
-            vec![
-                ("2.0", "[2]".to_owned()),
-                ("1.25", "[1.25]".to_owned()),
-                ("1e21", "[1e+21]".to_owned()),
-                ("1e20", "[100000000000000000000]".to_owned()),
-                ("1e-7", "[1e-7]".to_owned()),
-                ("0.000001", "[0.000001]".to_owned()),
-                ("-0.0", "[0]".to_owned()),
-                ("-2.5", "[-2.5]".to_owned()),
-                ("1.5e-7", "[1.5e-7]".to_owned()),
-                ("9007199254740993", "[9007199254740992]".to_owned()),
-                ("123456789.125", "[123456789.125]".to_owned()),
-                (
-                    r#"["a",2.50,true,null]"#,
-                    r#"[["a",2.5,true,null]]"#.to_owned()
-                ),
-            ]
+            expected
+                .iter()
+                .map(|(text, key)| (*text, (*key).to_owned()))
+                .collect::<Vec<(&str, String)>>()
         );
     }
 

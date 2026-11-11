@@ -21,7 +21,10 @@ rusty-s3 = { version = "=0.11.0", default-features = false, features = ["rustcry
 s2-api = "=0.32.1"
 s2-sdk = "=0.35.3"
 serde = { version = "=1.0.229", features = ["derive"] }
-serde_json = "=1.0.154"
+# float_roundtrip parses each number to the nearest double, as JavaScript's JSON.parse does. The
+# default parse is faster and can land one double off, which gives a row a key that TypeScript
+# readers do not give it.
+serde_json = { version = "=1.0.154", features = ["float_roundtrip"] }
 sha2 = "=0.11.1"
 tempfile = "=3.27.0"
 thiserror = "=2.0.21"

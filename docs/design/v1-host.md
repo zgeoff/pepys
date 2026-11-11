@@ -198,12 +198,10 @@ what the scope no longer returns.
 | `duplicate-link` | one link key twice in one scope result                                                  |
 | `scope-conflict` | a row or a link of the consumer that another scope owns, or a link stored with no scope |
 
-`not-owned` is about tables: the consumer wrote outside its own. `scope-conflict` is about rows in
-the consumer's own tables: another scope of the same consumer holds the row or the link.
-
-- **Numbers.** An integer column refuses a fraction or an exponent, even `5.0`, and a number that
-  fails `Number.isSafeInteger`. A REAL column and a link's confidence compare as floats, so `2` and
-  `2.0` are one value and one key. A JSON column compares as a value, whatever its key order.
+- **Numbers.** The host reads each number as the double that `JSON.parse` gives. An integer column
+  refuses a fraction or an exponent, even `5.0`, and a number that fails `Number.isSafeInteger`. A
+  REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value and one key.
+  A JSON column stores the text that `JSON.stringify` writes, and compares as a value.
 - **Row entries.** A written row gives `{ type: <table>, key, value, headers: { operation } }`, with
   the operation `insert` or `update`. An update adds `old_value`, the stored row. The key is the
   list of the key's values as `JSON.stringify` writes it. A deleted row gives no `value`: it gives
