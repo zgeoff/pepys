@@ -28,6 +28,8 @@ bun add @pepys/source-telemetry
 - `telemetryPlugin`: the plug-in, to add to a deployment.
 - `telemetryModelRequestConsumer` and `telemetryTurnCostConsumer`: the consumers of the log record
   facts, with their SQL schemas.
+- `sessionModelRequestsQuery`: the query `telemetry_session_model_requests`, which returns the model
+  requests of one session that the named sender stored.
 
 ## Documentation
 

@@ -2,6 +2,7 @@ import { definePlugin, defineSource } from '@pepys/kit';
 import { logRecordFamily } from './log-record-family.ts';
 import { receiveOtlpLogs } from './otlp/receive-otlp-logs.ts';
 import { products } from './products/products.ts';
+import { sessionModelRequestsQuery } from './queries/session-model-requests-query.ts';
 import { telemetryModelRequestConsumer } from './telemetry-model-request-consumer.ts';
 import { telemetryTurnCostConsumer } from './telemetry-turn-cost-consumer.ts';
 
@@ -39,4 +40,5 @@ export const telemetryPlugin = definePlugin({
   name: 'telemetry',
   sources: [telemetrySource],
   consumers: [telemetryModelRequestConsumer, telemetryTurnCostConsumer],
+  queries: [sessionModelRequestsQuery],
 });

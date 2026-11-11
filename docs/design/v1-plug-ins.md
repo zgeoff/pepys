@@ -85,6 +85,10 @@ list and one more case in each consumer, and the consumer does not compile until
 `telemetry:session` is an entity kind with no table. A link may point at a session, and `get_entity`
 finds none.
 
+**The query.** `telemetry_session_model_requests` returns the model requests of one session, oldest
+first. The caller names the sender that owns the session, as an issuer and a subject, and the query
+leaves out each row whose origin is another sender.
+
 ## GitHub
 
 Sketch: [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts), places 4 and 5, types B,
