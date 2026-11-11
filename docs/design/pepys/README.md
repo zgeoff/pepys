@@ -7,7 +7,9 @@ question it exists to answer is "what is waiting on me, across everything?". Eve
 design follows from one split: facts are kept forever and never change, and everything built from
 them can be deleted and rebuilt by replaying the facts.
 
-GitHub and Gmail are the first two sources, and these docs use them as their examples.
+GitHub and Gmail are the first two sources, and these docs use them as their examples. The first
+version builds a part of this design: [pepys v1](../v1.md) describes that part, and it is right
+where the two differ.
 
 ## Principles
 
@@ -59,23 +61,24 @@ pepys is built from three kinds of package:
 - **The deployment package** picks the sources and holds what is personal to the owner: the owner's
   identity, queries such as "waiting on me", and consumers that only the owner wants.
 
-| Package or Rust crate  | Kind       | Holds                                                                                                                          | Design doc                       |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| `@pepys/contract`      | core       | the oRPC contracts: API queries and writes, and the admin routes                                                               | [API](./api.md)                  |
-| `@pepys/cli`           | core       | the `pepys` CLI, which calls the admin routes                                                                                  | [Runtime](./runtime.md#the-cli)  |
-| `@pepys/schema`        | core       | the API that declares consumers and tables, and the generator                                                                  | [Consumers](./consumers.md)      |
-| `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in                                                                  | [Ingest](./ingest.md)            |
-| `@pepys/enrichment`    | core       | the enrichment jobs, the model clients they call, the schema of the job version files, and the champion-and-challenger drivers | [Enrichment](./enrichment.md)    |
-| `@pepys/compaction`    | core       | the compaction job that copies the log to the lake                                                                             | [History](./history.md#the-lake) |
-| `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes                                                                | [API](./api.md)                  |
-| `@pepys/kysely-turso`  | core       | the Kysely dialect for Turso                                                                                                   | [Store](./store.md)              |
-| `@pepys/source-<name>` | source     | one source, such as `source-github` or `source-gmail`                                                                          | [Ingest](./ingest.md)            |
-| `@pepys/deployment`    | deployment | the owner's identity, sources, queries and consumers, the API's entry file, and the enrichment job version files               | [Entities](./entities.md#people) |
-| `pepys-host`           | core crate | the host, which runs consumers and swaps in their new versions                                                                 | [Host](./host.md)                |
-| `pepys-schema`         | core crate | the Rust types generated from `@pepys/schema`                                                                                  | [Consumers](./consumers.md)      |
+| Package or Rust crate  | Kind       | Holds                                                                                                                             | Design doc                                           |
+| ---------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `@pepys/contract`      | core       | the oRPC contracts: API queries and writes, and the admin routes                                                                  | [API](./api.md)                                      |
+| `@pepys/cli`           | core       | the `pepys` CLI, which builds a deployment's consumers and calls the admin routes                                                 | [Runtime](./runtime.md#the-cli)                      |
+| `@pepys/kit`           | core       | the API that declares sources, consumers, link types, queries, plug-ins and deployments, the deployment check, and the generators | [pepys v1](../v1.md#the-kit-and-the-testing-package) |
+| `@pepys/testing`       | core       | the test store that runs a consumer and a query with no host                                                                      | [pepys v1](../v1.md#the-kit-and-the-testing-package) |
+| `@pepys/schema`        | core       | the types of the consumer manifest that the build writes and the host reads                                                       | [pepys v1](../v1-host.md#the-manifest)               |
+| `@pepys/ingest`        | core       | the shared ingest code and the interface each source fills in                                                                     | [Ingest](./ingest.md)                                |
+| `@pepys/enrichment`    | core       | the enrichment jobs, the model clients they call, the schema of the job version files, and the champion-and-challenger drivers    | [Enrichment](./enrichment.md)                        |
+| `@pepys/compaction`    | core       | the compaction job that copies the log to the lake                                                                                | [History](./history.md#the-lake)                     |
+| `@pepys/api`           | core       | the API server, its auth, and the reader of the store's changes                                                                   | [API](./api.md)                                      |
+| `@pepys/kysely-turso`  | core       | the Kysely dialect for Turso                                                                                                      | [Store](./store.md)                                  |
+| `@pepys/source-<name>` | source     | one source, such as `source-github` or `source-gmail`                                                                             | [Ingest](./ingest.md)                                |
+| `@pepys/deployment`    | deployment | the owner's identity, sources, queries and consumers, the API's entry file, and the enrichment job version files                  | [Entities](./entities.md#people)                     |
+| `pepys-host`           | core crate | the host, which runs consumers and swaps in their new versions                                                                    | [Host](./host.md)                                    |
 
-A source package depends on `@pepys/schema` and `@pepys/ingest`. A core package never imports a
-source package or the deployment package.
+A source package depends on `@pepys/kit`. A core package never imports a source package or the
+deployment package.
 
 ## Design docs
 

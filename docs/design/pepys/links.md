@@ -19,8 +19,8 @@ has a retraction, from any origin. Queries read that view, and each query sets i
 threshold.
 
 A link's target is a global ID or a reference as the text wrote it. No foreign key ties the two
-ends, so a link to `github:pr:1874433021` exists before the pull request arrives, and the join fills
-in when the pull request lands.
+ends, so a link to `github:pull_request:1874433021` exists before the pull request arrives, and the
+join fills in when the pull request lands.
 
 ## Two shapes of link
 

@@ -26,9 +26,9 @@ detail, and the `kind` column already answers cross-source questions.
 ## IDs and aliases
 
 An entity ID has the form `<source>:<kind>:<id>`, built from the source's database ID:
-`github:pr:1874433021`, `github:user:583231`, `gmail:msg:18c4f2a9b01e`. Database IDs survive a
-repository rename or a login change, which readable forms such as `acme/api#412` do not. A kind is
-lowercase with `_` between words, such as `review_comment`.
+`github:pull_request:1874433021`, `github:user:583231`, `gmail:msg:18c4f2a9b01e`. Database IDs
+survive a repository rename or a login change, which readable forms such as `acme/api#412` do not. A
+kind is lowercase with `_` between words, such as `review_comment`.
 
 Two kinds of entity have no database ID:
 

@@ -30,11 +30,11 @@ A consumer reads four things from the host:
 
 A blob read is pure because a hash always names the same bytes.
 
-Writes come back as data: a list of operations, each an upsert or a delete of one row in one table.
-The consumer never writes. This shape has three effects. The host checks ownership on a list before
-anything is written. Running two module versions on the same facts and comparing their operation
-lists gives a diff of the versions. A test passes in facts and asserts the returned operations, with
-no database.
+Writes come back as data: a list of operations, each an upsert or a delete of one row in one table,
+or a link or an unlink between two entities. The consumer never writes. This shape has three
+effects. The host checks ownership on a list before anything is written. Running two module versions
+on the same facts and comparing their operation lists gives a diff of the versions. A test passes in
+facts and asserts the returned operations, with no database.
 
 ## Input modes
 
@@ -75,10 +75,11 @@ log.
 ## One schema source
 
 The consumer declarations are the single source for four generated artifacts: the interface of the
-module boundary, the Rust types the host uses, the Kysely types the API queries with, and the SQLite
-schema of each consumer file. A table cannot have one shape in TypeScript and another in Rust. The
-interface is generated glue: the host's Rust import and export bindings over module memory, and the
-consumer's TypeScript declarations of the read imports.
+module boundary, the manifest that the host reads, the Kysely types the API queries with, and the
+SQLite schema of each consumer file. The host takes each table's columns from the manifest and
+checks a new file against them, so a table cannot have one shape in TypeScript and another in the
+host. The interface is generated glue: the consumer's TypeScript declarations of the read imports,
+whose symbols the manifest holds for the host.
 
 ## Compiler
 
