@@ -10,6 +10,8 @@ use crate::batch::FactRunner;
 use crate::clock;
 use crate::consumer::ConsumerSpec;
 use crate::error::HostError;
+use crate::manifest::{ConsumerManifest, Read};
+use crate::scope::{FactSource, ScopeRunner};
 
 /// Serves the consumer's row reads. The host answers a read with the JSON of the stored row.
 pub trait RowSource: Send + Sync {
@@ -68,32 +70,114 @@ impl ModuleRunner {
     }
 
     fn instantiate(&self, rows: Arc<dyn RowSource>) -> Result<(Store<Host>, Instance), HostError> {
-        let host = Host {
-            wasi: clock::build_context().build_p1(),
+        let reads: Vec<(&str, &str)> = self
+            .spec
+            .reads
+            .iter()
+            .map(|read| (read.length, read.into))
+            .collect();
+
+        instantiate_module(
+            &self.engine,
+            &self.module,
+            &reads,
+            &format!("{}_init", self.spec.name),
             rows,
-        };
-        let mut store = Store::new(&self.engine, host);
-        let mut linker: Linker<Host> = Linker::new(&self.engine);
+        )
+    }
+}
 
-        p1::add_to_linker_sync(&mut linker, |host| &mut host.wasi)?;
+fn instantiate_module(
+    engine: &Engine,
+    module: &Module,
+    reads: &[(&str, &str)],
+    init: &str,
+    rows: Arc<dyn RowSource>,
+) -> Result<(Store<Host>, Instance), HostError> {
+    let host = Host {
+        wasi: clock::build_context().build_p1(),
+        rows,
+    };
+    let mut store = Store::new(engine, host);
+    let mut linker: Linker<Host> = Linker::new(engine);
 
-        for read in self.spec.reads {
-            linker.func_wrap("scriptc", read.length, read_row_length)?;
-            linker.func_wrap("scriptc", read.into, read_row_into)?;
-        }
+    p1::add_to_linker_sync(&mut linker, |host| &mut host.wasi)?;
 
-        linker.func_wrap("scriptc", "panic", panic)?;
+    for (length, into) in reads {
+        linker.func_wrap("scriptc", length, read_row_length)?;
+        linker.func_wrap("scriptc", into, read_row_into)?;
+    }
 
-        let instance = linker.instantiate(&mut store, &self.module)?;
+    linker.func_wrap("scriptc", "panic", panic)?;
 
-        instance
-            .get_typed_func::<(), ()>(&mut store, "_initialize")?
-            .call(&mut store, ())?;
-        instance
-            .get_typed_func::<(), ()>(&mut store, &format!("{}_init", self.spec.name))?
-            .call(&mut store, ())?;
+    let instance = linker.instantiate(&mut store, module)?;
 
-        Ok((store, instance))
+    instance
+        .get_typed_func::<(), ()>(&mut store, "_initialize")?
+        .call(&mut store, ())?;
+    instance
+        .get_typed_func::<(), ()>(&mut store, init)?
+        .call(&mut store, ())?;
+
+    Ok((store, instance))
+}
+
+/// SPIKE: a scope consumer's module, linked by the symbols its manifest names.
+pub struct ScopeModuleRunner {
+    engine: Engine,
+    module: Module,
+    manifest: Arc<ConsumerManifest>,
+}
+
+impl ScopeModuleRunner {
+    /// # Errors
+    /// Fails when the bytes are not a valid module.
+    pub fn new(bytes: &[u8], manifest: Arc<ConsumerManifest>) -> Result<Self, HostError> {
+        let engine = Engine::default();
+        let module = Module::new(&engine, bytes)?;
+
+        Ok(Self {
+            engine,
+            module,
+            manifest,
+        })
+    }
+}
+
+// The scope read has the ABI of the row read: `length(key) -> f64`, then `into(key, buffer)`.
+struct ScopeFacts(Arc<dyn FactSource>);
+
+impl RowSource for ScopeFacts {
+    fn read_row(&self, key: &str) -> Result<Option<Vec<u8>>, HostError> {
+        self.0.read_scope_facts(key).map(Some)
+    }
+}
+
+impl ScopeRunner for ScopeModuleRunner {
+    fn apply_scope(
+        &mut self,
+        scope: &str,
+        facts: Arc<dyn FactSource>,
+    ) -> Result<String, HostError> {
+        let reads: Vec<(&str, &str)> = self
+            .manifest
+            .imports
+            .iter()
+            .map(|read| match read {
+                Read::Row { length, into, .. } | Read::ScopeFacts { length, into } => {
+                    (length.as_str(), into.as_str())
+                }
+            })
+            .collect();
+        let (mut store, instance) = instantiate_module(
+            &self.engine,
+            &self.module,
+            &reads,
+            &self.manifest.exports.init,
+            Arc::new(ScopeFacts(facts)),
+        )?;
+
+        call_string_export(&mut store, &instance, &self.manifest.exports.apply, scope)
     }
 }
 

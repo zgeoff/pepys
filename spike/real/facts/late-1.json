@@ -1,0 +1,1 @@
+[{"id":"event:boxxy:0193a1b2-0000-7000-9000-000000000001","type":"boxxy.attempt.started","v":1,"api":"boxxy/1","entity":"boxxy:item:0193a1b2-0000-7000-8000-000000000001","actor":"boxxy:runner:r-1","at":"2026-11-11T02:01:05.000Z","payload":{"atcSession":"s-triage","attempt":"0193a1b2-0000-7000-8000-0000000000a1","storeVersion":1}}]

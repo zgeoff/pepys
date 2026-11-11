@@ -67,6 +67,30 @@ pub async fn prepare_store(store: &Store, consumer_schema: &str) -> Result<(), H
     Ok(())
 }
 
+// SPIKE: the two tables the design's host makes for scope mode and links (part E).
+const SCOPE_TABLES: &str = "
+CREATE TABLE IF NOT EXISTS scope_row (table_name TEXT NOT NULL, key TEXT NOT NULL, scope TEXT NOT NULL,
+                        PRIMARY KEY (table_name, key));
+CREATE INDEX IF NOT EXISTS scope_row_scope_idx ON scope_row (scope);
+CREATE TABLE IF NOT EXISTS link (type TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL,
+                   scope TEXT, origin TEXT NOT NULL,
+                   confidence REAL NOT NULL, evidence TEXT NOT NULL,
+                   PRIMARY KEY (type, from_id, to_id));
+CREATE INDEX IF NOT EXISTS link_to_id_idx ON link (to_id);
+CREATE INDEX IF NOT EXISTS link_scope_idx ON link (scope);
+";
+
+/// SPIKE: [`prepare_store`] for a manifest consumer, then the scope and link tables.
+///
+/// # Errors
+/// Fails when a statement fails.
+pub async fn prepare_scope_store(store: &Store, consumer_schema: &str) -> Result<(), HostError> {
+    prepare_store(store, consumer_schema).await?;
+    store.connection.execute_batch(SCOPE_TABLES).await?;
+
+    Ok(())
+}
+
 /// The sequence number of the last record applied from `stream`, or `None` before the first.
 ///
 /// # Errors

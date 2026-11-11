@@ -1,0 +1,221 @@
+{
+  "name": "boxxy_work",
+  "input": {
+    "mode": "scope",
+    "scopeKind": "boxxy:item",
+    "streams": [
+      "facts.boxxy.work"
+    ]
+  },
+  "exports": {
+    "init": "boxxy_work_init",
+    "apply": "boxxy_work_apply_scope"
+  },
+  "imports": [
+    {
+      "kind": "scope_facts",
+      "length": "readScopeFactsLength",
+      "into": "readScopeFactsInto"
+    }
+  ],
+  "tables": {
+    "boxxy_item": {
+      "columns": {
+        "id": {
+          "kind": "entityID",
+          "nullable": false
+        },
+        "kind": {
+          "kind": "text",
+          "nullable": false
+        },
+        "repo": {
+          "kind": "text",
+          "nullable": false
+        },
+        "title": {
+          "kind": "text",
+          "nullable": false
+        },
+        "design_mode": {
+          "kind": "text",
+          "nullable": true
+        },
+        "filed_at": {
+          "kind": "timestamp",
+          "nullable": false
+        },
+        "closed_at": {
+          "kind": "timestamp",
+          "nullable": true
+        },
+        "close_reason": {
+          "kind": "text",
+          "nullable": true
+        },
+        "updated_at": {
+          "kind": "timestamp",
+          "nullable": false
+        }
+      },
+      "primaryKey": [
+        "id"
+      ],
+      "indexes": []
+    },
+    "boxxy_attempt": {
+      "columns": {
+        "id": {
+          "kind": "entityID",
+          "nullable": false
+        },
+        "item_id": {
+          "kind": "entityID",
+          "nullable": false
+        },
+        "phase": {
+          "kind": "text",
+          "nullable": false
+        },
+        "number": {
+          "kind": "integer",
+          "nullable": false
+        },
+        "round": {
+          "kind": "integer",
+          "nullable": false
+        },
+        "mode": {
+          "kind": "text",
+          "nullable": false
+        },
+        "pool": {
+          "kind": "text",
+          "nullable": false
+        },
+        "recipe_hash": {
+          "kind": "text",
+          "nullable": false
+        },
+        "rules_version": {
+          "kind": "text",
+          "nullable": false
+        },
+        "atc_session": {
+          "kind": "text",
+          "nullable": true
+        },
+        "state": {
+          "kind": "text",
+          "nullable": false
+        },
+        "outcome": {
+          "kind": "text",
+          "nullable": true
+        },
+        "failure": {
+          "kind": "text",
+          "nullable": true
+        },
+        "claimed_at": {
+          "kind": "timestamp",
+          "nullable": false
+        },
+        "started_at": {
+          "kind": "timestamp",
+          "nullable": true
+        },
+        "closed_out_at": {
+          "kind": "timestamp",
+          "nullable": true
+        },
+        "ended_at": {
+          "kind": "timestamp",
+          "nullable": true
+        },
+        "sleeps": {
+          "kind": "json",
+          "nullable": false
+        },
+        "updated_at": {
+          "kind": "timestamp",
+          "nullable": false
+        }
+      },
+      "primaryKey": [
+        "id"
+      ],
+      "indexes": [
+        [
+          "item_id"
+        ]
+      ]
+    },
+    "boxxy_attempt_session": {
+      "columns": {
+        "attempt_id": {
+          "kind": "entityID",
+          "nullable": false
+        },
+        "session_id": {
+          "kind": "entityID",
+          "nullable": false
+        },
+        "key": {
+          "kind": "text",
+          "nullable": false
+        },
+        "product": {
+          "kind": "text",
+          "nullable": true
+        },
+        "bound_at": {
+          "kind": "timestamp",
+          "nullable": false
+        }
+      },
+      "primaryKey": [
+        "attempt_id",
+        "session_id"
+      ],
+      "indexes": [
+        [
+          "session_id"
+        ]
+      ]
+    }
+  },
+  "links": [
+    {
+      "name": "ran_in",
+      "from": [
+        "boxxy:attempt"
+      ],
+      "to": [
+        "telemetry:session"
+      ],
+      "hub": false
+    },
+    {
+      "name": "produced",
+      "from": [
+        "boxxy:attempt"
+      ],
+      "to": [
+        "github:pull_request"
+      ],
+      "hub": false
+    },
+    {
+      "name": "attempt_of",
+      "from": [
+        "boxxy:attempt"
+      ],
+      "to": [
+        "boxxy:item"
+      ],
+      "hub": false
+    }
+  ],
+  "schema": "CREATE TABLE \"boxxy_item\" (\n  \"id\" TEXT NOT NULL,\n  \"kind\" TEXT NOT NULL,\n  \"repo\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"design_mode\" TEXT,\n  \"filed_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"close_reason\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE TABLE \"boxxy_attempt\" (\n  \"id\" TEXT NOT NULL,\n  \"item_id\" TEXT NOT NULL,\n  \"phase\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"round\" INTEGER NOT NULL,\n  \"mode\" TEXT NOT NULL,\n  \"pool\" TEXT NOT NULL,\n  \"recipe_hash\" TEXT NOT NULL,\n  \"rules_version\" TEXT NOT NULL,\n  \"atc_session\" TEXT,\n  \"state\" TEXT NOT NULL,\n  \"outcome\" TEXT,\n  \"failure\" TEXT,\n  \"claimed_at\" TEXT NOT NULL,\n  \"started_at\" TEXT,\n  \"closed_out_at\" TEXT,\n  \"ended_at\" TEXT,\n  \"sleeps\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"boxxy_attempt_item_id_idx\" ON \"boxxy_attempt\" (\"item_id\");\n\nCREATE TABLE \"boxxy_attempt_session\" (\n  \"attempt_id\" TEXT NOT NULL,\n  \"session_id\" TEXT NOT NULL,\n  \"key\" TEXT NOT NULL,\n  \"product\" TEXT,\n  \"bound_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"attempt_id\", \"session_id\")\n);\n\nCREATE INDEX \"boxxy_attempt_session_session_id_idx\" ON \"boxxy_attempt_session\" (\"session_id\");\n\nCREATE VIEW \"entity\" AS\nSELECT \"id\" AS \"id\", 'boxxy:item' AS \"kind\", \"title\" AS \"title\", NULL AS \"url\", NULL AS \"actor\", \"updated_at\" AS \"updated_at\" FROM \"boxxy_item\"\nUNION ALL\nSELECT \"id\" AS \"id\", 'boxxy:attempt' AS \"kind\", \"phase\" AS \"title\", NULL AS \"url\", NULL AS \"actor\", \"updated_at\" AS \"updated_at\" FROM \"boxxy_attempt\";\n"
+}

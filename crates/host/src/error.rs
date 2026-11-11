@@ -38,4 +38,27 @@ pub enum HostError {
     Locked(String),
     #[error("{0}")]
     Config(String),
+    // SPIKE: the design's new variants that the scope path needs.
+    #[error("the consumer declares no link type {link_type}")]
+    LinkNotDeclared { link_type: String },
+    #[error("a {link_type} link cannot have {id} as its {end} end")]
+    LinkKinds {
+        link_type: String,
+        end: &'static str,
+        id: String,
+    },
+    #[error("a {link_type} link is refused: {reason}")]
+    LinkValue {
+        link_type: String,
+        reason: &'static str,
+    },
+    #[error("scope {scope} returned {table} {key}, which scope {owner} owns")]
+    ScopeConflict {
+        scope: String,
+        table: String,
+        key: String,
+        owner: String,
+    },
+    #[error("scope {scope} asked for the facts of {asked}")]
+    ForeignScopeRead { scope: String, asked: String },
 }
