@@ -479,7 +479,7 @@ test('it refuses every delivery on a path that needs a sender when no adapter pr
 test('it refuses with 401 a delivery whose sender proof throws, and stores nothing', async () => {
   const ctx = setupTest();
   const log = ctx.createLog();
-  const error = spyOn(console, 'error').mockImplementation(() => null);
+  const error = spyOn(console, 'error').mockImplementation(() => {});
 
   onTestFinished(() => {
     error.mockRestore();

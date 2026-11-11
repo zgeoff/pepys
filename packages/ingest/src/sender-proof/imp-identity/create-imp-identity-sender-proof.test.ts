@@ -19,9 +19,9 @@ function setupTest() {
   const log = createMemoryFactLog([stub.streams.lamp]);
 
   const logged = [
-    spyOn(console, 'error').mockImplementation(() => null),
-    spyOn(console, 'warn').mockImplementation(() => null),
-    spyOn(console, 'log').mockImplementation(() => null),
+    spyOn(console, 'error').mockImplementation(() => {}),
+    spyOn(console, 'warn').mockImplementation(() => {}),
+    spyOn(console, 'log').mockImplementation(() => {}),
   ];
 
   onTestFinished(() => {

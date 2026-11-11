@@ -15,8 +15,8 @@ function setupTest() {
 
   const stream = toTagged<StreamName>('facts.telemetry.log_record');
   const log = createMemoryFactLog([stream]);
-  const warn = spyOn(console, 'warn').mockImplementation(() => null);
-  const error = spyOn(console, 'error').mockImplementation(() => null);
+  const warn = spyOn(console, 'warn').mockImplementation(() => {});
+  const error = spyOn(console, 'error').mockImplementation(() => {});
 
   onTestFinished(() => {
     warn.mockRestore();
