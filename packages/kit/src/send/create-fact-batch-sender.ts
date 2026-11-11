@@ -19,9 +19,9 @@ type FactBatchSender<Source extends SourceDefinition> = (
 
 const defaultFactLimit = 100;
 
-// Signs each batch as the `check` of the source's receive path says, and sends it. A `retry` is
-// every 5xx answer, a timeout or no connection: send the same batch again, unchanged. A `refused`
-// is any other answer that is no success: the batch itself is wrong.
+// Signs each batch as the `check` of the source's receive path says, and sends it. A `retry` is a
+// 502, 503 or 504 answer, a timeout or no connection: send the same batch again, unchanged. A
+// `refused` is any other answer that is no success, 500 included: never resend that batch as it is.
 export function createFactBatchSender<Source extends SourceDefinition>(
   options: FactBatchSenderOptions<Source>,
 ): FactBatchSender<Source> {
@@ -107,8 +107,12 @@ const answerSchema = z.union([
   z.object({ status: z.literal('ignored') }),
 ]);
 
+// Ingest answers 500 for a batch that no resend of the same bytes can store, so only these mean
+// that the same batch may succeed later.
+const retryStatuses: ReadonlySet<number> = new Set([502, 503, 504]);
+
 function pickSendResult(status: number, text: string): Result<{ stored: number }, SendFailure> {
-  if (status >= 500) {
+  if (retryStatuses.has(status)) {
     return { ok: false, failure: { kind: 'retry', reason: `ingest answered ${status}: ${text}` } };
   }
 

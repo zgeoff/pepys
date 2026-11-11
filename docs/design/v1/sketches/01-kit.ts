@@ -154,8 +154,8 @@ const sent = await sendFacts([
 ]);
 
 if (!sent.ok) {
-  // `retry` is EVERY 5xx answer (500 and 503 alike), a timeout, or no connection: send
-  // the same batch again, unchanged. `refused` is a 4xx answer: the batch itself is wrong.
+  // `retry` is a 502, 503 or 504 answer, a timeout, or no connection: send the same batch
+  // again, unchanged. `refused` is any other failure, 500 included: never resend the batch as it is.
   console.error(sent.failure);
 }
 
@@ -575,9 +575,10 @@ export type OutgoingFact<Source extends SourceDefinition> = {
   }[keyof Family['types'] & string];
 }[Source['families'][number]['stream']];
 
-// Every 5xx is `retry`, not only 503. Ingest answers 500 when the log refuses an
-// append for a fault of the deployment, and part of the batch may be stored by then. A sender
-// that dropped the batch as `refused` would lose the rest.
+// A 502, 503 or 504 is `retry`: ingest answers 503 when no append is acknowledged after its
+// tries, and a proxy answers 502 or 504. A 500 is `refused` with its status: ingest answers 500
+// only when a resend of the same bytes fails again, so the sender reports the batch, and part of
+// it may be stored.
 export type SendFailure = { kind: 'refused'; status: number; reason: string } | { kind: 'retry'; reason: string };
 
 // Signs as the `check` of the source's live path says. It refuses, before any request, a list

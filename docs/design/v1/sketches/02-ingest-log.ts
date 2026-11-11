@@ -466,8 +466,10 @@ async function storeBatch(plan: ReadonlyMap<StreamName, readonly (readonly FactE
 //   - "pepys must not accept a batch twice" is therefore met for rows and links, and not met in
 //     the literal sense: ingest answers 200 to a replay. A signed time (a third check kind)
 //     would refuse it; GitHub's scheme has none to check.
-// A batch from another sender: the HMAC secret is the only proof of the sender, one secret per
-// route. A body that passes step c came from a holder of that route's secret.
+// Ingest proves the sender of a fact batch path with the path's HMAC secret, one secret per
+// route: a body that passes step c came from a holder of that secret. On a path that needs a
+// sender, ingest also proves the sender through `SenderProof` (step c1), and refuses with 401
+// when the port proves none.
 declare function hashBody(sent: Uint8Array): Promise<string>;
 declare function rememberBody(recent: ReceiveDependencies['recentBodies'], digest: string, facts: readonly FactEnvelope<unknown>[]): void;
 // For each fact of a NEW body, when the entity's last stored body has

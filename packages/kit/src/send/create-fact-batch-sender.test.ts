@@ -120,7 +120,7 @@ test('it refuses a batch with a wrong secret at the receive path', async () => {
   expect(sent).toStrictEqual({ ok: false, failure: { kind: 'refused', status: 401, reason: '' } });
 });
 
-test.each([500, 502, 503])('it reads a %d answer as a retry', async (status) => {
+test.each([502, 503, 504])('it reads a %d answer as a retry', async (status) => {
   const ctx = setupTest();
 
   const send = createFactBatchSender({
@@ -146,7 +146,7 @@ test.each([500, 502, 503])('it reads a %d answer as a retry', async (status) => 
   });
 });
 
-test.each([400, 401, 413, 422, 302])('it reads a %d answer as a refusal', async (status) => {
+test.each([400, 401, 413, 422, 302, 500])('it reads a %d answer as a refusal', async (status) => {
   const ctx = setupTest();
 
   const send = createFactBatchSender({
