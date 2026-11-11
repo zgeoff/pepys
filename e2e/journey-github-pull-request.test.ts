@@ -72,12 +72,12 @@ function setupTest() {
   };
 }
 
-test("it keeps one copy of each delivery's fact and four records in the stream after four deliveries, one of them a repeat", async () => {
+test('it appends three records after four deliveries, because ingest drops the repeat of a stored body', async () => {
   const ctx = setupTest();
 
   const response = await ctx.readTail();
 
-  expect(response.tail.seqNum).toBe(4);
+  expect(response.tail.seqNum).toBe(3);
 });
 
 test('it stores the row of the newest pull request update, not the older one that arrived out of order', async () => {
@@ -116,7 +116,7 @@ test("it records the stream's last sequence number as the consumer's offset", as
 
   expect(result).toStrictEqual({
     ok: true,
-    value: [{ stream: 'facts.github.pull_request', lastSeqNum: 3 }],
+    value: [{ stream: 'facts.github.pull_request', lastSeqNum: 2 }],
   });
 });
 

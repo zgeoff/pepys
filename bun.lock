@@ -110,6 +110,7 @@
       "name": "@pepys/ingest",
       "dependencies": {
         "@pepys/kit": "workspace:*",
+        "@pepys/schema": "workspace:*",
         "@s2-dev/streamstore": "catalog:",
         "@zgeoff/std": "catalog:",
         "tiny-invariant": "catalog:",
@@ -158,13 +159,15 @@
     "packages/source-github": {
       "name": "@pepys/source-github",
       "dependencies": {
-        "@octokit/webhooks": "catalog:",
         "@pepys/api": "workspace:*",
         "@pepys/ingest": "workspace:*",
         "@pepys/kit": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@zgeoff/std": "catalog:",
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "tiny-invariant": "catalog:",
       },
     },
     "research/source-retention": {

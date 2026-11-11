@@ -2,9 +2,9 @@ import { expect, mock, test } from 'bun:test';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { buildStubFactLog } from '../test-utils/build-stub-fact-log.ts';
 import { makeBatchAppender } from './make-batch-appender.ts';
 import { createMemoryFactLog } from './memory/create-memory-fact-log.ts';
-import { buildStubFactLog } from './test-utils/build-stub-fact-log.ts';
 import { buildTestFact } from './test-utils/build-test-fact.ts';
 
 function setupTest() {

@@ -9,4 +9,10 @@ export { createMemoryFactLog } from './fact-log/memory/create-memory-fact-log.ts
 export type { MemoryFactLog } from './fact-log/memory/create-memory-fact-log.ts';
 export { planAppends } from './fact-log/plan-appends.ts';
 export { createS2FactLog } from './fact-log/s2/create-s2-fact-log.ts';
+export { createIngest } from './receive/create-ingest.ts';
+export type { Ingest, IngestOptions } from './receive/create-ingest.ts';
+export type { ResyncMarks } from './receive/resync-marks/create-resync-marks.ts';
+export { createFakeSenderProof } from './sender-proof/fake/create-fake-sender-proof.ts';
+export { noSenderProof } from './sender-proof/none/no-sender-proof.ts';
+export { serveIngest } from './serve/serve-ingest.ts';
 export type * from './source-port/types.ts';

@@ -230,7 +230,7 @@ async function writeDelivery(url: string, delivery: Delivery): Promise<void> {
     body: delivery.body,
   });
 
-  if (response.status !== 202) {
+  if (response.status !== 200) {
     throw new Error(`ingest answered ${response.status} to ${delivery.deliveryID}`);
   }
 }

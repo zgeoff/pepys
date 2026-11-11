@@ -2,7 +2,7 @@ import { mock } from 'bun:test';
 import type { Mock } from 'bun:test';
 import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
-import type { AppendBatchOutcome, FactLog } from '../fact-log.ts';
+import type { AppendBatchOutcome, FactLog } from '../fact-log/fact-log.ts';
 
 interface StubFactLog extends FactLog {
   appendBatch: Mock<FactLog['appendBatch']>;
