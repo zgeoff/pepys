@@ -120,6 +120,11 @@ release that GitHub no longer has gives a `deleted` fact. A replay cannot set a 
 resync: the fact holds what the API returns at that time, so a replay can cause one API read and
 nothing more.
 
+Ingest keeps the marks of each source with a resync pull in memory, and the pull reads them through
+the `resyncMarks` of the ingest that `createIngest` makes: `list` gives a source's marked entities,
+and `remove` drops one. The pull removes a mark only after the fact it pulled for that entity is
+stored, so a failed pull keeps the mark.
+
 **Deploys.** Two signals report a deploy, and one table holds both: a push that moves a tag that
 matches the deploy tag pattern, and a deployment status of `success`. The pattern is a
 [setting](./v1.md#plug-ins-and-compile-time-settings) of the plug-in, `deployed/<environment>` by

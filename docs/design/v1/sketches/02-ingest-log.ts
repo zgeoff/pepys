@@ -26,7 +26,9 @@ declare type StreamOffset = number;
 //      creates streams in production.
 //   d. mounts one POST route per entry of listReceiveRoutes(deployment), logs the table with
 //      each route's `reach`, and starts every pull timer.
-//   e. listens on PEPYS_INGEST_HOST (default 0.0.0.0) and PEPYS_INGEST_PORT (default 8080).
+//   e. listens on PEPYS_INGEST_HOST (default 127.0.0.1) and PEPYS_INGEST_PORT (default 8080), and
+//      passes the host to Bun.serve every time. A deployment that takes the public GitHub route
+//      sets the host to the address its network rule reaches.
 declare const deployment: Deployment;
 await serveIngest({ deployment, environment: process.env });
 
@@ -37,24 +39,30 @@ await serveIngest({ deployment, environment: process.env });
 test('it stores a fact batch and an OTLP export that come through their routes', async () => {
   const routeLog = createMemoryFactLog(['facts.boxxy.work', 'facts.telemetry.log_record']);
 
-  // `createIngest` is serveIngest without the listener: the routes as one fetch function
+  // `createIngest` is serveIngest without the listener: the routes as one request handler. The
+  // test passes the sender proof: the telemetry path needs a proven sender, and with no proof
+  // it answers 401.
   const ingest = createIngest({
-    deployment: { name: 'stub', plugins: [boxxyPlugin, telemetryPlugin] },
-    environment: { PEPYS_BOXXY_SIGNING_SECRET: 'sign-me', PEPYS_TELEMETRY_TOKEN: 'let-me-in' },
+    deployment: checked({ name: 'stub', plugins: [boxxyPlugin, telemetryPlugin] }),
+    secrets: { PEPYS_BOXXY_SIGNING_SECRET: 'sign-me', PEPYS_TELEMETRY_TOKEN: 'let-me-in' },
     log: routeLog,
+    senderProof: createFakeSenderProof({ 'token-4': { issuer: 'https://id.example', subject: 'worker-4', name: 'worker four' } }),
+    appendRetry: { maxAttempts: 2, retryDelayMs: 0 },
+    now: () => 0,
   });
 
   // the kit's own sender, with its request handed to the route in place of the network
-  const send = createFactBatchSender({ source: boxxySource, url: 'http://ingest.test/boxxy/facts', secret: 'sign-me', fetch: ingest.fetch });
+  const send = createFactBatchSender({ source: boxxySource, url: 'http://ingest.test/boxxy/facts', secret: 'sign-me', fetch: ingest.handleRequest });
 
   // A fact type and IDs that boxxy has. `workFact` is boxxy's test helper: it fills the
   // payload fields the test does not give.
   const sent = await send([workFact('boxxy.attempt.started', 'evt-0001', { attempt: '0193a1b2-0000-7000-8000-0000000000a1', atcSession: 's-9' })]);
 
-  const exported = await ingest.fetch(
+  const exported = await ingest.handleRequest(
     new Request('http://ingest.test/v1/logs', { // the standard OTLP path
       method: 'POST',
-      headers: { authorization: 'Bearer let-me-in', 'content-type': 'application/json' },
+      // the fake proves the sender that `imp-identity` maps to
+      headers: { authorization: 'Bearer let-me-in', 'imp-identity': 'token-4', 'content-type': 'application/json' },
       body: JSON.stringify(oneApiRequestExport), // one claude_code api_request record with request_id req_01
     }),
   );
@@ -79,8 +87,19 @@ test('it stores a fact batch and an OTLP export that come through their routes',
 
 declare const oneApiRequestExport: unknown;
 declare function workFact(type: string, event: string, payload: Readonly<Record<string, unknown>>): import('./01-kit.ts').OutgoingFact<typeof boxxySource>;
-// packages/ingest/src/index.ts: the routes of a deployment over a given log, with no listener.
-declare function createIngest(options: { deployment: Deployment; environment: Readonly<Record<string, string | undefined>>; log: FactLog }): { fetch: (request: Request) => Promise<Response> };
+declare function checked(deployment: Deployment): import('./01-kit.ts').CheckedDeployment; // checkDeployment, and fail the test on a failure
+// packages/ingest/src/receive/create-ingest.ts: the routes of a deployment over a given log, with
+// no listener. A secret missing from `secrets`, or empty, makes its route refuse every delivery;
+// serveIngest exits at start before that can happen.
+declare function createIngest(options: {
+  deployment: import('./01-kit.ts').CheckedDeployment;
+  secrets: Readonly<Record<string, string>>;
+  log: FactLog;
+  senderProof: import('./01-kit.ts').SenderProof;
+  appendRetry: { maxAttempts: number; retryDelayMs: number };
+  now: () => number;
+}): { handleRequest: (request: Request) => Promise<Response>; resyncMarks: ResyncMarks };
+declare function createFakeSenderProof(senders: Readonly<Record<string, import('./01-kit.ts').Sender>>): import('./01-kit.ts').SenderProof;
 
 // packages/ingest/src/fact-log/make-batch-appender.test.ts: the memory adapter is the test fake.
 const log = createMemoryFactLog(['facts.boxxy.work']);
@@ -125,12 +144,12 @@ export declare function serveIngest(options: {
   environment: Readonly<Record<string, string | undefined>>;
 }): Promise<void>;
 
-// packages/ingest/src/config/read-ingest-config.ts (moves from packages/source-github, which
-// holds it today). `host` is new. serve-ingest.ts sets no hostname today, so the
-// default keeps today's behaviour. One listener serves every route, the public one included: the
-// rule that lets the public internet in must name the exact path of each `reach: 'public'` route.
+// packages/ingest/src/config/read-ingest-config.ts. A missing or empty variable, a secret
+// included, is a start failure, and the failure names every one. One listener serves every route,
+// the public one included: the rule that lets the public internet in must name the exact path of
+// each `reach: 'public'` route.
 export interface IngestConfig {
-  host: string; // PEPYS_INGEST_HOST, default '0.0.0.0'
+  host: string; // PEPYS_INGEST_HOST, default '127.0.0.1', the API's default too
   port: number; // PEPYS_INGEST_PORT, default 8080
   s2: { endpoint: string; accessToken: string; basin: string };
   // one entry per `secretEnv` and per pull path `env` name, read once
@@ -230,21 +249,34 @@ export declare function makeBatchAppender(options: { log: FactLog; maxAttempts: 
 // ── 3. One delivery — packages/ingest/src/receive/handle-receive-route.ts (new) ────────────────
 
 interface ReceiveDependencies {
-  secret: string; // the value of `path.check.secretEnv`
+  secret: string; // the value of `path.check.secretEnv`; an empty one passes no delivery
   append: BatchAppender;
-  blobs: BlobStore;
-  // One chain of turns per stream. A delivery holds a stream's turn for ALL of its runs on that
-  // stream, so the runs of two deliveries never interleave. Streams do not wait for each other.
+  // One chain of turns per stream, for the whole process. A delivery holds a stream's turn for
+  // ALL of its runs on that stream, so the runs of two deliveries never interleave. Streams do
+  // not wait for each other.
   turns: Map<StreamName, Promise<void>>;
-  // The bodies this process stored in the last hour, by the SHA-256 of the
-  // body as sent; 10,000 entries at most, the oldest dropped first. In memory only.
+  // The bodies THIS ROUTE stored in the last hour, by the SHA-256 of the body as sent, with the
+  // proven sender's issuer and subject in the key on a path with `sender`: a body stored on one
+  // route, or from one sender, never answers for another. 10,000 entries at most, the oldest
+  // dropped first. In memory only.
   recentBodies: Map<string, { stored: number; at: number; entities: readonly EntityID[] }>;
   senderProof: SenderProof; // the port; the handler calls no verifier
-  // Per entity, the last body this process stored for it and that
-  // fact's `at`; and the entities that the source's `resync` pull must read again. In memory.
+  // Per entity, the last body this process stored for it and that fact's `at`; and the entities
+  // that the source's `resync` pull must read again. Kept only for a source with a `resync` pull,
+  // 10,000 entries each at most, in memory.
   lastBodies: Map<EntityID, { digest: string; at: string }>;
   resyncMarks: Set<EntityID>;
 }
+
+// What a resync pull reads (createIngest returns it). The pull lists a source's marks, and removes
+// each one only after the fact it pulled for that entity is stored, so a failed pull keeps it.
+interface ResyncMarks {
+  list: (source: string) => readonly EntityID[];
+  remove: (source: string, entity: EntityID) => void;
+}
+
+// A route of `path.ignoredRoutes` runs steps a to c1 of the path, then answers as an ignored
+// delivery: no read, no append.
 
 // The order. Each step answers and stops, or goes on.
 export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, dependencies: ReceiveDependencies): (request: Request) => Promise<Response> {
@@ -257,7 +289,8 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
       return fail(405, 'method not allowed');
     }
 
-    // b. 413 when the body as sent is over `bodyByteLimit`. Ingest stops reading at the limit.
+    // b. 413 when the body as sent is over `bodyByteLimit`: first by `content-length`, before any
+    //    read, then by the count while reading, which cancels the stream at the limit.
     const sent = await readBodyUpTo(request, byteLimit);
 
     if (sent === 'too-large') {
@@ -265,10 +298,9 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
     }
 
     // c. 401 unless the check passes, on the bytes AS SENT (GitHub signs what it sends; a token
-    //    check reads no body). No code of the source has seen the delivery yet.
-    const proof = request.headers.get(path.check.header);
-
-    if (proof === null || !(await passesCheck(path.check, dependencies.secret, sent, proof))) {
+    //    check reads no body). No code of the source has seen the delivery yet. The check is the
+    //    kit's `isDeliveryAuthentic`, the one function that `@pepys/kit/send` is tested against.
+    if (!isDeliveryAuthentic(path.check, dependencies.secret, request.headers, sent)) {
       return fail(401, 'not authorised');
     }
 
@@ -287,7 +319,7 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
     //    This bounds what a replay adds to the log; it is not what keeps the rows right (see "A
     //    replayed delivery" below).
     const digest = await hashBody(sent);
-    const known = dependencies.recentBodies.get(digest);
+    const known = dependencies.recentBodies.get(sender === undefined ? digest : JSON.stringify([digest, sender.issuer, sender.subject]));
 
     if (known !== undefined) {
       // A copy of an earlier body. When ANOTHER body for one of its
@@ -305,14 +337,15 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
     // d. Decoding. No `content-encoding`: the bytes as sent. `gzip`, when the path
     //    lists it: gunzip as a stream that stops at `bodyByteLimit` decoded bytes (413), so a
     //    small body cannot unpack to a large one. Any other value, or `gzip` on a path that does
-    //    not list it: 415.
+    //    not list it: 415. A gzip body that does not gunzip: 400. Bun's DecompressionStream gives
+    //    64 KiB chunks and stops when the reader cancels (a test covers it).
     const body = await decodeBody(sent, request.headers.get('content-encoding'), path.encodings ?? [], byteLimit);
 
-    if (body === 'unsupported' || body === 'too-large') {
-      return body === 'unsupported' ? fail(415, 'content encoding not accepted') : fail(413, 'body too large');
+    if (typeof body === 'string') {
+      return body === 'unsupported' ? fail(415, 'content encoding not accepted') : body === 'too-large' ? fail(413, 'body too large') : fail(400, 'the body does not decode');
     }
 
-    // e. The source's own code, pure.
+    // e. The source's own code, pure. A read that throws is a fault of the deployment: 500.
     // `sender` goes to `read`: a reader that copies the sender into its facts (telemetry) needs
     // it on every export.
     const received = path.read({ headers: request.headers, body, ...(sender === undefined ? {} : { sender }) }, source);
@@ -340,8 +373,14 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
       return problem === undefined ? fail(413, 'one fact is larger than the log takes') : fail(422, problem);
     }
 
-    // h. Blobs first (a blob is named by its content, so a repeat is harmless), then the appends.
-    const outcome = await storeBatch(received.batch, plan.value, dependencies);
+    // h. The appends. No v1 source reads a blob, so v1 ingest has no blob store, and a fact with a
+    //    blob gets 500 before any append. A deployment with such a source adds the store here,
+    //    before the appends (a blob is named by its content, so a repeat is harmless).
+    if (received.batch.facts.some((pending) => pending.blobs.length > 0)) {
+      return fail(500, 'ingest has no blob store');
+    }
+
+    const outcome = await storeBatch(plan.value, dependencies);
 
     if (outcome === 'stored') {
       rememberBody(dependencies.recentBodies, digest, received.batch.facts);
@@ -355,16 +394,16 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
     // i. A partial failure. See the table below.
     return outcome === 'refused'
       ? fail(500, 'the log refused the batch')
-      : new Response(JSON.stringify({ error: 'batch not stored, send it again' }), { status: 503, headers: { 'retry-after': '1' } });
+      : new Response(JSON.stringify({ error: 'the batch is not stored, send it again' }), { status: 503, headers: { 'retry-after': '1' } });
   };
 }
 
 // The streams append at the same time; the runs of one stream append one after the other. A run
 // starts only when the run before it on its stream is acknowledged. Every stream settles before
-// the answer: a failure on one stream never leaves another stream's append in flight.
-async function storeBatch(batch: Batch, plan: ReadonlyMap<StreamName, readonly (readonly FactEnvelope<unknown>[])[]>, dependencies: ReceiveDependencies): Promise<'stored' | 'refused' | 'not-stored'> {
-  await writeBlobs(batch, dependencies.blobs);
-
+// the answer: a failure on one stream never leaves another stream's append in flight. `takeTurn`
+// turns a throw in its work into `refused` and gives the turn back in `finally`, so a throw on one
+// stream neither rejects the `Promise.all` early nor holds the stream's turn.
+async function storeBatch(plan: ReadonlyMap<StreamName, readonly (readonly FactEnvelope<unknown>[])[]>, dependencies: ReceiveDependencies): Promise<'stored' | 'refused' | 'not-stored'> {
   const settled = await Promise.all(
     [...plan].map(([stream, runs]) =>
       takeTurn(stream, dependencies, async () => {
@@ -495,16 +534,15 @@ declare function markTies(dependencies: Pick<ReceiveDependencies, 'lastBodies' |
 
 // ── Everything below decides no order. ────────────────────────────────────────────────────────
 
-declare interface BlobStore { write: (hash: string, bytes: Uint8Array) => Promise<void> }
 declare function readBodyUpTo(request: Request, limit: number): Promise<Uint8Array | 'too-large'>;
-// 'hmac-sha256': `sha256=<hex>` over the body as sent. 'token': the secret, or `Bearer <secret>`. Constant time.
-declare function passesCheck(check: ReceivePath['check'], secret: string, sent: Uint8Array, proof: string): Promise<boolean>;
-declare function decodeBody(sent: Uint8Array, encoding: string | null, accepted: readonly 'gzip'[], limit: number): Promise<Uint8Array | 'unsupported' | 'too-large'>;
+// The kit's check. 'hmac-sha256': `sha256=<hex>` over the body as sent. 'token': the secret, or
+// `Bearer <secret>`. Constant time; an empty secret passes nothing.
+declare function isDeliveryAuthentic(check: ReceivePath['check'], secret: string, headers: Headers, sent: Uint8Array): boolean;
+declare function decodeBody(sent: Uint8Array, encoding: string | null, accepted: readonly 'gzip'[], limit: number): Promise<Uint8Array | 'unsupported' | 'too-large' | 'corrupt'>;
 declare function findBatchProblem(source: SourceDefinition, batch: Batch): string | undefined;
 // groups the facts by stream, in batch order, and calls planAppends for each stream
 declare function planBatch(batch: Batch): Result<ReadonlyMap<StreamName, readonly (readonly FactEnvelope<unknown>[])[]>, { reason: 'too-large' }>;
-declare function writeBlobs(batch: Batch, blobs: BlobStore): Promise<void>;
-declare function takeTurn<Value>(stream: StreamName, dependencies: ReceiveDependencies, work: () => Promise<Value>): Promise<Value>;
+declare function takeTurn<Value>(stream: StreamName, dependencies: ReceiveDependencies, work: () => Promise<Value>): Promise<Value | 'refused'>;
 declare function fail(status: number, reason: string): Response;
 // 'status': 200 {"status":"stored","stored":n} or 202 {"status":"ignored"}. 'empty': 200 {} for both.
 declare function succeed(path: ReceivePath, outcome: 'stored' | 'ignored', count: number): Response;

@@ -120,15 +120,11 @@ brands every ID with a fixed tag and adds the kind as a second tag.
 The proven sender did not reach every place in the sketches:
 
 - Neither telemetry table declares the two origin columns, and both consumers write them.
-- The route test in [02-ingest-log.ts](./v1/sketches/02-ingest-log.ts) sends an export with no proof
-  and expects 200, and the function that builds the routes for a test takes no sender proof.
 - The telemetry test in [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts) applies facts
   with no origin, and the consumer reads the origin of every fact.
 
 More gaps:
 
-- A pull path gets a cursor and its environment values. No sketch shows how the resync pull reads
-  the marks that the receive route keeps.
 - Nothing holds the scope replace in TypeScript and in Rust together. Case files hold the manifest
   parse and the link check.
 - The [runtime](./pepys/runtime.md#network) doc's public rule matches the path `/webhook/github`,
@@ -144,7 +140,6 @@ More gaps:
 
 ## Assumed
 
-- Bun listens on every address when a listener gets no hostname.
 - An agent's own session ID never equals the atc session ID of another session.
 - One fact ID belongs to one stream.
 - `PRAGMA table_info` in Turso gives the declared type, the not-null flag and the key order, as in
@@ -165,7 +160,6 @@ Telemetry:
 - Claude Code's OTLP shape on the wire: the scope name, and numbers as numbers or as text.
 - Either exporter's batch size, and whether either one sends gzip.
 - That an OTLP exporter retries on 503 and stops on 500, as the OTLP specification requires.
-- That Bun can stop a gzip stream at a byte cap.
 
 GitHub:
 
