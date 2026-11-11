@@ -17,8 +17,21 @@
   "bracketSpacing": true,
   "arrowParens": "always",
   "sortImports": {
-    "groups": ["side_effect", "builtin", "external", "unknown", ["parent", "sibling", "index"]],
+    "groups": [
+      "side_effect",
+      "test-libs",
+      "builtin",
+      "external",
+      "unknown",
+      ["parent", "sibling", "index"]
+    ],
     "newlinesBetween": false,
-    "sortSideEffects": false
+    "sortSideEffects": false,
+    "customGroups": [
+      {
+        "groupName": "test-libs",
+        "elementNamePattern": ["bun:test"]
+      }
+    ]
   }
 }
