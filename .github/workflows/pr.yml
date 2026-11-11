@@ -65,7 +65,7 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - name: Install the cargo tools
-        uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: cargo-nextest@0.9.148,cargo-deny@0.20.2,cargo-shear@1.14.0
       - name: Format
@@ -110,7 +110,7 @@ jobs:
         with:
           version: 0.16.0
       - name: Install wasm-tools and nextest
-        uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: wasm-tools@1.262.0,cargo-nextest@0.9.148
       - name: Export the zig and wasm-tools paths
