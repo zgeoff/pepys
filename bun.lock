@@ -41,6 +41,7 @@
     },
     "packages/api": {
       "name": "@pepys/api",
+      "version": "0.0.1",
       "dependencies": {
         "@orpc/contract": "catalog:",
         "@orpc/server": "catalog:",
@@ -66,7 +67,7 @@
     },
     "packages/cli": {
       "name": "@pepys/cli",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "bin": {
         "pepys": "./src/bin.ts",
       },
@@ -85,6 +86,7 @@
     },
     "packages/contract": {
       "name": "@pepys/contract",
+      "version": "0.0.1",
       "dependencies": {
         "@orpc/contract": "catalog:",
         "@pepys/kit": "workspace:*",
@@ -109,6 +111,7 @@
     },
     "packages/ingest": {
       "name": "@pepys/ingest",
+      "version": "0.0.1",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@pepys/schema": "workspace:*",
@@ -123,26 +126,22 @@
     },
     "packages/kit": {
       "name": "@pepys/kit",
+      "version": "0.0.1",
       "dependencies": {
         "@zgeoff/std": "catalog:",
+        "kysely": "catalog:",
         "ts-pattern": "catalog:",
         "type-fest": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
         "@octokit/webhooks": "catalog:",
-        "kysely": "catalog:",
         "tiny-invariant": "catalog:",
       },
-      "peerDependencies": {
-        "kysely": "catalog:",
-      },
-      "optionalPeers": [
-        "kysely",
-      ],
     },
     "packages/kysely-turso": {
       "name": "@pepys/kysely-turso",
+      "version": "0.0.1",
       "dependencies": {
         "@tursodatabase/database": "catalog:",
         "kysely": "catalog:",
@@ -151,7 +150,7 @@
     },
     "packages/schema": {
       "name": "@pepys/schema",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
@@ -161,6 +160,7 @@
     },
     "packages/source-github": {
       "name": "@pepys/source-github",
+      "version": "0.0.1",
       "dependencies": {
         "@pepys/api": "workspace:*",
         "@pepys/ingest": "workspace:*",
@@ -175,6 +175,7 @@
     },
     "packages/testing": {
       "name": "@pepys/testing",
+      "version": "0.0.1",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@pepys/kysely-turso": "workspace:*",

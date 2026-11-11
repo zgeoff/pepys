@@ -1,8 +1,23 @@
 {
   "name": "@pepys/api",
-  "private": true,
+  "version": "0.0.1",
+  "description": "The pepys API: typed queries over the store",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/api"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",

@@ -1,29 +1,36 @@
 {
   "name": "@pepys/kit",
-  "private": true,
+  "version": "0.0.1",
+  "description": "Declare a pepys plug-in or deployment: fact families, sources, consumers, tables, links and queries",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/kit"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./generators": "./src/generators.ts",
     "./send": "./src/send.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@zgeoff/std": "catalog:",
+    "kysely": "catalog:",
     "ts-pattern": "catalog:",
     "type-fest": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@octokit/webhooks": "catalog:",
-    "kysely": "catalog:",
     "tiny-invariant": "catalog:"
-  },
-  "peerDependencies": {
-    "kysely": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "kysely": {
-      "optional": true
-    }
   }
 }

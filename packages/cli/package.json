@@ -1,6 +1,6 @@
 {
   "name": "@pepys/cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "The pepys command line: pepys build checks a deployment or a plug-in, writes the glue of each consumer, and compiles each consumer with scriptc",
   "license": "MIT",
   "repository": {
@@ -14,7 +14,7 @@
   "files": [
     "src",
     "!src/**/*.test.ts",
-    "!src/test-utils"
+    "!src/**/test-utils"
   ],
   "type": "module",
   "exports": "./src/index.ts",

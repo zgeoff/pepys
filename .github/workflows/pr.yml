@@ -23,7 +23,9 @@ jobs:
       pull-requests: write
     uses: zgeoff/tools/.github/workflows/bun-checks.yml@7186fc0104caea741d694836d10f9f50d0b02c09 # main
     with:
-      scripts: audit deadcode format:check lint:full lint:toml check schema:check test typecheck
+      scripts:
+        audit deadcode format:check lint:full lint:toml check check:outside-install schema:check
+        test typecheck
 
   # the path gate for the Rust job: a pull request that touches no Rust input
   # skips it, and every push to main runs it

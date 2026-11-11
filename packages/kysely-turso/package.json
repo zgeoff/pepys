@@ -1,8 +1,23 @@
 {
   "name": "@pepys/kysely-turso",
-  "private": true,
+  "version": "0.0.1",
+  "description": "A Kysely dialect for Turso databases on Bun",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/kysely-turso"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@tursodatabase/database": "catalog:",
     "kysely": "catalog:",

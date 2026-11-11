@@ -313,8 +313,8 @@ void [routes];
 //   @pepys/schema            the consumer manifest types and their case file (file 3)
 //   @pepys/contract, @pepys/kysely-turso
 //
-// @pepys/kit depends on zod, and on kysely as an optional peer dependency for its types only. It does not depend on
-// @pepys/kysely-turso, so a process that only declares or sends (ingest, the boxxy server) installs
+// @pepys/kit depends on zod and kysely; a plug-in's compiler checks the kit's published source, so
+// kysely cannot be an optional peer. It does not depend on @pepys/kysely-turso, so a process that only declares or sends (ingest, the boxxy server) installs
 // no SQLite binding. The SQL schema generator and the glue generator stay in the kit
 // (packages/kit/src/generators, exported as `@pepys/kit/generators`): they write text and open no
 // database. @pepys/cli and @pepys/testing both call them.

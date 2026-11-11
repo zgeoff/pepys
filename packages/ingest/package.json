@@ -1,8 +1,25 @@
 {
   "name": "@pepys/ingest",
-  "private": true,
+  "version": "0.0.1",
+  "description": "pepys ingest: the receive routes, the fact log and the blob store",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/ingest"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils",
+    "!src/**/run-*-fixture.ts",
+    "!src/**/fixtures"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",

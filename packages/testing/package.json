@@ -1,8 +1,23 @@
 {
   "name": "@pepys/testing",
-  "private": true,
+  "version": "0.0.1",
+  "description": "Test a pepys plug-in on Bun: an in-memory store that runs its consumers and queries",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/testing"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@pepys/kit": "workspace:*",
     "@pepys/kysely-turso": "workspace:*",

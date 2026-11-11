@@ -1,8 +1,23 @@
 {
   "name": "@pepys/source-github",
-  "private": true,
+  "version": "0.0.1",
+  "description": "The pepys GitHub plug-in: pull requests, releases, commits and deploys",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/source-github"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@pepys/api": "workspace:*",
     "@pepys/ingest": "workspace:*",

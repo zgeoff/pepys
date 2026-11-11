@@ -52,12 +52,16 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 ## 4. Publish the kit and the testing package
 
 - **Outcome:** `@pepys/kit`, `@pepys/testing` and `@pepys/kysely-turso` are on npm, and CI publishes
-  each later version. The rule in `AGENTS.md` that every package is private changes here.
+  each later version. The rule in `AGENTS.md` that every package is private changes here. Each
+  deployment package of the list above part A that exists gets its first publish in the same owner
+  window, so slice 16 adds only the host binary.
 - **Sketch:** 01, the package list above part A.
 - **Needs first:** slice 3. The first publish of each package needs the owner (the `npm-publish`
   skill has the steps).
 - **Check:** a package in an empty folder outside this repo installs the three from npm, declares a
   stub plug-in that type-checks, and passes a query test on seeded rows of the test store.
+  `bun run check:outside-install` runs this check on packed tarballs, and on npm with
+  `PEPYS_OUTSIDE_VERSION` set.
 
 ## 5. The glue step of `pepys build`
 
@@ -196,7 +200,7 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 ## 16. Release the packages and the host binary
 
 - **Outcome:** every package that a deployment imports is on npm, and a release carries the
-  `pepys-host` binary.
+  `pepys-host` linux x64 binary with SHA256SUMS, from a job of its own in `release.yml`.
 - **Sketch:** 01, the package list above part A.
 - **Needs first:** slice 15.
 - **Check:** a deployment in an empty folder installs the packages, builds its consumers, and starts

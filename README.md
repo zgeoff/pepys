@@ -12,6 +12,18 @@
 sources -> immutable fact log (one stream per source, on object storage) -> sandboxed WASM consumers
 -> queryable tables
 
+## Packages
+
+- [`@pepys/kit`](./packages/kit/README.md): declare a plug-in or a deployment.
+- [`@pepys/testing`](./packages/testing/README.md): test a plug-in on an in-memory store.
+- [`@pepys/cli`](./packages/cli/README.md): `pepys build`, which writes each consumer's glue.
+- [`@pepys/kysely-turso`](./packages/kysely-turso/README.md): a Kysely dialect for Turso.
+- [`@pepys/schema`](./packages/schema/README.md): the consumer manifest types.
+- [`@pepys/contract`](./packages/contract/README.md): the oRPC contract of the core queries.
+- [`@pepys/ingest`](./packages/ingest/README.md): the receive routes and the fact log.
+- [`@pepys/api`](./packages/api/README.md): typed queries over the store.
+- [`@pepys/source-github`](./packages/source-github/README.md): the GitHub plug-in.
+
 ## Quick start
 
 ```sh

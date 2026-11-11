@@ -53,6 +53,7 @@
   "scripts": {
     "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
     "check": "zgeoff-check",
+    "check:outside-install": "bun scripts/outside-install/run-outside-install.ts",
     "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers",
     "deadcode": "bash scripts/run-knip.sh",
     "format": "oxfmt . && format-codemod --quiet . && tombi format",
@@ -73,6 +74,9 @@
     "ci:require-checks": "bun scripts/checks/require-every-check.ts",
     "ci:lint-title": "bun scripts/pr-title/lint-title.ts",
     "ci:agent-sdk-bump": "bun scripts/agent-sdk-bump/write-agent-sdk-bump.ts",
+    "ci:check-release-tag": "bun scripts/release/check-release-tag.ts",
+    "ci:pack-packages": "bun scripts/release/write-package-tarballs.ts",
+    "ci:publish-packages": "bun scripts/release/publish-packages.ts",
     "test:related": "rig related",
     "typecheck": "tsrs -p tsconfig.json --noEmit && bun run --if-present --filter './research/*' typecheck",
     "check:docs": "chex prose length links readmes skill"

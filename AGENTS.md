@@ -49,10 +49,26 @@ docs/
 
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
   A package depends on it as `catalog:`.
-- A package is private and named `@pepys/<folder>`, except `@pepys/cli` and `@pepys/schema`, which
-  are public: each has `publishConfig.access` of `public`, and imports `@pepys/kit`, `@pepys/schema`
-  and no other workspace package. `@pepys/cli` also has a `bin` entry.
-- A package exports `./src/index.ts`. Internal packages have no build step.
+- A package is named `@pepys/<folder>`. A package that a plug-in or a deployment imports is public
+  on npm: it has no `private`, a `version`, a `license`, `repository` with its `directory`, a
+  `files` list that leaves out tests and `test-utils`, `publishConfig.access` of `public`, and a
+  README. Every other package is private.
+- A public package imports no private workspace package, and depends on each package it imports in
+  shipped code, not as a dev dependency. Its `files` list leaves out each test helper outside
+  `test-utils`, such as the ingest fixture runners.
+- A package exports `./src/index.ts`, and has no build step. A public package ships its TypeScript
+  source for Bun: scriptc compiles a consumer from source, and `pepys build` copies a dependency's
+  `src`. A plug-in's compiler checks that source with the plug-in's own options, so shipped code
+  type-checks with the options in the [kit's README](packages/kit/README.md#configuration), and
+  needs every type it uses from a dependency, never a peer.
+- Every public package carries one version. To release, set that version in each public
+  `package.json` in one pull request, with `bun.lock` written by the pinned bun. Then push the tag
+  `v<version>` on `main`: [`release.yml`](.github/workflows/release.yml) checks the tag against each
+  version, packs each package once, installs the tarballs outside the repo, and publishes them to
+  npm with provenance.
+- `bun run check:outside-install` installs every public package into an empty folder outside the
+  repo, type-checks a stub plug-in there, and runs a query test on the test store. It packs the
+  packages first, or with `PEPYS_OUTSIDE_VERSION` set it installs that version from npm.
 - A spike under `research/` is the exception to the catalog rule: it pins its own exact versions,
   because it records what it ran against.
 

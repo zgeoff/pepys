@@ -19,7 +19,11 @@ export async function readDecodedBody(
     return 'unsupported';
   }
 
-  const decoded = new Blob([sent]).stream().pipeThrough(new DecompressionStream('gzip'));
+  // the copy is a Uint8Array over an ArrayBuffer, which the ESNext lib's BlobPart needs; a plugin's
+  // own compiler checks this file with its own lib
+  const decoded = new Blob([new Uint8Array(sent)])
+    .stream()
+    .pipeThrough(new DecompressionStream('gzip'));
 
   try {
     return await readStreamUpTo(decoded, limitBytes);

@@ -1,6 +1,6 @@
 {
   "name": "@pepys/schema",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "The pepys consumer manifest: the types and the strict schema of consumers.json, with its shared case file",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,8 @@
   },
   "files": [
     "src",
-    "!src/**/*.test.ts"
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
   ],
   "type": "module",
   "exports": "./src/index.ts",

@@ -1,8 +1,23 @@
 {
   "name": "@pepys/contract",
-  "private": true,
+  "version": "0.0.1",
+  "description": "The oRPC contract of the pepys core queries",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/contract"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@orpc/contract": "catalog:",
     "@pepys/kit": "workspace:*",
