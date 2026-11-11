@@ -11,6 +11,14 @@ export interface VerifiedImp {
   readonly name: string;
 }
 
+// What the deployment trusts, read from its environment at start: the trust documents of each
+// `issuersEnv` and the audience of each `audienceEnv` that its paths name. A name with no entry
+// refuses every delivery on its paths.
+export interface ImpIdentityTrust<Document> {
+  readonly issuers: ReadonlyMap<string, readonly Document[]>;
+  readonly audiences: ReadonlyMap<string, string>;
+}
+
 export interface VerifyOptions<Document> {
   readonly issuers: readonly Document[];
   readonly audience: string;

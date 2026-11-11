@@ -475,7 +475,8 @@ export interface DeliveryCheck {
   readonly secretEnv: string;
 }
 
-export interface SenderRequirement { readonly kind: 'imp-identity'; readonly audience: string; readonly issuersEnv: string }
+// Both values belong to the deployment, so a plug-in names only the variables that hold them.
+export interface SenderRequirement { readonly kind: 'imp-identity'; readonly audienceEnv: string; readonly issuersEnv: string }
 
 export interface Delivery {
   headers: Headers;

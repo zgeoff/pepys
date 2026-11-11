@@ -70,11 +70,12 @@ export interface DeliveryCheck {
   readonly secretEnv: string;
 }
 
-// The proof a path needs, as data. `kind` picks the adapter of the `SenderProof` port, and
-// `issuersEnv` names the variable that holds the folder of trust documents.
+// The proof a path needs, as data. `kind` picks the adapter of the `SenderProof` port. The audience
+// and the folder of trust documents belong to the deployment, so a plug-in names only the
+// variables that hold them.
 export interface SenderRequirement {
   readonly kind: 'imp-identity';
-  readonly audience: string;
+  readonly audienceEnv: string;
   readonly issuersEnv: string;
 }
 

@@ -221,5 +221,6 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 
 - **Outcome:** pepys runs in the cluster and takes live data.
 - **Sketch:** none.
-- **Needs first:** slice 17, and the trust documents of the telemetry route's sender proof.
+- **Needs first:** slice 17, and the trust documents and audience of the telemetry route's sender
+  proof.
 - **Check:** one live signed batch and one live OTLP log each show up in a query of the live API.

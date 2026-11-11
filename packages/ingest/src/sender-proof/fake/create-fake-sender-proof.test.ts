@@ -4,7 +4,7 @@ import { createFakeSenderProof } from './create-fake-sender-proof.ts';
 function setupTest() {
   const requirement = {
     kind: 'imp-identity',
-    audience: 'pepys-ingest',
+    audienceEnv: 'BEACON_AUDIENCE',
     issuersEnv: 'BEACON_ISSUERS',
   } as const;
 

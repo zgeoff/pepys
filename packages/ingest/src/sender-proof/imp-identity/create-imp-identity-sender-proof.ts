@@ -1,12 +1,9 @@
 import type { Sender, SenderProof } from '@pepys/kit';
-import type { ImpIdentityVerifier, VerifiedImp } from './types.ts';
+import type { ImpIdentityTrust, ImpIdentityVerifier, VerifiedImp } from './types.ts';
 
 interface ImpIdentityOptions<Document> {
   verify: ImpIdentityVerifier<Document>['verify'];
-
-  // the trust documents of each `issuersEnv` that the deployment's paths name; a name with none
-  // refuses every delivery on its paths
-  trust: ReadonlyMap<string, readonly Document[]>;
+  trust: ImpIdentityTrust<Document>;
   now: () => number;
 }
 
@@ -22,17 +19,23 @@ export function createImpIdentitySenderProof<Document>(
 ): SenderProof {
   return {
     prove: async (requirement, headers) => {
-      const documents = options.trust.get(requirement.issuersEnv) ?? [];
+      const documents = options.trust.issuers.get(requirement.issuersEnv) ?? [];
+      const audience = options.trust.audiences.get(requirement.audienceEnv);
       const header = headers.get('imp-identity');
 
-      if (documents.length === 0 || header === null || !compactToken.test(header)) {
+      if (
+        documents.length === 0 ||
+        audience === undefined ||
+        header === null ||
+        !compactToken.test(header)
+      ) {
         return null;
       }
 
       try {
         const verified = await options.verify(header, {
           issuers: documents,
-          audience: requirement.audience,
+          audience,
           nowSeconds: Math.floor(options.now() / 1000),
         });
 

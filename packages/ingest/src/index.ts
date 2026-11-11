@@ -17,6 +17,7 @@ export { createImpIdentitySenderProof } from './sender-proof/imp-identity/create
 export { readImpIdentityTrust } from './sender-proof/imp-identity/read-imp-identity-trust.ts';
 
 export type {
+  ImpIdentityTrust,
   ImpIdentityVerifier,
   VerifiedImp,
   VerifyOptions,

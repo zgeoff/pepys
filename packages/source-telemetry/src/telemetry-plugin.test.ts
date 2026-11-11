@@ -208,7 +208,7 @@ test('it asks ingest for the token check and the imp identity of the sender', ()
     check: { kind: 'token', header: 'authorization', secretEnv: 'PEPYS_TELEMETRY_TOKEN' },
     sender: {
       kind: 'imp-identity',
-      audience: 'pepys.imp.example',
+      audienceEnv: 'PEPYS_IMP_IDENTITY_AUDIENCE',
       issuersEnv: 'PEPYS_IMP_IDENTITY_ISSUERS',
     },
   });

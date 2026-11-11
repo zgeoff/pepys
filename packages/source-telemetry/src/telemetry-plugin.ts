@@ -19,7 +19,7 @@ export const telemetrySource = defineSource({
     check: { kind: 'token', header: 'authorization', secretEnv: 'PEPYS_TELEMETRY_TOKEN' },
     sender: {
       kind: 'imp-identity',
-      audience: 'pepys.imp.example',
+      audienceEnv: 'PEPYS_IMP_IDENTITY_AUDIENCE',
       issuersEnv: 'PEPYS_IMP_IDENTITY_ISSUERS',
     },
     products,

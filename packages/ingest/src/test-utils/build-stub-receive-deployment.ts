@@ -95,7 +95,11 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
       bodyByteLimit: 65_536,
       encodings: ['gzip'],
       answer: 'empty',
-      sender: { kind: 'imp-identity', audience: 'pepys-ingest', issuersEnv: 'BEACON_ISSUERS' },
+      sender: {
+        kind: 'imp-identity',
+        audienceEnv: 'BEACON_AUDIENCE',
+        issuersEnv: 'BEACON_ISSUERS',
+      },
       read: readBeaconReadings,
     },
   });

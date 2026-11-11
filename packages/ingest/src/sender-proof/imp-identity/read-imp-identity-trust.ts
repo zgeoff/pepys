@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Result, SourceDefinition } from '@pepys/kit';
-import type { ImpIdentityVerifier } from './types.ts';
+import type { Result, SenderRequirement, SourceDefinition } from '@pepys/kit';
+import type { ImpIdentityTrust, ImpIdentityVerifier } from './types.ts';
 
 interface TrustReadOptions<Document> {
   sources: readonly SourceDefinition[];
@@ -11,15 +11,26 @@ interface TrustReadOptions<Document> {
   loadIssuers: ImpIdentityVerifier<Document>['loadIssuers'];
 }
 
-// Each `issuersEnv` of the deployment names a folder of `.json` trust documents. An unset variable
-// or an empty folder leaves its paths with none, so they refuse every delivery; a folder that
-// cannot be read, or a document the verifier refuses, fails the start.
+// An unset or empty variable, or an empty folder, leaves its paths with no entry, so they refuse
+// every delivery. A folder that cannot be read, or a document the verifier refuses, fails the
+// start.
 export async function readImpIdentityTrust<Document>(
   options: TrustReadOptions<Document>,
-): Promise<Result<Map<string, readonly Document[]>, string>> {
-  const trust = new Map<string, readonly Document[]>();
+): Promise<Result<ImpIdentityTrust<Document>, string>> {
+  const requirements = collectSenderRequirements(options.sources);
 
-  for (const name of collectIssuersEnvNames(options.sources)) {
+  const issuers = new Map<string, readonly Document[]>();
+  const audiences = new Map<string, string>();
+
+  for (const name of new Set(requirements.map((requirement) => requirement.audienceEnv))) {
+    const audience = options.environment[name] ?? '';
+
+    if (audience !== '') {
+      audiences.set(name, audience);
+    }
+  }
+
+  for (const name of new Set(requirements.map((requirement) => requirement.issuersEnv))) {
     const folder = options.environment[name] ?? '';
 
     if (folder === '') {
@@ -37,7 +48,7 @@ export async function readImpIdentityTrust<Document>(
     }
 
     try {
-      trust.set(name, options.loadIssuers(documents.value));
+      issuers.set(name, options.loadIssuers(documents.value));
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'the verifier gave no reason';
 
@@ -45,17 +56,13 @@ export async function readImpIdentityTrust<Document>(
     }
   }
 
-  return { ok: true, value: trust };
+  return { ok: true, value: { issuers, audiences } };
 }
 
-function collectIssuersEnvNames(sources: readonly SourceDefinition[]): string[] {
-  const names = sources.flatMap((source) =>
-    source.live?.kind === 'receive' && source.live.sender !== undefined
-      ? [source.live.sender.issuersEnv]
-      : [],
+function collectSenderRequirements(sources: readonly SourceDefinition[]): SenderRequirement[] {
+  return sources.flatMap((source) =>
+    source.live?.kind === 'receive' && source.live.sender !== undefined ? [source.live.sender] : [],
   );
-
-  return [...new Set(names)];
 }
 
 async function readFolderDocuments(folder: string): Promise<Result<unknown[], string>> {

@@ -49,7 +49,7 @@ export const telemetrySource = defineSource({
     // The route also requires a proven sender (the
     // broker-signed token, through ingest's `SenderProof` port). Each fact then holds who sent
     // it (`payload.origin`), which no guest can write.
-    sender: { kind: 'imp-identity', audience: 'pepys.imp.example', issuersEnv: 'PEPYS_IMP_IDENTITY_ISSUERS' },
+    sender: { kind: 'imp-identity', audienceEnv: 'PEPYS_IMP_IDENTITY_AUDIENCE', issuersEnv: 'PEPYS_IMP_IDENTITY_ISSUERS' },
     products,
     // The session of a record is the value of this attribute, read from the OTLP
     // resource first and from the record second. atc stamps it on every record of a session it

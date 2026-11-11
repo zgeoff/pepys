@@ -36,10 +36,12 @@ columns of its table.
 header and hands the token to an injected verifier, which checks the signature, the issuer, the
 audience and the expiry. The issuer and the subject come only from the verified token. Ingest gives
 401 to a missing or malformed header, a token the verifier refuses, a verifier that throws, and a
-token with no issuer or no subject. Ingest never logs the token. At start, ingest reads the trust
-documents from the folder in `PEPYS_IMP_IDENTITY_ISSUERS`, one `.json` file per issuing host. With
-no documents, ingest refuses every export. The audience is `pepys.imp.example`, and the broker rule
-that adds the token must use the same name.
+token with no issuer or no subject. Ingest never logs the token.
+
+At start, ingest reads two deployment settings. `PEPYS_IMP_IDENTITY_ISSUERS` holds the path of a
+folder of trust documents, one `.json` file per issuing host. `PEPYS_IMP_IDENTITY_AUDIENCE` holds
+the audience that a token must name, the same host name that the broker rule which adds the token
+uses. When either setting is unset or empty, ingest refuses every export.
 
 **Tolerant parsing.** Neither exporter's shape on the wire is checked, so a consumer takes a number
 as a JSON number or as decimal text. A Claude Code record is one whose event name starts with

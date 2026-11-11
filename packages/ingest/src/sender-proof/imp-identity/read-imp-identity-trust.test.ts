@@ -30,18 +30,21 @@ async function setupTest() {
   };
 }
 
-test('it reads each JSON document in the folder that the variable names', async () => {
+test('it reads each JSON document in the folder that the variable names, and the audience', async () => {
   const ctx = await setupTest();
 
   await Bun.write(join(ctx.folder, 'host-a.json'), JSON.stringify({ issuer: 'host-a' }));
   await Bun.write(join(ctx.folder, 'host-b.json'), JSON.stringify({ issuer: 'host-b' }));
   await Bun.write(join(ctx.folder, 'notes.txt'), 'not a document');
 
-  const trust = await ctx.read({ BEACON_ISSUERS: ctx.folder });
+  const trust = await ctx.read({ BEACON_ISSUERS: ctx.folder, BEACON_AUDIENCE: 'pepys-ingest' });
 
   expect(trust).toStrictEqual({
     ok: true,
-    value: new Map([['BEACON_ISSUERS', [{ issuer: 'host-a' }, { issuer: 'host-b' }]]]),
+    value: {
+      issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'host-a' }, { issuer: 'host-b' }]]]),
+      audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
+    },
   });
 });
 
@@ -50,9 +53,35 @@ test.each([
   { row: 'a folder with no document', isSet: true },
 ])('it holds no trust documents for $row', async (row) => {
   const ctx = await setupTest();
-  const trust = await ctx.read({ BEACON_ISSUERS: row.isSet ? ctx.folder : undefined });
 
-  expect(trust).toStrictEqual({ ok: true, value: new Map() });
+  const trust = await ctx.read({
+    BEACON_ISSUERS: row.isSet ? ctx.folder : undefined,
+    BEACON_AUDIENCE: 'pepys-ingest',
+  });
+
+  expect(trust).toStrictEqual({
+    ok: true,
+    value: { issuers: new Map(), audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]) },
+  });
+});
+
+test.each([
+  { row: 'an unset audience', audience: undefined },
+  { row: 'an empty audience', audience: '' },
+])('it holds no audience for $row', async (row) => {
+  const ctx = await setupTest();
+
+  await Bun.write(join(ctx.folder, 'host-a.json'), JSON.stringify({ issuer: 'host-a' }));
+
+  const trust = await ctx.read({ BEACON_ISSUERS: ctx.folder, BEACON_AUDIENCE: row.audience });
+
+  expect(trust).toStrictEqual({
+    ok: true,
+    value: {
+      issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'host-a' }]]]),
+      audiences: new Map(),
+    },
+  });
 });
 
 test('it fails on a document that the verifier refuses', async () => {
