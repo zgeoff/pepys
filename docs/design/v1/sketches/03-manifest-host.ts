@@ -449,7 +449,7 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //     <consumer>/<version>/consumer.db, module.wasm        unchanged
 //     <consumer>/<version>/version.json                    new: the ConsumerVersion `up` built it from
 //
-// A consumer file. `offsets`, `change_log` and `applied_facts` are unchanged. The host makes two
+// A consumer file. `offsets`, `change_log` and `applied_facts` are unchanged. The host makes three
 // more tables itself, as it makes `applied_facts`, with CREATE TABLE IF NOT EXISTS:
 //
 //   -- scope mode only: which scope wrote each row
