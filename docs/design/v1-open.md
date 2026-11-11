@@ -6,7 +6,7 @@ real Rust host, and one compiled the real `boxxy_work` entry file with scriptc. 
 is on the branch `spike/v1-host-scope`, as reference code: read it, and do not merge it. The scriptc
 run's code is not in this repo. This doc states what each run built and found. The other sections
 list the gaps inside the sketches, and every item that the sketches mark as assumed, not checked or
-not designed. Fix the sketch's rule in the code where a finding here contradicts it.
+not designed. Where a finding here contradicts a sketch, write the code by the finding.
 
 ## The host
 
@@ -29,7 +29,7 @@ did not change. What the host needed:
 The run wrote the manifest and its SQL by hand, and `pepys build` made neither. Turso took all of
 the design's SQL, and serde parsed the manifest with unknown fields refused.
 
-The sketch does not match the real host in 8 places. The first 5 change what the builder writes:
+The sketch does not match the real host in 9 places. The first 6 change what the builder writes:
 
 1. **The fact source needs a multi-thread runtime.** The module calls the read from inside a
    synchronous wasm call, and the index read is async. The fix is the one that the row read uses:
@@ -45,11 +45,14 @@ The sketch does not match the real host in 8 places. The first 5 change what the
 5. **The repo's parse of operations refuses the flat link.** Before the typed parse, it reads the
    keys of each verb's body as table names, so it reports an operation on a table named
    `confidence`. That scan goes with the function.
-6. The function that builds a row's key has no table name for its error. The run added the table as
+6. **The repo's log port refused a pushed fact,** with the ID `event:boxxy:…`. Slice 1 made the
+   envelope change in [01-kit.ts](./v1/sketches/01-kit.ts): the kit's envelope parser and the Rust
+   host's envelope check both accept `event:<source>:<event ID>`.
+7. The function that builds a row's key has no table name for its error. The run added the table as
    a parameter.
-7. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
+8. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
    open store, where the sketch has a path.
-8. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
+9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
    adapter is a few lines.
 
 The sketch leaves these meanings open, and the run picked one for each:
