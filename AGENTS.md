@@ -50,9 +50,10 @@ docs/
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
   A package depends on it as `catalog:`.
 - A package is named `@pepys/<folder>`. A package that a plug-in or a deployment imports is public
-  on npm: it has no `private`, a `version`, a `license`, `repository` with its `directory`, a
-  `files` list that leaves out tests and `test-utils`, `publishConfig.access` of `public`, and a
-  README. Every other package is private.
+  on npm: `api`, `cli`, `contract`, `ingest`, `kit`, `kysely-turso`, `schema`, `source-github` and
+  `testing`. A public package has no `private`, a `version`, a `license`, `repository` with its
+  `directory`, a `files` list that leaves out tests and `test-utils`, `publishConfig.access` of
+  `public`, and a README. Every other package is private.
 - A public package imports no private workspace package, and depends on each package it imports in
   shipped code, not as a dev dependency. Its `files` list leaves out each test helper outside
   `test-utils`, such as the ingest fixture runners.
