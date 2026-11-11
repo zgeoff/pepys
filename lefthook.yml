@@ -36,6 +36,7 @@ pre-commit:
         - 'coverage/**'
         - '.worktrees/**'
         - '.claude/**'
+        - 'docs/design/**/sketches/**'
       run: node_modules/.bin/format-codemod --quiet {staged_files}
       stage_fixed: true
     # a check, not a fixer: rustfmt also rewrites the modules a file declares,

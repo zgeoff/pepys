@@ -5,3 +5,6 @@
 # nested checkouts and agent scratch
 .worktrees/**
 .claude/**
+
+# design sketches: they show a design, do not compile, and keep their own layout
+docs/design/**/sketches/**
