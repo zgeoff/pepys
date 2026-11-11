@@ -1,14 +1,21 @@
 import { expect, test } from 'bun:test';
-import { checkConsumers } from '@pepys/schema';
+import { checkDeployment } from '@pepys/kit';
+import { githubPlugin } from './github-plugin.ts';
 import { githubPullRequestConsumer } from './github-pull-request-consumer.ts';
 
-test('it declares a consumer that passes the consumer checks', () => {
-  expect(checkConsumers([githubPullRequestConsumer])).toStrictEqual({ ok: true });
+test('it declares a consumer that passes the deployment check', () => {
+  const checked = checkDeployment({ name: 'harbour', plugins: [githubPlugin] });
+
+  expect(checked.ok).toBe(true);
 });
 
 test('it owns the pull request table and tails the pull request stream', () => {
   expect(Object.keys(githubPullRequestConsumer.tables)).toStrictEqual(['github_pull_request']);
-  expect(githubPullRequestConsumer.streams).toStrictEqual(['facts.github.pull_request']);
+
+  expect(githubPullRequestConsumer.input).toStrictEqual({
+    mode: 'fact',
+    streams: ['facts.github.pull_request'],
+  });
 });
 
 test('it declares the pull request columns', () => {
@@ -32,15 +39,17 @@ test('it declares the pull request columns', () => {
 });
 
 test('it maps the entity view to the title, URL, author and update time', () => {
-  expect(githubPullRequestConsumer.entityView).toStrictEqual({
-    table: 'github_pull_request',
-    kind: 'pr',
-    id: 'id',
-    title: 'title',
-    url: 'url',
-    actor: 'author_id',
-    updatedAt: 'updated_at',
-  });
+  expect(githubPullRequestConsumer.entityViews).toStrictEqual([
+    {
+      table: 'github_pull_request',
+      kind: 'github:pull_request',
+      id: 'id',
+      title: 'title',
+      url: 'url',
+      actor: 'author_id',
+      updatedAt: 'updated_at',
+    },
+  ]);
 });
 
 test('it reads its own table, so a fact older than the stored row changes nothing', () => {

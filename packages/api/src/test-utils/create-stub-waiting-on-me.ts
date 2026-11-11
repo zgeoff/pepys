@@ -1,18 +1,14 @@
 import type { FactLog } from '@pepys/ingest';
+import type { EntityID, LinkTypeDeclaration, ScopeID, StreamName, StreamOffset } from '@pepys/kit';
 import { isEntityOfKind } from '@pepys/schema';
 import type {
   ConsumerOutcome,
   ConsumerReads,
-  EntityID,
   FactInput,
   FactOperation,
   LinkRegistryOf,
-  LinkTypeDeclaration,
-  ScopeID,
   ScopeInput,
   ScopeOperation,
-  StreamName,
-  StreamOffset,
 } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -99,7 +95,9 @@ export function createStubWaitingOnMe(options: StubWaitingOnMe) {
   return { apply, feed };
 }
 
-type Registry = LinkRegistryOf<LinkTypeDeclaration<'review_requested', 'github:pr', 'github:user'>>;
+type Registry = LinkRegistryOf<
+  LinkTypeDeclaration<'review_requested', 'github:pull_request', 'github:user'>
+>;
 
 function runPullRequestConsumer(
   input: FactInput,
@@ -108,7 +106,10 @@ function runPullRequestConsumer(
   const reviewer = toTagged<EntityID>(`github:user:${payload.requested_reviewer.id}`);
   const pullRequest = input.fact.entity;
 
-  if (!isEntityOfKind(pullRequest, ['github:pr']) || !isEntityOfKind(reviewer, ['github:user'])) {
+  if (
+    !isEntityOfKind(pullRequest, ['github:pull_request']) ||
+    !isEntityOfKind(reviewer, ['github:user'])
+  ) {
     return { rejected: 'a review request runs from a pull request to a user' };
   }
 

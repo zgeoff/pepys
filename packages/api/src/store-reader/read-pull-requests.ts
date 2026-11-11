@@ -1,4 +1,4 @@
-import type { Result } from '@pepys/schema';
+import type { Result } from '@pepys/kit';
 import type { Selectable } from 'kysely';
 import type { ConsumerDB, StoreReader } from './store-reader.ts';
 

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/schema';
+import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { createMemoryFactLog } from './create-memory-fact-log.ts';

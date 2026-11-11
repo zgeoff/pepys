@@ -2,11 +2,15 @@ import { expect, test } from 'bun:test';
 import { buildEntityID } from './build-entity-id.ts';
 
 test('it builds an entity ID from its three parts', () => {
-  const actual: unknown = buildEntityID({ source: 'github', kind: 'pr', id: '1874433021' });
+  const actual: unknown = buildEntityID({
+    source: 'github',
+    kind: 'pull_request',
+    id: '1874433021',
+  });
 
   expect(actual).toStrictEqual({
     ok: true,
-    value: 'github:pr:1874433021',
+    value: 'github:pull_request:1874433021',
   });
 });
 

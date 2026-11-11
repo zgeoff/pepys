@@ -5,7 +5,7 @@ import type { EntityID, FactID } from '../ids/types.ts';
 import type { FactEnvelope, Result } from '../types.ts';
 
 const factIDPattern = new RegExp(
-  ['^webhook:[a-z][a-z0-9_]*:.+$', '^(?:observation|enrichment|manual):[0-9a-f]{64}$']
+  ['^(?:webhook|event):[a-z][a-z0-9_]*:.+$', '^(?:observation|enrichment|manual):[0-9a-f]{64}$']
     .map((pattern) => `(?:${pattern})`)
     .join('|'),
   'u',

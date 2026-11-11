@@ -1,4 +1,4 @@
-import type { Result } from '@pepys/schema';
+import type { Result } from '@pepys/kit';
 import { z } from 'zod';
 import type { StoreReader } from './store-reader.ts';
 

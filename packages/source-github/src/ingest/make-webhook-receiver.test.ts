@@ -1,6 +1,6 @@
 import { expect, onTestFinished, spyOn, test } from 'bun:test';
 import { Webhooks } from '@octokit/webhooks';
-import type { FactEnvelope } from '@pepys/schema';
+import type { FactEnvelope } from '@pepys/kit';
 import { makeWebhookReceiver } from './make-webhook-receiver.ts';
 
 function setupTest(options: { failAppend?: boolean } = {}) {
@@ -58,7 +58,7 @@ test('it appends the fact of a signed pull request delivery', async () => {
         type: 'github.pull_request.opened',
         v: 1,
         api: 'github/2022-11-28',
-        entity: 'github:pr:77',
+        entity: 'github:pull_request:77',
         actor: 'github:user:4401',
         at: '2026-10-02T10:30:00Z',
         payload: body,

@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'bun:test';
-import { parseFactEnvelope } from '@pepys/schema';
-import type { FactID, StreamName, StreamOffset } from '@pepys/schema';
+import { parseFactEnvelope } from '@pepys/kit';
+import type { FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { makeFactAppender } from './make-fact-appender.ts';
@@ -13,7 +13,7 @@ test('it appends the fact as one JSON record', async () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -47,7 +47,7 @@ test('it stores one copy of a fact whose stored append lost its reply', async ()
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -83,7 +83,7 @@ test('it appends the fact again after an append whose outcome is unknown and tha
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -118,7 +118,7 @@ test('it stores each of two facts appended at once to one stream', async () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -128,7 +128,7 @@ test('it stores each of two facts appended at once to one stream', async () => {
     type: 'github.pull_request.closed',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:31:00Z',
     payload: {},
   });
@@ -167,7 +167,7 @@ test('it appends a fact after an earlier append to the stream failed', async () 
     type: 'github.pull_request.closed',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:31:00Z',
     payload: {},
   });
@@ -207,7 +207,7 @@ test('it fails once the attempts are used up', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -232,7 +232,7 @@ test('it appends again after an append rejected for a tail mismatch', async () =
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -257,7 +257,7 @@ test('it does not retry a refusal from the log', async () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -282,7 +282,7 @@ test('it fails with the error of an append the log throws, without a retry', () 
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });
@@ -308,7 +308,7 @@ test('it appends the fact after a tail read that failed', async () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: {},
   });

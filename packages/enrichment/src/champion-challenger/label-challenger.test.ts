@@ -1,12 +1,5 @@
 import { expect, mock, test } from 'bun:test';
-import type {
-  BucketNumber,
-  EntityID,
-  FactID,
-  ScopeID,
-  StreamName,
-  VersionHash,
-} from '@pepys/schema';
+import type { BucketNumber, EntityID, FactID, ScopeID, StreamName, VersionHash } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import type { JobInput, JobOutcome } from '../jobs/job-definition.ts';
 import { runLabelChallenger } from './label-challenger.ts';

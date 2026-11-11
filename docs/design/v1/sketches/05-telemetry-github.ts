@@ -43,8 +43,8 @@ export const telemetrySource = defineSource({
     // `/v1/logs`, `/v1/metrics` and `/v1/traces` to it. Ingest serves all three at the root:
     // logs become facts here; `/v1/metrics` and `/v1/traces` pass the same token check, answer
     // 200 with `{}` and store nothing, so an exporter that sends them does not retry for ever.
-    // Not designed: how the kit declares the two paths that store nothing (one `route` per path today).
     route: '/v1/logs',
+    ignoredRoutes: ['/v1/metrics', '/v1/traces'],
     check: { kind: 'token', header: 'authorization', secretEnv: 'PEPYS_TELEMETRY_TOKEN' },
     // The route also requires a proven sender (the
     // broker-signed token, through ingest's `SenderProof` port). Each fact then holds who sent
@@ -567,7 +567,7 @@ export declare function buildLogRecordTypes<const Products extends readonly Tele
 
 // The receive path. Its `read` parses the body (ingest has decoded it) and calls readOtlpFacts.
 export declare function receiveOtlpLogs(
-  receiver: Pick<ReceivePath, 'route' | 'bodyByteLimit' | 'factLimit' | 'encodings' | 'answer' | 'reach'> & {
+  receiver: Pick<ReceivePath, 'route' | 'ignoredRoutes' | 'bodyByteLimit' | 'factLimit' | 'encodings' | 'answer' | 'reach' | 'sender'> & {
     check: DeliveryCheck;
     products: readonly TelemetryProduct[];
     sessionAttribute: string;

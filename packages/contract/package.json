@@ -5,7 +5,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@orpc/contract": "catalog:",
-    "@pepys/schema": "workspace:*",
+    "@pepys/kit": "workspace:*",
     "@zgeoff/std": "catalog:",
     "zod": "catalog:"
   },

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { EntityID, FactID, StreamOffset } from '@pepys/schema';
+import type { EntityID, FactID, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { parseStoredFact } from './parse-stored-fact.ts';
 

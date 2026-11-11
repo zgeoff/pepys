@@ -47,7 +47,7 @@ test('it upserts the row of an opened pull request', () => {
     id: 'webhook:github:delivery-1',
     type: 'github.pull_request.opened',
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     actor: 'github:user:4401',
     at: '2026-10-01T09:00:00Z',
     payload: { action: 'opened', pull_request: pullRequest, sender: { id: 4401 } },
@@ -59,7 +59,7 @@ test('it upserts the row of an opened pull request', () => {
     {
       upsert: {
         github_pull_request: {
-          id: 'github:pr:1874433021',
+          id: 'github:pull_request:1874433021',
           number: 12,
           repository_id: 'github:repo:902',
           title: 'Add the harbour map',
@@ -104,7 +104,7 @@ test('it maps the merge details of a merged pull request', () => {
     id: 'webhook:github:delivery-2',
     type: 'github.pull_request.closed',
     api: 'github/2022-11-28',
-    entity: 'github:pr:77',
+    entity: 'github:pull_request:77',
     at: '2026-10-02T10:30:00Z',
     payload: { action: 'closed', pull_request: pullRequest },
   };
@@ -115,7 +115,7 @@ test('it maps the merge details of a merged pull request', () => {
     {
       upsert: {
         github_pull_request: {
-          id: 'github:pr:77',
+          id: 'github:pull_request:77',
           number: 3,
           repository_id: 'github:repo:902',
           title: 'Fix the tide table',
@@ -140,9 +140,9 @@ test('it replaces the stored row with a fact that has a newer update time', () =
   const ctx = setupTest();
 
   ctx.rows.set(
-    'github:pr:77',
+    'github:pull_request:77',
     JSON.stringify({
-      id: 'github:pr:77',
+      id: 'github:pull_request:77',
       number: 3,
       repository_id: 'github:repo:902',
       title: 'Old title',
@@ -178,7 +178,7 @@ test('it replaces the stored row with a fact that has a newer update time', () =
     {
       upsert: {
         github_pull_request: {
-          id: 'github:pr:77',
+          id: 'github:pull_request:77',
           number: 3,
           repository_id: 'github:repo:902',
           title: 'New title',
@@ -203,9 +203,9 @@ test('it returns no operations for a fact older than the stored row', () => {
   const ctx = setupTest();
 
   ctx.rows.set(
-    'github:pr:77',
+    'github:pull_request:77',
     JSON.stringify({
-      id: 'github:pr:77',
+      id: 'github:pull_request:77',
       number: 3,
       repository_id: 'github:repo:902',
       title: 'Newest title',
@@ -258,9 +258,9 @@ test('it returns no operations for a repeat of the stored fact', () => {
   };
 
   ctx.rows.set(
-    'github:pr:77',
+    'github:pull_request:77',
     JSON.stringify({
-      id: 'github:pr:77',
+      id: 'github:pull_request:77',
       number: 3,
       repository_id: 'github:repo:902',
       title: 'Title',
@@ -287,9 +287,9 @@ test('it upserts a different fact that has the stored update time', () => {
   const ctx = setupTest();
 
   ctx.rows.set(
-    'github:pr:77',
+    'github:pull_request:77',
     JSON.stringify({
-      id: 'github:pr:77',
+      id: 'github:pull_request:77',
       number: 3,
       repository_id: 'github:repo:902',
       title: 'Title',
@@ -325,7 +325,7 @@ test('it upserts a different fact that has the stored update time', () => {
     {
       upsert: {
         github_pull_request: {
-          id: 'github:pr:77',
+          id: 'github:pull_request:77',
           number: 3,
           repository_id: 'github:repo:902',
           title: 'Title',

@@ -1,21 +1,15 @@
-import type { ClientID, EntityID, FactID, Reference } from '../ids/types.ts';
-
-export type EntityKind = `${string}:${string}`;
+import type {
+  ClientID,
+  EntityID,
+  EntityKind,
+  FactID,
+  LinkTypeDeclaration,
+  Reference,
+} from '@pepys/kit';
 
 // A plain string key, not a symbol: scriptc refuses the type-fest import that a symbol brand
 // needs, and the brand a consumer generates must have the same shape.
 export type KindedID<Kind extends EntityKind> = EntityID & { readonly '~entityKind': Kind };
-
-export interface LinkTypeDeclaration<
-  Name extends string = string,
-  From extends EntityKind = EntityKind,
-  To extends EntityKind = EntityKind,
-> {
-  readonly name: Name;
-  readonly from: readonly From[];
-  readonly to: readonly To[];
-  readonly hub: boolean;
-}
 
 export type LinkRegistry = Readonly<
   Record<string, { readonly from: readonly EntityKind[]; readonly to: readonly EntityKind[] }>

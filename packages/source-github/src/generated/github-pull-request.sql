@@ -24,7 +24,7 @@ CREATE INDEX "github_pull_request_repository_id_idx" ON "github_pull_request" ("
 CREATE VIEW "entity" AS
 SELECT
   "id" AS "id",
-  'pr' AS "kind",
+  'github:pull_request' AS "kind",
   "title" AS "title",
   "url" AS "url",
   "author_id" AS "actor",

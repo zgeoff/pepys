@@ -15,7 +15,7 @@ test('it turns stored flags into booleans and stored JSON into values', () => {
   } as const;
 
   const stored = {
-    id: 'github:pr:5',
+    id: 'github:pull_request:5',
     number: 5,
     is_draft: 1,
     closed_at: null,
@@ -23,7 +23,7 @@ test('it turns stored flags into booleans and stored JSON into values', () => {
   };
 
   expect(buildEntityRow(table, stored)).toStrictEqual({
-    id: 'github:pr:5',
+    id: 'github:pull_request:5',
     number: 5,
     is_draft: true,
     closed_at: null,

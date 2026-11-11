@@ -89,7 +89,7 @@ test('it stores the row of the newest pull request update, not the older one tha
     ok: true,
     value: [
       {
-        id: 'github:pr:1874433021',
+        id: 'github:pull_request:1874433021',
         number: 12,
         repository_id: 'github:repo:902',
         title: 'Add the harbour map and tides',
@@ -128,8 +128,8 @@ test('it writes an insert, then an update, to the change log', async () => {
   expect(result).toStrictEqual({
     ok: true,
     value: [
-      { key: 'github:pr:1874433021', operation: 'insert' },
-      { key: 'github:pr:1874433021', operation: 'update' },
+      { key: 'github:pull_request:1874433021', operation: 'insert' },
+      { key: 'github:pull_request:1874433021', operation: 'update' },
     ],
   });
 });
@@ -161,19 +161,19 @@ test('it swaps nothing when up runs again with the same module', async () => {
 test("it serves the stored row through the API's get_entity", async () => {
   const ctx = setupTest();
 
-  const result = await ctx.api.get_entity({ id: 'github:pr:1874433021' });
+  const result = await ctx.api.get_entity({ id: 'github:pull_request:1874433021' });
 
   expect(result).toStrictEqual({
     entity: {
-      id: 'github:pr:1874433021',
-      kind: 'pr',
+      id: 'github:pull_request:1874433021',
+      kind: 'github:pull_request',
       title: 'Add the harbour map and tides',
       url: 'https://github.example/acme/harbour/pull/12',
       actor: 'github:user:4401',
       updated_at: '2026-10-01T10:00:00Z',
     },
     row: {
-      id: 'github:pr:1874433021',
+      id: 'github:pull_request:1874433021',
       number: 12,
       repository_id: 'github:repo:902',
       title: 'Add the harbour map and tides',

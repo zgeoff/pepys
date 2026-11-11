@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { createRouterClient } from '@orpc/server';
 import { createMemoryFactLog } from '@pepys/ingest';
-import type { ClientID, EntityID, GrantID, StreamName } from '@pepys/schema';
+import type { ClientID, EntityID, GrantID, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import type { Principal } from '../src/principal/principal.ts';
 import { createStubLinkCatalog } from '../src/test-utils/create-stub-link-catalog.ts';

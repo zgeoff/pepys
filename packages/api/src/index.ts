@@ -3,6 +3,7 @@ export type { APIClient } from './app/create-router.ts';
 export { createApp } from './app/create-app.ts';
 export type * from './change-feed/change-feed.ts';
 export type * from './principal/principal.ts';
+export { readAPIConfig } from './config/read-api-config.ts';
 export { createStoreReader } from './store-reader/create-store-reader.ts';
 export { openConsumerDatabase } from './store-reader/open-consumer-database.ts';
 export { readChangeOperations } from './store-reader/read-change-operations.ts';

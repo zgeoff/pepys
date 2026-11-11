@@ -14,6 +14,10 @@ export interface FactEnvelope<Payload> {
   payload: Payload;
 }
 
+// The name of a stream as a declaration writes it. A plain literal fits it, where the branded
+// `StreamName` needs a parse.
+export type DeclaredStreamName = `facts.${string}.${string}`;
+
 export type ColumnKind =
   | 'text'
   | 'integer'
@@ -40,29 +44,4 @@ export interface TableDeclaration<
   readonly columns: Columns;
   readonly primaryKey: readonly string[];
   readonly indexes: readonly IndexDeclaration[];
-}
-
-export interface EntityViewDeclaration<TableName extends string = string> {
-  readonly table: TableName;
-  readonly kind: string;
-  readonly id: string;
-  readonly title: string;
-  readonly url: string;
-  readonly actor: string;
-  readonly updatedAt: string;
-}
-
-export type ConsumerMode = 'fact' | 'scope';
-
-export interface ConsumerDeclaration<
-  Tables extends Readonly<Record<string, TableDeclaration>> = Readonly<
-    Record<string, TableDeclaration>
-  >,
-> {
-  readonly name: string;
-  readonly mode: ConsumerMode;
-  readonly streams: readonly string[];
-  readonly tables: Tables;
-  readonly entityView?: EntityViewDeclaration | undefined;
-  readonly reads: readonly string[];
 }

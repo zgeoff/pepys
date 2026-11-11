@@ -78,9 +78,10 @@ packages/example/src/
 - In a consumer, import `EntityID` from `src/generated/<consumer-file>-boundary.ts`, and build one
   with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
   consumers to WebAssembly, refuses a type-fest import, even a type-only one.
-- Write an entity ID as `<source>:<kind>:<id>`, such as `github:pr:1874433021`, and brand the whole
-  string. The source is a source's lowercase name, such as `github` or `gmail`, or `deployment` for
-  an ID from the owner's own configuration. The last part is the ID the source gives the thing.
+- Write an entity ID as `<source>:<kind>:<id>`, such as `github:pull_request:1874433021`, and brand
+  the whole string. The source is a source's lowercase name, such as `github` or `gmail`, or
+  `deployment` for an ID from the owner's own configuration. The last part is the ID the source
+  gives the thing.
 - Keep each kind that [entities](../../../docs/design/pepys/entities.md) lists as it is, such as
-  `pr` or `msg`. Write a new kind in lowercase full words with `_` between them, such as
-  `review_comment`, and add it to that doc.
+  `msg`. Write a new kind in lowercase full words with `_` between them, such as `review_comment`,
+  and add it to that doc.

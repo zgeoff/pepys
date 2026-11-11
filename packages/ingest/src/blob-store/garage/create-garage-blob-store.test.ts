@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import type { BlobHash } from '@pepys/schema';
+import type { BlobHash } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { createGarageBlobStore } from './create-garage-blob-store.ts';
 

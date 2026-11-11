@@ -1,11 +1,11 @@
+import { checkDeployment } from '@pepys/kit';
+import type { DeploymentFailure } from '@pepys/kit';
 import {
-  checkConsumers,
   generateBoundaryGlue,
   generateKyselyTypes,
   generateRustTypes,
   generateSqliteSchema,
 } from '@pepys/schema';
-import type { ConsumerDeclaration, ConsumerFailure } from '@pepys/schema';
 import { consumerSources } from './consumer-sources.ts';
 
 export interface GeneratedFile {
@@ -15,18 +15,22 @@ export interface GeneratedFile {
 
 export type GeneratedFiles =
   | { ok: true; files: GeneratedFile[] }
-  | { ok: false; failures: ConsumerFailure[] };
+  | { ok: false; failures: readonly DeploymentFailure[] };
 
 export function buildGeneratedFiles(): GeneratedFiles {
-  const consumers: ConsumerDeclaration[] = consumerSources.flatMap((source) => source.consumers);
-  const check = checkConsumers(consumers);
+  const check = checkDeployment({
+    name: 'pepys',
+    plugins: consumerSources.map((source) => source.plugin),
+  });
 
   if (!check.ok) {
-    return check;
+    return { ok: false, failures: check.failure };
   }
 
+  const consumers = check.value.consumers;
+
   const sourceFiles = consumerSources.flatMap((source) =>
-    source.consumers.flatMap((consumer) => {
+    source.plugin.consumers.flatMap((consumer) => {
       const stem = `${source.directory}/src/generated/${consumer.name.replaceAll('_', '-')}`;
 
       return [

@@ -1,4 +1,5 @@
-import type { DB, Result } from '@pepys/schema';
+import type { Result } from '@pepys/kit';
+import type { DB } from '@pepys/schema';
 import type { Transaction } from 'kysely';
 
 interface EntityViewRow {

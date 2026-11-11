@@ -1,17 +1,16 @@
 import { ORPCError, implement } from '@orpc/server';
 import { coreContract } from '@pepys/contract';
 import type { AppendOutcome, FactLog, StoredFact } from '@pepys/ingest';
-import { buildManualFactID, isEntityOfKind } from '@pepys/schema';
+import { buildManualFactID } from '@pepys/kit';
 import type {
-  ConsumerLink,
   EntityID,
   FactEnvelope,
-  LinkEnds,
-  LinkRegistryOf,
   LinkTypeDeclaration,
   StreamName,
   StreamOffset,
-} from '@pepys/schema';
+} from '@pepys/kit';
+import { isEntityOfKind } from '@pepys/schema';
+import type { ConsumerLink, LinkEnds, LinkRegistryOf } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';

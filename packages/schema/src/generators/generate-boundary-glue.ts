@@ -1,5 +1,5 @@
+import type { ColumnDeclaration, ConsumerDeclaration, TableDeclaration } from '@pepys/kit';
 import { match } from 'ts-pattern';
-import type { ColumnDeclaration, ConsumerDeclaration, TableDeclaration } from '../types.ts';
 import { findTable } from './find-table.ts';
 import { formatTypeScriptRow } from './format-typescript-row.ts';
 import { toPascalCase } from './to-pascal-case.ts';

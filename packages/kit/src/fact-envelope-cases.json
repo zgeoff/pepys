@@ -7,7 +7,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -20,7 +20,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -33,7 +33,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -46,7 +46,46 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an event fact ID",
+      "envelope": {
+        "id": "event:boxxy:evt-0001",
+        "type": "boxxy.attempt.started",
+        "v": 1,
+        "api": "boxxy/1",
+        "entity": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an event fact ID whose event ID holds a colon and a dot",
+      "envelope": {
+        "id": "event:telemetry:claude_code.api_request:req_01",
+        "type": "telemetry.claude_code.api_request",
+        "v": 1,
+        "api": "otlp-logs/1",
+        "entity": "telemetry:session:s-9",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts an event fact ID whose event ID is a hash key",
+      "envelope": {
+        "id": "event:telemetry:codex.sse_event:h-5e1c9a07",
+        "type": "telemetry.claude_code.api_request",
+        "v": 1,
+        "api": "otlp-logs/1",
+        "entity": "telemetry:session:s-9",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -59,7 +98,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {},
         "actor": "github:user:583231",
@@ -74,7 +113,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00.123456Z",
         "payload": {}
       },
@@ -87,7 +126,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2028-02-29T10:30:00Z",
         "payload": {}
       },
@@ -100,7 +139,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -113,7 +152,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -126,7 +165,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -139,7 +178,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -152,7 +191,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -165,7 +204,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -178,7 +217,33 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an event fact ID with no event ID",
+      "envelope": {
+        "id": "event:boxxy:",
+        "type": "boxxy.attempt.started",
+        "v": 1,
+        "api": "boxxy/1",
+        "entity": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an event fact ID with an upper-case source",
+      "envelope": {
+        "id": "event:Boxxy:evt-0001",
+        "type": "boxxy.attempt.started",
+        "v": 1,
+        "api": "boxxy/1",
+        "entity": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -191,7 +256,7 @@
         "type": "",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -204,7 +269,7 @@
         "type": "github.pull_request.opened",
         "v": 2,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -217,7 +282,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": 7,
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -230,7 +295,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr",
+        "entity": "github:pull_request",
         "at": "2026-10-02T10:30:00Z",
         "payload": {}
       },
@@ -250,13 +315,53 @@
       "isValid": false
     },
     {
+      "title": "refuses an entity ID whose source is the event fact kind",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "event:x:y",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an actor that is an event fact ID",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "github:pull_request:77",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {},
+        "actor": "event:boxxy:evt-0001"
+      },
+      "isValid": false
+    },
+    {
+      "title": "accepts an entity ID whose source only starts with a fact kind",
+      "envelope": {
+        "id": "webhook:github:d-1",
+        "type": "github.pull_request.opened",
+        "v": 1,
+        "api": "github/2022-11-28",
+        "entity": "events:x:y",
+        "at": "2026-10-02T10:30:00Z",
+        "payload": {}
+      },
+      "isValid": true
+    },
+    {
       "title": "refuses an actor that is not an entity ID",
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {},
         "actor": "github:7"
@@ -270,7 +375,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30Z",
         "payload": {}
       },
@@ -283,7 +388,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00+01:00",
         "payload": {}
       },
@@ -296,7 +401,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-02-30T10:30:00Z",
         "payload": {}
       },
@@ -309,7 +414,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T24:00:00Z",
         "payload": {}
       },
@@ -322,7 +427,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {},
         "cursor": 3
@@ -336,7 +441,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z",
         "payload": {},
         "extra": 1
@@ -350,7 +455,7 @@
         "type": "github.pull_request.opened",
         "v": 1,
         "api": "github/2022-11-28",
-        "entity": "github:pr:77",
+        "entity": "github:pull_request:77",
         "at": "2026-10-02T10:30:00Z"
       },
       "isValid": false

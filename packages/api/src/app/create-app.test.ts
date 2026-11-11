@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import { githubPullRequestConsumer } from '@pepys/source-github';
 import { createStoreReader } from '../store-reader/create-store-reader.ts';
 import { openConsumerDatabase } from '../store-reader/open-consumer-database.ts';
 import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
+import { stubPullRequestConsumer } from '../test-utils/stub-pull-request-consumer.ts';
 import { createApp } from './create-app.ts';
 import type { APIClient } from './create-router.ts';
 
@@ -24,7 +24,7 @@ async function setupTest() {
 
   stack.defer(() => store.close());
 
-  const app = createApp({ store, consumers: [githubPullRequestConsumer] });
+  const app = createApp({ store, consumers: [stubPullRequestConsumer] });
 
   const link = new RPCLink({
     url: 'http://pepys.test/rpc',
@@ -47,7 +47,7 @@ test('it serves get_entity from the contract: the entity view row, the full row 
   await createStubConsumerVersion({
     versionDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -67,19 +67,19 @@ test('it serves get_entity from the contract: the entity view row, the full row 
 
   await symlink(versionDirectory, join(ctx.consumerDirectory, 'current'));
 
-  const result = await ctx.client.get_entity({ id: 'github:pr:5' });
+  const result = await ctx.client.get_entity({ id: 'github:pull_request:5' });
 
   expect(result).toStrictEqual({
     entity: {
-      id: 'github:pr:5',
-      kind: 'pr',
+      id: 'github:pull_request:5',
+      kind: 'github:pull_request',
       title: 'Chart the shoals',
       url: 'https://github.example/acme/harbour/pull/5',
       actor: 'github:user:77',
       updated_at: '2026-10-01T09:00:00Z',
     },
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -134,7 +134,7 @@ test('it answers NOT_IMPLEMENTED for a contract procedure with no handler yet', 
 
   expect(
     ctx.client.neighbourhood({
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       depthLimit: 1,
       linkTypes: null,
       includeHubs: false,
@@ -151,7 +151,7 @@ test('it answers NOT_FOUND for an entity the consumer does not hold', async () =
   await createStubConsumerVersion({
     versionDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -171,7 +171,7 @@ test('it answers NOT_FOUND for an entity the consumer does not hold', async () =
 
   await symlink(versionDirectory, join(ctx.consumerDirectory, 'current'));
 
-  expect(ctx.client.get_entity({ id: 'github:pr:6' })).rejects.toMatchObject({
+  expect(ctx.client.get_entity({ id: 'github:pull_request:6' })).rejects.toMatchObject({
     code: 'NOT_FOUND',
   });
 });
@@ -187,7 +187,7 @@ test('it answers NOT_FOUND for an entity kind no consumer serves', async () => {
 test('it answers NOT_FOUND while the consumer has no current version', async () => {
   const ctx = await setupTest();
 
-  expect(ctx.client.get_entity({ id: 'github:pr:5' })).rejects.toMatchObject({
+  expect(ctx.client.get_entity({ id: 'github:pull_request:5' })).rejects.toMatchObject({
     code: 'NOT_FOUND',
   });
 });
@@ -210,7 +210,7 @@ test('it serves the new row after the current link is repointed', async () => {
   await createStubConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -231,7 +231,7 @@ test('it serves the new row after the current link is repointed', async () => {
   await createStubConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals and reefs',
@@ -251,12 +251,12 @@ test('it serves the new row after the current link is repointed', async () => {
 
   await symlink(firstDirectory, currentLink);
 
-  await ctx.client.get_entity({ id: 'github:pr:5' });
+  await ctx.client.get_entity({ id: 'github:pull_request:5' });
 
   await unlink(currentLink);
   await symlink(secondDirectory, currentLink);
 
-  const result = await ctx.client.get_entity({ id: 'github:pr:5' });
+  const result = await ctx.client.get_entity({ id: 'github:pull_request:5' });
 
   expect(result.entity.title).toBe('Chart the shoals and reefs');
 });

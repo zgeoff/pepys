@@ -25,7 +25,7 @@ test('it writes a consumer file holding the row and the entity view', async () =
   await createStubConsumerVersion({
     versionDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -49,7 +49,9 @@ test('it writes a consumer file holding the row and the entity view', async () =
 
   const rows: unknown = await database.all('select id, kind, title from entity');
 
-  expect(rows).toStrictEqual([{ id: 'github:pr:5', kind: 'pr', title: 'Chart the shoals' }]);
+  expect(rows).toStrictEqual([
+    { id: 'github:pull_request:5', kind: 'github:pull_request', title: 'Chart the shoals' },
+  ]);
 });
 
 test('it writes the offsets and change log rows it is given beside the row', async () => {
@@ -60,7 +62,7 @@ test('it writes the offsets and change log rows it is given beside the row', asy
   await createStubConsumerVersion({
     versionDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',

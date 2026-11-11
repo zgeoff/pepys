@@ -5,6 +5,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@pepys/ingest": "workspace:*",
+    "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "ts-pattern": "catalog:"
   },

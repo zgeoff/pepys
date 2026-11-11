@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration, TableDeclaration } from '../types.ts';
+import type { ConsumerDeclaration, TableDeclaration } from '@pepys/kit';
 
 export interface TableEntry {
   consumer: string;

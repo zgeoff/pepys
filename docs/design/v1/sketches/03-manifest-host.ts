@@ -147,7 +147,7 @@ export declare function writeBuildManifest(out: string, deployment: CheckedDeplo
 // B. One case file, checked from both languages
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 //
-// packages/schema/src/consumer-manifest-cases.json (new), beside fact-envelope-cases.json:
+// packages/schema/src/consumer-manifest-cases.json (new), in the shape of packages/kit/src/fact-envelope-cases.json:
 //
 //   [ { "name": "a scope consumer with two link types", "accepted": true,  "file": { …a whole consumers.json… } },
 //     { "name": "an unknown field in a table",          "accepted": false, "file": { … } },

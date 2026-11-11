@@ -7,7 +7,7 @@ import type {
   ScopeID,
   StreamName,
   VersionHash,
-} from '@pepys/schema';
+} from '@pepys/kit';
 
 export interface JobDefinition<Value, Output> {
   name: string;

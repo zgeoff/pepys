@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
-import { defineConsumer } from '../declarations/define-consumer.ts';
-import { defineTable } from '../declarations/define-table.ts';
+import { defineConsumer, defineTable } from '@pepys/kit';
+import type { ConsumerDeclaration } from '@pepys/kit';
 import { generateBoundaryGlue } from './generate-boundary-glue.ts';
 
 test('it generates read declarations, getters and the operation type', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -25,22 +25,29 @@ test('it generates read declarations, getters and the operation type', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
-  const report = defineConsumer({
+  const report: ConsumerDeclaration = {
     name: 'ticket_report',
-    mode: 'scope',
-    streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: {
+      mode: 'scope',
+      scopeKind: 'tickets:ticket',
+      streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    },
     tables: {
       report: defineTable({
         columns: {
@@ -57,8 +64,10 @@ test('it generates read declarations, getters and the operation type', () => {
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket', 'report'],
-  });
+    links: [],
+  };
 
   expect(generateBoundaryGlue({ consumer: report, consumers: [tracker, report] }))
     .toMatchInlineSnapshot(`
@@ -222,8 +231,8 @@ test('it generates read declarations, getters and the operation type', () => {
 test('it generates only the row, key and operation types for a consumer with no reads', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -241,16 +250,19 @@ test('it generates only the row, key and operation types for a consumer with no 
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
   expect(generateBoundaryGlue({ consumer: tracker, consumers: [tracker] })).toMatchInlineSnapshot(`
@@ -284,8 +296,8 @@ test('it generates only the row, key and operation types for a consumer with no 
 test('it generates the same source for the same declarations', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -303,22 +315,29 @@ test('it generates the same source for the same declarations', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
-  const report = defineConsumer({
+  const report: ConsumerDeclaration = {
     name: 'ticket_report',
-    mode: 'scope',
-    streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: {
+      mode: 'scope',
+      scopeKind: 'tickets:ticket',
+      streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    },
     tables: {
       report: defineTable({
         columns: {
@@ -335,8 +354,10 @@ test('it generates the same source for the same declarations', () => {
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket', 'report'],
-  });
+    links: [],
+  };
 
   expect(generateBoundaryGlue({ consumer: report, consumers: [tracker, report] })).toStrictEqual(
     generateBoundaryGlue({ consumer: report, consumers: [tracker, report] }),

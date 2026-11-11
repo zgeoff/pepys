@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { BlobHash } from '@pepys/schema';
+import type { BlobHash } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { createLocalFolderBlobStore } from './create-local-folder-blob-store.ts';
 

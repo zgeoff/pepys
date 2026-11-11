@@ -307,7 +307,7 @@ import type { ConsumersDB, StoreReader } from './04-store-api.ts';
 // TableDeclaration, TableRow, defineTable, and the ID types.
 //
 // parseFactEnvelope moves to the kit AND gains a fact ID form. In the repo today
-// (packages/schema/src/facts/parse-fact-envelope.ts) `factIDPattern` accepts two forms:
+// (packages/kit/src/facts/parse-fact-envelope.ts) `factIDPattern` accepts two forms:
 //   ^webhook:[a-z][a-z0-9_]*:.+$
 //   ^(?:observation|enrichment|manual):[0-9a-f]{64}$
 // It gains a third, for a pushed fact, with the shape of the webhook form:
@@ -344,7 +344,10 @@ import type { ConsumersDB, StoreReader } from './04-store-api.ts';
 //   - log.md's fact ID table gains the row "source history event".
 // Without this, ingest's envelope check answers 422 to every boxxy batch and every telemetry
 // export. The test that proves the route end to end is in file 2, "Usage".
-declare type StreamName = `facts.${string}.${string}`;
+// A declaration names a stream with the template type; `StreamName` stays branded, for a name a
+// parser checked. The sketch writes `StreamName` in declarations; read it as `DeclaredStreamName`.
+declare type DeclaredStreamName = `facts.${string}.${string}`;
+declare type StreamName = DeclaredStreamName;
 declare type EntityID = string;
 declare type FactID = string;
 declare type BlobHash = string;
@@ -358,8 +361,7 @@ export type { EntityID, FactEnvelope, FactID, Result, StreamName, TableDeclarati
 // ── A. Entity kinds and link types ─────────────────────────────────────────────────────────────
 
 // One form everywhere: `<source>:<kind>`. A pull request is `github:pull_request` in the entity
-// view, in link ends and in the entity ID `github:pull_request:<id>`. The repo's `pr` goes, in
-// github-pull-request-consumer.ts (`kind: 'pr'`) and build-pull-request-fact.ts (`github:pr:`).
+// view, in link ends and in the entity ID `github:pull_request:<id>`.
 export type EntityKind = `${string}:${string}`;
 
 export interface LinkTypeDeclaration<Name extends string = string, From extends EntityKind = EntityKind, To extends EntityKind = EntityKind> {
@@ -408,6 +410,11 @@ export declare function defineSource<const Family extends FactFamily>(source: So
 export interface ReceivePath {
   readonly kind: 'receive';
   readonly route: string;
+  // More routes that pass the same check and sender, answer as an ignored delivery, and store
+  // nothing: an OTLP exporter sends metrics and traces beside its logs, and retries a refusal.
+  // `listReceiveRoutes` lists each with `stores: false`, and `checkDeployment` refuses a route
+  // that clashes with any other route.
+  readonly ignoredRoutes?: readonly string[];
   readonly check: DeliveryCheck;
   // Default 1 MiB. It bounds the body as sent AND the body after decoding.
   readonly bodyByteLimit?: number;
@@ -431,7 +438,7 @@ export interface ReceivePath {
   // as `Delivery.sender`. No proof: 401, nothing stored. The path names the proof as data, as
   // it names its `check`: `kind` picks the adapter, `issuersEnv` names the folder of trust
   // documents.
-  readonly sender?: { readonly kind: 'imp-identity'; readonly audience: string; readonly issuersEnv: string };
+  readonly sender?: SenderRequirement;
   // Pure: it writes nothing. `source` is the source this path is in.
   readonly read: (delivery: Delivery, source: SourceContext) => Received;
 }
@@ -440,11 +447,16 @@ export interface ReceivePath {
 // Neither kind signs a timestamp, so a source's fact IDs must come from the signed body alone,
 // never from a header. Then a replay is a copy that every consumer drops (02-ingest-log.ts, "A
 // replayed delivery").
-export type DeliveryCheck =
-  // The header holds `sha256=<hex of HMAC-SHA256(secret, body as sent)>`, the scheme GitHub uses.
-  | { readonly kind: 'hmac-sha256'; readonly header: string; readonly secretEnv: string }
-  // The header holds the secret, or `Bearer <secret>`: for a sender that cannot sign a body.
-  | { readonly kind: 'token'; readonly header: string; readonly secretEnv: string };
+// `hmac-sha256`: the header holds `sha256=<hex of HMAC-SHA256(secret, body as sent)>`, the scheme
+// GitHub uses. `token`: the header holds the secret, or `Bearer <secret>`, for a sender that cannot
+// sign a body.
+export interface DeliveryCheck {
+  readonly kind: 'hmac-sha256' | 'token';
+  readonly header: string;
+  readonly secretEnv: string;
+}
+
+export interface SenderRequirement { readonly kind: 'imp-identity'; readonly audience: string; readonly issuersEnv: string }
 
 export interface Delivery {
   headers: Headers;
@@ -463,7 +475,7 @@ export interface Delivery {
 // uses for a path whose trust documents are missing, so that the path refuses every delivery.
 export interface Sender { readonly issuer: string; readonly subject: string; readonly name: string }
 export interface SenderProof {
-  prove: (path: NonNullable<ReceivePath['sender']>, headers: Headers) => Promise<Sender | null>;
+  prove: (requirement: SenderRequirement, headers: Headers) => Promise<Sender | null>;
 }
 
 export interface SourceContext {
@@ -505,7 +517,7 @@ export interface PendingFact {
 // The receive path of a fact batch. Its `read` parses FactBatchBody against the source's families
 // and builds each fact ID as `event:<source>:<event>`.
 export declare function receiveFactBatch(
-  receiver: Pick<ReceivePath, 'route' | 'check' | 'bodyByteLimit' | 'factLimit' | 'reach'>,
+  receiver: Pick<ReceivePath, 'route' | 'check' | 'bodyByteLimit' | 'factLimit' | 'reach' | 'sender'>,
 ): ReceivePath;
 
 export interface FactBatchBody {
@@ -522,6 +534,8 @@ export interface ReceiveRoute {
   route: string;
   check: DeliveryCheck['kind'];
   reach: 'public' | 'private';
+  // false for a route in `ignoredRoutes`
+  stores: boolean;
 }
 
 export declare function listReceiveRoutes(deployment: Deployment): readonly ReceiveRoute[];
@@ -583,15 +597,17 @@ export interface ConsumerDeclaration<
   LinkType extends LinkTypeDeclaration = LinkTypeDeclaration,
 > {
   readonly name: Name;
-  // the scriptc entry file
+  // The scriptc entry file: a library that exports a model type, a message type, `init` and
+  // `update` beside the consumer. scriptc attests no other shape.
   readonly entry: URL;
   readonly input: ConsumerInput;
   readonly tables: Tables;
-  // A list (the repo today has `entityView`, one). One view per table whose rows are
-  // entities. The schema generator writes the file's `entity` view as a `union all` of them.
-  readonly entityViews: readonly EntityViewDeclaration<keyof Tables & string>[];
+  // One view per table whose rows are entities. The schema generator writes the file's `entity`
+  // view as a `union all` of them. Typed wide here, so a declaration fits the wide consumer type;
+  // `defineConsumer` keeps the table names of `entityViews` and `reads` to the consumer's own.
+  readonly entityViews: readonly EntityViewDeclaration[];
   // Own tables whose rows the module reads by key. Fact mode only: empty in scope mode.
-  readonly reads: readonly (keyof Tables & string)[];
+  readonly reads: readonly string[];
   // the link types the consumer may write; the manifest holds them whole
   readonly links: readonly LinkType[];
 }
@@ -618,26 +634,33 @@ export interface QueryCall<Input, Consumers extends readonly ConsumerDeclaration
   db: Kysely<ConsumersDB<Consumers>>;
 }
 
-export interface QueryDefinition<Name extends string = string, Input = unknown, Output = unknown, Consumers extends readonly ConsumerDeclaration[] = readonly ConsumerDeclaration[]> {
+// Generic over the schemas: `z.ZodType<Input>` keeps the parsed type alone, and a client needs the
+// type a schema takes in.
+export interface QueryDefinition<Name extends string = string, InputSchema extends z.ZodType = z.ZodType, OutputSchema extends z.ZodType = z.ZodType, Consumers extends readonly ConsumerDeclaration[] = readonly ConsumerDeclaration[]> {
   // snake case: the oRPC procedure key and the MCP tool name
   readonly name: Name;
   // the text an MCP agent reads; it becomes `oc.meta(openapi({ description }))` (file 4)
   readonly description: string;
   // Plain zod objects with no `.transform`: the MCP input and output schemas come from them.
-  readonly input: z.ZodType<Input>;
-  readonly output: z.ZodType<Output>;
+  readonly input: InputSchema;
+  readonly output: OutputSchema;
   readonly reads: Consumers;
-  readonly handler: (call: QueryCall<Input, Consumers>) => Promise<Output>;
+  readonly handler: (call: QueryCall<z.output<InputSchema>, Consumers>) => Promise<z.input<OutputSchema>>;
 }
 
-export declare function defineQuery<const Name extends string, Input, Output, const Consumers extends readonly ConsumerDeclaration[]>(
-  query: QueryDefinition<Name, Input, Output, Consumers>,
-): QueryDefinition<Name, Input, Output, Consumers>;
+// Any query, as a plug-in's list holds it. Each handler takes its own call type, so the list's
+// handler takes `never`.
+export type AnyQueryDefinition = Omit<QueryDefinition, 'handler'> & { readonly handler: (call: never) => Promise<unknown> };
+
+export declare function defineQuery<const Name extends string, InputSchema extends z.ZodType, OutputSchema extends z.ZodType, const Consumers extends readonly ConsumerDeclaration[]>(
+  query: QueryDefinition<Name, InputSchema, OutputSchema, Consumers>,
+): QueryDefinition<Name, InputSchema, OutputSchema, Consumers>;
 
 // ── G. Plug-ins and deployments ────────────────────────────────────────────────────────────────
 
-export interface Plugin<Query extends QueryDefinition = QueryDefinition> {
-  readonly kit: 1;
+export interface Plugin<Query extends AnyQueryDefinition = AnyQueryDefinition> {
+  // the kit version the plug-in was declared with; `checkDeployment` refuses another
+  readonly kit: number;
   // the plug-in's compile-time settings, or undefined when it has none
   readonly settings: PluginSettings | undefined;
   readonly name: string;
@@ -663,7 +686,7 @@ export interface PluginSettings<Schema extends z.ZodObject = z.ZodObject> {
   readonly defaults: z.output<Schema>;
 }
 
-export declare function definePlugin<const Query extends QueryDefinition = never>(plugin: {
+export declare function definePlugin<const Query extends AnyQueryDefinition = never>(plugin: {
   readonly name: string;
   readonly sources?: readonly SourceDefinition[];
   readonly consumers?: readonly ConsumerDeclaration[];
@@ -713,8 +736,13 @@ export type DeploymentFailure =
   | { kind: 'missing-stream'; stream: StreamName; consumer: string }
   // `get_entity` and `neighbourhood` are the core's
   | { kind: 'reserved-query-name'; query: string }
-  // the host's own names in every consumer file: link, entity, offsets, change_log, applied_facts, scope_row
+  // the host's own names in every consumer file: link, link_effective, entity, offsets,
+  // change_log, applied_facts, scope_row
   | { kind: 'reserved-table-name'; table: string; consumer: string }
+  // an entity view or a `reads` entry that names no table of the consumer
+  | { kind: 'unknown-table'; consumer: string; table: string; usedBy: 'reads' | 'entity-view' }
+  // an entity view's column that its table does not declare
+  | { kind: 'unknown-column'; consumer: string; table: string; column: string; usedBy: string }
   // a scope consumer with a non-empty `reads`
   | { kind: 'scope-reads'; consumer: string }
   // a source named as a fact kind is: webhook, event, observation, enrichment, manual

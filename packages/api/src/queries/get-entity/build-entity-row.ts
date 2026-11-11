@@ -1,4 +1,4 @@
-import type { ColumnDeclaration, TableDeclaration } from '@pepys/schema';
+import type { ColumnDeclaration, TableDeclaration } from '@pepys/kit';
 import { match } from 'ts-pattern';
 
 export function buildEntityRow(

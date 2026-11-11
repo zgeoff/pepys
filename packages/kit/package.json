@@ -1,0 +1,23 @@
+{
+  "name": "@pepys/kit",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@zgeoff/std": "catalog:",
+    "type-fest": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "kysely": "catalog:",
+    "tiny-invariant": "catalog:"
+  },
+  "peerDependencies": {
+    "kysely": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "kysely": {
+      "optional": true
+    }
+  }
+}

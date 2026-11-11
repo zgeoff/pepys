@@ -1,6 +1,6 @@
 import { mock } from 'bun:test';
 import type { Mock } from 'bun:test';
-import type { StreamOffset } from '@pepys/schema';
+import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import type { AppendOutcome, FactLog } from '../fact-log.ts';
 

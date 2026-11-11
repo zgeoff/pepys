@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration } from '../types.ts';
+import type { ConsumerDeclaration } from '@pepys/kit';
 import { collectTables } from './collect-tables.ts';
 import { formatTypeScriptRow } from './format-typescript-row.ts';
 import { toPascalCase } from './to-pascal-case.ts';

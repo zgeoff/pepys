@@ -1,4 +1,4 @@
-import type { BlobHash, EntityID, Result, VersionHash } from '@pepys/schema';
+import type { BlobHash, EntityID, Result, VersionHash } from '@pepys/kit';
 
 export interface Strategy {
   name: string;

@@ -1,4 +1,4 @@
-import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/schema';
+import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/kit';
 
 export type AppendOutcome =
   | { kind: 'acknowledged'; offset: StreamOffset }

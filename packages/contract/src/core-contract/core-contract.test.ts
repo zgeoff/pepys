@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { call, implement } from '@orpc/server';
-import type { FactID } from '@pepys/schema';
+import type { FactID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { coreContract } from './core-contract.ts';
 

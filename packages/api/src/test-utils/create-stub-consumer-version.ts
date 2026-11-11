@@ -1,8 +1,9 @@
 // oxlint-disable zgeoff/seed-only -- stands in for the Rust host, which writes the file the store reader reads
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { githubPullRequestSchemaPath } from '@pepys/source-github';
+import { generateSqliteSchema } from '@pepys/schema';
 import { connect } from '@tursodatabase/database';
+import { stubPullRequestConsumer } from './stub-pull-request-consumer.ts';
 
 interface StubConsumerVersion {
   versionDirectory: string;
@@ -20,7 +21,8 @@ CREATE TABLE change_log (batch INTEGER NOT NULL PRIMARY KEY, changes TEXT NOT NU
 export async function createStubConsumerVersion(options: StubConsumerVersion): Promise<void> {
   await mkdir(options.versionDirectory, { recursive: true });
 
-  const schema = await Bun.file(githubPullRequestSchemaPath).text();
+  const schema = generateSqliteSchema(stubPullRequestConsumer);
+
   const database = await connect(join(options.versionDirectory, 'consumer.db'));
 
   const columns = Object.keys(options.row);

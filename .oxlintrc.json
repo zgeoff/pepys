@@ -43,6 +43,66 @@
           }
         ]
       }
+    },
+    {
+      // a core package works for any plug-in, so it imports the named core packages and no other
+      "files": [
+        "packages/schema/**",
+        "packages/contract/**",
+        "packages/ingest/**",
+        "packages/api/**",
+        "packages/cli/**",
+        "packages/testing/**",
+        "packages/kysely-turso/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@pepys/spike-*", "**/research/**"],
+                "message": "product code never imports a spike"
+              },
+              {
+                "group": [
+                  "@pepys/*",
+                  "!@pepys/kit",
+                  "!@pepys/schema",
+                  "!@pepys/contract",
+                  "!@pepys/ingest",
+                  "!@pepys/api",
+                  "!@pepys/cli",
+                  "!@pepys/testing",
+                  "!@pepys/kysely-turso"
+                ],
+                "message": "a core package imports only the core packages, never a plug-in"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // the kit is published to npm, so it imports no workspace package
+      "files": ["packages/kit/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@pepys/spike-*", "**/research/**"],
+                "message": "product code never imports a spike"
+              },
+              {
+                "group": ["@pepys/*"],
+                "message": "the kit is published, so it imports no workspace package"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   // generated files are written by the schema generators, so a lint fix would be overwritten

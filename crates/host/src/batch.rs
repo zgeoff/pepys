@@ -303,7 +303,8 @@ mod tests {
     #[tokio::test]
     async fn it_commits_the_rows_the_offset_and_the_change_log_row_together() {
         let (_directory, store, spec) = setup().await;
-        let mut canned = CannedRunner::new(&[("a", Ok(upsert_json("github:pr:1", "First")))]);
+        let mut canned =
+            CannedRunner::new(&[("a", Ok(upsert_json("github:pull_request:1", "First")))]);
 
         apply_batch(&store, spec, &mut canned, &[fact(4, "a")])
             .await
@@ -322,8 +323,8 @@ mod tests {
                     4,
                     json!([{
                         "type": "github_pull_request",
-                        "key": "github:pr:1",
-                        "value": row_json("github:pr:1", "First"),
+                        "key": "github:pull_request:1",
+                        "value": row_json("github:pull_request:1", "First"),
                         "headers": {"operation": "insert"}
                     }])
                 )]
@@ -335,8 +336,8 @@ mod tests {
     async fn it_logs_an_update_with_the_old_value_for_a_key_that_exists() {
         let (_directory, store, spec) = setup().await;
         let mut canned = CannedRunner::new(&[
-            ("a", Ok(upsert_json("github:pr:1", "First"))),
-            ("b", Ok(upsert_json("github:pr:1", "Second"))),
+            ("a", Ok(upsert_json("github:pull_request:1", "First"))),
+            ("b", Ok(upsert_json("github:pull_request:1", "Second"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, "a")])
@@ -352,9 +353,9 @@ mod tests {
                 1,
                 json!([{
                     "type": "github_pull_request",
-                    "key": "github:pr:1",
-                    "value": row_json("github:pr:1", "Second"),
-                    "old_value": row_json("github:pr:1", "First"),
+                    "key": "github:pull_request:1",
+                    "value": row_json("github:pull_request:1", "Second"),
+                    "old_value": row_json("github:pull_request:1", "First"),
                     "headers": {"operation": "update"}
                 }])
             )
@@ -365,8 +366,8 @@ mod tests {
     async fn it_logs_an_insert_then_an_update_for_a_key_written_twice_in_one_batch() {
         let (_directory, store, spec) = setup().await;
         let mut canned = CannedRunner::new(&[
-            ("a", Ok(upsert_json("github:pr:1", "First"))),
-            ("b", Ok(upsert_json("github:pr:1", "Second"))),
+            ("a", Ok(upsert_json("github:pull_request:1", "First"))),
+            ("b", Ok(upsert_json("github:pull_request:1", "Second"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, "a"), fact(1, "b")])
@@ -391,8 +392,8 @@ mod tests {
         let open = r#"{"id":"delivery-1"}"#;
         let close = r#"{"id":"delivery-2"}"#;
         let mut canned = CannedRunner::new(&[
-            (open, Ok(upsert_json("github:pr:1", "Open"))),
-            (close, Ok(upsert_json("github:pr:1", "Closed"))),
+            (open, Ok(upsert_json("github:pull_request:1", "Open"))),
+            (close, Ok(upsert_json("github:pull_request:1", "Closed"))),
         ]);
 
         apply_batch(&store, spec, &mut canned, &[fact(0, open), fact(1, close)])
@@ -428,10 +429,10 @@ mod tests {
     #[tokio::test]
     async fn it_deletes_a_row_and_logs_the_old_value() {
         let (_directory, store, spec) = setup().await;
-        let delete =
-            json!([{"delete": {"github_pull_request": {"id": "github:pr:1"}}}]).to_string();
+        let delete = json!([{"delete": {"github_pull_request": {"id": "github:pull_request:1"}}}])
+            .to_string();
         let mut canned = CannedRunner::new(&[
-            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("a", Ok(upsert_json("github:pull_request:1", "First"))),
             ("b", Ok(delete)),
         ]);
 
@@ -453,8 +454,8 @@ mod tests {
                     1,
                     json!([{
                         "type": "github_pull_request",
-                        "key": "github:pr:1",
-                        "old_value": row_json("github:pr:1", "First"),
+                        "key": "github:pull_request:1",
+                        "old_value": row_json("github:pull_request:1", "First"),
                         "headers": {"operation": "delete"}
                     }])
                 )
@@ -485,7 +486,7 @@ mod tests {
         let (_directory, store, spec) = setup().await;
         let foreign = json!([{"upsert": {"someone_elses_table": {"id": "x"}}}]).to_string();
         let mut canned = CannedRunner::new(&[
-            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("a", Ok(upsert_json("github:pull_request:1", "First"))),
             ("b", Ok(foreign)),
         ]);
 
@@ -511,7 +512,7 @@ mod tests {
     async fn it_writes_nothing_when_the_consumer_fails_on_a_later_fact() {
         let (_directory, store, spec) = setup().await;
         let mut canned = CannedRunner::new(&[
-            ("a", Ok(upsert_json("github:pr:1", "First"))),
+            ("a", Ok(upsert_json("github:pull_request:1", "First"))),
             ("b", Err("boom".to_owned())),
         ]);
 

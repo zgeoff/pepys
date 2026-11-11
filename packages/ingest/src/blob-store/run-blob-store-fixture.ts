@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { BlobHash } from '@pepys/schema';
+import type { BlobHash } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { P, match } from 'ts-pattern';
 import { z } from 'zod';

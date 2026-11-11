@@ -299,7 +299,7 @@ async function runUntilCaughtUp(
 async function startAPI(stop: AbortSignal): Promise<string> {
   const apiPort = readFreePort();
 
-  runChild(['bun', 'packages/api/src/serve.ts'], {
+  runChild(['bun', 'packages/source-github/src/api/serve-api.ts'], {
     ...process.env,
     PEPYS_API_PORT: String(apiPort),
   });

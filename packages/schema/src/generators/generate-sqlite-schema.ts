@@ -1,5 +1,5 @@
+import type { ColumnDeclaration, ConsumerDeclaration, EntityViewDeclaration } from '@pepys/kit';
 import { match } from 'ts-pattern';
-import type { ColumnDeclaration, ConsumerDeclaration, EntityViewDeclaration } from '../types.ts';
 import { quoteSqlIdentifier } from './quote-sql-identifier.ts';
 
 export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
@@ -16,8 +16,8 @@ export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
     }
   }
 
-  if (consumer.entityView !== undefined) {
-    statements.push(formatEntityView(consumer.entityView));
+  if (consumer.entityViews.length > 0) {
+    statements.push(formatEntityView(consumer.entityViews));
   }
 
   return `${statements.join('\n\n')}\n`;
@@ -51,22 +51,27 @@ function toSqliteType(column: ColumnDeclaration): string {
     .exhaustive();
 }
 
-function formatEntityView(view: EntityViewDeclaration): string {
+function formatEntityView(views: readonly EntityViewDeclaration[]): string {
+  const selects = views.map((view) => formatEntitySelect(view)).join('\nUNION ALL\n');
+
+  return `CREATE VIEW "entity" AS\n${selects};`;
+}
+
+function formatEntitySelect(view: EntityViewDeclaration): string {
   const kind = `'${view.kind.replaceAll("'", "''")}'`;
 
   const selections = [
     `${quoteSqlIdentifier(view.id)} AS "id"`,
     `${kind} AS "kind"`,
     `${quoteSqlIdentifier(view.title)} AS "title"`,
-    `${quoteSqlIdentifier(view.url)} AS "url"`,
-    `${quoteSqlIdentifier(view.actor)} AS "actor"`,
+    `${formatOptionalColumn(view.url)} AS "url"`,
+    `${formatOptionalColumn(view.actor)} AS "actor"`,
     `${quoteSqlIdentifier(view.updatedAt)} AS "updated_at"`,
   ].map((selection) => `  ${selection}`);
 
-  return [
-    'CREATE VIEW "entity" AS',
-    'SELECT',
-    selections.join(',\n'),
-    `FROM ${quoteSqlIdentifier(view.table)};`,
-  ].join('\n');
+  return ['SELECT', selections.join(',\n'), `FROM ${quoteSqlIdentifier(view.table)}`].join('\n');
+}
+
+function formatOptionalColumn(column: string | null): string {
+  return column === null ? 'NULL' : quoteSqlIdentifier(column);
 }

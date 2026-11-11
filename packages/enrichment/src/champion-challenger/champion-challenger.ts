@@ -1,12 +1,12 @@
 import type {
   BucketNumber,
   EntityID,
-  Pins,
   Result,
   ScopeID,
   StreamOffset,
   VersionHash,
-} from '@pepys/schema';
+} from '@pepys/kit';
+import type { Pins } from '@pepys/schema';
 
 export type Subject =
   | { kind: 'consumer'; name: string }

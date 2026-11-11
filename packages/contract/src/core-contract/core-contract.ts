@@ -1,7 +1,7 @@
 import { oc } from '@orpc/contract';
 import type { InferContractRouterInputs, InferContractRouterOutputs } from '@orpc/contract';
-import { parseEntityID } from '@pepys/schema';
-import type { EntityID, FactID, Reference, RequestID } from '@pepys/schema';
+import { parseEntityID } from '@pepys/kit';
+import type { EntityID, FactID, Reference, RequestID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 
@@ -125,7 +125,7 @@ export const coreContract = {
     .errors(notFoundErrors)
     .route({
       description:
-        "Returns one entity by its ID, such as github:pr:1874433021: its row in the owning consumer's entity view, its full row, and the references that resolve to it.",
+        "Returns one entity by its ID, such as github:pull_request:1874433021: its row in the owning consumer's entity view, its full row, and the references that resolve to it.",
     })
     .input(getEntityInput)
     .output(getEntityOutput),

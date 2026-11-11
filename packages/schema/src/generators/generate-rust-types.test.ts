@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
-import { defineConsumer } from '../declarations/define-consumer.ts';
-import { defineTable } from '../declarations/define-table.ts';
+import { defineConsumer, defineTable } from '@pepys/kit';
+import type { ConsumerDeclaration } from '@pepys/kit';
 import { generateRustTypes } from './generate-rust-types.ts';
 
 test('it generates row structs, operation enums and read imports', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -25,22 +25,29 @@ test('it generates row structs, operation enums and read imports', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
-  const report = defineConsumer({
+  const report: ConsumerDeclaration = {
     name: 'ticket_report',
-    mode: 'scope',
-    streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: {
+      mode: 'scope',
+      scopeKind: 'tickets:ticket',
+      streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    },
     tables: {
       report: defineTable({
         columns: {
@@ -57,8 +64,10 @@ test('it generates row structs, operation enums and read imports', () => {
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket', 'report'],
-  });
+    links: [],
+  };
 
   expect(generateRustTypes([tracker, report])).toMatchInlineSnapshot(`
     "#[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -290,8 +299,8 @@ test('it generates row structs, operation enums and read imports', () => {
 test('it generates a lone read import in the layout rustfmt gives it', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -309,22 +318,29 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
-  const single = defineConsumer({
+  const single: ConsumerDeclaration = {
     name: 'ticket_report',
-    mode: 'scope',
-    streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: {
+      mode: 'scope',
+      scopeKind: 'tickets:ticket',
+      streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    },
     tables: {
       report: defineTable({
         columns: {
@@ -341,8 +357,10 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket'],
-  });
+    links: [],
+  };
 
   expect(generateRustTypes([tracker, single])).toMatchInlineSnapshot(`
     "#[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -567,8 +585,8 @@ test('it generates a lone read import in the layout rustfmt gives it', () => {
 test('it generates the same source for the same declarations', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -586,16 +604,19 @@ test('it generates the same source for the same declarations', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
   expect(generateRustTypes([tracker])).toStrictEqual(generateRustTypes([tracker]));

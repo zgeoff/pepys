@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
-import { defineConsumer, defineTable } from '@pepys/schema';
+import { defineConsumer, defineTable } from '@pepys/kit';
 import { buildConsumerProfile } from './build-consumer-profile.ts';
 import { consumerFences } from './consumer-fences.ts';
 
 test('it builds a library profile whose callbacks match the generated read imports', () => {
   const ticketTracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: { id: { kind: 'entityID' }, title: { kind: 'text' } },
@@ -15,7 +15,9 @@ test('it builds a library profile whose callbacks match the generated read impor
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket'],
+    links: [],
   });
 
   const profile = buildConsumerProfile({

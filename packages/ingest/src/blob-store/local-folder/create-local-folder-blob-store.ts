@@ -1,6 +1,6 @@
 import { rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { BlobHash, Result } from '@pepys/schema';
+import type { BlobHash, Result } from '@pepys/kit';
 import type { BlobStore } from '../blob-store.ts';
 import { buildBlobHash } from '../build-blob-hash.ts';
 

@@ -1,5 +1,5 @@
 import { Webhooks } from '@octokit/webhooks';
-import type { FactEnvelope } from '@pepys/schema';
+import type { FactEnvelope } from '@pepys/kit';
 import { buildPullRequestFact } from './build-pull-request-fact.ts';
 
 interface WebhookReceiverDependencies {

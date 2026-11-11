@@ -1,7 +1,7 @@
 import { realpath } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { Result } from '@pepys/kit';
 import { createTursoDialect } from '@pepys/kysely-turso';
-import type { Result } from '@pepys/schema';
 import type { Database } from '@tursodatabase/database';
 import { Kysely } from 'kysely';
 import type { Transaction } from 'kysely';

@@ -6,7 +6,7 @@ import type {
   LinkTypeDeclaration,
   Result,
   StreamName,
-} from '@pepys/schema';
+} from '@pepys/kit';
 
 export interface FactFamily<Payload> {
   stream: StreamName;

@@ -4,12 +4,8 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@pepys/kit": "workspace:*",
     "@zgeoff/std": "catalog:",
-    "ts-pattern": "catalog:",
-    "type-fest": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "tiny-invariant": "catalog:"
+    "ts-pattern": "catalog:"
   }
 }

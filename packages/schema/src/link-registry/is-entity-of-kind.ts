@@ -1,6 +1,6 @@
-import { parseEntityID } from '../entity-ids/parse-entity-id.ts';
-import type { EntityID } from '../ids/types.ts';
-import type { EntityKind, KindedID } from './link-registry.ts';
+import { parseEntityID } from '@pepys/kit';
+import type { EntityID, EntityKind } from '@pepys/kit';
+import type { KindedID } from './link-registry.ts';
 
 export function isEntityOfKind<Kind extends EntityKind>(
   id: EntityID,

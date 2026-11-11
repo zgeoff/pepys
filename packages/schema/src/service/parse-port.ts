@@ -1,4 +1,4 @@
-import type { Result } from '../types.ts';
+import type { Result } from '@pepys/kit';
 
 const digitsPattern = /^[0-9]+$/u;
 

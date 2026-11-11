@@ -91,6 +91,7 @@ docs/
 - `bun run test:e2e:rust` runs the Rust e2e lane, the fact log and blob store fixtures on s2-lite
   and Garage, in a stack of its own. It needs Docker and `cargo-nextest`. The `e2e` job runs it
   after the Bun lane.
-- `bun packages/api/src/serve.ts` starts the API, which serves oRPC under `/rpc` on 127.0.0.1. It
-  reads `PEPYS_STORE_DIR`, the store the host writes, and `PEPYS_API_PORT`, which defaults to 8081.
+- `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`
+  on 127.0.0.1. It reads `PEPYS_STORE_DIR`, the store the host writes, and `PEPYS_API_PORT`, which
+  defaults to 8081.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

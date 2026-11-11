@@ -105,7 +105,7 @@ function readRow(factJSON: string): GithubPullRequestRow | undefined {
   }
 
   return {
-    id: toEntityID(`github:pr:${pullRequest.id}`),
+    id: toEntityID(`github:pull_request:${pullRequest.id}`),
     number: pullRequest.number,
     repository_id: toEntityID(`github:repo:${repositoryID}`),
     title: pullRequest.title,

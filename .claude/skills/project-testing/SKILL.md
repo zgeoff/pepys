@@ -72,7 +72,7 @@ metadata:
   [`blob_store/fixtures.rs`](../../../crates/host/src/blob_store/fixtures.rs). Bun reads the whole
   folder, and a Rust test fails when the macro misses a file.
 - Read the fact envelope cases from
-  [`fact-envelope-cases.json`](../../../packages/schema/src/fact-envelope-cases.json), from both Bun
+  [`fact-envelope-cases.json`](../../../packages/kit/src/fact-envelope-cases.json), from both Bun
   and Rust. `bun run test` and `cargo nextest run` run them.
 
 ## Bun tests in the root e2e/ folder

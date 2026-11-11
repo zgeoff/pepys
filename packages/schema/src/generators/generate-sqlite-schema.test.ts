@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
-import { defineConsumer } from '../declarations/define-consumer.ts';
-import { defineTable } from '../declarations/define-table.ts';
+import { defineConsumer, defineTable } from '@pepys/kit';
+import type { ConsumerDeclaration } from '@pepys/kit';
 import { generateSqliteSchema } from './generate-sqlite-schema.ts';
 
 test('it generates tables, indexes and the entity view', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -25,16 +25,19 @@ test('it generates tables, indexes and the entity view', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
   expect(generateSqliteSchema(tracker)).toMatchInlineSnapshot(`
@@ -58,7 +61,7 @@ test('it generates tables, indexes and the entity view', () => {
     CREATE VIEW "entity" AS
     SELECT
       "id" AS "id",
-      'ticket' AS "kind",
+      'tickets:ticket' AS "kind",
       "title" AS "title",
       "title" AS "url",
       "owner_id" AS "actor",
@@ -69,10 +72,14 @@ test('it generates tables, indexes and the entity view', () => {
 });
 
 test('it generates a table with a composite primary key and no view', () => {
-  const report = defineConsumer({
+  const report: ConsumerDeclaration = {
     name: 'ticket_report',
-    mode: 'scope',
-    streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: {
+      mode: 'scope',
+      scopeKind: 'tickets:ticket',
+      streams: ['facts.tickets.ticket', 'facts.tickets.comment'],
+    },
     tables: {
       report: defineTable({
         columns: {
@@ -89,8 +96,10 @@ test('it generates a table with a composite primary key and no view', () => {
         indexes: [],
       }),
     },
+    entityViews: [],
     reads: ['ticket', 'report'],
-  });
+    links: [],
+  };
 
   expect(generateSqliteSchema(report)).toMatchInlineSnapshot(`
     "CREATE TABLE "report" (
@@ -112,8 +121,8 @@ test('it generates a table with a composite primary key and no view', () => {
 test('it generates the same source for the same declaration', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',
-    mode: 'fact',
-    streams: ['facts.tickets.ticket'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
     tables: {
       ticket: defineTable({
         columns: {
@@ -131,16 +140,19 @@ test('it generates the same source for the same declaration', () => {
         indexes: [{ columns: ['owner_id'] }, { columns: ['type', 'opened_at'] }],
       }),
     },
-    entityView: {
-      table: 'ticket',
-      kind: 'ticket',
-      id: 'id',
-      title: 'title',
-      url: 'title',
-      actor: 'owner_id',
-      updatedAt: 'opened_at',
-    },
+    entityViews: [
+      {
+        table: 'ticket',
+        kind: 'tickets:ticket',
+        id: 'id',
+        title: 'title',
+        url: 'title',
+        actor: 'owner_id',
+        updatedAt: 'opened_at',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
   expect(generateSqliteSchema(tracker)).toStrictEqual(generateSqliteSchema(tracker));
@@ -149,8 +161,8 @@ test('it generates the same source for the same declaration', () => {
 test('it quotes reserved words and embedded quotes in every identifier', () => {
   const grouping = defineConsumer({
     name: 'grouping',
-    mode: 'scope',
-    streams: ['facts.groups.group'],
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'scope', scopeKind: 'groups:group', streams: ['facts.groups.group'] },
     tables: {
       order: defineTable({
         columns: { group: { kind: 'text' }, 'odd"name': { kind: 'integer', nullable: true } },
@@ -158,16 +170,19 @@ test('it quotes reserved words and embedded quotes in every identifier', () => {
         indexes: [{ columns: ['group', 'odd"name'] }],
       }),
     },
-    entityView: {
-      table: 'order',
-      kind: 'order',
-      id: 'group',
-      title: 'group',
-      url: 'group',
-      actor: 'group',
-      updatedAt: 'group',
-    },
+    entityViews: [
+      {
+        table: 'order',
+        kind: 'groups:order',
+        id: 'group',
+        title: 'group',
+        url: 'group',
+        actor: 'group',
+        updatedAt: 'group',
+      },
+    ],
     reads: [],
+    links: [],
   });
 
   expect(generateSqliteSchema(grouping)).toStrictEqual(
@@ -183,12 +198,78 @@ test('it quotes reserved words and embedded quotes in every identifier', () => {
       'CREATE VIEW "entity" AS',
       'SELECT',
       '  "group" AS "id",',
-      `  'order' AS "kind",`,
+      `  'groups:order' AS "kind",`,
       '  "group" AS "title",',
       '  "group" AS "url",',
       '  "group" AS "actor",',
       '  "group" AS "updated_at"',
       'FROM "order";',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('it joins the entity views of two tables, with NULL for a column a view leaves out', () => {
+  const shelf = defineConsumer({
+    name: 'shelf',
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.shelf.book'] },
+    tables: {
+      book: defineTable({
+        columns: { id: { kind: 'entityID' }, title: { kind: 'text' }, at: { kind: 'timestamp' } },
+        primaryKey: ['id'],
+        indexes: [],
+      }),
+      author: defineTable({
+        columns: { id: { kind: 'entityID' }, name: { kind: 'text' }, at: { kind: 'timestamp' } },
+        primaryKey: ['id'],
+        indexes: [],
+      }),
+    },
+    entityViews: [
+      {
+        table: 'book',
+        kind: 'shelf:book',
+        id: 'id',
+        title: 'title',
+        url: null,
+        actor: null,
+        updatedAt: 'at',
+      },
+      {
+        table: 'author',
+        kind: 'shelf:author',
+        id: 'id',
+        title: 'name',
+        url: null,
+        actor: 'id',
+        updatedAt: 'at',
+      },
+    ],
+    reads: [],
+    links: [],
+  });
+
+  expect(generateSqliteSchema(shelf).split('\n\n').at(-1)).toStrictEqual(
+    [
+      'CREATE VIEW "entity" AS',
+      'SELECT',
+      '  "id" AS "id",',
+      `  'shelf:book' AS "kind",`,
+      '  "title" AS "title",',
+      '  NULL AS "url",',
+      '  NULL AS "actor",',
+      '  "at" AS "updated_at"',
+      'FROM "book"',
+      'UNION ALL',
+      'SELECT',
+      '  "id" AS "id",',
+      `  'shelf:author' AS "kind",`,
+      '  "name" AS "title",',
+      '  NULL AS "url",',
+      '  "id" AS "actor",',
+      '  "at" AS "updated_at"',
+      'FROM "author";',
       '',
     ].join('\n'),
   );

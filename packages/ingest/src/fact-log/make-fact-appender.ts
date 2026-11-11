@@ -1,4 +1,4 @@
-import type { FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/schema';
+import type { FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { match } from 'ts-pattern';
 import type { FactLog, StoredFact } from './fact-log.ts';

@@ -1,4 +1,4 @@
-import type { StreamOffset } from '@pepys/schema';
+import type { StreamOffset } from '@pepys/kit';
 
 export type ChangeMessage =
   | {

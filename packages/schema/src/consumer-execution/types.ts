@@ -1,15 +1,16 @@
 import type {
   BlobHash,
   EntityID,
+  EntityKind,
+  FactEnvelope,
   FactID,
   ScopeID,
   StreamOffset,
   VersionHash,
-} from '../ids/types.ts';
-import type { EntityKind, LinkEnds, LinkRegistry } from '../link-registry/link-registry.ts';
-import type { FactEnvelope } from '../types.ts';
+} from '@pepys/kit';
+import type { LinkEnds, LinkRegistry } from '../link-registry/link-registry.ts';
 
-export type ConsumerInput = FactInput | ScopeInput;
+export type ConsumerCallInput = FactInput | ScopeInput;
 
 export interface FactInput {
   mode: 'fact';

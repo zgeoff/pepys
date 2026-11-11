@@ -1,5 +1,5 @@
+import type { ConsumerDeclaration } from '@pepys/kit';
 import { toPascalCase } from '@pepys/schema';
-import type { ConsumerDeclaration } from '@pepys/schema';
 import { consumerFences } from './consumer-fences.ts';
 
 interface ConsumerProfileParameters {

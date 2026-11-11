@@ -1,4 +1,4 @@
-import type { FactID, Result, StreamOffset } from '@pepys/schema';
+import type { FactID, Result, StreamOffset } from '@pepys/kit';
 import type { StoredFact } from './fact-log.ts';
 
 export type AppendStep =

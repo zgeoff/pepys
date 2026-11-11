@@ -22,7 +22,7 @@ const workDirectory = await mkdtemp(join(tmpdir(), 'pepys-consumers-'));
 
 try {
   for (const source of consumerSources) {
-    for (const consumer of source.consumers) {
+    for (const consumer of source.plugin.consumers) {
       const entry = join(
         root,
         source.directory,

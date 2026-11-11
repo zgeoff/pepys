@@ -29,7 +29,7 @@ did not change. What the host needed:
 The run wrote the manifest and its SQL by hand, and `pepys build` made neither. Turso took all of
 the design's SQL, and serde parsed the manifest with unknown fields refused.
 
-The sketch does not match the real host in 9 places. The first 6 change what the builder writes:
+The sketch does not match the real host in 8 places. The first 5 change what the builder writes:
 
 1. **The fact source needs a multi-thread runtime.** The module calls the read from inside a
    synchronous wasm call, and the index read is async. The fix is the one that the row read uses:
@@ -45,14 +45,11 @@ The sketch does not match the real host in 9 places. The first 6 change what the
 5. **The repo's parse of operations refuses the flat link.** Before the typed parse, it reads the
    keys of each verb's body as table names, so it reports an operation on a table named
    `confidence`. That scan goes with the function.
-6. **The repo's log port refuses a pushed fact.** It rejects the ID `event:boxxy:…` as no known fact
-   ID kind. The envelope change in [01-kit.ts](./v1/sketches/01-kit.ts) mends this, and the run did
-   not make it.
-7. The function that builds a row's key has no table name for its error. The run added the table as
+6. The function that builds a row's key has no table name for its error. The run added the table as
    a parameter.
-8. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
+7. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
    open store, where the sketch has a path.
-9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
+8. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
    adapter is a few lines.
 
 The sketch leaves these meanings open, and the run picked one for each:
@@ -114,15 +111,13 @@ or the kit's own glue generator: the run's generator was its own.
 
 The proven sender did not reach every place in the sketches:
 
-- The function that builds the OTLP receive path takes no sender in its parameter type, and the
-  telemetry source passes one.
 - Neither telemetry table declares the two origin columns, and both consumers write them.
 - The route test in [02-ingest-log.ts](./v1/sketches/02-ingest-log.ts) sends an export with no proof
   and expects 200, and the function that builds the routes for a test takes no sender proof.
 - The telemetry test in [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts) applies facts
   with no origin, and the consumer reads the origin of every fact.
 
-Two more gaps:
+More gaps:
 
 - A pull path gets a cursor and its environment values. No sketch shows how the resync pull reads
   the marks that the receive route keeps.
@@ -134,7 +129,6 @@ Two more gaps:
 
 ## Not designed
 
-- How the kit declares the two OTLP paths that store nothing. A receive path has one route.
 - The tables of the issue and review families.
 - The mapping from a bumped package to a deploy target.
 - A signed time in a delivery check. A third check kind would add it, and the senders of the two

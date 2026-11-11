@@ -1,12 +1,12 @@
 //! The envelope check an append runs. It and the TypeScript check run the same cases, in
-//! `packages/schema/src/fact-envelope-cases.json`.
+//! `packages/kit/src/fact-envelope-cases.json`.
 
 use serde_json::{Map, Value};
 
 const FIELDS: [&str; 9] = [
     "id", "type", "v", "api", "entity", "actor", "at", "cursor", "payload",
 ];
-const FACT_KINDS: [&str; 4] = ["webhook", "observation", "enrichment", "manual"];
+const FACT_KINDS: [&str; 5] = ["webhook", "event", "observation", "enrichment", "manual"];
 
 /// Whether `body` is a fact envelope: a JSON object with the envelope's fields and no others.
 pub fn is_fact_envelope(body: &str) -> bool {
@@ -33,7 +33,10 @@ fn text_field<'a>(fields: &'a Map<String, Value>, name: &str) -> Option<&'a str>
 }
 
 fn is_fact_id(text: &str) -> bool {
-    if let Some(rest) = text.strip_prefix("webhook:") {
+    if let Some(rest) = text
+        .strip_prefix("webhook:")
+        .or_else(|| text.strip_prefix("event:"))
+    {
         return rest
             .split_once(':')
             .is_some_and(|(source, id)| is_name_part(source) && is_one_line(id));
@@ -119,7 +122,7 @@ fn days_in_month(year: u32, month: u32) -> u32 {
 mod tests {
     use super::*;
 
-    const CASES: &str = include_str!("../../../../packages/schema/src/fact-envelope-cases.json");
+    const CASES: &str = include_str!("../../../../packages/kit/src/fact-envelope-cases.json");
 
     #[test]
     fn it_gives_each_shared_envelope_case_its_verdict() {

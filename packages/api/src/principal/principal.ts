@@ -1,4 +1,4 @@
-import type { ClientID, GrantID } from '@pepys/schema';
+import type { ClientID, GrantID } from '@pepys/kit';
 
 export type Scope = 'read' | 'write';
 

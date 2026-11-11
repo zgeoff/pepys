@@ -20,7 +20,7 @@ test('it accepts an envelope with every field', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     actor: 'github:user:583231',
     at: '2026-10-24T01:02:03Z',
     cursor: 'page-7',
@@ -54,7 +54,7 @@ test('it leaves the payload untouched', () => {
     type: 'manual.link.asserted',
     v: 1,
     api: 'pepys/1',
-    entity: 'github:pr:1',
+    entity: 'github:pull_request:1',
     at: '2026-10-24T01:02:03Z',
     payload: { extra: ['kept', 1, null], nested: { flag: true } },
   });
@@ -75,7 +75,7 @@ test('it accepts the ID that buildManualFactID gives', () => {
     type: 'manual.link.asserted',
     v: 1,
     api: 'pepys/1',
-    entity: 'github:pr:1',
+    entity: 'github:pull_request:1',
     at: '2026-10-24T01:02:03Z',
     payload: {},
   });
@@ -89,7 +89,7 @@ test('it rejects an unknown envelope key', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     at: '2026-10-24T01:02:03Z',
     payload: {},
     extra: true,
@@ -102,11 +102,11 @@ test('it rejects an unknown envelope key', () => {
 
 test('it rejects a fact ID of no known kind', () => {
   const result = parseFactEnvelope({
-    id: 'github:pr:1874433021',
+    id: 'github:pull_request:1874433021',
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     at: '2026-10-24T01:02:03Z',
     payload: {},
   });
@@ -138,7 +138,7 @@ test('it rejects an actor that is not an entity ID', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     actor: 'octocat',
     at: '2026-10-24T01:02:03Z',
     payload: {},
@@ -155,7 +155,7 @@ test('it rejects an envelope version other than 1', () => {
     type: 'github.pull_request.opened',
     v: 2,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     at: '2026-10-24T01:02:03Z',
     payload: {},
   });
@@ -171,7 +171,7 @@ test('it rejects a time that is not ISO 8601 UTC', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     at: '2026-10-24T11:02:03+10:00',
     payload: {},
   });
@@ -187,7 +187,7 @@ test('it rejects an envelope with no payload', () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: 'github:pr:1874433021',
+    entity: 'github:pull_request:1874433021',
     at: '2026-10-24T01:02:03Z',
   });
 

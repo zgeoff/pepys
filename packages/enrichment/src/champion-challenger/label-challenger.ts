@@ -1,4 +1,4 @@
-import type { Result, VersionHash } from '@pepys/schema';
+import type { Result, VersionHash } from '@pepys/kit';
 import { match } from 'ts-pattern';
 import type { JobDefinition, JobInput, JobOutcome } from '../jobs/job-definition.ts';
 import type { Judgement } from '../strategies/types.ts';

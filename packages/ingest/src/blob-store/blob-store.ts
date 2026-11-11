@@ -1,4 +1,4 @@
-import type { BlobHash, Result } from '@pepys/schema';
+import type { BlobHash, Result } from '@pepys/kit';
 
 export interface BlobStore {
   write: (bytes: Uint8Array) => Promise<Result<BlobHash, { reason: 'unavailable' }>>;

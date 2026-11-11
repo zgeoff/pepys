@@ -5,7 +5,9 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@octokit/webhooks": "catalog:",
+    "@pepys/api": "workspace:*",
     "@pepys/ingest": "workspace:*",
+    "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@zgeoff/std": "catalog:",
     "zod": "catalog:"

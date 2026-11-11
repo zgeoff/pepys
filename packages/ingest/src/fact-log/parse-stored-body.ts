@@ -1,5 +1,5 @@
-import { parseFactEnvelope } from '@pepys/schema';
-import type { FactEnvelope } from '@pepys/schema';
+import { parseFactEnvelope } from '@pepys/kit';
+import type { FactEnvelope } from '@pepys/kit';
 
 // Checks the JSON a log would store, so a field that JSON drops, such as a function, cannot leave
 // a stored record that fails the envelope parse on read.

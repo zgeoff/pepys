@@ -1,5 +1,5 @@
-import { parseFactEnvelope } from '@pepys/schema';
-import type { StreamOffset } from '@pepys/schema';
+import { parseFactEnvelope } from '@pepys/kit';
+import type { StreamOffset } from '@pepys/kit';
 import invariant from 'tiny-invariant';
 import type { StoredFact } from './fact-log.ts';
 

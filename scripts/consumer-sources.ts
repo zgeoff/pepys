@@ -1,12 +1,12 @@
-import type { ConsumerDeclaration } from '@pepys/schema';
-import { githubPullRequestConsumer } from '@pepys/source-github';
+import type { Plugin } from '@pepys/kit';
+import { githubPlugin } from '@pepys/source-github';
 
 interface ConsumerSource {
   directory: string;
-  consumers: ConsumerDeclaration[];
+  plugin: Plugin;
 }
 
-// Each source package brings its consumers' declarations; none is found by walking the disk.
+// Each source package brings its plug-in; no consumer is found by walking the disk.
 export const consumerSources: ConsumerSource[] = [
-  { directory: 'packages/source-github', consumers: [githubPullRequestConsumer] },
+  { directory: 'packages/source-github', plugin: githubPlugin },
 ];

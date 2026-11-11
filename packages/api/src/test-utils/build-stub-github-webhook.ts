@@ -1,6 +1,6 @@
 import type { ReceivePath } from '@pepys/ingest';
-import { buildWebhookFactID } from '@pepys/schema';
-import type { EntityID, StreamName } from '@pepys/schema';
+import { buildWebhookFactID } from '@pepys/kit';
+import type { EntityID, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { reviewRequestPayloadSchema } from './review-request-payload-schema.ts';
 
@@ -37,7 +37,7 @@ export function buildStubGitHubWebhook(options: StubGitHubWebhook): ReceivePath 
                 type: 'pull_request.review_requested',
                 v: 1,
                 api: 'github/2022-11-28',
-                entity: toTagged<EntityID>(`github:pr:${payload.pull_request.id}`),
+                entity: toTagged<EntityID>(`github:pull_request:${payload.pull_request.id}`),
                 at: '2026-10-01T08:00:00Z',
                 payload,
               },

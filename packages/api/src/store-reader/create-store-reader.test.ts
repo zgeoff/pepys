@@ -34,7 +34,7 @@ test('it finishes a read that spans a swap of the current link', async () => {
   await createStubConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -55,7 +55,7 @@ test('it finishes a read that spans a swap of the current link', async () => {
   await createStubConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals and reefs',
@@ -122,7 +122,7 @@ test('it serves concurrent reads of a new target from one database', async () =>
   await createStubConsumerVersion({
     versionDirectory: firstDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -143,7 +143,7 @@ test('it serves concurrent reads of a new target from one database', async () =>
   await createStubConsumerVersion({
     versionDirectory: secondDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals and reefs',
@@ -198,7 +198,7 @@ test('it keeps one snapshot for a read that spans a commit to the same file', as
   await createStubConsumerVersion({
     versionDirectory,
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',

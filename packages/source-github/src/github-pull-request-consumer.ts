@@ -1,9 +1,10 @@
-import { defineConsumer, defineTable } from '@pepys/schema';
+import { defineConsumer, defineTable } from '@pepys/kit';
+import { pullRequestFamily } from './pull-request-family.ts';
 
 export const githubPullRequestConsumer = defineConsumer({
   name: 'github_pull_request',
-  mode: 'fact',
-  streams: ['facts.github.pull_request'],
+  entry: new URL('consumers/github-pull-request.ts', import.meta.url),
+  input: { mode: 'fact', streams: [pullRequestFamily.stream] },
   tables: {
     github_pull_request: defineTable({
       columns: {
@@ -27,14 +28,17 @@ export const githubPullRequestConsumer = defineConsumer({
       indexes: [{ columns: ['repository_id'] }],
     }),
   },
-  entityView: {
-    table: 'github_pull_request',
-    kind: 'pr',
-    id: 'id',
-    title: 'title',
-    url: 'url',
-    actor: 'author_id',
-    updatedAt: 'updated_at',
-  },
+  entityViews: [
+    {
+      table: 'github_pull_request',
+      kind: pullRequestFamily.entityKind,
+      id: 'id',
+      title: 'title',
+      url: 'url',
+      actor: 'author_id',
+      updatedAt: 'updated_at',
+    },
+  ],
   reads: ['github_pull_request'],
+  links: [],
 });

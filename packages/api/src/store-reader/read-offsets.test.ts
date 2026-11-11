@@ -29,7 +29,7 @@ test('it reads the last sequence number of each stream the consumer reads', asyn
   await createStubConsumerVersion({
     versionDirectory: join(ctx.consumerDirectory, 'v1'),
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',

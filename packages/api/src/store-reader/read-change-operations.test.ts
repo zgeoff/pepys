@@ -29,7 +29,7 @@ test('it reads the key and operation of each change, batch by batch', async () =
   await createStubConsumerVersion({
     versionDirectory: join(ctx.consumerDirectory, 'v1'),
     row: {
-      id: 'github:pr:5',
+      id: 'github:pull_request:5',
       number: 5,
       repository_id: 'github:repo:2',
       title: 'Chart the shoals',
@@ -49,9 +49,9 @@ test('it reads the key and operation of each change, batch by batch', async () =
       {
         batch: 2,
         changes:
-          '[{"key":"github:pr:5","headers":{"operation":"update"}},{"key":"github:pr:6","headers":{"operation":"insert"}}]',
+          '[{"key":"github:pull_request:5","headers":{"operation":"update"}},{"key":"github:pull_request:6","headers":{"operation":"insert"}}]',
       },
-      { batch: 1, changes: '[{"key":"github:pr:5","headers":{"operation":"insert"}}]' },
+      { batch: 1, changes: '[{"key":"github:pull_request:5","headers":{"operation":"insert"}}]' },
     ],
   });
 
@@ -62,9 +62,9 @@ test('it reads the key and operation of each change, batch by batch', async () =
   expect(result).toStrictEqual({
     ok: true,
     value: [
-      { key: 'github:pr:5', operation: 'insert' },
-      { key: 'github:pr:5', operation: 'update' },
-      { key: 'github:pr:6', operation: 'insert' },
+      { key: 'github:pull_request:5', operation: 'insert' },
+      { key: 'github:pull_request:5', operation: 'update' },
+      { key: 'github:pull_request:6', operation: 'insert' },
     ],
   });
 });

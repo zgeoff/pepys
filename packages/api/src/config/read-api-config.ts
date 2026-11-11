@@ -1,5 +1,5 @@
+import type { Result } from '@pepys/kit';
 import { parsePort } from '@pepys/schema';
-import type { Result } from '@pepys/schema';
 
 export interface APIConfig {
   storeDirectory: string;

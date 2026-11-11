@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@pepys/schema": "workspace:*",
+    "@pepys/kit": "workspace:*",
     "@s2-dev/streamstore": "catalog:",
     "@zgeoff/std": "catalog:",
     "tiny-invariant": "catalog:",

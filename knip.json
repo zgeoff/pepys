@@ -14,12 +14,17 @@
         "src/**/*.test.ts",
         "src/generated/**/*.ts",
         "src/consumers/*.ts",
-        "src/ingest/serve-ingest.ts"
+        "src/ingest/serve-ingest.ts",
+        "src/api/serve-api.ts"
       ],
       "bun": false
     },
     "packages/api": {
-      "entry": ["src/**/*.test.ts", "integration/**/*.test.ts", "src/serve.ts"],
+      "entry": ["src/**/*.test.ts", "integration/**/*.test.ts"],
+      "bun": false
+    },
+    "packages/kit": {
+      "entry": ["src/**/*.test.ts"],
       "bun": false
     },
     "packages/contract": {

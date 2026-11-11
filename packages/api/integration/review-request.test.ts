@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createMemoryFactLog } from '@pepys/ingest';
-import type { EntityID, StreamName, StreamOffset } from '@pepys/schema';
+import type { EntityID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildStubGitHubWebhook } from '../src/test-utils/build-stub-github-webhook.ts';
@@ -65,9 +65,9 @@ test('it carries a signed review request from the webhook to a waiting-on-me row
       {
         kind: 'change',
         type: 'waiting_on_me',
-        key: 'github:pr:12',
+        key: 'github:pull_request:12',
         value: {
-          id: toTagged<EntityID>('github:pr:12'),
+          id: toTagged<EntityID>('github:pull_request:12'),
           reason: 'review-requested',
           since: '2026-10-01T08:00:00Z',
         },

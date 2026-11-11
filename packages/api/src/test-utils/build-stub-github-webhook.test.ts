@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { EntityID, FactID, StreamName } from '@pepys/schema';
+import type { EntityID, FactID, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { buildStubGitHubWebhook } from './build-stub-github-webhook.ts';
 
@@ -33,7 +33,7 @@ test('it turns a request signed with its secret into a batch of one fact', async
             type: 'pull_request.review_requested',
             v: 1,
             api: 'github/2022-11-28',
-            entity: toTagged<EntityID>('github:pr:12'),
+            entity: toTagged<EntityID>('github:pull_request:12'),
             at: '2026-10-01T08:00:00Z',
             payload: {
               action: 'review_requested',

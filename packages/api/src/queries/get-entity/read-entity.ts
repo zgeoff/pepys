@@ -1,5 +1,5 @@
 import type { CoreOutputs } from '@pepys/contract';
-import type { EntityID, EntityIDParts, Result } from '@pepys/schema';
+import type { EntityID, EntityIDParts, Result } from '@pepys/kit';
 import { sql } from 'kysely';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';

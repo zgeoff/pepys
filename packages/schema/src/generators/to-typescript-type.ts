@@ -1,5 +1,5 @@
+import type { ColumnDeclaration } from '@pepys/kit';
 import { match } from 'ts-pattern';
-import type { ColumnDeclaration } from '../types.ts';
 
 export interface TypeScriptTypeNames {
   entityID: string;

@@ -1,4 +1,4 @@
-import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/schema';
+import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/kit';
 import {
   AppendInput,
   AppendRecord,

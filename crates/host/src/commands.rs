@@ -441,9 +441,9 @@ mod tests {
         let spec = find_consumer("github_pull_request").expect("the consumer");
         let module = || {
             CannedRunner::new(&[
-                ("a", Ok(upsert_json("github:pr:1", "First"))),
-                ("b", Ok(upsert_json("github:pr:2", "Second"))),
-                ("c", Ok(upsert_json("github:pr:3", "Third"))),
+                ("a", Ok(upsert_json("github:pull_request:1", "First"))),
+                ("b", Ok(upsert_json("github:pull_request:2", "Second"))),
+                ("c", Ok(upsert_json("github:pull_request:3", "Third"))),
             ])
         };
         let mut current = open_test_version(&directory.path().join("abc123"), module()).await;
@@ -495,8 +495,8 @@ mod tests {
         let previewed = open_test_version(
             &directory.path().join("preview"),
             CannedRunner::new(&[
-                ("a", Ok(upsert_json("github:pr:1", "First"))),
-                ("b", Ok(upsert_json("github:pr:2", "Second"))),
+                ("a", Ok(upsert_json("github:pull_request:1", "First"))),
+                ("b", Ok(upsert_json("github:pull_request:2", "Second"))),
             ]),
         )
         .await;
@@ -514,7 +514,7 @@ mod tests {
             diff,
             serde_json::json!({
                 "github_pull_request": {
-                    "added": ["github:pr:1", "github:pr:2"],
+                    "added": ["github:pull_request:1", "github:pull_request:2"],
                     "changed": [],
                     "removed": [],
                 },

@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/schema';
+import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { P, match } from 'ts-pattern';
 import { z } from 'zod';

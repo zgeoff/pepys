@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { createRouterClient } from '@orpc/server';
 import { createMemoryFactLog } from '@pepys/ingest';
 import type { FactLog } from '@pepys/ingest';
-import type { ClientID, EntityID, GrantID, StreamName, StreamOffset } from '@pepys/schema';
+import type { ClientID, EntityID, GrantID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { createStubLinkCatalog } from './create-stub-link-catalog.ts';
 

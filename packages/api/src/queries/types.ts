@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration } from '@pepys/schema';
+import type { ConsumerDeclaration } from '@pepys/kit';
 import type { StoreReader } from '../store-reader/store-reader.ts';
 
 export interface QueryContext {

@@ -30,11 +30,11 @@ test('it parses the ID that buildEntityID builds', () => {
 
 test.each([
   ['text with no colon', 'github', 'malformed'],
-  ['text with one colon', 'github:pr', 'malformed'],
+  ['text with one colon', 'github:pull_request', 'malformed'],
   ['an uppercase source', 'GitHub:pr:1', 'invalid-source'],
   ['a fact kind as the source', 'manual:github:1', 'reserved-source'],
   ['a kind with a dash', 'github:pull-request:1', 'invalid-kind'],
-  ['an empty ID', 'github:pr:', 'empty-id'],
+  ['an empty ID', 'github:pull_request:', 'empty-id'],
 ])('it refuses %s', (_label, text, reason) => {
   const actual: unknown = parseEntityID(text);
 

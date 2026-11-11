@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/schema';
+import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { buildStubFactLog } from './build-stub-fact-log.ts';
 
@@ -11,7 +11,7 @@ test('it gives the same outcome to every append', async () => {
     type: 'github.pull_request.opened',
     v: 1,
     api: 'github/2022-11-28',
-    entity: toTagged<EntityID>('github:pr:77'),
+    entity: toTagged<EntityID>('github:pull_request:77'),
     at: '2026-10-02T10:30:00Z',
     payload: {},
   } as const;
