@@ -82,6 +82,7 @@
     "@octokit/webhooks": "catalog:",
     "@orpc/client": "catalog:",
     "@pepys/api": "workspace:*",
+    "@pepys/cli": "workspace:*",
     "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",

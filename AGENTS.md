@@ -49,7 +49,9 @@ docs/
 
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
   A package depends on it as `catalog:`.
-- A package is private and named `@pepys/<folder>`.
+- A package is private and named `@pepys/<folder>`, except `@pepys/cli`, which is public: it has a
+  `bin` entry and `publishConfig.access` of `public`, and it imports `@pepys/kit` and no other
+  private workspace package.
 - A package exports `./src/index.ts`. Internal packages have no build step.
 - A spike under `research/` is the exception to the catalog rule: it pins its own exact versions,
   because it records what it ran against.
@@ -80,6 +82,9 @@ docs/
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo nextest run` are the local Rust
   checks; `bacon` runs clippy on every save. CI also runs `cargo fmt --check`, `cargo shear`,
   `cargo deny check` and `cargo test --doc`, because nextest skips doctests.
+- `bun run schema:generate` writes the generated files, and `bun run schema:check` exits 1 on a
+  stale one. The glue of each consumer comes from `collectGlueFiles` in `@pepys/cli`, the code that
+  `pepys build <file> [--check]` runs, so the repo has one glue writer.
 - `bun run consumers:build` compiles each consumer with scriptc to
   `build/consumers/<name>/<hash>.wasm`. It needs zig 0.16.0 and wasm-tools 1.262.0, the version CI
   pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.

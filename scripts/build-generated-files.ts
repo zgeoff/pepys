@@ -1,6 +1,7 @@
+import { join, relative } from 'node:path';
+import { collectGlueFiles } from '@pepys/cli';
 import { checkDeployment } from '@pepys/kit';
 import type { DeploymentFailure } from '@pepys/kit';
-import { generateBoundaryGlue, generateSqliteSchema } from '@pepys/kit/generators';
 import { generateKyselyTypes, generateRustTypes } from '@pepys/schema';
 import { consumerSources } from './consumer-sources.ts';
 
@@ -13,6 +14,8 @@ export type GeneratedFiles =
   | { ok: true; files: GeneratedFile[] }
   | { ok: false; failures: readonly DeploymentFailure[] };
 
+const root = join(import.meta.dir, '..');
+
 export function buildGeneratedFiles(): GeneratedFiles {
   const check = checkDeployment({
     name: 'pepys',
@@ -24,28 +27,12 @@ export function buildGeneratedFiles(): GeneratedFiles {
   }
 
   const consumers = check.value.consumers;
-  const families = check.value.sources.flatMap((source) => source.families);
 
-  const sourceFiles = consumerSources.flatMap((source) =>
-    source.plugin.consumers.flatMap((consumer) => {
-      const stem = `${source.directory}/src/generated/${consumer.name.replaceAll('_', '-')}`;
-
-      return [
-        {
-          path: `${stem}-boundary.ts`,
-          content: withHeader(
-            '//',
-            generateBoundaryGlue({
-              consumer,
-              families,
-              settings: check.value.settings[source.plugin.name],
-            }),
-          ),
-        },
-        { path: `${stem}.sql`, content: withHeader('--', generateSqliteSchema(consumer)) },
-      ];
-    }),
-  );
+  // the glue files come from the same code as `pepys build`
+  const sourceFiles = collectGlueFiles({
+    target: { checked: check.value, plugins: consumerSources.map((source) => source.plugin) },
+    packageRoot: join(root, 'packages'),
+  }).map((file) => ({ path: relative(root, file.path), content: file.content }));
 
   return {
     ok: true,

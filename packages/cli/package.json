@@ -1,0 +1,33 @@
+{
+  "name": "@pepys/cli",
+  "version": "0.0.0",
+  "description": "The pepys command line: pepys build checks a deployment or a plug-in and writes the glue of each consumer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "pepys": "./src/bin.ts"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/test-utils"
+  ],
+  "type": "module",
+  "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@pepys/kit": "workspace:*",
+    "@zgeoff/std": "catalog:",
+    "ts-pattern": "catalog:"
+  },
+  "devDependencies": {
+    "tiny-invariant": "catalog:",
+    "zod": "catalog:"
+  }
+}

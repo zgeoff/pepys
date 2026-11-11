@@ -9,6 +9,7 @@
         "@octokit/webhooks": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/api": "workspace:*",
+        "@pepys/cli": "workspace:*",
         "@pepys/ingest": "workspace:*",
         "@pepys/kit": "workspace:*",
         "@pepys/schema": "workspace:*",
@@ -63,6 +64,22 @@
         "@orpc/client": "catalog:",
         "@pepys/ingest": "workspace:*",
         "@zgeoff/std": "catalog:",
+      },
+    },
+    "packages/cli": {
+      "name": "@pepys/cli",
+      "version": "0.0.0",
+      "bin": {
+        "pepys": "./src/bin.ts",
+      },
+      "dependencies": {
+        "@pepys/kit": "workspace:*",
+        "@zgeoff/std": "catalog:",
+        "ts-pattern": "catalog:",
+      },
+      "devDependencies": {
+        "tiny-invariant": "catalog:",
+        "zod": "catalog:",
       },
     },
     "packages/contract": {
@@ -500,6 +517,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.90.0", "", { "os": "win32", "cpu": "x64" }, "sha512-30JiaFEBUB9peEOcvVM8ggo88SoN/IdSr9DW505JdBji/R6dM66gKEiG65hw6qcaF2f4mO0cEJ+RwRZprmun9g=="],
 
     "@pepys/api": ["@pepys/api@workspace:packages/api"],
+
+    "@pepys/cli": ["@pepys/cli@workspace:packages/cli"],
 
     "@pepys/contract": ["@pepys/contract@workspace:packages/contract"],
 
