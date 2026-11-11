@@ -89,7 +89,8 @@ every listed consumer first, so a deployment whose one entry command is the host
 with no person.
 
 `run` runs one task per listed consumer. A failed batch stops that consumer's task, and the host
-prints the error and keeps the other tasks running. When every task has stopped, `run` exits 1.
+prints the error and keeps the other tasks running. When every task has stopped, `run` exits 1. With
+no listed consumer, `run` starts no task and waits for SIGINT or SIGTERM.
 
 **How the host runs a module.** The host links the module's read imports by the symbols in the
 manifest, and calls the two exports in the manifest. The module reads through those imports,
@@ -97,7 +98,7 @@ computes, and returns its operations as text. Beside those reads, it imports a p
 four WASI calls, for the clock, the environment and the exit. The host parses the operations, and
 the host runs the link check and the scope replace on that output. The module calls neither.
 
-A row read answers `-1` for no row. For a table whose key has one column, the module passes the
+A row read returns `-1` for no row. For a table whose key has one column, the module passes the
 column's value as text. For a key of several columns, it passes the JSON list of the values in key
 order.
 

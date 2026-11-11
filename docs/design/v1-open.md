@@ -44,7 +44,7 @@ The sketch does not match the real host in 6 places. The first 4 change what the
    envelope change in [01-kit.ts](./v1/sketches/01-kit.ts): the kit's envelope parser and the Rust
    host's envelope check both accept `event:<source>:<event ID>`.
 5. The fact index holds an open store, where the sketch has a path.
-6. The scope read returns bytes and never answers `-1`, so its adapter over the row read is a few
+6. The scope read returns bytes and never returns `-1`, so its adapter over the row read is a few
    lines.
 
 The [scope replace case file](./v1-host.md#the-scope-replace-case-file) is the rule for duplicate

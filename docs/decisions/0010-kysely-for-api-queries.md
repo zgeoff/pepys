@@ -18,10 +18,12 @@ reuses Kysely's SQLite pieces. The Kysely types are generated from the consumer 
 ## Why
 
 Kysely keeps the SQL visible and types it, and it builds dynamic queries well. Generating its types
-from the same declarations as the module boundary's glue and the host's Rust types keeps every
-language on one schema.
+from the same declarations as the module boundary's glue and the manifest that the host reads keeps
+every language on one schema.
 
 ## Changes
 
 - 2026-10-24: the module boundary is generated glue over core-module memory, not WIT, after
   [0022](./0022-consumers-are-core-modules.md).
+- 2026-11-12: the host reads each consumer's tables from the manifest in `consumers.json`, and no
+  Rust types are generated.
