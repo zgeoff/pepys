@@ -301,7 +301,68 @@ fn panic(mut caller: Caller<'_, Host>, pointer: i32, length: i32) -> wasmtime::R
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::hash_module;
+    use super::*;
+    use crate::database::{open_store, prepare_scope_tables, prepare_store};
+    use crate::scope::IndexFacts;
+    use crate::test_utils::stub_scope_manifest;
+
+    // A scope module whose apply reads the facts of `asked`, whatever scope it is called for.
+    fn build_reading_module(manifest: &ConsumerManifest, asked: &str) -> Vec<u8> {
+        let Some(Read::ScopeFacts { length, .. }) = manifest.imports.first() else {
+            panic!("the stub scope consumer has one scope read");
+        };
+
+        format!(
+            r#"(module
+  (import "scriptc" "{length}" (func $length (param i32 i32) (result f64)))
+  (memory (export "memory") 1)
+  (data (i32.const 16) "{asked}")
+  (func (export "_initialize"))
+  (func (export "{init}"))
+  (func (export "scriptc_alloc") (param i32) (result i32) (i32.const 4096))
+  (func (export "{apply}") (param i32 i32 i32 i32)
+    (drop (call $length (i32.const 16) (i32.const {size})))))"#,
+            init = manifest.exports.init,
+            apply = manifest.exports.apply,
+            size = asked.len(),
+        )
+        .into_bytes()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_stops_a_module_that_reads_the_facts_of_another_scope() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let manifest = Arc::new(stub_scope_manifest());
+        let store = open_store(&directory.path().join("consumer.db"))
+            .await
+            .expect("a store");
+
+        prepare_store(&store, &manifest.schema)
+            .await
+            .expect("the tables");
+        prepare_scope_tables(&store)
+            .await
+            .expect("the scope tables");
+
+        let mut runner = ModuleRunner::new(
+            &build_reading_module(&manifest, "ledger:account:b"),
+            Arc::clone(&manifest),
+        )
+        .expect("a module");
+
+        let result = runner.apply_scope(
+            "ledger:account:a",
+            Arc::new(IndexFacts::new(&store, "ledger:account:a")),
+        );
+
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err(
+                "the module of scope ledger:account:a read the facts of ledger:account:b"
+                    .to_owned()
+            )
+        );
+    }
 
     #[test]
     fn it_hashes_a_module_with_sha256() {

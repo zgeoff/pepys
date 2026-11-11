@@ -755,7 +755,9 @@ mod tests {
 
     use super::*;
     use crate::fact_log::memory::MemoryLog;
-    use crate::test_utils::{CannedRunner, build_text_module, stub_build_manifest, upsert_json};
+    use crate::test_utils::{
+        CannedRunner, build_text_module, stub_build_manifest, stub_scope_manifest, upsert_json,
+    };
 
     const STREAM: &str = "facts.github.pull_request";
 
@@ -876,6 +878,97 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![json!("Tides")]
         );
+    }
+
+    /// An entry of the stub scope consumer, with a module that returns `output` for every scope.
+    fn build_scope_listed(output: &str) -> (ListedConsumer, Vec<u8>) {
+        let manifest = stub_scope_manifest();
+        let bytes = build_text_module(&manifest.exports.init, &manifest.exports.apply, output);
+        let module = hash_module(&bytes);
+
+        (
+            ListedConsumer {
+                name: manifest.name.clone(),
+                path: format!("{}/{module}.wasm", manifest.name),
+                module,
+                pins: BTreeMap::new(),
+                version: version_hash('c'),
+                manifest,
+            },
+            bytes,
+        )
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_ups_a_scope_consumer_and_writes_the_rows_its_module_returns() {
+        let ctx = setup_test();
+        let output = json!([{"upsert": {"ledger_account": {
+            "id": "ledger:account:a", "name": "Alpha", "balance": 5, "is_closed": false,
+            "opened_at": null, "updated_at": "2026-11-01T09:00:00Z"
+        }}}])
+        .to_string();
+        let (listed, bytes) = build_scope_listed(&output);
+        let file = write_build(&ctx.config, &[(listed, bytes)]);
+        let log = MemoryLog::seeded(
+            "facts.ledger.account",
+            &[r#"{"id":"event:ledger:1","entity":"ledger:account:a","at":"2026-11-01T09:00:00Z"}"#],
+        );
+
+        up_listed(&ctx.config, &log, &file, None)
+            .await
+            .expect("an up");
+
+        let directory = current_version_dir(&ctx.config.consumer_dir("ledger_account"))
+            .expect("a current version");
+        let store = open_store(&directory.join(DATABASE_FILE))
+            .await
+            .expect("the store");
+        let rows = read_all_tables(&store, &file.consumers[0].manifest)
+            .await
+            .expect("the rows");
+
+        assert_eq!(
+            rows["ledger_account"]
+                .iter()
+                .map(|row| row["name"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("Alpha")]
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_previews_the_current_scope_module_as_no_change() {
+        let ctx = setup_test();
+        let output = json!([{"upsert": {"ledger_account": {
+            "id": "ledger:account:a", "name": "Alpha", "balance": 5, "is_closed": false,
+            "opened_at": null, "updated_at": "2026-11-01T09:00:00Z"
+        }}}])
+        .to_string();
+        let (listed, bytes) = build_scope_listed(&output);
+        let file = write_build(&ctx.config, &[(listed.clone(), bytes.clone())]);
+        let log = MemoryLog::seeded(
+            "facts.ledger.account",
+            &[r#"{"id":"event:ledger:1","entity":"ledger:account:a","at":"2026-11-01T09:00:00Z"}"#],
+        );
+
+        up_listed(&ctx.config, &log, &file, None)
+            .await
+            .expect("an up");
+
+        let scratch = ctx.config.consumer_dir("ledger_account").join("preview");
+
+        std::fs::create_dir_all(&scratch).expect("a preview folder");
+        std::fs::write(scratch.join(MODULE_FILE), &bytes).expect("a module");
+
+        let previewed = open_version(&scratch, &listed.to_version())
+            .await
+            .expect("a previewed version");
+
+        let diff = compare_with_current(&ctx.config, "ledger_account", previewed, &log)
+            .await
+            .expect("a diff");
+
+        assert_eq!(diff, json!({}));
     }
 
     #[tokio::test]

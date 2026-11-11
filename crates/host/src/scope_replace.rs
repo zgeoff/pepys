@@ -417,33 +417,20 @@ pub async fn write_scope_changes(
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use serde::Deserialize;
     use serde_json::{Value, json};
 
     use super::*;
-    use crate::consumer::{
-        ColumnKind, ConsumerInput, Exports, LinkType, Read, TableInfo, read_build_manifest_text,
-    };
     use crate::database::{Store, open_store, prepare_scope_tables, prepare_store};
     use crate::rows::load_all_rows;
+    use crate::test_utils::stub_scope_manifest;
 
     const CASES: &str =
         include_str!("../../../packages/testing/src/scope-replace/scope-replace-cases.json");
 
     #[derive(Deserialize)]
     struct CaseFile {
-        consumer: CaseConsumer,
         cases: Vec<Case>,
-    }
-
-    #[derive(Deserialize)]
-    struct CaseConsumer {
-        name: String,
-        input: ConsumerInput,
-        tables: BTreeMap<String, TableInfo>,
-        links: Vec<LinkType>,
     }
 
     #[derive(Deserialize)]
@@ -488,67 +475,6 @@ mod tests {
         output: String,
     }
 
-    // The case consumer as a manifest, with the SQL of its tables as `pepys build` writes it.
-    fn build_case_manifest(consumer: &CaseConsumer) -> ConsumerManifest {
-        let manifest = ConsumerManifest {
-            name: consumer.name.clone(),
-            input: consumer.input.clone(),
-            exports: Exports {
-                init: "ledger_account_init".to_owned(),
-                apply: "ledger_account_apply_scope".to_owned(),
-            },
-            imports: vec![Read::ScopeFacts {
-                length: "readScopeFactsLength".to_owned(),
-                into: "readScopeFactsInto".to_owned(),
-            }],
-            tables: consumer.tables.clone(),
-            links: consumer.links.clone(),
-            schema: consumer
-                .tables
-                .iter()
-                .map(|(name, info)| build_table_sql(name, info))
-                .collect(),
-        };
-        let file = json!({
-            "kit": 1, "deployment": null,
-            "consumers": [{
-                "name": manifest.name, "module": "0".repeat(64), "path": "ledger.wasm",
-                "pins": {}, "version": "0".repeat(64), "manifest": manifest,
-            }],
-        });
-
-        // The case consumer passes the host's own manifest check.
-        read_build_manifest_text(&file.to_string()).expect("a manifest the host accepts");
-
-        manifest
-    }
-
-    fn build_table_sql(name: &str, info: &TableInfo) -> String {
-        let columns: Vec<String> = info
-            .columns
-            .iter()
-            .map(|(column, kind)| {
-                let declared = match kind.kind {
-                    ColumnKind::Integer | ColumnKind::Boolean => "INTEGER",
-                    ColumnKind::Real => "REAL",
-                    ColumnKind::Text
-                    | ColumnKind::EntityId
-                    | ColumnKind::Timestamp
-                    | ColumnKind::Json => "TEXT",
-                };
-                let null = if kind.nullable { "" } else { " NOT NULL" };
-
-                format!("\"{column}\" {declared}{null}")
-            })
-            .collect();
-
-        format!(
-            "CREATE TABLE \"{name}\" ({}, PRIMARY KEY ({}));\n",
-            columns.join(", "),
-            info.primary_key.join(", ")
-        )
-    }
-
     async fn open_case_store(directory: &tempfile::TempDir, manifest: &ConsumerManifest) -> Store {
         let store = open_store(&directory.path().join("consumer.db"))
             .await
@@ -574,7 +500,31 @@ mod tests {
             HostError::DuplicateRow { .. } => "duplicate-row",
             HostError::DuplicateLink { .. } => "duplicate-link",
             HostError::ScopeConflict { .. } => "scope-conflict",
-            other => panic!("no refusal kind for {other}"),
+            other @ (HostError::Database(_)
+            | HostError::Module(_)
+            | HostError::Json(_)
+            | HostError::Io(_)
+            | HostError::Stream(_)
+            | HostError::UnknownStream(_)
+            | HostError::MissingBlob(_)
+            | HostError::BlobUnavailable(_)
+            | HostError::MissingExport(_)
+            | HostError::OutOfBounds
+            | HostError::Panicked(_)
+            | HostError::UnknownConsumer(_)
+            | HostError::Transition { .. }
+            | HostError::UnknownVersion(_)
+            | HostError::Locked(_)
+            | HostError::Config(_)
+            | HostError::BadManifest { .. }
+            | HostError::ModuleHash { .. }
+            | HostError::SchemaMismatch { .. }
+            | HostError::NoCurrentVersion(_)
+            | HostError::VersionClash { .. }
+            | HostError::TableOwned { .. }
+            | HostError::ForeignScopeRead { .. }
+            | HostError::Stopped { .. }
+            | HostError::Up { .. }) => panic!("no refusal kind for {other}"),
         }
         .to_owned()
     }
@@ -658,13 +608,13 @@ mod tests {
                     .map(|(name, field)| (name, to_float_numbers(field)))
                     .collect(),
             ),
-            other => other,
+            other @ (Value::Null | Value::Bool(_) | Value::String(_)) => other,
         }
     }
 
-    async fn run_case(file: &CaseFile, case: &Case) -> Value {
+    async fn run_case(case: &Case) -> Value {
         let directory = tempfile::tempdir().expect("a directory");
-        let manifest = build_case_manifest(&file.consumer);
+        let manifest = stub_scope_manifest();
         let store = open_case_store(&directory, &manifest).await;
 
         for link in case.stored.iter().flat_map(|stored| &stored.links) {
@@ -735,7 +685,7 @@ mod tests {
         let mut wrong = Vec::new();
 
         for case in &file.cases {
-            let received = run_case(&file, case).await;
+            let received = run_case(case).await;
             let expected = build_expected(case);
 
             if received != expected {
