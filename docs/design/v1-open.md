@@ -1,0 +1,223 @@
+# Open for the builder
+
+This doc lists what the builder of [pepys v1](./v1.md) must settle. No sketch was compiled or
+type-checked. Two trial runs tested the riskiest parts: one ran a real compiled module through the
+real Rust host, and one compiled the real `boxxy_work` entry file with scriptc. Neither run's code
+is in this repo, so this doc states what each one built and found. The other sections list the gaps
+inside the sketches, and every item that the sketches mark as assumed, not checked or not designed.
+Fix the sketch's rule in the code where a finding here contradicts it.
+
+## The host
+
+The run used the host at the state of this repo before any v1 work, with wasmtime 50.0.1 and Turso
+0.8.3. It added about 1,250 lines to `crates/host/src`, ran the compiled `boxxy_work` module on 9
+fact files, from a fact log through the fact index, the module, the link check and the scope replace
+into a store, and got the expected rows and links in every table of every file. The fact-mode path
+did not change. What the host needed:
+
+| Part          | Lines | Holds                                                                                          |
+| ------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| scope         | 415   | the scope runner and fact source, the parse of the wire, the scope batch, the scope replace    |
+| rows          | 255   | a row as a JSON object: the check against a manifest table, the key, load, write and delete    |
+| fact index    | 166   | the index file with its two tables, the indexing, the read of one entity's facts, the sort key |
+| links         | 156   | the link, the kind of an ID, the link check, load, write and delete                            |
+| manifest      | 102   | the serde types of a consumer manifest, with none of the load rules                            |
+| module runner | +99   | linking by the manifest's symbols; the scope read reuses the two host functions of a row read  |
+| store, errors | +47   | the `scope_row` and `link` tables, and five error variants                                     |
+
+The run wrote the manifest and its SQL by hand, and `pepys build` made neither. Turso took all of
+the design's SQL, and serde parsed the manifest with unknown fields refused.
+
+The sketch does not match the real host in 9 places. The first 6 change what the builder writes:
+
+1. **The fact source needs a multi-thread runtime.** The module calls the read from inside a
+   synchronous wasm call, and the index read is async. The fix is the one that the row read uses:
+   block in place on the runtime's handle. A test on a current-thread runtime panics there, so every
+   host test that runs a real read needs the multi-thread flavour.
+2. **The fact source must own what it reads from.** A read that borrows the index cannot serve the
+   module. The run added a read that takes a connection, and cloned the index's connection.
+3. **The entity ID column kind needs its own serde name.** A camel case rename gives `entityId`, and
+   the manifest holds `entityID`.
+4. **A stored number is not the wire's number.** A confidence is `1` on the wire and `1.0` from a
+   REAL column, and the two JSON values are not equal. The scope replace must compare a link's
+   confidence, and each REAL column of a row, as floats. Otherwise a replay writes each link again.
+5. **The repo's parse of operations refuses the flat link.** Before the typed parse, it reads the
+   keys of each verb's body as table names, so it reports an operation on a table named
+   `confidence`. That scan goes with the function.
+6. **The repo's log port refuses a pushed fact.** It rejects the ID `event:boxxy:…` as no known fact
+   ID kind. The envelope change in [01-kit.ts](./v1/sketches/01-kit.ts) mends this, and the run did
+   not make it.
+7. The function that builds a row's key has no table name for its error. The run added the table as
+   a parameter.
+8. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
+   open store, where the sketch has a path.
+9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
+   adapter is a few lines.
+
+The sketch leaves these meanings open, and the run picked one for each:
+
+- A row key or a link key twice in one scope result is refused.
+- A link that a scope returns, and that is stored with no scope, is a scope conflict.
+- The change entry of a link has the type `link`, the key `[type, from, to]`, the value and the old
+  value. A deleted link has no old value.
+- The key of a row's change entry is the JSON list of the key's values. The repo's entry holds the
+  bare ID.
+- A JSON number in an integer column must be an integer, so `1.0` is refused.
+- A stream with no offset yet is not in the horizon.
+- The scope read returns the stored bodies joined as text, with no parse.
+- A refused link stops the whole batch, and every other scope of the batch with it.
+- The link check runs on all links of one scope before that scope's writes. The sketch puts the
+  check before any write of the batch. With two dirty scopes the first scope's rows are written and
+  rolled back, and the result is the same.
+
+The run did not check:
+
+- `consumers.json`, its load rules, the version file, the version clash, the schema check at open,
+  `up`, `run` and `preview`;
+- the S2 log, because every run used the memory log;
+- a read of another scope, a consumer with two streams, and two dirty scopes through a real module;
+- a batch above 100 records, a scope above 60 facts, and speed;
+- the link check in fact mode, the shared link case file, and the hub flag;
+- the sort key on times with different fraction lengths;
+- the queries, the store API, locks and two processes.
+
+## scriptc
+
+The run used scriptc 0.4.5 and zig 0.16.0. The real `boxxy_work` entry file compiled to a module of
+611,086 bytes, every statement static, attested deterministic, with no forbidden import. scriptc
+refused no construct. The glue had 26 union members and 213 decoders, with nested objects, lists,
+optional and nullable fields, literal unions and `unknown` fields, so the
+[typing rules of the glue](./v1/sketches/03-manifest-host.ts) hold for those. The module gave the
+same output as a Bun run of the same code on all 9 fact files, and applied one scope of 60 facts in
+0.38 ms at the median.
+
+The entry file needed 5 rewrites:
+
+1. A pull request ID typed as a number, where the fact holds decimal text. The glue types it as
+   text.
+2. An object that reads its own earlier value while it is assigned, which TypeScript narrows to
+   `never`. A helper function that merges the two values compiles.
+3. An unused type import.
+4. No model contract. scriptc attests only a library that exports a model type, a message type,
+   `init` and `update` ([consumers](./pepys/consumers.md#compiler)), so the kit's entry file shape
+   must hold them.
+5. A result that depended on the order of two facts with one time. The fix keeps the smaller fact ID
+   on an equal time. A consumer author must break every tie of time by fact ID, and the test store
+   cannot find a missing tie-break unless a test feeds both orders.
+
+A pull request ID above the 32-bit range came through as the right text, sent as text and sent as a
+JSON number. The run did not check the two queries, a read of another scope, a scope above 60 facts,
+or the kit's own glue generator: the run's generator was its own.
+
+## Gaps inside the sketches
+
+The proven sender did not reach every place in the sketches:
+
+- The function that builds the OTLP receive path takes no sender in its parameter type, and the
+  telemetry source passes one.
+- Neither telemetry table declares the two origin columns, and both consumers write them.
+- The route test in [02-ingest-log.ts](./v1/sketches/02-ingest-log.ts) sends an export with no proof
+  and expects 200, and the function that builds the routes for a test takes no sender proof.
+- The telemetry test in [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts) applies facts
+  with no origin, and the consumer reads the origin of every fact.
+
+Two more gaps:
+
+- A pull path gets a cursor and its environment values. No sketch shows how the resync pull reads
+  the marks that the receive route keeps.
+- Nothing holds the scope replace in TypeScript and in Rust together. Case files hold the manifest
+  parse and the link check.
+- The [runtime](./pepys/runtime.md#network) doc's public rule matches the path `/webhook/github`,
+  and the GitHub source's route is `/webhook`. The public rule must match the exact path of the
+  route.
+
+## Not designed
+
+- How the kit declares the two OTLP paths that store nothing. A receive path has one route.
+- The tables of the issue and review families.
+- The mapping from a bumped package to a deploy target.
+- A signed time in a delivery check. A third check kind would add it, and the senders of the two
+  kinds in v1 would not change.
+
+## Assumed
+
+- Bun listens on every address when a listener gets no hostname.
+- An agent's own session ID never equals the atc session ID of another session.
+- One fact ID belongs to one stream.
+- `PRAGMA table_info` in Turso gives the declared type, the not-null flag and the key order, as in
+  SQLite.
+- The body that GitHub's deliveries API returns parses to the same JSON value as the body it sent.
+  The recovery pull is not in this repo yet.
+- The GitHub App's token may read a pull request and a release.
+- An `observation:` fact ID passes the envelope check for a resync fact.
+
+## Not checked
+
+Telemetry:
+
+- That Codex honours `OTEL_RESOURCE_ATTRIBUTES`. If it does not, a Codex record has no atc session
+  ID, and its session is the Codex conversation ID.
+- That Codex sends a turn cost with an estimate for every kind of account, and that the record
+  carries a model. The model column is nullable for that reason.
+- Claude Code's OTLP shape on the wire: the scope name, and numbers as numbers or as text.
+- Either exporter's batch size, and whether either one sends gzip.
+- That an OTLP exporter retries on 503 and stops on 500, as the OTLP specification requires.
+- That Bun can stop a gzip stream at a byte cap.
+
+GitHub:
+
+- That the App gets a push webhook for a tag that a workflow moves with the workflow's own token. If
+  it does not, the deploy rule falls back to the status rows with no change.
+- The update time that GitHub puts in a delivery for a deleted release. The tombstone rule does not
+  rest on it.
+- That a consumer can parse the stored payload column back from its own row read.
+
+The build and the host:
+
+- That scriptc compiles a consumer from a copied `src` folder, and that an entry file imports only
+  files under its own `src`.
+- That scriptc compiles a `switch` with a `never` default, and a type import from the product list.
+- A crash of s2-lite in the middle of a batch write.
+- That a JSON column compares equal after a round trip through SQLite. The scope replace writes
+  nothing when nothing differs, and the host run settled the comparison for numbers only.
+
+The store and the API:
+
+- Turso: a read-only attach by URI on an in-memory main database; a TEMP view over attached files;
+  one snapshot per attached file in one transaction; a second process that opens the fact index
+  file. When Turso refuses the TEMP view, the adapter builds the two unions as common table
+  expressions per query.
+- zod defaults in an MCP input schema, and that an agent may then leave those fields out.
+- A zod schema with a transform in an MCP input or output schema. The contract uses none.
+- The `SERVICE_UNAVAILABLE` code in oRPC's common status map. The API sets the status itself, so the
+  answer does not rest on that map.
+
+## Known limits
+
+- **A telemetry record under another sender's session is stored.** The readers drop it
+  ([telemetry](./v1-plug-ins.md#telemetry)). A query that reads the telemetry tables without the
+  join to the session's owner would show it. The sender also writes the time of a record, so a
+  worker can move its own cost between its own attempts. Sessions on one machine are one sender. A
+  session that can prove no sender cannot send telemetry at all.
+- **The telemetry route refuses every export until its trust documents exist.** The cost of every
+  attempt then reads as none.
+- **A replay of a signed delivery grows the log.** It changes no row and no link. Past the hour of
+  the drop, after a restart, or on another replica, each replay adds one copy of its facts. The
+  GitHub route is public, so the size limit and that hour are the bound.
+- **The resync marks are in ingest's memory.** A restart before the pull runs loses them, and the
+  row stays at the older state until the next delivery for the object.
+- **One fact ID can have two sessions.** The fact ID leaves the OTLP resource out, and the session
+  comes from the resource first. When a sink rewrites the resource between two copies of one record,
+  the first copy in the log wins.
+- **A long scope is computed many times.** A scope with N facts is computed again in every batch
+  that holds one of its facts.
+- **One failed `up` stops `run --up`.** Every consumer's tables then go stale until it is mended.
+  Ingest keeps storing facts. A scope conflict stops its consumer until a new module is up.
+- **Each table is described twice in `consumers.json`,** as columns and as SQL. The check at open
+  holds the two together.
+- **`neighbourhood` shows no release and no deploy,** and never resolves a session. A repository and
+  a user are in column values and are kinds of no plug-in, so `get_entity` finds neither.
+- **The delivery tie has three known gaps.** A bump in two steps reports the deploy early. A
+  repository with several release components gets the first release of any of them. A repository
+  that deploys itself with no bump pull request gets no deploy time.
+- **Storing every log record costs log space.** Tool and hook events outnumber model requests.
