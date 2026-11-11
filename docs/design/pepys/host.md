@@ -7,6 +7,11 @@ batched transactions, keeps each consumer's offset in the same transaction as it
 deploys new consumer versions without a gap for readers. Rust is used here because the host runs on
 every fact; the services that wait on networks are TypeScript.
 
+pepys v1 builds the part of this design in [the manifest and the host](../v1-host.md#the-host). The
+v1 host runs one task per consumer, and has none of the scheduling below, no snapshots and no commit
+socket. A swap there ends at the `current` link, and the API finds each consumer's current version
+at the start of each call.
+
 ## Batches and offsets
 
 The host groups the facts for one consumer into batches and applies each batch in one Turso

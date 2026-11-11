@@ -7,6 +7,10 @@ owner's tailnet only, and enrichment reads the change feed and search on a clust
 one definition gives a typed route, an MCP tool and a test. The API reads the store and never writes
 it: every write from a person or an agent becomes a manual fact in the log.
 
+[pepys v1](../v1.md#the-store-api) builds `get_entity`, `neighbourhood` and each plug-in's queries,
+as oRPC routes and MCP tools. It has no search, no entity history, no write, no deployment catalog
+and no OAuth: its API checks no token.
+
 ## Callers
 
 | Caller                               | Wants                    | Through                  |

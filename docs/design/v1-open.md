@@ -66,8 +66,7 @@ module, the S2 log, and the sort key on times with different fraction lengths. N
 
 - a scope consumer with two streams;
 - a batch above 100 records, a scope above 60 facts, and speed;
-- the hub flag;
-- the queries, the store API, locks and two processes.
+- two host processes on one store. The writer lock's own tests take it twice in one process.
 
 ## scriptc
 
@@ -139,13 +138,10 @@ GitHub:
   it does not, the deploy rule falls back to the status rows with no change.
 - The update time that GitHub puts in a delivery for a deleted release. The tombstone rule does not
   rest on it.
-- That a consumer can parse the stored payload column back from its own row read.
 
 The build and the host:
 
 - A crash of s2-lite in the middle of a batch write.
-- That a JSON column compares equal after a round trip through SQLite. The scope replace writes
-  nothing when nothing differs, and the host run settled the comparison for numbers only.
 
 ## Known limits
 
