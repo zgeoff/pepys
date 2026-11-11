@@ -235,6 +235,7 @@ test.each([
 
 test.each([
   { row: 'an optional field', schema: z.string().optional() },
+  { row: 'an exact optional field', schema: z.exactOptional(z.string()) },
   { row: 'a field with a default', schema: z.string().default('none') },
 ])('it types $row as a field that may be absent', (row) => {
   const ctx = setupTest();

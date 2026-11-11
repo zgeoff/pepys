@@ -60,6 +60,11 @@ function buildPayloadField(name: string, schema: z.core.$ZodType): PayloadField 
       shape: buildPayloadShape(optional.unwrap()),
       isOptional: true,
     }))
+    .with(P.instanceOf(z.ZodExactOptional), (optional) => ({
+      name,
+      shape: buildPayloadShape(optional.unwrap()),
+      isOptional: true,
+    }))
     .with(P.instanceOf(z.ZodDefault), (withDefault) => ({
       name,
       shape: buildPayloadShape(withDefault.unwrap()),

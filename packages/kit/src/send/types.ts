@@ -17,9 +17,9 @@ export type OutgoingFact<Source extends SourceDefinition> = FactBatchBody['facts
     }[keyof Family['types'] & string];
   }[Source['families'][number]['stream']];
 
-// Every 5xx is a `retry`: ingest answers 500 when the log refuses an append for a fault of the
-// deployment, and part of the batch may be stored by then. A sender that dropped the batch as
-// refused would lose the rest.
+// A 502, 503 or 504 answer, a timeout and no connection are a `retry`: send the same batch again,
+// unchanged. Every other answer that is no success is `refused`, 500 included: ingest answers 500
+// for a batch that no resend of the same bytes can store.
 export type SendFailure =
   | { kind: 'refused'; status: number; reason: string }
   | { kind: 'retry'; reason: string };
