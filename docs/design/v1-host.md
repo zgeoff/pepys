@@ -83,8 +83,8 @@ runs against the Rust check and its TypeScript twin.
 The case file
 [`packages/testing/src/scope-replace/scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
 holds the scope replace as data. The test store's TypeScript replace runs every case in
-`bun run test` today. When scope mode is built in the Rust host, the host runs the same file, so the
-two replaces stay equal.
+`bun run test`. When scope mode is built in the Rust host, the host runs the same file, so the two
+replaces stay equal.
 
 The file holds a stub scope consumer, with its tables in the manifest's form, and a list of cases.
 Each case gives the links stored before it, then batches. A batch lists the module output text of
