@@ -2,6 +2,7 @@ import type { Kysely } from 'kysely';
 import type { Simplify, UnionToIntersection } from 'type-fest';
 import type { z } from 'zod';
 import type { ConsumerDeclaration } from '../consumers/types.ts';
+import type { ConsumersDB } from '../store-reader/store-reader.ts';
 import type { TableRow } from '../tables/table-row.ts';
 
 // The Kysely tables of a set of consumers, from their declarations.
@@ -20,8 +21,9 @@ export type StoreTables<Consumers extends readonly ConsumerDeclaration[]> = Simp
 export interface QueryCall<Input, Consumers extends readonly ConsumerDeclaration[]> {
   input: Input;
 
-  // one read-only connection with the current file of each consumer in `reads` attached
-  db: Kysely<StoreTables<Consumers>>;
+  // One read-only connection with the current file of each consumer in `reads` attached, and the
+  // `entity` and `link_effective` views over those files.
+  db: Kysely<ConsumersDB<Consumers>>;
 }
 
 // Generic over the schemas, not their types: `z.ZodType<Input>` keeps the parsed type alone, and a

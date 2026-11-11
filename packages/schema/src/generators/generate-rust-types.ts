@@ -1,6 +1,6 @@
 import type { ColumnDeclaration, ConsumerDeclaration, TableDeclaration } from '@pepys/kit';
+import { toPascalCase } from '@pepys/kit/generators';
 import { match } from 'ts-pattern';
-import { toPascalCase } from './to-pascal-case.ts';
 import { toSnakeCase } from './to-snake-case.ts';
 
 export function generateRustTypes(consumers: readonly ConsumerDeclaration[]): string {

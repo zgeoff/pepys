@@ -11,6 +11,13 @@
   },
   "overrides": [
     {
+      // a subpath of the kit's exports map is a barrel, as src/index.ts is
+      "files": ["packages/kit/src/generators.ts", "packages/kit/src/send.ts"],
+      "rules": {
+        "zgeoff/file-named-for-export": "off"
+      }
+    },
+    {
       // the consumer build finds this file by the consumer's name and calls fixed export names
       "files": ["packages/source-*/src/consumers/*.ts"],
       "rules": {

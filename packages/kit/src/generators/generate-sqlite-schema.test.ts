@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
-import { defineConsumer, defineTable } from '@pepys/kit';
-import type { ConsumerDeclaration } from '@pepys/kit';
+import { defineConsumer } from '../consumers/define-consumer.ts';
+import type { ConsumerDeclaration } from '../consumers/types.ts';
+import { defineTable } from '../tables/define-table.ts';
 import { generateSqliteSchema } from './generate-sqlite-schema.ts';
 
 test('it generates tables, indexes and the entity view', () => {

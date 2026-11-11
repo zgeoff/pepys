@@ -1,11 +1,7 @@
 import { checkDeployment } from '@pepys/kit';
 import type { DeploymentFailure } from '@pepys/kit';
-import {
-  generateBoundaryGlue,
-  generateKyselyTypes,
-  generateRustTypes,
-  generateSqliteSchema,
-} from '@pepys/schema';
+import { generateBoundaryGlue, generateSqliteSchema } from '@pepys/kit/generators';
+import { generateKyselyTypes, generateRustTypes } from '@pepys/schema';
 import { consumerSources } from './consumer-sources.ts';
 
 export interface GeneratedFile {
@@ -28,6 +24,7 @@ export function buildGeneratedFiles(): GeneratedFiles {
   }
 
   const consumers = check.value.consumers;
+  const families = check.value.sources.flatMap((source) => source.families);
 
   const sourceFiles = consumerSources.flatMap((source) =>
     source.plugin.consumers.flatMap((consumer) => {
@@ -36,7 +33,14 @@ export function buildGeneratedFiles(): GeneratedFiles {
       return [
         {
           path: `${stem}-boundary.ts`,
-          content: withHeader('//', generateBoundaryGlue({ consumer, consumers })),
+          content: withHeader(
+            '//',
+            generateBoundaryGlue({
+              consumer,
+              families,
+              settings: check.value.settings[source.plugin.name],
+            }),
+          ),
         },
         { path: `${stem}.sql`, content: withHeader('--', generateSqliteSchema(consumer)) },
       ];

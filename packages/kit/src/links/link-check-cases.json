@@ -1,0 +1,274 @@
+{
+  "consumer": {
+    "name": "archive_shelf",
+    "links": [
+      {
+        "name": "holds",
+        "from": ["archive:shelf"],
+        "to": ["archive:box", "archive:crate"],
+        "hub": false
+      },
+      {
+        "name": "stands_in",
+        "from": ["archive:shelf"],
+        "to": ["archive:room"],
+        "hub": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "title": "accepts a declared link with both ends of an allowed kind",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": null
+    },
+    {
+      "title": "accepts an end of the second allowed kind",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:crate:c-9",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": null
+    },
+    {
+      "title": "accepts a link to an entity whose row has not arrived",
+      "link": {
+        "type": "stands_in",
+        "from": "archive:shelf:s-1",
+        "to": "archive:room:never-filed",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": null
+    },
+    {
+      "title": "accepts a confidence of 0",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 0,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": null
+    },
+    {
+      "title": "accepts a confidence of 1",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": null
+    },
+    {
+      "title": "accepts an evidence that is not a fact ID",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "x"
+      },
+      "problem": null
+    },
+    {
+      "title": "refuses a type the consumer does not declare",
+      "link": {
+        "type": "leans_on",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-declared"
+    },
+    {
+      "title": "refuses a from end that is not an entity ID",
+      "link": {
+        "type": "holds",
+        "from": "archive",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "refuses a to end with no ID part",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "refuses a to end with an empty ID",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "refuses a from end whose source is not lower snake case",
+      "link": {
+        "type": "holds",
+        "from": "Archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "refuses a fact ID as an end",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "event:archive:e-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "refuses a from end of a kind the type does not allow",
+      "link": {
+        "type": "holds",
+        "from": "archive:box:b-2",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "wrong-kind"
+    },
+    {
+      "title": "refuses a to end of a kind the type does not allow",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:room:r-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "wrong-kind"
+    },
+    {
+      "title": "refuses a kind that only starts with an allowed kind",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box_lid:l-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "wrong-kind"
+    },
+    {
+      "title": "refuses an allowed kind of another source",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "depot:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "wrong-kind"
+    },
+    {
+      "title": "refuses a confidence below 0",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": -0.1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "bad-confidence"
+    },
+    {
+      "title": "refuses a confidence above 1",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1.5,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "bad-confidence"
+    },
+    {
+      "title": "refuses an empty evidence",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": ""
+      },
+      "problem": "no-evidence"
+    },
+    {
+      "title": "reports the type before a bad end",
+      "link": {
+        "type": "leans_on",
+        "from": "archive",
+        "to": "archive:box:b-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-declared"
+    },
+    {
+      "title": "reports the from end before the to end",
+      "link": {
+        "type": "holds",
+        "from": "archive",
+        "to": "archive:room:r-1",
+        "confidence": 1,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "not-an-entity-id"
+    },
+    {
+      "title": "reports a wrong kind before a bad confidence",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:room:r-1",
+        "confidence": 2,
+        "evidence": "event:archive:e-1"
+      },
+      "problem": "wrong-kind"
+    },
+    {
+      "title": "reports a bad confidence before an empty evidence",
+      "link": {
+        "type": "holds",
+        "from": "archive:shelf:s-1",
+        "to": "archive:box:b-1",
+        "confidence": 2,
+        "evidence": ""
+      },
+      "problem": "bad-confidence"
+    }
+  ]
+}

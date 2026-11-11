@@ -1,29 +1,32 @@
-import { getGithubPullRequest } from '../generated/github-pull-request-boundary.ts';
+import {
+  initGithubPullRequestModel,
+  readGithubPullRequestRow,
+  toGithubPullRequestID,
+  updateGithubPullRequestModel,
+} from '../generated/github-pull-request-boundary.ts';
 import type {
   EntityID,
+  GithubPullRequestMessage,
+  GithubPullRequestModel,
   GithubPullRequestOperation,
   GithubPullRequestRow,
 } from '../generated/github-pull-request-boundary.ts';
 
-export interface GithubPullRequestModel {
-  operationsJSON: string;
-}
+export type {
+  GithubPullRequestMessage,
+  GithubPullRequestModel,
+} from '../generated/github-pull-request-boundary.ts';
 
-export type GithubPullRequestMessage = { kind: 'apply'; factJSON: string } | { kind: 'reset' };
-
+// scriptc takes the model and message types through a re-export, but not the two functions
 export function init(): GithubPullRequestModel {
-  return { operationsJSON: '[]' };
+  return initGithubPullRequestModel();
 }
 
 export function update(
   model: GithubPullRequestModel,
   message: GithubPullRequestMessage,
 ): GithubPullRequestModel {
-  if (message.kind === 'reset') {
-    return init();
-  }
-
-  return { ...model, operationsJSON: applyFact(message.factJSON) };
+  return updateGithubPullRequestModel(model, message);
 }
 
 export function applyFact(factJSON: string): string {
@@ -37,7 +40,7 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
     return [];
   }
 
-  const stored = getGithubPullRequest(row.id);
+  const stored = readGithubPullRequestRow(row.id);
 
   if (stored !== undefined && isStale(stored, row)) {
     return [];
@@ -105,7 +108,7 @@ function readRow(factJSON: string): GithubPullRequestRow | undefined {
   }
 
   return {
-    id: toEntityID(`github:pull_request:${pullRequest.id}`),
+    id: toGithubPullRequestID(`${pullRequest.id}`),
     number: pullRequest.number,
     repository_id: toEntityID(`github:repo:${repositoryID}`),
     title: pullRequest.title,

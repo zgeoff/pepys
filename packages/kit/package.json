@@ -2,13 +2,19 @@
   "name": "@pepys/kit",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./generators": "./src/generators.ts",
+    "./send": "./src/send.ts"
+  },
   "dependencies": {
     "@zgeoff/std": "catalog:",
+    "ts-pattern": "catalog:",
     "type-fest": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@octokit/webhooks": "catalog:",
     "kysely": "catalog:",
     "tiny-invariant": "catalog:"
   },

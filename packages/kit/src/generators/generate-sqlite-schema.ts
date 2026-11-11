@@ -1,5 +1,6 @@
-import type { ColumnDeclaration, ConsumerDeclaration, EntityViewDeclaration } from '@pepys/kit';
 import { match } from 'ts-pattern';
+import type { ConsumerDeclaration, EntityViewDeclaration } from '../consumers/types.ts';
+import type { ColumnDeclaration } from '../types.ts';
 import { quoteSqlIdentifier } from './quote-sql-identifier.ts';
 
 export function generateSqliteSchema(consumer: ConsumerDeclaration): string {

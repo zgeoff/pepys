@@ -1,7 +1,7 @@
 import type { ConsumerDeclaration } from '@pepys/kit';
+import { toPascalCase } from '@pepys/kit/generators';
 import { collectTables } from './collect-tables.ts';
 import { formatTypeScriptRow } from './format-typescript-row.ts';
-import { toPascalCase } from './to-pascal-case.ts';
 
 export function generateKyselyTypes(consumers: readonly ConsumerDeclaration[]): string {
   const tables = collectTables(consumers);

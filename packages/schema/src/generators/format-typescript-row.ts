@@ -1,5 +1,5 @@
 import type { TableDeclaration } from '@pepys/kit';
-import { toPascalCase } from './to-pascal-case.ts';
+import { toPascalCase } from '@pepys/kit/generators';
 import { toTypeScriptType } from './to-typescript-type.ts';
 import type { TypeScriptTypeNames } from './to-typescript-type.ts';
 
