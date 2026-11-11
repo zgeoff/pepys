@@ -66,11 +66,12 @@ and a view joins the two, so a replay of either consumer leaves the other's data
 
 ## The fact index
 
-The host, not a consumer, indexes every fact by entity as it passes. The index holds the entity, the
-source time, the stream, the sequence number, the fact ID, the fact kind and the payload. Scope
-consumers read an entity's facts from it sorted by source time, which S2 cannot do because each
-stream mixes every entity together. The index is a projection like any other and rebuilds from the
-log.
+The host indexes the facts of each scope consumer's streams by entity. The index sits in the scope
+consumer's own file, one row per fact ID with the entity, the source time, the stream, the sequence
+number and the fact, and the host writes it in the transaction of the batch that applies the facts.
+Scope consumers read an entity's facts from it sorted by source time, which S2 cannot do because
+each stream mixes every entity together. The index is a projection like any other and rebuilds from
+the log.
 
 ## One schema source
 

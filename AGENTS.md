@@ -109,16 +109,17 @@ docs/
   `build/consumers/<name>/<hash>.wasm`, and writes `build/consumers/consumers.json`. It needs zig
   0.16.0 and wasm-tools 1.262.0, the version CI pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
 - `bun run test:e2e` runs the e2e lane: the GitHub pull request path end to end against Garage and
-  s2-lite in Docker, a signed webhook through ingest and the host to a Turso file, then the API. It
-  needs Docker, the host built at `target/debug/pepys` and the consumers built, so run
+  s2-lite in Docker, a signed webhook through ingest and the host to a Turso file, then the API, and
+  the ledger scope consumer of the stub deployment on records it appends to s2-lite. It needs
+  Docker, the host built at `target/debug/pepys` and the consumers built, so run
   `bun run test:e2e:prepare` first, with the same two variables set. The `e2e` job in `pr.yml` runs
   the lane on every pull request.
 - The host, `target/debug/pepys`, runs `up [<consumer>]`, `run [--up]` and `preview <consumer>` from
   the `consumers.json` at `PEPYS_CONSUMERS`, such as `build/consumers/consumers.json`, with the
   store at `PEPYS_STORE_DIR` and the S2 log at the `PEPYS_S2_` variables.
 - `bun run test:e2e:rust` runs the Rust e2e lane, the fact log and blob store fixtures on s2-lite
-  and Garage, in a stack of its own. It needs Docker and `cargo-nextest`. The `e2e` job runs it
-  after the Bun lane.
+  and Garage, in a stack of its own, and the compiled ledger scope consumer through `pepys up`. It
+  needs Docker, `cargo-nextest` and the consumers built. The `e2e` job runs it after the Bun lane.
 - `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`
   and MCP at `/mcp`. It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which
   defaults to 127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081.

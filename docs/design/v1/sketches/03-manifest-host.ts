@@ -374,11 +374,18 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //
 //   pub trait ScopeRunner { fn apply_scope(&mut self, scope: &str, facts: Arc<dyn FactSource>) -> Result<String, HostError>; }
 //   pub trait FactSource: Send + Sync { fn read_scope_facts(&self, scope: &str) -> Result<Vec<u8>, HostError>; }
-//   /// How far a scope may read on each of the consumer's streams: the last sequence number.
-//   pub type Horizon = BTreeMap<String, u64>;
-//   pub async fn apply_scope_batch(store: &Store, manifest: &ConsumerManifest, runner: &mut dyn ScopeRunner,
-//                                  index: &FactIndex, log: &impl FactLog, stream: &str, facts: &[StoredFact]) -> Result<(), HostError>
-//   async fn replace_scope(c: &Connection, manifest: &ConsumerManifest, scope: &str, operations: Vec<Operation>) -> Result<Vec<Value>, HostError>
+//   /// Serves one scope from the consumer file's index; any other scope is ForeignScopeRead.
+//   pub struct IndexFacts { .. }   impl FactSource for IndexFacts
+//   pub async fn apply_scope_batch(store: &Store, manifest: &ConsumerManifest, scope_kind: &str,
+//                                  runner: &mut dyn ScopeRunner, stream: &str, facts: &[StoredFact]) -> Result<(), HostError>
+//
+// scope_replace.rs — new. The diff, split as the code style asks: two pure steps between a read and a write.
+//
+//   pub async fn replace_scope(c: &Connection, manifest: &ConsumerManifest, scope: &str, output: &str) -> Result<Vec<Value>, HostError>
+//   pub fn collect_scope_result(manifest, scope, operations: Vec<WireOperation>) -> Result<ScopeResult, HostError>
+//   pub async fn read_scope_state(c, manifest, scope, result: &ScopeResult) -> Result<ScopeState, HostError>
+//   pub fn pick_scope_changes(scope, result: &ScopeResult, state: &ScopeState) -> Result<ScopeChanges, HostError>
+//   pub async fn write_scope_changes(c, manifest, scope, changes: &ScopeChanges) -> Result<(), HostError>
 //
 // entity_ids.rs — the rule of the kit's parseEntityID; the envelope check uses it too.
 //
@@ -398,11 +405,11 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //   pub async fn write_link(c: &Connection, origin: &str, scope: Option<&str>, link: &Link) -> Result<(), HostError>
 //   pub async fn delete_link(c: &Connection, ends: &LinkEnds) -> Result<(), HostError>
 //
-// fact_index.rs — new. A plain module, no port: the tests open a real file in a temp directory.
+// fact_index.rs — new. The `scope_fact` table of a scope consumer's own file, written inside the
+// batch's transaction, so a rollback leaves no index row and the file's offsets bound every read.
 //
-//   pub struct FactIndex { /* the path of store/fact_index/index.db */ }
-//   pub async fn ensure_indexed(index: &FactIndex, log: &impl FactLog, stream: &str, stop: u64) -> Result<(), HostError>
-//   pub async fn read_entity_facts(index: &FactIndex, entity: &str, horizon: &Horizon) -> Result<Vec<String>, HostError>
+//   pub async fn index_facts(c: &Connection, stream: &str, facts: &[StoredFact]) -> Result<(), HostError>
+//   pub async fn read_entity_facts(c: &Connection, entity: &str) -> Result<String, HostError>   // one JSON list
 //   /// `at` with its fraction set to 9 digits, so text order is time order.
 //   pub fn sort_key_of(at: &str) -> String
 //
@@ -425,8 +432,10 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //   BadManifest { path: String, reason: String }          // the JSON path of the field, and why
 //   SchemaMismatch { table: String, reason: String }      // `schema` and `tables` disagree
 //   BadLink(LinkProblem)                                  // the scope replace's `bad-link`
-//   ScopeConflict { scope: String, table: String, key: String, owner: String }
-//   ForeignScopeRead { scope: String, asked: String }
+//   DuplicateRow { scope: String, table: String, key: String }  // one key twice in a scope's result
+//   DuplicateLink { scope: String, key: String }
+//   ScopeConflict { scope: String, table: String, key: String, owner: Option<String> }
+//   ForeignScopeRead { scope: String, asked: String }       // the module traps
 //   NoCurrentVersion(String)                              // "<consumer> has no current version; run pepys-host up <consumer>"
 //   VersionClash { consumer: String, version: String }    // one version name, two manifests
 
@@ -436,7 +445,6 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //
 //   store/
 //     host.db                         unchanged: the `versions` table
-//     fact_index/index.db             new: the fact index, with its own writer lock
 //     <consumer>/current ->           unchanged
 //     <consumer>/<version>/consumer.db, module.wasm        unchanged
 //     <consumer>/<version>/version.json                    new: the ConsumerVersion `up` built it from
@@ -464,15 +472,16 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //   CREATE INDEX IF NOT EXISTS link_to_id_idx ON link (to_id);   -- `neighbourhood` walks both directions
 //   CREATE INDEX link_scope_idx ON link (scope);  -- with scope mode
 //
-// The fact index file. ONE ROW PER FACT ID: a second copy of a fact in the log adds no row.
+//   -- scope mode only: the fact index, in the scope consumer's own file (fact_index.rs). ONE ROW
+//   -- PER FACT ID: a second copy of a fact in the log adds no row; the first copy stays.
+//   CREATE TABLE scope_fact (fact_id TEXT NOT NULL PRIMARY KEY, entity TEXT NOT NULL,
+//                            at_sort TEXT NOT NULL,      -- sort_key_of(at)
+//                            stream TEXT NOT NULL, seq_num INTEGER NOT NULL, body TEXT NOT NULL);
+//   CREATE INDEX scope_fact_entity_idx ON scope_fact (entity, at_sort, stream, seq_num);
 //
-//   CREATE TABLE fact (fact_id TEXT NOT NULL PRIMARY KEY, entity TEXT NOT NULL, at TEXT NOT NULL,
-//                      at_sort TEXT NOT NULL,      -- sort_key_of(at)
-//                      stream TEXT NOT NULL, seq_num INTEGER NOT NULL, type TEXT NOT NULL, body TEXT NOT NULL);
-//   CREATE INDEX fact_entity_idx ON fact (entity, at_sort, stream, seq_num);
-//   CREATE TABLE offsets (stream TEXT NOT NULL PRIMARY KEY, last_seq_num INTEGER NOT NULL);
-//
-// The index holds the streams of scope consumers only. A fact-mode consumer never reads it.
+// The index sits in the consumer file, so the batch's transaction covers it: a rollback leaves no
+// index row, and the file's own offsets bound every read with no horizon. Each scope consumer
+// version stores the bodies of its streams; a fact-mode consumer has no such table.
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 // F. How it runs
@@ -506,11 +515,9 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //           checkpoint, swap `current` in host.db and repoint the link. The live `run` task opens
 //           the new directory, with its version.json, on its next pass. No restart.
 //
-// WHO FILLS THE FACT INDEX DURING `up`: `up` does, itself. No task owns the index. Every scope
-// batch, in `up` or in `run`, calls ensure_indexed for the records it is about to read, under the
-// index's own writer lock (F3 step 1). So `up` needs no running host beside it, and a `run` and an
-// `up` in two processes never write the index together. The first `up` of the first scope consumer
-// on a stream builds that stream's index from offset 0 as it replays.
+// WHO FILLS THE FACT INDEX DURING `up`: the version's own batches, as they replay from offset 0
+// (F3 step 2). Each version has its own `scope_fact`, so `up` needs no running host beside it, and
+// a `run` and an `up` never write one index together.
 //
 // ── F2. `pepys-host run [--up]` ────────────────────────────────────────────────────────────────
 //
@@ -536,22 +543,19 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 // ── F3. One scope batch (scope.rs) ─────────────────────────────────────────────────────────────
 //
 // A batch is up to 100 records of one stream, as in fact mode.
-//   1. Before the transaction: ensure_indexed(stream, last record + 1), and for every other stream
-//      of the consumer, up to this file's offset for it. The index is another file, so it cannot
-//      join the transaction. It only gains rows, and step 3 bounds every read, so an index that is
-//      ahead changes no result.
-//   2. BEGIN IMMEDIATE. The dirty scopes: the entity of each fact of the batch, when it is of
-//      `scopeKind`. A sorted set: each scope once, in one order on every replay.
-//   3. The horizon: this stream up to the batch's last record; every other stream up to this
-//      file's offset. A scope's result is a function of the facts below the consumer's own
-//      offsets, so a version that replays beside a live index reads what the live one read.
+//   1. BEGIN IMMEDIATE.
+//   2. index_facts: INSERT OR IGNORE each fact of the batch into `scope_fact`. The file holds only
+//      what its own offsets cover, so every read sees the facts up to this batch and no later.
+//   3. The dirty scopes: the entity of each fact of the batch, when it is of `scopeKind`. A sorted
+//      set: each scope once, in one order on every replay.
 //   4. For each dirty scope: `exports.apply(scope)`. Its one read returns
-//        SELECT body FROM fact WHERE entity = ?1 AND (stream, seq_num within the horizon)
-//        ORDER BY at_sort, stream, seq_num
+//        SELECT body FROM scope_fact WHERE entity = ?1 ORDER BY at_sort, stream, seq_num
 //      as one JSON list. A read of another scope is ForeignScopeRead: the module traps.
-//      parse_operations; a `delete` or `unlink` is refused; find_link_problem for every link.
+//      The checks of the result run in the order v1-host.md gives; a `delete` or `unlink` is
+//      refused.
 //   5. replace_scope (F4). 6. The offset of `stream`, and one change log row when a row or link
-//      changed. COMMIT. Any error in 2 to 6: ROLLBACK; no row, no link, no offset; the task stops.
+//      changed. COMMIT. Any error in 2 to 6: ROLLBACK; no index row, no row, no link, no offset;
+//      the task stops.
 //
 // The same fact twice in the log: the index has one row (INSERT OR IGNORE on fact_id; the first
 // copy in sequence order stays). The copy marks its scope dirty, the module reads the same facts
@@ -583,8 +587,8 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //
 // ── F6. The host's tests ───────────────────────────────────────────────────────────────────────
 //
-// test_utils.rs gives a stub scope manifest inline (a consumer `ledger`, a table `ledger_entry`,
-// a link type `settles`), a MemoryLog and a CannedRunner with `apply_scope`. Three tests
-// stand: a fact twice changes nothing; a link of a wrong kind is refused; a link to a missing row
-// is written. A test with a real wasm module is a slice of docs/design/v1-work-list.md, and
-// docs/design/v1-open.md says what a run of a real module through the host found.
+// test_utils.rs gives a stub scope manifest, built from the scope-replace case file's consumer,
+// and a ScopeCannedRunner. scope.rs tests a fact twice, a foreign read, a scope conflict and a
+// rollback across two scopes; scope_replace.rs runs every case of the shared case file. The Rust
+// e2e lane runs the compiled ledger module of the stub deployment through `up` (v1-host.md, "The
+// ledger journey").

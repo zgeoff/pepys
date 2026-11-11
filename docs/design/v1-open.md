@@ -43,7 +43,9 @@ The sketch does not match the real host in 6 places. The first 4 change what the
 4. **The repo's log port refused a pushed fact,** with the ID `event:boxxy:…`. Slice 1 made the
    envelope change in [01-kit.ts](./v1/sketches/01-kit.ts): the kit's envelope parser and the Rust
    host's envelope check both accept `event:<source>:<event ID>`.
-5. The fact index holds an open store, where the sketch has a path.
+5. The fact index holds an open store, where the sketch has a path. The host now keeps the index in
+   each scope consumer's file, inside the batch's transaction, so a rolled-back batch leaves no
+   index row and the read needs no horizon.
 6. The scope read returns bytes and never returns `-1`, so its adapter over the row read is a few
    lines.
 
@@ -54,19 +56,17 @@ text.
 
 The sketch leaves the meanings below open, and the trial run picked one for each:
 
-- A stream with no offset yet is not in the horizon.
 - The scope read returns the stored bodies joined as text, with no parse.
-- The link check runs on all links of one scope before that scope's writes. The sketch puts the
-  check before any write of the batch. With two dirty scopes the first scope's rows are written and
-  rolled back, and the result is the same.
+- The checks of one scope run before that scope's writes. The sketch puts the check before any write
+  of the batch. With two dirty scopes the first scope's rows are written and rolled back, and the
+  result is the same.
 
-The run did not check:
+The host's tests now check a read of another scope, two dirty scopes through the compiled ledger
+module, the S2 log, and the sort key on times with different fraction lengths. No run has checked:
 
-- the S2 log, because every run used the memory log;
-- a read of another scope, a consumer with two streams, and two dirty scopes through a real module;
+- a scope consumer with two streams;
 - a batch above 100 records, a scope above 60 facts, and speed;
 - the hub flag;
-- the sort key on times with different fraction lengths;
 - the queries, the store API, locks and two processes.
 
 ## scriptc
@@ -174,6 +174,8 @@ The store and the API:
 - **One fact ID can have two sessions.** The fact ID leaves the OTLP resource out, and the session
   comes from the resource first. When a sink rewrites the resource between two copies of one record,
   the first copy in the log wins.
+- **Each scope consumer version stores the facts of its streams.** Two scope consumers of one stream
+  hold two copies of its bodies, and a new version indexes its streams again as it replays.
 - **A long scope is computed many times.** A scope with N facts is computed again in every batch
   that holds one of its facts.
 - **One failed `up` stops `run --up`.** Every consumer's tables then go stale until it is mended.

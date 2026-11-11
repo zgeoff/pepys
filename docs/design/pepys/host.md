@@ -74,8 +74,8 @@ store/<consumer>/
   current ->          symlink to the live version's directory
 ```
 
-The [fact index](./consumers.md#the-fact-index) is a file of its own under `store/`, which the host
-owns. The host keeps one offset per stream for it.
+Each scope consumer's file holds the [fact index](./consumers.md#the-fact-index) of its own streams,
+so the index of a batch commits or rolls back with the batch, and the file's offsets cover it.
 
 A swap never renames a database file, because SQLite finds its write-ahead log files by path and a
 renamed file can pick up a stale log. The swap runs in this order:

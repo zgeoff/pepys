@@ -37,7 +37,8 @@ Both parsers refuse a file that breaks one of these rules:
 4. `input.streams` is not empty, and each stream is `facts.<source>.<family>`.
 5. No link type name is declared twice, and each link type has a `from` kind and a `to` kind.
 6. No export or read symbol is empty or used twice.
-7. No table is named `link`, `entity`, `offsets`, `change_log`, `applied_facts` or `scope_row`.
+7. No table is named `link`, `entity`, `offsets`, `change_log`, `applied_facts`, `scope_row` or
+   `scope_fact`.
 8. A primary key has a column, and every key and index column is a column of its table. Every column
    states `nullable`.
 
@@ -110,9 +111,13 @@ columns before it reads one fact. It replays beside the live version, takes the 
 lock for the last facts, and swaps the current version. The live `run` task opens the new folder on
 its next pass.
 
+**The parse** of a module's output, in both modes, refuses output that is no JSON list, an operation
+with no verb or two, and a table that the consumer does not own, for the whole output before any row
+or link check. That is the test store's order, so the two report one refusal kind for one output.
+
 **A fact-mode batch** is one transaction: for each fact that the consumer has not applied, the
-module, the parse, the link check, the writes; then the offset and one change log row. Any error
-rolls the batch back and stops the consumer's task.
+module, the parse, the row and link checks in operation order, the writes; then the offset and one
+change log row. Any error rolls the batch back and stops the consumer's task.
 
 - A fact-mode change entry has the shape of a scope mode one, in the order of the operations. An
   upsert equal to the stored row and a delete of a row that is not stored change nothing and give no
@@ -126,15 +131,25 @@ rolls the batch back and stops the consumer's task.
 
 **A scope-mode batch** is up to 100 records of one stream:
 
-1. Before the transaction, the host indexes the records it is about to read. The fact index is a
-   file of its own, with one row per fact ID.
+1. The host adds the records to the fact index, the `scope_fact` table of the consumer's own file,
+   with one row per fact ID. The first copy of a fact in sequence order stays.
 2. The dirty scopes are the entities of the batch's facts that have the consumer's scope kind, each
    once, in sorted order.
 3. For each dirty scope, the host calls the module with the scope ID. The module's one read returns
-   every fact of that entity up to the consumer's own offsets, sorted by source time, then stream,
-   then sequence number.
-4. The host checks every link, then replaces the scope.
+   every indexed fact of that entity, sorted by source time, then stream, then sequence number. The
+   index holds no fact past the file's offsets and the batch, so a version that replays beside the
+   live one reads what the live one read. A read of another scope traps the module, and the batch
+   stops with that refusal.
+4. The host checks the result and replaces the scope.
 5. The host writes the offset, and one change log row when a row or a link changed.
+
+Steps 1 to 5 are one transaction. Any error rolls back every row, link, `scope_row` owner, fact
+index row, offset and change log row of the batch, and stops the consumer's task. A scope consumer's
+file also holds `scope_row`, the scope that owns each row, and an index of `link` by scope.
+
+**The checks of a scope result** run in this order, as in the test store: the parse; a delete or an
+unlink; every link; each row and its key, in operation order; each link key; then the owners of the
+rows, then of the links, in key order.
 
 **The scope replace** is a diff. The host writes each returned row and link that is absent or
 differs, with the scope as its owner, and deletes each row and link that the scope owned and did not
@@ -143,9 +158,8 @@ nothing: the index holds one row for it, the module returns the same result, and
 
 **The link check** takes the manifest alone. The link's type must be one that the consumer declares,
 each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
-and the evidence must not be empty. The check reports the first problem in that order, and the parse
-runs it on each link in operation order with the row check. The host never looks a row up, so a link
-to an entity that has not arrived is written as it is. The case file
+and the evidence must not be empty. The check reports the first problem in that order. The host
+never looks a row up, so a link to an entity that has not arrived is written as it is. The case file
 [`packages/kit/src/links/link-check-cases.json`](../../packages/kit/src/links/link-check-cases.json)
 gives each case a problem kind, and the Rust check and its TypeScript twin both report that kind.
 
@@ -161,8 +175,8 @@ link type. Its columns and their values are the test store's: `type`, `from_id`,
 The case file
 [`packages/testing/src/scope-replace/scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
 holds the scope replace as data. The test store's TypeScript replace runs every case in
-`bun run test`. When scope mode is built in the Rust host, the host runs the same file, so the two
-replaces stay equal.
+`bun run test`, and the Rust host runs the same file in `cargo nextest run`, so the two replaces
+stay equal.
 
 The file holds a stub scope consumer, with its tables in the manifest's form, and a list of cases.
 Each case gives the links stored before it, then batches. A batch lists the module output text of
@@ -198,6 +212,17 @@ the consumer's own tables: another scope of the same consumer holds the row or t
   link gives only the type, the key and `headers: { operation: 'delete' }`.
 - **Order.** The entries of one scope come as rows written, links written, rows deleted and links
   deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.
+
+### The ledger journey
+
+The stub deployment holds a scope consumer, `ledger_account`, from the test plug-in in
+`packages/testing/src/test-utils/ledger/`, so `bun run consumers:build` compiles it beside the
+GitHub consumer. The file
+[`ledger-journey.json`](../../packages/testing/src/test-utils/ledger/ledger-journey.json) holds the
+log records of one journey and the rows and links it gives. A Bun test pins the file to the test
+store. The Rust e2e lane appends the records to s2-lite, runs `up` with the compiled module on a
+multi-thread runtime, and compares the rows and links it stores with the file's. The Bun e2e lane
+appends the same records before its `up`, because no ingest of the lane serves the ledger stream.
 
 ## The released binary
 
