@@ -1,9 +1,9 @@
 # Source history retention: results
 
 The spike is partial. The documented limits are 3 days for GitHub's delivery log, and no fixed limit
-for a Gmail history ID, which Gmail calls "typically valid for at least a week". The two live probes
-have runners but have not run, because pepys has no GitHub App credential and no Gmail OAuth
-credential yet. The [README](README.md) holds the question and the answer.
+for a Gmail history ID, which Gmail calls "typically valid for at least a week". The Gmail probe
+stored a history ID on 2026-11-04 and has measured no expiry. The GitHub probe has not run, because
+pepys has no GitHub App credential yet. The [README](README.md) holds the question and the answer.
 
 ## Method
 
@@ -12,8 +12,9 @@ credential yet. The [README](README.md) holds the question and the answer.
 3. Store a Gmail history ID and call `history.list` with it daily until it returns an error.
 
 The spike passes when both limits are known, and the ingest design states which outage length
-triggers a resync for each source. Step 1 is done. Steps 2 and 3 wait on the credentials in
-[Setup](#setup).
+triggers a resync for each source. Step 1 is done. Step 2 waits on the GitHub App credential in
+[Setup](#setup). Step 3 started on 2026-11-04 and has returned no error:
+[Gmail probe so far](#gmail-probe-so-far).
 
 ## Documented limits
 
@@ -49,6 +50,16 @@ page.
   runs a full sync on the 404, whatever the outage length.
 - A Gmail poller that runs at least once a day stays inside the "at least a week" of the typical
   case.
+
+## Gmail probe so far
+
+As of 2026-11-11, the probe has measured no lifetime for the history ID.
+
+- The first run stored the mailbox's history ID on 2026-11-04 at 12:21 UTC.
+- One `history.list` call with the stored ID returned HTTP 200, 9.6 hours later.
+- Each of the 6 runs after that call stopped at the token refresh, which returned HTTP 401, so none
+  of them called `history.list`.
+- No call has returned HTTP 404.
 
 ## Setup
 
@@ -127,4 +138,5 @@ with none, which gives a lower bound.
 - The Gmail probe: the age at which a stored history ID returns 404.
 - Whether a mailbox with more or less activity keeps a history ID for a different time.
 - A Workspace account, whose history may differ from a personal Gmail account.
-- Both runners end to end: no call has reached GitHub or Gmail with a real credential.
+- The GitHub runner end to end: no call has reached GitHub with a real credential.
+- The Gmail runner's verdict after a 404: no `history.list` call has returned one.

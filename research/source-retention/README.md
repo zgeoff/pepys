@@ -11,8 +11,8 @@ history ID stay valid?
 
 ## Answer
 
-- The spike is partial: it read the documentation on 2026-11-04, and the live probes wait on a
-  GitHub App and a Gmail credential.
+- The spike is partial: it read the documentation on 2026-11-04. The Gmail probe stored a history ID
+  that day and has measured no expiry, and the GitHub probe waits on a GitHub App credential.
 - GitHub documents 3 days: "You can redeliver webhook deliveries that occurred in the past 3 days."
 - GitHub never redelivers a failed delivery on its own, so the sweep must run more often than every
   3 days.
@@ -41,5 +41,5 @@ pass.
 
 ## Untested
 
-Both live probes, the redelivery of an old delivery, and a history ID kept past a week:
+The GitHub probe, the redelivery of an old delivery, and a history ID kept past a week:
 [Untested](results.md#untested).
