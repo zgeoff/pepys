@@ -719,7 +719,7 @@ export interface CheckedDeployment {
   readonly name: string;
   readonly sources: readonly SourceDefinition[];
   readonly consumers: readonly ConsumerDeclaration[];
-  readonly queries: readonly QueryDefinition[];
+  readonly queries: readonly AnyQueryDefinition[];
   readonly entityKinds: readonly EntityKind[];
   readonly linkTypes: readonly LinkTypeDeclaration[];
   // the checked settings of each plug-in that declares some, defaults filled in
@@ -741,8 +741,8 @@ export type DeploymentFailure =
   | { kind: 'reserved-table-name'; table: string; consumer: string }
   // an entity view or a `reads` entry that names no table of the consumer
   | { kind: 'unknown-table'; consumer: string; table: string; usedBy: 'reads' | 'entity-view' }
-  // an entity view's column that its table does not declare
-  | { kind: 'unknown-column'; consumer: string; table: string; column: string; usedBy: string }
+  // a primary key, an index or an entity view that names a column its table does not declare
+  | { kind: 'unknown-column'; consumer: string; table: string; column: string; usedBy: 'primary-key' | 'index' | 'entity-view' }
   // a scope consumer with a non-empty `reads`
   | { kind: 'scope-reads'; consumer: string }
   // a source named as a fact kind is: webhook, event, observation, enrichment, manual
@@ -775,7 +775,7 @@ export interface TestStore extends AsyncDisposable {
   // of the body) cannot use it; its consumers test on
   // operations, and its queries on `seed`.
   apply: <Source extends SourceDefinition>(source: Source, facts: readonly OutgoingFact<Source>[]) => Promise<void>;
-  query: <Input, Output>(query: QueryDefinition<string, Input, Output>, input: Input) => Promise<Output>;
+  query: <InputSchema extends z.ZodType, OutputSchema extends z.ZodType>(query: QueryDefinition<string, InputSchema, OutputSchema>, input: z.input<InputSchema>) => Promise<z.output<OutputSchema>>;
   readLinks: () => Promise<readonly import('./04-store-api.ts').LinkRow[]>;
   readRows: (table: string) => Promise<readonly Readonly<Record<string, unknown>>[]>;
   // the memory adapter of the StoreReader port, for a test of a core query

@@ -273,9 +273,8 @@ const githubSource = defineSource({
   },
 });
 
-// github_pull_request: the repo's consumer and columns, with three changes: the ID and the
-// entity view's kind are `github:pull_request` (the repo has `pr`); `entityView` is `entityViews`; and one
-// more table, for a pull request that pins a release of another repository.
+// github_pull_request: the repo's consumer and columns, with one more table, for a pull request
+// that pins a release of another repository.
 export const githubPullRequestConsumer = defineConsumer({
   name: 'github_pull_request',
   entry: new URL('./consumers/github-pull-request.ts', import.meta.url),
