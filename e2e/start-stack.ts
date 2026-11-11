@@ -71,9 +71,16 @@ beforeAll(
 
     cleanup.defer(() => rm(trustDirectory, { recursive: true, force: true }));
 
-    const ingestURL = await runSlice({ stack, storeDirectory, trustDirectory });
+    const runDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-run-'));
+
+    cleanup.defer(() => rm(runDirectory, { recursive: true, force: true }));
+
+    const runStderrPath = join(runDirectory, 'stderr.txt');
+
+    const ingestURL = await runSlice({ stack, storeDirectory, trustDirectory, runStderrPath });
 
     process.env['PEPYS_E2E_INGEST_URL'] = ingestURL;
+    process.env['PEPYS_E2E_RUN_STDERR'] = runStderrPath;
 
     process.env['PEPYS_E2E_API_URL'] = await startAPI(stack.stop);
   },
@@ -142,6 +149,7 @@ interface SliceOptions {
   stack: RunningStack;
   storeDirectory: string;
   trustDirectory: string;
+  runStderrPath: string;
 }
 
 // Starts ingest, sends every fact, and runs the host until it has applied them. It returns the
@@ -211,7 +219,7 @@ async function runSlice(options: SliceOptions): Promise<string> {
 
   const tails = await readTails(options.stack);
 
-  await runUntilCaughtUp(options.storeDirectory, tails, options.stack.stop);
+  await runUntilCaughtUp(options.storeDirectory, tails, options.stack.stop, options.runStderrPath);
 
   return ingestURL;
 }
@@ -468,6 +476,7 @@ async function runUntilCaughtUp(
   storeDirectory: string,
   tails: ReadonlyMap<string, number>,
   stop: AbortSignal,
+  runStderrPath: string,
 ): Promise<void> {
   const run = Bun.spawn([host, 'run'], {
     cwd: root,
@@ -486,10 +495,9 @@ async function runUntilCaughtUp(
   let lagging = readConsumers.map((entry) => entry.consumer.name);
 
   try {
-    while (lagging.length > 0 && Date.now() < deadline) {
+    // a stopped task never catches up, so the wait ends at the first error, which a test reports
+    while (lagging.length > 0 && Date.now() < deadline && !hasHostError(hostErrors.text)) {
       stop.throwIfAborted();
-
-      throwOnStoppedTask(hostErrors.text);
 
       lagging = [];
 
@@ -519,18 +527,17 @@ async function runUntilCaughtUp(
     await stopProcessGroup(run);
   }
 
-  // a task that stopped after its consumer caught up still fails the lane
   await reading;
 
-  throwOnStoppedTask(hostErrors.text);
+  await Bun.write(runStderrPath, hostErrors.text);
 
-  if (lagging.length > 0) {
+  if (lagging.length > 0 && !hasHostError(hostErrors.text)) {
     throw new Error(`pepys run did not catch up before the deadline: ${lagging.join(', ')}`);
   }
 }
 
-// The host keeps running when one consumer task stops, and only prints the error, so the lane reads
-// the host's stderr for it. Each line still reaches the lane's own stderr.
+// The host keeps running when one consumer task stops, and only prints the error, so the lane keeps
+// the run's stderr for a test to read. Each line still reaches the lane's own stderr.
 interface HostErrors {
   text: string;
 }
@@ -548,14 +555,9 @@ async function readHostErrors(
   }
 }
 
-const stoppedTaskPattern = /^pepys: (?:the task of \S+ stopped|a consumer task ended): /u;
-
-function throwOnStoppedTask(text: string): void {
-  const stopped = text.split('\n').filter((line) => stoppedTaskPattern.test(line));
-
-  if (stopped.length > 0) {
-    throw new Error(`a consumer task of pepys run stopped:\n${stopped.join('\n')}`);
-  }
+// the host prints each error of `run` on a line that starts with `pepys: `
+function hasHostError(text: string): boolean {
+  return text.split('\n').some((line) => line.startsWith('pepys: '));
 }
 
 async function startAPI(stop: AbortSignal): Promise<string> {
