@@ -71,6 +71,11 @@ differs, with the scope as its owner, and deletes each row and link that the sco
 return. A row or a link that another scope owns stops the batch. A copy of a fact in the log changes
 nothing: the index holds one row for it, the module returns the same result, and the diff is empty.
 
+**The link check** takes the manifest alone. The link's type must be one that the consumer declares,
+each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
+and the evidence must not be empty. The host looks no row up, so a link to an entity that has not
+arrived is written as it is. One case file runs against the Rust check and its TypeScript twin.
+
 ### The scope replace case file
 
 [`scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
@@ -88,8 +93,8 @@ Each batch runs its scopes in order, in one transaction. These rules hold:
   unlink from a scope consumer), `not-owned`, `bad-row` (a column left out or unknown, a null where
   the column is not nullable, a value of the wrong kind), `bad-link`, `duplicate-row`,
   `duplicate-link` and `scope-conflict`.
-- **Keys.** A row key or a link key twice in one scope result is refused. A returned link that is
-  stored with no scope is a scope conflict.
+- **Keys.** A row key or a link key twice in one scope result is a `duplicate-row` or a
+  `duplicate-link`. A returned link that is stored with no scope is a `scope-conflict`.
 - **Numbers.** An integer column refuses a number written with a fraction or an exponent, even
   `5.0`. A REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value. A
   JSON column compares as a value, whatever the order of its keys.
@@ -101,8 +106,3 @@ Each batch runs its scopes in order, in one transaction. These rules hold:
   no old value.
 - **Order.** The entries of one scope come as rows written, links written, rows deleted and links
   deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.
-
-**The link check** takes the manifest alone. The link's type must be one that the consumer declares,
-each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
-and the evidence must not be empty. The host looks no row up, so a link to an entity that has not
-arrived is written as it is. One case file runs against the Rust check and its TypeScript twin.
