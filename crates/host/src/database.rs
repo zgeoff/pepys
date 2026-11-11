@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Duration;
 
 use turso::{Builder, Connection, Database, Value};
 
@@ -21,6 +22,8 @@ const LINK_TABLE: &str = "CREATE TABLE IF NOT EXISTS link (type TEXT NOT NULL, \
 
 const LINK_TO_ID_INDEX: &str = "CREATE INDEX IF NOT EXISTS link_to_id_idx ON link (to_id)";
 
+const LOCK_WAIT: Duration = Duration::from_secs(10);
+
 /// One consumer file, opened with Turso's multi-process WAL so that readers in other processes
 /// see each commit.
 pub struct Store {
@@ -41,6 +44,10 @@ pub async fn open_store(path: &Path) -> Result<Store, HostError> {
         .build()
         .await?;
     let connection = database.connect()?;
+
+    // Turso gives "database is locked" at once by default. A reader in another process, such as
+    // the API, holds the file for a moment, and without a wait that stops the consumer's task.
+    connection.busy_timeout(LOCK_WAIT)?;
 
     Ok(Store {
         _database: database,
@@ -160,5 +167,43 @@ mod tests {
             .map(|(name, kind, not_null)| (name.to_owned(), kind.to_owned(), not_null))
             .to_vec()
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_waits_for_a_lock_that_another_handle_holds_and_then_writes() {
+        let directory = tempfile::tempdir().expect("a temporary directory");
+        let path = directory.path().join("consumer.db");
+        let holder = open_store(&path).await.expect("a store");
+        prepare_store(&holder, "").await.expect("the host's tables");
+        let waiter = open_store(&path).await.expect("a second handle");
+
+        holder
+            .connection
+            .execute("BEGIN IMMEDIATE", ())
+            .await
+            .expect("a held write lock");
+        holder
+            .connection
+            .execute("INSERT INTO applied_facts (fact_id) VALUES ('held')", ())
+            .await
+            .expect("a write under the lock");
+
+        let release = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            holder
+                .connection
+                .execute("COMMIT", ())
+                .await
+                .expect("a commit");
+        });
+
+        let written = waiter
+            .connection
+            .execute("INSERT INTO applied_facts (fact_id) VALUES ('waited')", ())
+            .await;
+
+        release.await.expect("the release task");
+
+        assert_eq!(written.expect("a write after the wait"), 1);
     }
 }
