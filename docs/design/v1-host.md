@@ -73,36 +73,50 @@ nothing: the index holds one row for it, the module returns the same result, and
 
 **The link check** takes the manifest alone. The link's type must be one that the consumer declares,
 each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
-and the evidence must not be empty. The host looks no row up, so a link to an entity that has not
-arrived is written as it is. One case file runs against the Rust check and its TypeScript twin.
+and the evidence must not be empty. The host never looks a row up, so a link to an entity that has
+not arrived is written as it is. The case file
+[`packages/kit/src/links/link-check-cases.json`](../../packages/kit/src/links/link-check-cases.json)
+runs against the Rust check and its TypeScript twin.
 
 ### The scope replace case file
 
-[`scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
+The case file
+[`packages/testing/src/scope-replace/scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
 holds the scope replace as data. The test store's TypeScript replace runs every case in
-`bun run test`, and the Rust host must run the same file, so the two replaces stay equal. The file
-holds a stub scope consumer, with its tables in the manifest's form, and a list of cases. Each case
-gives the links stored before it, then batches. A batch lists the module output text of each scope,
-in order, and either the change entries it gives or the kind of its refusal. The case ends with
-every row of each table in key order, and every link sorted by type, from and to.
+`bun run test` today. When scope mode is built in the Rust host, the host runs the same file, so the
+two replaces stay equal.
 
-Each batch runs its scopes in order, in one transaction. These rules hold:
+The file holds a stub scope consumer, with its tables in the manifest's form, and a list of cases.
+Each case gives the links stored before it, then batches. A batch lists the module output text of
+each scope, in order, and either the change entries it gives or the kind of its refusal. The case
+ends with every row of each table in key order, and every link sorted by type, from and to.
 
-- **Refusals.** A refusal rolls back the whole batch, the scopes before it included. The kinds are
-  `bad-operation` (output that is no JSON list, an operation with two verbs, or a delete or an
-  unlink from a scope consumer), `not-owned`, `bad-row` (a column left out or unknown, a null where
-  the column is not nullable, a value of the wrong kind), `bad-link`, `duplicate-row`,
-  `duplicate-link` and `scope-conflict`.
-- **Keys.** A row key or a link key twice in one scope result is a `duplicate-row` or a
-  `duplicate-link`. A returned link that is stored with no scope is a `scope-conflict`.
+Each batch runs its scopes in order, in one transaction. A refusal rolls back the whole batch, the
+scopes before it included. A scope consumer never returns a delete or an unlink: the replace deletes
+what the scope no longer returns.
+
+| Refusal          | Cause                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `bad-operation`  | output that is no JSON list, an operation with two verbs, a delete or an unlink         |
+| `not-owned`      | an upsert to a table that the consumer does not declare                                 |
+| `bad-row`        | a column left out or unknown, a null in a column that is not nullable, a wrong kind     |
+| `bad-link`       | a link that fails the link check                                                        |
+| `duplicate-row`  | one row key twice in one scope result                                                   |
+| `duplicate-link` | one link key twice in one scope result                                                  |
+| `scope-conflict` | a row or a link of the consumer that another scope owns, or a link stored with no scope |
+
+`not-owned` is about tables: the consumer wrote outside its own. `scope-conflict` is about rows in
+the consumer's own tables: another scope of the same consumer holds the row or the link.
+
 - **Numbers.** An integer column refuses a number written with a fraction or an exponent, even
   `5.0`. A REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value. A
   JSON column compares as a value, whatever the order of its keys.
-- **Change entries.** A written row gives
-  `{ type: <table>, key, value, headers: { operation }, old_value }`, with `insert` or `update` and
-  the old row on an update. The key is the JSON text of the list of the key's values. A deleted row
-  gives the key, the old row and `delete`. A link gives the type `link`, the key as the JSON text of
-  `[type, from, to]`, and the value `{ type, from, to, confidence, evidence }`. A deleted link has
-  no old value.
+- **Row entries.** A written row gives `{ type: <table>, key, value, headers: { operation } }`, with
+  the operation `insert` or `update`. An update adds `old_value`, the stored row. The key is the
+  JSON text of the list of the key's values. A deleted row gives no `value`: it gives the type, the
+  key, `old_value` and `headers: { operation: 'delete' }`.
+- **Link entries.** A link gives the type `link`, the key as the JSON text of `[type, from, to]`,
+  and the value `{ type, from, to, confidence, evidence }`, with `old_value` on an update. A deleted
+  link gives only the type, the key and `headers: { operation: 'delete' }`.
 - **Order.** The entries of one scope come as rows written, links written, rows deleted and links
   deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.

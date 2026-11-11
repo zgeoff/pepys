@@ -30,5 +30,5 @@ export async function readRowFunctions(
     functions.push(buildReadFunctions(`read${toPascalCase(name)}`, texts, 'none'));
   }
 
-  return Object.assign({}, ...functions);
+  return Object.fromEntries(functions.flatMap((pair) => Object.entries(pair)));
 }

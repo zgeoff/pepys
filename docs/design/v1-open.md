@@ -55,11 +55,15 @@ The sketch does not match the real host in 9 places. The first 6 change what the
 9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
    adapter is a few lines.
 
-The [scope replace case file](./v1-host.md#the-scope-replace-case-file) fixes the meanings the run
-picked for duplicate keys, a link stored with no scope, change entries, integer columns and a
-refused link. Two differ from the run: the key of a link's change entry is JSON text, where the run
-held a list, and the key of a row's entry is the JSON text of the key's values, where the repo's
-entry holds the bare ID. The sketch leaves these meanings open, and the run picked one for each:
+The [scope replace case file](./v1-host.md#the-scope-replace-case-file) is the rule for duplicate
+keys, a link stored with no scope, change entries, integer columns and a refused link. The trial run
+differs from the case file in two places, and the case file wins:
+
+- The key of a link's change entry is JSON text. The run held a JSON list.
+- The key of a row's change entry is the JSON text of the list of the key's values. The repo's
+  current entry holds the bare ID.
+
+The sketch leaves the meanings below open, and the trial run picked one for each:
 
 - A stream with no offset yet is not in the horizon.
 - The scope read returns the stored bodies joined as text, with no parse.
