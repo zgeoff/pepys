@@ -89,7 +89,9 @@ async function readSource(
 
   await mkdir(destination);
 
-  return { kind: 'tarballs', tarballs: await runPackPackages(publicPackages, destination) };
+  const tarballs = await runPackPackages(publicPackages, destination);
+
+  return { kind: 'tarballs', tarballs };
 }
 
 async function runStep(cwd: string, command: readonly string[]): Promise<void> {

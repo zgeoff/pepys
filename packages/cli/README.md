@@ -14,7 +14,8 @@
 The `pepys` command line, for Bun.
 
 `pepys build` checks a deployment or a plug-in, and writes the glue of each consumer: its boundary
-types and its SQL schema.
+types and its SQL schema. With `--out`, it also compiles each consumer with scriptc and writes
+`consumers.json`.
 
 ## Install
 
@@ -26,6 +27,8 @@ bunx pepys build src/plugin.ts
 ## Features
 
 - `pepys build <file>`: check the deployment or plug-in that the file exports, and write its glue.
+- `pepys build <file> --out <directory>`: also compile each consumer, which needs zig and
+  wasm-tools.
 - `pepys build <file> --check`: exit 1 when a glue file is stale.
 
 ## Documentation

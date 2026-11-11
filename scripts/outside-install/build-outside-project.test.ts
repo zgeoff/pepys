@@ -15,7 +15,9 @@ test('it installs each package from its tarball and overrides the version that n
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
   });
 
-  expect(JSON.parse(files['package.json'] ?? '')).toStrictEqual({
+  const manifest: unknown = JSON.parse(files['package.json'] ?? '');
+
+  expect(manifest).toStrictEqual({
     name: 'pepys-outside-check',
     private: true,
     type: 'module',
@@ -43,7 +45,9 @@ test('it installs each package from npm at one version with no override', () => 
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
   });
 
-  expect(JSON.parse(files['package.json'] ?? '')).toStrictEqual({
+  const manifest: unknown = JSON.parse(files['package.json'] ?? '');
+
+  expect(manifest).toStrictEqual({
     name: 'pepys-outside-check',
     private: true,
     type: 'module',

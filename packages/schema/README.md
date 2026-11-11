@@ -11,9 +11,9 @@
   </p>
 </div>
 
-The pepys consumer manifest types and the store schema generators, for Bun.
+The pepys consumer manifest, for Bun: the types and the strict schema of `consumers.json`.
 
-A pepys deployment and the pepys services share these types. A plug-in needs only
+`pepys build` writes `consumers.json`, and the pepys services read it. A plug-in needs only
 [`@pepys/kit`](../kit/README.md).
 
 ## Install
@@ -24,6 +24,7 @@ bun add @pepys/schema
 
 ## Features
 
+- `consumerBuildManifestSchema`: the strict schema of `consumers.json`, with its types.
 - The types of a consumer's execution and of the link registry.
 - The Kysely and Rust type generators for the store schema.
 
