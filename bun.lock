@@ -175,6 +175,7 @@
     },
     "packages/source-telemetry": {
       "name": "@pepys/source-telemetry",
+      "version": "0.0.1",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",

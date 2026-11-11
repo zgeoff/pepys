@@ -1,8 +1,23 @@
 {
   "name": "@pepys/source-telemetry",
-  "private": true,
+  "version": "0.0.1",
+  "description": "The pepys telemetry plug-in: the OTLP log records of coding agents, with their model requests and turn costs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/source-telemetry"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-utils"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@pepys/kit": "workspace:*",
     "@zgeoff/std": "catalog:",
