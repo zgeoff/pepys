@@ -12,6 +12,10 @@ export interface OutsideProjectInput {
 
   // the root catalog: the outside project pins zod, @zgeoff/std, typescript and @types/bun to it
   catalog: Readonly<Record<string, string>>;
+
+  // `minimumReleaseAgeExcludes` of the root bunfig.toml: an outside project installs the same
+  // third-party releases, so it needs the same excludes until they age past the gate
+  releaseAgeExcludes: readonly string[];
 }
 
 // A plug-in's compiler checks the published TypeScript source with the plug-in's own options, so
@@ -131,7 +135,7 @@ test('it answers a query from rows written for the test', async () => {
 export function buildOutsideProject(input: OutsideProjectInput): Record<string, string> {
   return {
     'package.json': formatManifest(input),
-    'bunfig.toml': formatBunfig(input.packages),
+    'bunfig.toml': formatBunfig(input.packages, input.releaseAgeExcludes),
     'tsconfig.json': `${JSON.stringify(consumerTSConfig, null, 2)}\n`,
     'src/stub-plugin.ts': stubPlugin,
     'src/consumers/shelf-book.ts': stubEntry,
@@ -194,10 +198,13 @@ function getPin(catalog: Readonly<Record<string, string>>, name: string): string
 }
 
 // The repo's isolated linker, so a package resolves only what it declares, and its release-age gate,
-// so the outside install takes no third-party version younger than the repo takes. The first-party
-// packages pass the gate, as in the repo.
-function formatBunfig(packages: readonly PublicPackage[]): string {
-  const excludes = [...packages.map((pkg) => pkg.name), '@zgeoff/std'].map(
+// so the outside install takes no third-party version younger than the repo takes. The public
+// packages and each package the repo excludes pass the gate, as in the repo.
+function formatBunfig(
+  packages: readonly PublicPackage[],
+  releaseAgeExcludes: readonly string[],
+): string {
+  const excludes = [...packages.map((pkg) => pkg.name), ...releaseAgeExcludes].map(
     (name) => `  "${name}",`,
   );
 

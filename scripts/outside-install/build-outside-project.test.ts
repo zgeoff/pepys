@@ -13,6 +13,7 @@ test('it installs each package from its tarball and overrides the version that n
     ],
     source: { kind: 'tarballs', tarballs: { '@pepys/lantern': '/packs/pepys-lantern-2.1.0.tgz' } },
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
+    releaseAgeExcludes: [],
   });
 
   const manifest: unknown = JSON.parse(files['package.json'] ?? '');
@@ -43,6 +44,7 @@ test('it installs each package from npm at one version with no override', () => 
     ],
     source: { kind: 'npm', version: '2.1.0' },
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
+    releaseAgeExcludes: [],
   });
 
   const manifest: unknown = JSON.parse(files['package.json'] ?? '');
@@ -56,7 +58,7 @@ test('it installs each package from npm at one version with no override', () => 
   });
 });
 
-test('it isolates the install and lets the first-party packages past the release-age gate', () => {
+test('it isolates the install and lets the public packages and each package the repo excludes past the release-age gate', () => {
   const files = buildOutsideProject({
     packages: [
       {
@@ -68,10 +70,11 @@ test('it isolates the install and lets the first-party packages past the release
     ],
     source: { kind: 'npm', version: '2.1.0' },
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
+    releaseAgeExcludes: ['@zgeoff/std', '@orpc/server'],
   });
 
   expect(files['bunfig.toml']).toBe(
-    '[install]\nlinker = "isolated"\nminimumReleaseAge = 604800\nminimumReleaseAgeExcludes = [\n  "@pepys/lantern",\n  "@zgeoff/std",\n]\n',
+    '[install]\nlinker = "isolated"\nminimumReleaseAge = 604800\nminimumReleaseAgeExcludes = [\n  "@pepys/lantern",\n  "@zgeoff/std",\n  "@orpc/server",\n]\n',
   );
 });
 
@@ -87,6 +90,7 @@ test('it imports every entry of every package in the entries test', () => {
     ],
     source: { kind: 'npm', version: '2.1.0' },
     catalog: { '@zgeoff/std': '0.4.3', zod: '4.6.7', '@types/bun': '1.4.4', typescript: '7.0.2' },
+    releaseAgeExcludes: [],
   });
 
   expect(files['src/entries.test.ts']).toIncludeMultiple([
@@ -108,6 +112,7 @@ test('it throws when the catalog lacks a pin the project needs', () => {
       ],
       source: { kind: 'npm', version: '2.1.0' },
       catalog: { zod: '4.6.7' },
+      releaseAgeExcludes: [],
     }),
   ).toThrowWithMessage(Error, /no pin for @zgeoff\/std/u);
 });

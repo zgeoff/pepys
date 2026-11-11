@@ -16,6 +16,7 @@ const root = join(import.meta.dir, '..', '..');
 
 const packages = await readPublicPackages(root);
 const catalog = await readCatalog(root);
+const releaseAgeExcludes = await readReleaseAgeExcludes(root);
 
 // os.tmpdir() has no package.json or node_modules above it, so nothing from the repo resolves there
 const directory = await mkdtemp(join(tmpdir(), 'pepys-outside-'));
@@ -26,7 +27,7 @@ try {
   const source = await readSource(packages, directory);
 
   for (const [path, content] of Object.entries(
-    buildOutsideProject({ packages, source, catalog }),
+    buildOutsideProject({ packages, source, catalog, releaseAgeExcludes }),
   )) {
     await mkdir(dirname(join(project, path)), { recursive: true });
 
@@ -63,6 +64,20 @@ async function readCatalog(repoRoot: string): Promise<Record<string, string>> {
       typeof pin === 'string' ? [[name, pin]] : [],
     ),
   );
+}
+
+async function readReleaseAgeExcludes(repoRoot: string): Promise<string[]> {
+  const bunfigText = await Bun.file(join(repoRoot, 'bunfig.toml')).text();
+
+  const bunfig: unknown = Bun.TOML.parse(bunfigText);
+  const install = isRecord(bunfig) ? bunfig['install'] : undefined;
+  const excludes = isRecord(install) ? install['minimumReleaseAgeExcludes'] : undefined;
+
+  if (!Array.isArray(excludes)) {
+    throw new TypeError('the root bunfig.toml has no install.minimumReleaseAgeExcludes');
+  }
+
+  return excludes.filter((name): name is string => typeof name === 'string');
 }
 
 async function readSource(

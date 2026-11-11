@@ -13,7 +13,7 @@
 
 The pepys API, for Bun: typed queries over the store that the host writes.
 
-A deployment serves the core queries and each plug-in's queries over oRPC.
+A deployment serves the core queries and each plug-in's queries over oRPC and as MCP tools.
 
 ## Install
 
@@ -23,7 +23,8 @@ bun add @pepys/api
 
 ## Features
 
-- The oRPC router and the app that serves it.
+- `serveAPI`, which serves a deployment's queries at `/rpc` and as MCP tools at `/mcp`.
+- `DeploymentClient`, the type of a typed client of a deployment's queries.
 - The store reader over the host's Turso files.
 
 ## Documentation
