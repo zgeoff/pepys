@@ -334,12 +334,15 @@ pub async fn run(config: &HostConfig, up_first: bool) -> Result<(), HostError> {
     let file = start_run(config, &log, up_first).await?;
     let stop = wait_for_stop();
     let mut tasks = JoinSet::new();
-    let mut last_error = None;
 
     tokio::pin!(stop);
 
     for listed in &file.consumers {
         tasks.spawn(run_consumer(config.clone(), listed.name.clone()));
+    }
+
+    if tasks.is_empty() {
+        return stop.await;
     }
 
     loop {
@@ -350,16 +353,11 @@ pub async fn run(config: &HostConfig, up_first: bool) -> Result<(), HostError> {
                 return result;
             }
             joined = tasks.join_next() => match joined {
-                Some(Ok(Err(error))) => {
-                    eprintln!("pepys: {error}");
-                    last_error = Some(error);
-                }
+                Some(Ok(Err(error))) => eprintln!("pepys: {error}"),
                 Some(Ok(Ok(()))) => {}
                 Some(Err(error)) => eprintln!("pepys: a consumer task ended: {error}"),
                 None => {
-                    return Err(last_error.unwrap_or_else(|| {
-                        HostError::Config("every consumer task stopped".to_owned())
-                    }));
+                    return Err(HostError::Config("every consumer task stopped".to_owned()));
                 }
             },
         }

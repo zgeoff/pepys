@@ -29,10 +29,7 @@ did not change. What the host needed:
 The run wrote the manifest and its SQL by hand, and `pepys build` made neither. Turso took all of
 the design's SQL, and serde parsed the manifest with unknown fields refused.
 
-The sketch does not match the real host in the places below. The host now holds the run's other
-findings: the `entityID` serde name, a parse that reads no field of a flat link as a table name, a
-row key built with its table name for its error, a delete that holds its key as a row, and a row
-read that answers `-1` for no row. The places that change what the builder writes:
+The sketch does not match the real host in 6 places. The first 4 change what the builder writes:
 
 1. **The fact source needs a multi-thread runtime.** The module calls the read from inside a
    synchronous wasm call, and the index read is async. The fix is the one that the row read uses:
