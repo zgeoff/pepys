@@ -176,6 +176,10 @@ The store and the API:
   the first copy in the log wins.
 - **Each scope consumer version stores the facts of its streams.** Two scope consumers of one stream
   hold two copies of its bodies, and a new version indexes its streams again as it replays.
+- **The host sorts the keys of a stored JSON object.** JavaScript keeps them in the order written,
+  so the text of a JSON object in a JSON column can differ from the test store's. The value is the
+  same, and the host's own compares and deletes use the sorted text on both sides. A table whose
+  primary key is a JSON object gets a key text that a TypeScript reader does not compute.
 - **A long scope is computed many times.** A scope with N facts is computed again in every batch
   that holds one of its facts.
 - **One failed `up` stops `run --up`.** Every consumer's tables then go stale until it is mended.
