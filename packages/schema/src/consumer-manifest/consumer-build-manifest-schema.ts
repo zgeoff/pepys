@@ -102,7 +102,7 @@ const listedConsumerSchema = z
   );
 
 // Strict at every level: a field that this schema does not know fails the parse, so a file from a
-// newer build fails at once. The Rust host gives the same verdict on each case of the case file.
+// newer build fails at once.
 export const consumerBuildManifestSchema = z
   .strictObject({
     kit: z.literal(1),
@@ -148,7 +148,7 @@ function collectReadProblems(manifest: ConsumerManifest): string[] {
         match(read)
           .with({ kind: 'scope_facts' }, () => ['a fact consumer reads rows only'])
           .with({ kind: 'row' }, (row) =>
-            row.table in manifest.tables
+            Object.hasOwn(manifest.tables, row.table)
               ? []
               : [`the row read names ${row.table}, which is no table of the consumer`],
           )
@@ -177,7 +177,7 @@ function collectTableProblems(name: string, table: ManifestTable): string[] {
   const columns = [...table.primaryKey, ...table.indexes.flat()];
 
   const missing = columns
-    .filter((column) => !(column in table.columns))
+    .filter((column) => !Object.hasOwn(table.columns, column))
     .map((column) => `the table ${name} has no column ${column}`);
 
   return reservedTableNames.has(name)
