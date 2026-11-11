@@ -380,15 +380,23 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //                                  index: &FactIndex, log: &impl FactLog, stream: &str, facts: &[StoredFact]) -> Result<(), HostError>
 //   async fn replace_scope(c: &Connection, manifest: &ConsumerManifest, scope: &str, operations: Vec<Operation>) -> Result<Vec<Value>, HostError>
 //
-// links.rs — new.
+// entity_ids.rs — the rule of the kit's parseEntityID; the envelope check uses it too.
+//
+//   /// `<source>:<kind>` of an entity ID, or None: lowercase name parts, a source that is no fact
+//   /// kind, and an ID part that is not empty.
+//   pub fn kind_of(id: &str) -> Option<&str>
+//
+// links.rs
 //
 //   pub struct Link { pub link_type: String, pub from: String, pub to: String, pub confidence: f64, pub evidence: String }
-//   /// `<source>:<kind>` of an entity ID: the text before the second colon, all three parts non-empty.
-//   pub fn kind_of(id: &str) -> Option<&str>
-//   /// The Rust twin of findLinkProblem (file 4). It takes the manifest alone.
-//   pub fn check_link(manifest: &ConsumerManifest, link: &Link) -> Result<(), HostError>
+//   pub struct LinkEnds { pub link_type: String, pub from: String, pub to: String }
+//   /// The kit's five problem kinds, so the case file checks the kind and not a pass or a fail.
+//   pub enum LinkProblem { NotDeclared { .. }, NotAnEntityId { .. }, WrongKind { .. }, BadConfidence { .. }, NoEvidence }
+//   /// The Rust twin of findLinkProblem (file 4). It takes the manifest's link types alone.
+//   pub fn find_link_problem(link_types: &[LinkType], link: &Link) -> Option<LinkProblem>
+//   pub async fn load_link(c: &Connection, ends: &LinkEnds) -> Result<Option<Link>, HostError>
 //   pub async fn write_link(c: &Connection, origin: &str, scope: Option<&str>, link: &Link) -> Result<(), HostError>
-//   pub async fn delete_link(c: &Connection, link_type: &str, from: &str, to: &str) -> Result<(), HostError>
+//   pub async fn delete_link(c: &Connection, ends: &LinkEnds) -> Result<(), HostError>
 //
 // fact_index.rs — new. A plain module, no port: the tests open a real file in a temp directory.
 //
@@ -416,9 +424,7 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //
 //   BadManifest { path: String, reason: String }          // the JSON path of the field, and why
 //   SchemaMismatch { table: String, reason: String }      // `schema` and `tables` disagree
-//   LinkNotDeclared { link_type: String }
-//   LinkKinds { link_type: String, end: &'static str, id: String }
-//   LinkValue { link_type: String, reason: &'static str } // confidence outside 0..=1, or no evidence
+//   BadLink(LinkProblem)                                  // the scope replace's `bad-link`
 //   ScopeConflict { scope: String, table: String, key: String, owner: String }
 //   ForeignScopeRead { scope: String, asked: String }
 //   NoCurrentVersion(String)                              // "<consumer> has no current version; run pepys-host up <consumer>"
@@ -443,17 +449,20 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //                           PRIMARY KEY (table_name, key));
 //   CREATE INDEX scope_row_scope_idx ON scope_row (scope);
 //
-//   -- The HOST makes `link`, in every consumer file whose manifest has a link type. The
-//   -- generated `schema` does not hold it. The host owns two of its columns
-//   -- (`origin`, `scope`) and its replace rule, and the schema check then covers only what the
-//   -- consumer declared. The API reads this table through `link_effective` (file 4).
-//   CREATE TABLE link (type TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL,
+//   -- The HOST makes `link` in every consumer file, with or without a link type, on every open,
+//   -- so an `unlink` from a consumer with no link type deletes nothing, as in the test store. The
+//   -- API's `link_effective` (file 4) unions the files of the consumers that declare a link type. The generated
+//   -- `schema` does not hold it. The host owns two of its columns (`origin`, `scope`) and its
+//   -- replace rule, and the schema check then covers only what the consumer declared. The
+//   -- columns and their values are the test store's. The test store holds every consumer in one
+//   -- database, so its key adds `origin`; a host file holds one consumer, so its key leaves it out.
+//   CREATE TABLE IF NOT EXISTS link (type TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL,
 //                      scope TEXT,                 -- the scope that wrote it; null in fact mode
 //                      origin TEXT NOT NULL,       -- the consumer's name
 //                      confidence REAL NOT NULL, evidence TEXT NOT NULL,
 //                      PRIMARY KEY (type, from_id, to_id));
-//   CREATE INDEX link_to_id_idx ON link (to_id);   -- `neighbourhood` walks both directions
-//   CREATE INDEX link_scope_idx ON link (scope);
+//   CREATE INDEX IF NOT EXISTS link_to_id_idx ON link (to_id);   -- `neighbourhood` walks both directions
+//   CREATE INDEX link_scope_idx ON link (scope);  -- with scope mode
 //
 // The fact index file. ONE ROW PER FACT ID: a second copy of a fact in the log adds no row.
 //
@@ -519,9 +528,10 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 // whose only entry command is the host gets a first version, and each later one, with no person.
 //
 // A fact-mode batch (apply_batch): BEGIN IMMEDIATE; for each fact: claim_fact (skip a fact ID that
-// `applied_facts` holds), the module, parse_operations, check_link for a link, apply; the offset;
-// the change log row; COMMIT. `link` upserts on (type, from_id, to_id) with a null scope; `unlink`
-// deletes that row. Any error: ROLLBACK, and the consumer's task stops with the error.
+// `applied_facts` holds), the module, parse_operations (which runs find_link_problem on each link,
+// in operation order with the row check), apply; the offset; the change log row; COMMIT. `link`
+// upserts on (type, from_id, to_id) with a null scope; `unlink` deletes that row, with no check,
+// as the test store does. Any error: ROLLBACK, and the consumer's task stops with the error.
 //
 // ── F3. One scope batch (scope.rs) ─────────────────────────────────────────────────────────────
 //
@@ -539,7 +549,7 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //        SELECT body FROM fact WHERE entity = ?1 AND (stream, seq_num within the horizon)
 //        ORDER BY at_sort, stream, seq_num
 //      as one JSON list. A read of another scope is ForeignScopeRead: the module traps.
-//      parse_operations; a `delete` or `unlink` is refused; check_link for every link.
+//      parse_operations; a `delete` or `unlink` is refused; find_link_problem for every link.
 //   5. replace_scope (F4). 6. The offset of `stream`, and one change log row when a row or link
 //      changed. COMMIT. Any error in 2 to 6: ROLLBACK; no row, no link, no offset; the task stops.
 //
@@ -559,12 +569,14 @@ declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
 //   d. A row or link the scope owned and did not return: delete it.
 //   e. One change entry per written or deleted row or link. The same row or link: no write.
 //
-// ── F5. check_link ─────────────────────────────────────────────────────────────────────────────
+// ── F5. find_link_problem ──────────────────────────────────────────────────────────────────────
 //
-// Before any write of the operation's batch, in both modes:
-//   - the type is one of `manifest.links`                       else LinkNotDeclared
-//   - `from` and `to` are `<source>:<kind>:<id>`, and each kind is in the type's list   else LinkKinds
-//   - 0 <= confidence <= 1, and `evidence` is not empty         else LinkValue
+// Before any write of the operation's batch, in both modes. The first problem, in this order:
+//   - the type is one of `manifest.links`                       else not-declared
+//   - `from`, then `to`, is an entity ID (entity_ids.rs)        else not-an-entity-id
+//     and its kind is in the type's list                        else wrong-kind
+//   - 0 <= confidence <= 1                                      else bad-confidence
+//   - `evidence` is not empty                                   else no-evidence
 // It looks no row up: a link to an entity that has not arrived is written as it is.
 // One case file, packages/kit/src/links/link-check-cases.json, runs against this and against
 // findLinkProblem in TypeScript (file 4).

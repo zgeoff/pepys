@@ -118,6 +118,9 @@ rolls the batch back and stops the consumer's task.
   upsert equal to the stored row and a delete of a row that is not stored change nothing and give no
   entry.
 - A delete operation holds its key as a row of the key's columns.
+- A link writes the `link` row with no scope and the consumer's name as its origin, and an unlink
+  deletes the row with the unlink's type and ends. A link equal to the stored one and an unlink of a
+  link that is not stored give no entry. The host checks no unlink, as the test store does.
 - The batch number of a change log row counts the file's batches from 1. A consumer of two streams
   reads one sequence number on each, so a stream offset cannot number its batches.
 
@@ -140,10 +143,18 @@ nothing: the index holds one row for it, the module returns the same result, and
 
 **The link check** takes the manifest alone. The link's type must be one that the consumer declares,
 each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
-and the evidence must not be empty. The host never looks a row up, so a link to an entity that has
-not arrived is written as it is. The case file
+and the evidence must not be empty. The check reports the first problem in that order, and the parse
+runs it on each link in operation order with the row check. The host never looks a row up, so a link
+to an entity that has not arrived is written as it is. The case file
 [`packages/kit/src/links/link-check-cases.json`](../../packages/kit/src/links/link-check-cases.json)
-runs against the Rust check and its TypeScript twin.
+gives each case a problem kind, and the Rust check and its TypeScript twin both report that kind.
+
+**The `link` table** is in every consumer file, with or without a link type, so an unlink from a
+consumer with no link type deletes nothing, as in the test store. The host makes it on every open,
+and the schema check leaves it out. The API reads it only in the files of consumers that declare a
+link type. Its columns and their values are the test store's: `type`, `from_id`, `to_id`, `scope`,
+`origin`, `confidence` and `evidence`. One file holds one consumer, so the key is
+`(type, from_id, to_id)`; the test store's one database adds `origin` to it.
 
 ### The scope replace case file
 

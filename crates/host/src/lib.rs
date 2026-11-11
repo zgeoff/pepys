@@ -9,6 +9,7 @@ pub mod database;
 pub mod diff;
 #[cfg(test)]
 mod e2e;
+pub mod entity_ids;
 pub mod error;
 pub mod fact_log;
 pub mod links;

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use crate::batch::FactRunner;
-use crate::consumer::{BuildManifest, ConsumerManifest, read_build_manifest_text};
+use crate::consumer::{BuildManifest, ConsumerManifest, LinkType, read_build_manifest_text};
 use crate::error::HostError;
 use crate::module_runner::RowSource;
 
@@ -79,6 +79,33 @@ pub fn stub_manifest() -> ConsumerManifest {
             || panic!("the stub lists a consumer"),
             |consumer| consumer.manifest,
         )
+}
+
+/// The stub consumer's manifest with one link type, `opened_by`, from a pull request to a user. The
+/// stub has no `user` table, so every such link points at an entity with no row.
+///
+/// # Panics
+/// When the stub has no consumer.
+#[must_use]
+pub fn stub_manifest_with_links() -> ConsumerManifest {
+    let mut manifest = stub_manifest();
+
+    manifest.links.push(LinkType {
+        name: "opened_by".to_owned(),
+        from: vec!["github:pull_request".to_owned()],
+        to: vec!["github:user".to_owned()],
+        hub: false,
+    });
+
+    manifest
+}
+
+/// The wire form of one `link` operation of the type `link_type`.
+pub fn link_json(link_type: &str, from: &str, to: &str, confidence: f64) -> Value {
+    json!({"link": {
+        "type": link_type, "from": from, "to": to,
+        "confidence": confidence, "evidence": "event:github:delivery-1"
+    }})
 }
 
 /// A pull request row as JSON, which differs from another only by its ID and title.

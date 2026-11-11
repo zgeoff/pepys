@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::consumer::{ConsumerManifest, TableInfo};
 use crate::error::HostError;
-use crate::links::{Link, LinkEnds};
+use crate::links::{Link, LinkEnds, find_link_problem};
 use crate::rows::{Row, check_row, key_of, key_of_key_row};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,8 +29,9 @@ pub enum Operation {
 ///
 /// # Errors
 /// Fails with [`HostError::BadOperation`] for output that is no list of one-verb operations,
-/// [`HostError::NotOwned`] for a table the manifest does not declare, and [`HostError::BadRow`]
-/// for a row that does not fit its table.
+/// [`HostError::NotOwned`] for a table the manifest does not declare, [`HostError::BadRow`] for a
+/// row that does not fit its table, and [`HostError::BadLink`] for a link that fails the link
+/// check. The first operation in order that fails gives the error.
 pub fn parse_operations(
     manifest: &ConsumerManifest,
     output: &str,
@@ -78,7 +79,15 @@ fn parse_operation(manifest: &ConsumerManifest, item: Value) -> Result<Operation
                 table,
             })
         }
-        "link" => Ok(Operation::Link(parse_body(&verb, body)?)),
+        "link" => {
+            let link: Link = parse_body(&verb, body)?;
+
+            if let Some(problem) = find_link_problem(&manifest.links, &link) {
+                return Err(HostError::BadLink(problem));
+            }
+
+            Ok(Operation::Link(link))
+        }
         "unlink" => Ok(Operation::Unlink(parse_body(&verb, body)?)),
         _ => Err(HostError::BadOperation(format!("an unknown verb {verb}"))),
     }
@@ -121,7 +130,8 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::test_utils::{stub_manifest, upsert_json};
+    use crate::links::LinkProblem;
+    use crate::test_utils::{link_json, stub_manifest, stub_manifest_with_links, upsert_json};
 
     #[test]
     fn it_parses_an_upsert_with_the_key_of_its_row() {
@@ -154,18 +164,62 @@ mod tests {
     #[test]
     fn it_parses_a_flat_link_and_reads_none_of_its_fields_as_a_table() {
         let output = json!([{"link": {
-            "type": "produced", "from": "boxxy:attempt:1", "to": "github:pull_request:1",
-            "confidence": 1, "evidence": "event:boxxy:1"
+            "type": "opened_by", "from": "github:pull_request:1", "to": "github:user:7",
+            "confidence": 1, "evidence": "event:github:1"
         }}]);
 
         assert_eq!(
-            parse_operations(&stub_manifest(), &output.to_string()).expect("operations"),
+            parse_operations(&stub_manifest_with_links(), &output.to_string()).expect("operations"),
             vec![Operation::Link(Link {
-                link_type: "produced".to_owned(),
-                from: "boxxy:attempt:1".to_owned(),
-                to: "github:pull_request:1".to_owned(),
+                link_type: "opened_by".to_owned(),
+                from: "github:pull_request:1".to_owned(),
+                to: "github:user:7".to_owned(),
                 confidence: 1.0,
-                evidence: "event:boxxy:1".to_owned(),
+                evidence: "event:github:1".to_owned(),
+            })]
+        );
+    }
+
+    #[test]
+    fn it_refuses_a_link_whose_type_the_manifest_does_not_declare() {
+        let output = json!([link_json(
+            "closed_by",
+            "github:pull_request:1",
+            "github:user:7",
+            1.0
+        )]);
+
+        assert!(matches!(
+            parse_operations(&stub_manifest_with_links(), &output.to_string()),
+            Err(HostError::BadLink(LinkProblem::NotDeclared { link_type })) if link_type == "closed_by"
+        ));
+    }
+
+    #[test]
+    fn it_reports_a_bad_link_before_a_bad_row_that_follows_it() {
+        let output = json!([
+            link_json("opened_by", "github:pull_request:1", "github:user:7", 2.0),
+            {"upsert": {"github_pull_request": {"id": "github:pull_request:1"}}}
+        ]);
+
+        assert!(matches!(
+            parse_operations(&stub_manifest_with_links(), &output.to_string()),
+            Err(HostError::BadLink(LinkProblem::BadConfidence { .. }))
+        ));
+    }
+
+    #[test]
+    fn it_parses_an_unlink_of_any_type_as_a_plain_delete() {
+        let output = json!([{"unlink": {
+            "type": "closed_by", "from": "github:pull_request:1", "to": "github:user:7"
+        }}]);
+
+        assert_eq!(
+            parse_operations(&stub_manifest_with_links(), &output.to_string()).expect("operations"),
+            vec![Operation::Unlink(LinkEnds {
+                link_type: "closed_by".to_owned(),
+                from: "github:pull_request:1".to_owned(),
+                to: "github:user:7".to_owned(),
             })]
         );
     }

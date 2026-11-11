@@ -65,7 +65,7 @@ The run did not check:
 - the S2 log, because every run used the memory log;
 - a read of another scope, a consumer with two streams, and two dirty scopes through a real module;
 - a batch above 100 records, a scope above 60 facts, and speed;
-- the link check in fact mode, the shared link case file, and the hub flag;
+- the hub flag;
 - the sort key on times with different fraction lengths;
 - the queries, the store API, locks and two processes.
 

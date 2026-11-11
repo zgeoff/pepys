@@ -12,6 +12,15 @@ CREATE TABLE change_log (batch INTEGER NOT NULL PRIMARY KEY, changes TEXT NOT NU
 const APPLIED_FACTS_TABLE: &str =
     "CREATE TABLE IF NOT EXISTS applied_facts (fact_id TEXT NOT NULL PRIMARY KEY)";
 
+// Every consumer file has a `link` table, with or without a link type, so an unlink from a consumer
+// with no link type deletes nothing, as in the test store, and does not fail on a missing table.
+// One file holds one consumer, so `origin` is the same in every row and the key leaves it out.
+const LINK_TABLE: &str = "CREATE TABLE IF NOT EXISTS link (type TEXT NOT NULL, \
+     from_id TEXT NOT NULL, to_id TEXT NOT NULL, scope TEXT, origin TEXT NOT NULL, \
+     confidence REAL NOT NULL, evidence TEXT NOT NULL, PRIMARY KEY (type, from_id, to_id))";
+
+const LINK_TO_ID_INDEX: &str = "CREATE INDEX IF NOT EXISTS link_to_id_idx ON link (to_id)";
+
 /// One consumer file, opened with Turso's multi-process WAL so that readers in other processes
 /// see each commit.
 pub struct Store {
@@ -40,7 +49,7 @@ pub async fn open_store(path: &Path) -> Result<Store, HostError> {
 }
 
 /// Creates the consumer's tables from its generated schema and the host's own tables, when the
-/// file has none yet, and the table of applied fact IDs when it is missing.
+/// file has none yet, and the tables of applied fact IDs and of links when they are missing.
 ///
 /// # Errors
 /// Fails when a statement fails.
@@ -63,6 +72,8 @@ pub async fn prepare_store(store: &Store, consumer_schema: &str) -> Result<(), H
     }
 
     store.connection.execute(APPLIED_FACTS_TABLE, ()).await?;
+    store.connection.execute(LINK_TABLE, ()).await?;
+    store.connection.execute(LINK_TO_ID_INDEX, ()).await?;
 
     Ok(())
 }
@@ -101,4 +112,53 @@ pub async fn checkpoint(store: &Store) -> Result<(), HostError> {
     while rows.next().await?.is_some() {}
 
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn it_makes_the_link_table_with_the_columns_of_the_test_store() {
+        let directory = tempfile::tempdir().expect("a temporary directory");
+        let store = open_store(&directory.path().join("consumer.db"))
+            .await
+            .expect("a store");
+
+        prepare_store(&store, "").await.expect("the host's tables");
+
+        let mut rows = store
+            .connection
+            .query(
+                "SELECT name, type, \"notnull\" FROM pragma_table_info('link')",
+                (),
+            )
+            .await
+            .expect("a query");
+        let mut columns: Vec<(String, String, i64)> = Vec::new();
+
+        while let Some(row) = rows.next().await.expect("a row") {
+            columns.push((
+                row.get(0).expect("a name"),
+                row.get(1).expect("a type"),
+                row.get(2).expect("a flag"),
+            ));
+        }
+
+        assert_eq!(
+            columns,
+            [
+                ("type", "TEXT", 1),
+                ("from_id", "TEXT", 1),
+                ("to_id", "TEXT", 1),
+                ("scope", "TEXT", 0),
+                ("origin", "TEXT", 1),
+                ("confidence", "REAL", 1),
+                ("evidence", "TEXT", 1),
+            ]
+            .map(|(name, kind, not_null)| (name.to_owned(), kind.to_owned(), not_null))
+            .to_vec()
+        );
+    }
 }

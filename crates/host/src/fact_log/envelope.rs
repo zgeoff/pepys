@@ -3,10 +3,11 @@
 
 use serde_json::{Map, Value};
 
+use crate::entity_ids::{is_name_part, kind_of};
+
 const FIELDS: [&str; 9] = [
     "id", "type", "v", "api", "entity", "actor", "at", "cursor", "payload",
 ];
-const FACT_KINDS: [&str; 5] = ["webhook", "event", "observation", "enrichment", "manual"];
 
 /// Whether `body` is a fact envelope: a JSON object with the envelope's fields and no others.
 pub fn is_fact_envelope(body: &str) -> bool {
@@ -19,10 +20,10 @@ pub fn is_fact_envelope(body: &str) -> bool {
         && text_field(&fields, "type").is_some_and(|text| !text.is_empty())
         && fields.get("v").and_then(Value::as_f64) == Some(1.0)
         && text_field(&fields, "api").is_some_and(|text| !text.is_empty())
-        && text_field(&fields, "entity").is_some_and(is_entity_id)
+        && text_field(&fields, "entity").is_some_and(|text| kind_of(text).is_some())
         && fields
             .get("actor")
-            .is_none_or(|actor| actor.as_str().is_some_and(is_entity_id))
+            .is_none_or(|actor| actor.as_str().is_some_and(|text| kind_of(text).is_some()))
         && text_field(&fields, "at").is_some_and(is_utc_datetime)
         && fields.get("cursor").is_none_or(Value::is_string)
         && fields.contains_key("payload")
@@ -57,24 +58,6 @@ fn is_fact_id(text: &str) -> bool {
 /// Not empty, and free of the characters that end a line for `.` in a JavaScript pattern.
 fn is_one_line(text: &str) -> bool {
     !text.is_empty() && !text.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
-}
-
-fn is_entity_id(text: &str) -> bool {
-    let mut parts = text.splitn(3, ':');
-
-    let (Some(source), Some(kind), Some(id)) = (parts.next(), parts.next(), parts.next()) else {
-        return false;
-    };
-
-    is_name_part(source) && !FACT_KINDS.contains(&source) && is_name_part(kind) && !id.is_empty()
-}
-
-/// Lowercase letters, digits and `_`, starting with a letter.
-fn is_name_part(text: &str) -> bool {
-    let mut bytes = text.bytes();
-
-    bytes.next().is_some_and(|first| first.is_ascii_lowercase())
-        && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
 /// `YYYY-MM-DDTHH:MM:SS` with optional fractional seconds and a `Z`, on a day the calendar has.

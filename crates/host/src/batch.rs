@@ -8,6 +8,9 @@ use crate::consumer::{ConsumerManifest, TableInfo};
 use crate::database::Store;
 use crate::error::HostError;
 use crate::fact_log::StoredFact;
+use crate::links::{
+    LinkEnds, build_link_delete_entry, build_link_write_entry, delete_link, load_link, write_link,
+};
 use crate::module_runner::RowSource;
 use crate::operations::{Operation, parse_operations};
 use crate::rows::{Row, delete_row, is_same_row, key_of_read, load_row, write_row};
@@ -205,14 +208,31 @@ async fn apply_operation(
                 "headers": {"operation": "delete"},
             })))
         }
-        Operation::Link(link) => Err(HostError::BadOperation(format!(
-            "this host writes no links, and the consumer returned a {} link",
-            link.link_type
-        ))),
-        Operation::Unlink(ends) => Err(HostError::BadOperation(format!(
-            "this host writes no links, and the consumer returned a {} unlink",
-            ends.link_type
-        ))),
+        Operation::Link(link) => {
+            let ends = LinkEnds {
+                link_type: link.link_type.clone(),
+                from: link.from.clone(),
+                to: link.to.clone(),
+            };
+            let old = load_link(connection, &ends).await?;
+
+            if old.as_ref() == Some(&link) {
+                return Ok(None);
+            }
+
+            write_link(connection, &manifest.name, None, &link).await?;
+
+            Ok(Some(build_link_write_entry(&link, old.as_ref())))
+        }
+        Operation::Unlink(ends) => {
+            if load_link(connection, &ends).await?.is_none() {
+                return Ok(None);
+            }
+
+            delete_link(connection, &ends).await?;
+
+            Ok(Some(build_link_delete_entry(&ends)))
+        }
     }
 }
 
@@ -239,7 +259,9 @@ fn build_write_entry(table: &str, key: &str, row: &Row, old: Option<Row>) -> Val
 mod tests {
     use super::*;
     use crate::database::{open_store, prepare_store, read_offset};
-    use crate::test_utils::{CannedRunner, row_json, stub_manifest, upsert_json};
+    use crate::test_utils::{
+        CannedRunner, link_json, row_json, stub_manifest, stub_manifest_with_links, upsert_json,
+    };
 
     const STREAM: &str = "facts.github.pull_request";
 
@@ -619,6 +641,359 @@ mod tests {
                 .map(|(batch, _)| batch)
                 .collect::<Vec<_>>(),
             vec![1, 2]
+        );
+    }
+
+    async fn setup_with_links() -> (tempfile::TempDir, Store, Arc<ConsumerManifest>) {
+        let (directory, store, _) = setup().await;
+
+        (directory, store, Arc::new(stub_manifest_with_links()))
+    }
+
+    async fn count(store: &Store, table: &str) -> i64 {
+        let mut rows = store
+            .connection
+            .query(&format!("SELECT count(*) FROM {table}"), ())
+            .await
+            .expect("a query");
+
+        rows.next()
+            .await
+            .expect("a row")
+            .expect("a count")
+            .get(0)
+            .expect("an integer")
+    }
+
+    type LinkColumns = (String, String, String, Option<String>, String, f64, String);
+
+    async fn read_links(store: &Store) -> Vec<LinkColumns> {
+        let mut rows = store
+            .connection
+            .query(
+                "SELECT type, from_id, to_id, scope, origin, confidence, evidence FROM link \
+                 ORDER BY type, from_id, to_id",
+                (),
+            )
+            .await
+            .expect("a query");
+        let mut links = Vec::new();
+
+        while let Some(row) = rows.next().await.expect("a row") {
+            links.push((
+                row.get(0).expect("a type"),
+                row.get(1).expect("a from"),
+                row.get(2).expect("a to"),
+                row.get(3).expect("a scope"),
+                row.get(4).expect("an origin"),
+                row.get(5).expect("a confidence"),
+                row.get(6).expect("an evidence"),
+            ));
+        }
+
+        links
+    }
+
+    fn operations_json(operations: &[Value]) -> String {
+        Value::Array(operations.to_vec()).to_string()
+    }
+
+    #[tokio::test]
+    async fn it_writes_a_link_to_an_entity_with_no_row_with_no_scope_and_the_consumer_as_origin() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let output = operations_json(&[link_json(
+            "opened_by",
+            "github:pull_request:1",
+            "github:user:7",
+            0.5,
+        )]);
+        let mut canned = CannedRunner::new(&[("a", Ok(output))]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the batch applies");
+
+        assert_eq!(
+            read_links(&store).await,
+            vec![(
+                "opened_by".to_owned(),
+                "github:pull_request:1".to_owned(),
+                "github:user:7".to_owned(),
+                None,
+                "github_pull_request".to_owned(),
+                0.5,
+                "event:github:delivery-1".to_owned(),
+            )]
+        );
+    }
+
+    #[tokio::test]
+    async fn it_logs_a_written_link_as_an_insert_keyed_by_its_type_and_ends() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let output = operations_json(&[link_json(
+            "opened_by",
+            "github:pull_request:1",
+            "github:user:7",
+            1.0,
+        )]);
+        let mut canned = CannedRunner::new(&[("a", Ok(output))]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the batch applies");
+
+        assert_eq!(
+            change_log(&store).await,
+            vec![(
+                1,
+                json!([{
+                    "type": "link",
+                    "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                    "value": {
+                        "type": "opened_by", "from": "github:pull_request:1",
+                        "to": "github:user:7", "confidence": 1.0,
+                        "evidence": "event:github:delivery-1"
+                    },
+                    "headers": {"operation": "insert"}
+                }])
+            )]
+        );
+    }
+
+    #[tokio::test]
+    async fn it_logs_a_changed_link_as_an_update_with_the_old_value() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let mut canned = CannedRunner::new(&[
+            (
+                "a",
+                Ok(operations_json(&[link_json(
+                    "opened_by",
+                    "github:pull_request:1",
+                    "github:user:7",
+                    0.5,
+                )])),
+            ),
+            (
+                "b",
+                Ok(operations_json(&[link_json(
+                    "opened_by",
+                    "github:pull_request:1",
+                    "github:user:7",
+                    1.0,
+                )])),
+            ),
+        ]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the first batch applies");
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(1, "b")])
+            .await
+            .expect("the second batch applies");
+
+        assert_eq!(
+            change_log(&store).await[1],
+            (
+                2,
+                json!([{
+                    "type": "link",
+                    "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                    "value": {
+                        "type": "opened_by", "from": "github:pull_request:1",
+                        "to": "github:user:7", "confidence": 1.0,
+                        "evidence": "event:github:delivery-1"
+                    },
+                    "old_value": {
+                        "type": "opened_by", "from": "github:pull_request:1",
+                        "to": "github:user:7", "confidence": 0.5,
+                        "evidence": "event:github:delivery-1"
+                    },
+                    "headers": {"operation": "update"}
+                }])
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn it_logs_no_change_for_a_link_equal_to_the_stored_one() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let output = operations_json(&[link_json(
+            "opened_by",
+            "github:pull_request:1",
+            "github:user:7",
+            1.0,
+        )]);
+        let mut canned = CannedRunner::new(&[("a", Ok(output.clone())), ("b", Ok(output))]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the first batch applies");
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(1, "b")])
+            .await
+            .expect("the second batch applies");
+
+        assert_eq!(change_log(&store).await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn it_deletes_a_link_on_unlink_and_logs_its_key() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let unlink = operations_json(&[json!({"unlink": {
+            "type": "opened_by", "from": "github:pull_request:1", "to": "github:user:7"
+        }})]);
+        let mut canned = CannedRunner::new(&[
+            (
+                "a",
+                Ok(operations_json(&[link_json(
+                    "opened_by",
+                    "github:pull_request:1",
+                    "github:user:7",
+                    1.0,
+                )])),
+            ),
+            ("b", Ok(unlink)),
+        ]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the first batch applies");
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(1, "b")])
+            .await
+            .expect("the second batch applies");
+
+        assert_eq!(
+            (
+                count(&store, "link").await,
+                change_log(&store).await[1].clone()
+            ),
+            (
+                0,
+                (
+                    2,
+                    json!([{
+                        "type": "link",
+                        "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                        "headers": {"operation": "delete"}
+                    }])
+                )
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn it_logs_no_change_for_an_unlink_of_a_link_that_is_not_stored() {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let unlink = operations_json(&[json!({"unlink": {
+            "type": "opened_by", "from": "github:pull_request:1", "to": "github:user:7"
+        }})]);
+        let mut canned = CannedRunner::new(&[("a", Ok(unlink))]);
+
+        apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(0, "a")])
+            .await
+            .expect("the batch applies");
+
+        assert_eq!(change_log(&store).await.len(), 0);
+    }
+
+    // A good fact with a row and a link, then a fact whose link the check refuses. The batch
+    // returns the refusal and leaves every table as it was.
+    async fn apply_good_fact_then_bad_link(bad_link: Value) -> (String, [i64; 4], Option<u64>) {
+        let (_directory, store, manifest) = setup_with_links().await;
+        let good = r#"{"id":"delivery-1"}"#;
+        let bad = r#"{"id":"delivery-2"}"#;
+        let good_output = operations_json(&[
+            json!({"upsert": {"github_pull_request": row_json("github:pull_request:1", "First")}}),
+            link_json("opened_by", "github:pull_request:1", "github:user:7", 1.0),
+        ]);
+        let mut canned = CannedRunner::new(&[
+            (good, Ok(good_output)),
+            (bad, Ok(operations_json(&[bad_link]))),
+        ]);
+
+        let result = apply_batch(
+            &store,
+            &manifest,
+            &mut canned,
+            STREAM,
+            &[fact(0, good), fact(1, bad)],
+        )
+        .await;
+
+        (
+            result.map_or_else(|error| error.to_string(), |()| "applied".to_owned()),
+            [
+                count(&store, "github_pull_request").await,
+                count(&store, "link").await,
+                count(&store, "change_log").await,
+                count(&store, "applied_facts").await,
+            ],
+            read_offset(&store, STREAM).await.expect("an offset"),
+        )
+    }
+
+    #[tokio::test]
+    async fn it_rolls_the_batch_back_for_a_link_of_an_undeclared_type() {
+        let outcome = apply_good_fact_then_bad_link(link_json(
+            "closed_by",
+            "github:pull_request:1",
+            "github:user:7",
+            1.0,
+        ))
+        .await;
+
+        assert_eq!(
+            outcome,
+            (
+                "the consumer returned a link the host refuses: its type closed_by is not one the \
+                 consumer declares"
+                    .to_owned(),
+                [0, 0, 0, 0],
+                None
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn it_rolls_the_batch_back_for_a_link_end_of_a_kind_the_type_does_not_allow() {
+        let outcome = apply_good_fact_then_bad_link(link_json(
+            "opened_by",
+            "github:pull_request:1",
+            "github:team:7",
+            1.0,
+        ))
+        .await;
+
+        assert_eq!(
+            outcome,
+            (
+                "the consumer returned a link the host refuses: the to end github:team:7 is of a \
+                 kind that opened_by does not allow; it allows github:user"
+                    .to_owned(),
+                [0, 0, 0, 0],
+                None
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn it_rolls_the_batch_back_for_a_link_end_that_is_no_entity_id() {
+        let outcome = apply_good_fact_then_bad_link(link_json(
+            "opened_by",
+            "GitHub:pull_request:1",
+            "github:user:7",
+            1.0,
+        ))
+        .await;
+
+        assert_eq!(
+            outcome,
+            (
+                "the consumer returned a link the host refuses: the from end \
+                 GitHub:pull_request:1 is not an entity ID"
+                    .to_owned(),
+                [0, 0, 0, 0],
+                None
+            )
         );
     }
 

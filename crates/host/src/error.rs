@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::links::LinkProblem;
+
 #[derive(Debug, Error)]
 pub enum HostError {
     #[error("database: {0}")]
@@ -24,6 +26,8 @@ pub enum HostError {
     BadOperation(String),
     #[error("the consumer returned a row of {table} the host refuses: {reason}")]
     BadRow { table: String, reason: String },
+    #[error("the consumer returned a link the host refuses: {0}")]
+    BadLink(LinkProblem),
     #[error("the module does not export {0}")]
     MissingExport(String),
     #[error("the module wrote a result outside its memory")]
