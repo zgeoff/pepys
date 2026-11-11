@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
-import { isRecord } from '../dependency-gates/is-record.ts';
+import { isRecord } from '../utils/is-record.ts';
 import { collectSumsProblems } from './collect-sums-problems.ts';
 import { GLIBC_FLOOR, HOST_ASSET_NAME, SUMS_FILE_NAME } from './constants.ts';
 import { pickReleaseStep } from './pick-release-step.ts';

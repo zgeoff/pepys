@@ -4,11 +4,11 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { isRecord } from '../dependency-gates/is-record.ts';
 import { buildTarballName } from '../release/build-tarball-name.ts';
 import { readPublicPackages } from '../release/read-public-packages.ts';
 import type { PublicPackage } from '../release/read-public-packages.ts';
 import { runPackPackages } from '../release/run-pack-packages.ts';
+import { isRecord } from '../utils/is-record.ts';
 import { buildOutsideProject } from './build-outside-project.ts';
 import type { OutsideSource } from './build-outside-project.ts';
 

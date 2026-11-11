@@ -1,4 +1,4 @@
-import { isRecord } from '../dependency-gates/is-record.ts';
+import { isRecord } from '../utils/is-record.ts';
 
 export function isAgentSDKBumped(baseLockfile: string, headLockfile: string): boolean {
   return collectAgentSDKVersions(baseLockfile) !== collectAgentSDKVersions(headLockfile);

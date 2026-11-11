@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isRecord } from '../dependency-gates/is-record.ts';
+import { isRecord } from '../utils/is-record.ts';
 
 export interface PublicPackage {
   name: string;
