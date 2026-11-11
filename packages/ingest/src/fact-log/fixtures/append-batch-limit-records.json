@@ -1,0 +1,64 @@
+{
+  "title": "acknowledges a list of 1000 facts and rejects a list of 1001, and stores nothing for the 1001",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": [
+          {
+            "repeat": 1000,
+            "fact": {
+              "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T08:00:00Z",
+              "payload": {}
+            }
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 0,
+        "count": 1000
+      }
+    },
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 1000,
+        "facts": [
+          {
+            "repeat": 1001,
+            "fact": {
+              "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T08:00:00Z",
+              "payload": {}
+            }
+          }
+        ]
+      },
+      "returns": {
+        "kind": "rejected",
+        "reason": "too-large"
+      }
+    },
+    {
+      "readTail": {
+        "stream": "facts.manual.link"
+      },
+      "returns": {
+        "ok": true,
+        "value": 1000
+      }
+    }
+  ]
+}

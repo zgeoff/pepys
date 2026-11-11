@@ -1,12 +1,12 @@
 import { expect, test } from 'bun:test';
-import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/kit';
+import type { EntityID, FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { buildStubFactLog } from './build-stub-fact-log.ts';
 
 test('it gives the same outcome to every append', async () => {
   const log = buildStubFactLog({ kind: 'rejected', reason: 'tail-mismatch' });
 
-  const fact = {
+  const fact: FactEnvelope<unknown> = {
     id: toTagged<FactID>('webhook:github:d-1'),
     type: 'github.pull_request.opened',
     v: 1,
@@ -14,17 +14,17 @@ test('it gives the same outcome to every append', async () => {
     entity: toTagged<EntityID>('github:pull_request:77'),
     at: '2026-10-02T10:30:00Z',
     payload: {},
-  } as const;
+  };
 
   const outcomes = [
-    await log.append(
+    await log.appendBatch(
       toTagged<StreamName>('facts.github.pull_request'),
-      fact,
+      [fact],
       toTagged<StreamOffset>(0),
     ),
-    await log.append(
+    await log.appendBatch(
       toTagged<StreamName>('facts.github.pull_request'),
-      fact,
+      [fact],
       toTagged<StreamOffset>(5),
     ),
   ];

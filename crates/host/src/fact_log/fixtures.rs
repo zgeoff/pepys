@@ -11,11 +11,14 @@ use crate::error::HostError;
 macro_rules! for_each_fact_log_fixture {
     ($callback:ident) => {
         $callback! {
-            it_acknowledges_an_append_with_the_next_offset => "append-acknowledged.json",
-            it_acknowledges_an_append_whose_expected_tail_is_the_tail => "append-at-expected-tail.json",
-            it_rejects_an_append_whose_expected_tail_is_behind_the_tail => "append-behind-tail.json",
-            it_rejects_an_envelope_that_fails_the_envelope_parse => "append-invalid-envelope.json",
-            it_rejects_an_append_to_a_stream_that_does_not_exist => "append-unknown-stream.json",
+            it_acknowledges_an_append_with_the_next_offset => "append-batch-acknowledged.json",
+            it_acknowledges_an_append_whose_expected_tail_is_the_tail => "append-batch-at-expected-tail.json",
+            it_rejects_an_append_whose_expected_tail_is_behind_the_tail => "append-batch-behind-tail.json",
+            it_rejects_a_list_with_an_envelope_that_fails_the_envelope_parse => "append-batch-invalid-envelope.json",
+            it_rejects_a_list_over_the_record_limit => "append-batch-limit-records.json",
+            it_acknowledges_a_list_with_the_offset_of_the_first_and_the_count => "append-batch-multiple.json",
+            it_rejects_an_empty_list_and_a_list_over_the_byte_limit => "append-batch-too-large.json",
+            it_rejects_an_append_to_a_stream_that_does_not_exist => "append-batch-unknown-stream.json",
             it_returns_an_empty_list_for_a_read_at_the_tail => "read-at-tail.json",
             it_returns_each_body_and_appended_at_time_on_read => "read-body-and-appended-at.json",
             it_reads_facts_in_append_order_from_an_offset => "read-in-append-order.json",
@@ -99,12 +102,12 @@ pub async fn run_fact_log_fixture(log: &impl FactLog, fixture: &Fixture) -> Vec<
 }
 
 async fn run_call(log: &impl FactLog, call: &Value, start_ms: u64) -> Value {
-    if let Some(append) = call.get("append") {
-        let body = append["fact"].to_string();
+    if let Some(append) = call.get("appendBatch") {
+        let bodies = expand_facts(&append["facts"]);
         let outcome = log
-            .append(
+            .append_batch(
                 text_of(&append["stream"]),
-                &body,
+                &bodies,
                 number_of(&append["expectedTail"]),
             )
             .await
@@ -134,6 +137,32 @@ async fn run_call(log: &impl FactLog, call: &Value, start_ms: u64) -> Value {
     }))
 }
 
+/// The body of each fact of a list. An item is an envelope, or a wrapper that repeats its `fact`
+/// `repeat` times and, with `payloadPadBytes`, sets its payload to `{"pad": <that many "x">}`.
+fn expand_facts(items: &Value) -> Vec<String> {
+    items
+        .as_array()
+        .unwrap_or_else(|| panic!("{items} is a list of facts"))
+        .iter()
+        .flat_map(|item| {
+            let Some(fact) = item.get("fact") else {
+                return vec![item.to_string()];
+            };
+            let mut fact = fact.clone();
+
+            if let Some(pad) = item.get("payloadPadBytes") {
+                let pad = usize::try_from(number_of(pad)).unwrap_or(usize::MAX);
+
+                fact["payload"] = json!({"pad": "x".repeat(pad)});
+            }
+
+            let repeat = item.get("repeat").map_or(1, number_of);
+
+            vec![fact.to_string(); usize::try_from(repeat).unwrap_or(usize::MAX)]
+        })
+        .collect()
+}
+
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -156,12 +185,19 @@ fn number_of(value: &Value) -> u64 {
 
 fn to_outcome_form(outcome: AppendOutcome) -> Value {
     match outcome {
-        AppendOutcome::Acknowledged { offset } => json!({"kind": "acknowledged", "offset": offset}),
+        AppendOutcome::Acknowledged {
+            first_offset,
+            count,
+        } => json!({"kind": "acknowledged", "firstOffset": first_offset, "count": count}),
+        AppendOutcome::Rejected(RejectReason::InvalidEnvelope { index }) => {
+            json!({"kind": "rejected", "reason": "invalid-envelope", "index": index})
+        }
         AppendOutcome::Rejected(reason) => {
             let reason = match reason {
-                RejectReason::InvalidEnvelope => "invalid-envelope",
+                RejectReason::InvalidEnvelope { .. } => unreachable!("matched above"),
                 RejectReason::UnknownStream => "unknown-stream",
                 RejectReason::TailMismatch => "tail-mismatch",
+                RejectReason::TooLarge => "too-large",
             };
 
             json!({"kind": "rejected", "reason": reason})

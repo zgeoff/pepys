@@ -1,9 +1,9 @@
 import { S2Error, SeqNumMismatchError } from '@s2-dev/streamstore';
-import type { AppendOutcome } from '../fact-log.ts';
+import type { AppendBatchOutcome } from '../fact-log.ts';
 
 // A client error from the server means the record was not stored; 408 and 429 ask for a retry. A
 // refusal the port has no reason for, such as a bad token, returns null for the caller to throw.
-export function findAppendOutcome(error: unknown): AppendOutcome | null {
+export function findAppendOutcome(error: unknown): AppendBatchOutcome | null {
   if (error instanceof SeqNumMismatchError) {
     return { kind: 'rejected', reason: 'tail-mismatch' };
   }

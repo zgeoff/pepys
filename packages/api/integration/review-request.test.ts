@@ -42,7 +42,7 @@ test('it carries a signed review request from the webhook to a waiting-on-me row
 
   const appended = await Promise.all(
     received.batch.facts.map((pending, index) =>
-      ctx.log.append(pending.stream, pending.fact, toTagged<StreamOffset>(index)),
+      ctx.log.appendBatch(pending.stream, [pending.fact], toTagged<StreamOffset>(index)),
     ),
   );
 

@@ -72,7 +72,15 @@ unknown outcome by reading the offsets that the append aimed at. When they hold 
 append, in order, the append landed. When they hold nothing, the writer retries with the same
 `matchSeqNum`. Otherwise another writer took the offsets, and the writer retries with `matchSeqNum`
 set to the new tail. A first attempt that lands late then fails its own guard, so exactly one copy
-lands ([S2 on linearizability](https://s2.dev/blog/linearizability)).
+lands ([S2 on linearizability](https://s2.dev/blog/linearizability)). While an attempt is unsettled,
+the writer reads those offsets again after every later outcome that aimed at them, a tail mismatch
+included, because the mismatch may come from the late attempt itself.
+
+One append takes a list of facts, and all of them land or none does. s2-lite takes at most 1000
+records and 1 MiB per append, where a record meters as its stored body in UTF-8 bytes plus 8. Ingest
+cuts the facts of one stream into runs inside those limits and appends the runs one after the other.
+Both adapters refuse an empty list, a longer list and a larger one as `too-large`, so the memory log
+refuses what s2-lite refuses.
 
 ## Cursors
 

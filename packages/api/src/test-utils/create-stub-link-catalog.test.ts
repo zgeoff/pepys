@@ -19,7 +19,7 @@ function setupTest() {
   };
 
   const unknownLog: FactLog = {
-    append: () => Promise.resolve({ kind: 'unknown' }),
+    appendBatch: () => Promise.resolve({ kind: 'unknown' }),
     read: () => Promise.resolve({ ok: true, value: [] }),
     readTail: () => Promise.resolve({ ok: true, value: toTagged<StreamOffset>(0) }),
   };

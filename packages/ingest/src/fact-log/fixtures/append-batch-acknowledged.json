@@ -1,0 +1,50 @@
+{
+  "title": "acknowledges an append with the next offset",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": [
+          {
+            "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "type": "link.asserted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T08:00:00Z",
+            "payload": {}
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 0,
+        "count": 1
+      }
+    },
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 1,
+        "facts": [
+          {
+            "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "type": "link.retracted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T09:00:00Z",
+            "payload": {}
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 1,
+        "count": 1
+      }
+    }
+  ]
+}

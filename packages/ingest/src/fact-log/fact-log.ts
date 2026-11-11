@@ -1,8 +1,14 @@
 import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/kit';
 
-export type AppendOutcome =
-  | { kind: 'acknowledged'; offset: StreamOffset }
-  | { kind: 'rejected'; reason: 'invalid-envelope' | 'unknown-stream' | 'tail-mismatch' }
+// Fact `i` of an acknowledged batch has the offset `firstOffset + i`.
+export type AppendBatchOutcome =
+  | { kind: 'acknowledged'; firstOffset: StreamOffset; count: number }
+
+  // Nothing was stored.
+  | { kind: 'rejected'; reason: 'tail-mismatch' | 'unknown-stream' | 'too-large' }
+  | { kind: 'rejected'; reason: 'invalid-envelope'; index: number }
+
+  // The reply was lost: the batch is stored whole, or not at all.
   | { kind: 'unknown' };
 
 export interface StoredFact {
@@ -13,11 +19,13 @@ export interface StoredFact {
 }
 
 export interface FactLog {
-  append: (
+  // Stores every fact, in order, in one append that the log refuses unless the stream's tail is
+  // `expectedTail`. All the facts land or none does.
+  appendBatch: (
     stream: StreamName,
-    fact: FactEnvelope<unknown>,
+    facts: readonly FactEnvelope<unknown>[],
     expectedTail: StreamOffset,
-  ) => Promise<AppendOutcome>;
+  ) => Promise<AppendBatchOutcome>;
   read: (
     stream: StreamName,
     from: StreamOffset,

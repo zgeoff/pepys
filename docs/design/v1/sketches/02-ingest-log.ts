@@ -200,9 +200,13 @@ export interface MemoryFactLog extends FactLog {
 
 export declare function createMemoryFactLog(streams: readonly StreamName[]): MemoryFactLog;
 
-// The fixtures of packages/ingest/src/fact-log/fixtures/ run against both adapters. New ones:
-// append-batch-acknowledged, append-batch-behind-tail, append-batch-invalid-envelope (index 1 of
-// 3; tail unchanged), append-batch-too-large (1001 records; and 2 records over 1 MiB together).
+// The fixtures of packages/ingest/src/fact-log/fixtures/ run against both adapters, and against the
+// Rust host's log, which has the same one append. The append fixtures are append-batch-*:
+// acknowledged, at-expected-tail, behind-tail, multiple, unknown-stream, invalid-envelope (index 1
+// of 3; tail unchanged), limit-records (1000 acknowledged, 1001 refused) and too-large (an empty
+// list; 2 records over 1 MiB together). A fixture list item may be a wrapper that repeats a fact
+// or pads its payload, so a list over a limit needs no large file. One function, checkAppendBatch,
+// holds the checks and the metering that both adapters run before they reach a stream.
 
 // packages/ingest/src/fact-log/make-batch-appender.ts (replaces make-fact-appender.ts). Not a
 // port: one function over the port. It owns the retries of ONE append.

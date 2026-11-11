@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { S2Error, SeqNumMismatchError } from '@s2-dev/streamstore';
-import type { AppendOutcome } from '../fact-log.ts';
+import type { AppendBatchOutcome } from '../fact-log.ts';
 import { findAppendOutcome } from './find-append-outcome.ts';
 
-test.each<[string, S2Error, AppendOutcome]>([
+test.each<[string, S2Error, AppendBatchOutcome]>([
   [
     'a sequence number mismatch',
     new SeqNumMismatchError({ message: 'mismatch', status: 412, expectedSeqNum: 3 }),

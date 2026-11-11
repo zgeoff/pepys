@@ -1,5 +1,6 @@
 //! The fact log port: append, read and the tail of each stream.
 
+mod check_batch;
 mod envelope;
 #[cfg(test)]
 pub mod fixtures;
@@ -9,19 +10,29 @@ pub mod s2;
 
 use crate::error::HostError;
 
-/// What one append did. A rejected append stored nothing; an unknown one may have been stored.
+/// What one append did. A rejected append stored nothing; an unknown one stored the whole batch or
+/// none of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppendOutcome {
-    Acknowledged { offset: u64 },
+    /// Fact `i` of the batch has the offset `first_offset + i`.
+    Acknowledged {
+        first_offset: u64,
+        count: u64,
+    },
     Rejected(RejectReason),
     Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RejectReason {
-    InvalidEnvelope,
+    /// Fact `index` of the batch is not a valid envelope.
+    InvalidEnvelope {
+        index: usize,
+    },
     UnknownStream,
     TailMismatch,
+    /// The batch is empty, or over the record or byte limit of one append.
+    TooLarge,
 }
 
 /// One record of a stream: its offset, the fact JSON as stored, and when the log stored it.
@@ -34,15 +45,15 @@ pub struct StoredFact {
 
 /// The log of facts, one stream per fact family. The offset is the stream's sequence number.
 pub trait FactLog {
-    /// Appends `body` when the stream's tail is `expected_tail`, so an append whose first attempt
-    /// lands late fails its own guard.
+    /// Appends every body, in order, in one append that the log refuses unless the stream's tail is
+    /// `expected_tail`. All the bodies land or none does.
     ///
     /// # Errors
     /// Fails on a refusal the outcomes have no reason for, such as a bad token.
-    fn append(
+    fn append_batch(
         &self,
         stream: &str,
-        body: &str,
+        bodies: &[String],
         expected_tail: u64,
     ) -> impl Future<Output = Result<AppendOutcome, HostError>> + Send;
 

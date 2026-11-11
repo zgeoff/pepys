@@ -1,4 +1,4 @@
-import { createS2FactLog, makeFactAppender } from '@pepys/ingest';
+import { createS2FactLog, makeBatchAppender } from '@pepys/ingest';
 import { makeShutdownHandler } from '@pepys/schema';
 import { makeWebhookReceiver } from './make-webhook-receiver.ts';
 import { pullRequestStream } from './pull-request-stream.ts';
@@ -18,14 +18,32 @@ const log = await createS2FactLog({
   streams: [pullRequestStream],
 });
 
+const append = makeBatchAppender({ log, maxAttempts: 5, retryDelayMs: 200 });
+
+// Two webhooks at once would spend their attempts on each other's tail mismatch, so each waits for
+// the one before it.
+let previous = Promise.resolve();
+
 const receiveWebhook = makeWebhookReceiver({
   secret: config.value.webhookSecret,
-  appendFact: makeFactAppender({
-    log,
-    stream: pullRequestStream,
-    maxAttempts: 5,
-    retryDelayMs: 200,
-  }),
+  appendFact: async (fact) => {
+    const turn = previous;
+    const done = Promise.withResolvers<void>();
+
+    previous = done.promise;
+
+    try {
+      await turn;
+
+      const appended = await append(pullRequestStream, [fact]);
+
+      if (!appended.ok) {
+        throw new Error(`the fact is not stored: ${appended.failure.kind}`);
+      }
+    } finally {
+      done.resolve();
+    }
+  },
 });
 
 const server = Bun.serve({

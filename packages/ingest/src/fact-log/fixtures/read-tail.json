@@ -3,28 +3,44 @@
   "streams": ["facts.manual.link"],
   "calls": [
     {
-      "readTail": { "stream": "facts.manual.link" },
-      "returns": { "ok": true, "value": 0 }
+      "readTail": {
+        "stream": "facts.manual.link"
+      },
+      "returns": {
+        "ok": true,
+        "value": 0
+      }
     },
     {
-      "append": {
+      "appendBatch": {
         "stream": "facts.manual.link",
         "expectedTail": 0,
-        "fact": {
-          "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "type": "link.asserted",
-          "v": 1,
-          "api": "pepys/1",
-          "entity": "gmail:msg:17",
-          "at": "2026-10-01T08:00:00Z",
-          "payload": {}
-        }
+        "facts": [
+          {
+            "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "type": "link.asserted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T08:00:00Z",
+            "payload": {}
+          }
+        ]
       },
-      "returns": { "kind": "acknowledged", "offset": 0 }
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 0,
+        "count": 1
+      }
     },
     {
-      "readTail": { "stream": "facts.manual.link" },
-      "returns": { "ok": true, "value": 1 }
+      "readTail": {
+        "stream": "facts.manual.link"
+      },
+      "returns": {
+        "ok": true,
+        "value": 1
+      }
     }
   ]
 }

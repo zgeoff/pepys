@@ -1,0 +1,78 @@
+{
+  "title": "rejects an empty list, and two facts that are over 1 MiB together",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": []
+      },
+      "returns": {
+        "kind": "rejected",
+        "reason": "too-large"
+      }
+    },
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": [
+          {
+            "payloadPadBytes": 600000,
+            "fact": {
+              "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T08:00:00Z",
+              "payload": {}
+            }
+          },
+          {
+            "payloadPadBytes": 600000,
+            "fact": {
+              "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "type": "link.retracted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T09:00:00Z",
+              "payload": {}
+            }
+          }
+        ]
+      },
+      "returns": {
+        "kind": "rejected",
+        "reason": "too-large"
+      }
+    },
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": [
+          {
+            "payloadPadBytes": 600000,
+            "fact": {
+              "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T08:00:00Z",
+              "payload": {}
+            }
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 0,
+        "count": 1
+      }
+    }
+  ]
+}

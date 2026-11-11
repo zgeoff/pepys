@@ -10,7 +10,7 @@ use s2_sdk::types::{
 };
 use s2_sdk::{S2, S2Basin, S2Stream};
 
-use super::envelope::is_fact_envelope;
+use super::check_batch::find_batch_problem;
 use super::{AppendOutcome, FactLog, RejectReason, StoredFact};
 use crate::error::HostError;
 
@@ -82,18 +82,22 @@ pub fn build_append_config(settings: &S2Settings) -> Result<S2Config, HostError>
 }
 
 impl FactLog for S2Log {
-    async fn append(
+    async fn append_batch(
         &self,
         stream: &str,
-        body: &str,
+        bodies: &[String],
         expected_tail: u64,
     ) -> Result<AppendOutcome, HostError> {
-        if !is_fact_envelope(body) {
-            return Ok(AppendOutcome::Rejected(RejectReason::InvalidEnvelope));
+        if let Some(reason) = find_batch_problem(bodies) {
+            return Ok(AppendOutcome::Rejected(reason));
         }
 
-        let record = AppendRecord::new(body.to_owned()).map_err(to_stream_error)?;
-        let records = AppendRecordBatch::try_from_iter([record]).map_err(to_stream_error)?;
+        let records = bodies
+            .iter()
+            .map(|body| AppendRecord::new(body.clone()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(to_stream_error)?;
+        let records = AppendRecordBatch::try_from_iter(records).map_err(to_stream_error)?;
         let input = AppendInput::new(records).with_match_seq_num(expected_tail);
 
         match Self::stream(&self.append_basin, stream)?
@@ -101,7 +105,8 @@ impl FactLog for S2Log {
             .await
         {
             Ok(ack) => Ok(AppendOutcome::Acknowledged {
-                offset: ack.start.seq_num,
+                first_offset: ack.start.seq_num,
+                count: ack.end.seq_num - ack.start.seq_num,
             }),
             Err(error) => find_append_outcome(&error).ok_or_else(|| to_stream_error(error)),
         }
@@ -233,7 +238,9 @@ mod tests {
             let log = S2Log::from_clients(&reader, &writer, &settings.basin)?;
 
             for _ in 0..appends {
-                let outcome = log.append("facts.manual.link", body, 0).await;
+                let outcome = log
+                    .append_batch("facts.manual.link", &[body.to_owned()], 0)
+                    .await;
 
                 turmoil::release(STUB_S2_HOST, WRITER_HOST);
                 recorded

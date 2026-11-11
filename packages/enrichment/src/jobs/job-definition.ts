@@ -1,4 +1,4 @@
-import type { AppendOutcome, BlobStore } from '@pepys/ingest';
+import type { AppendBatchOutcome, BlobStore } from '@pepys/ingest';
 import type {
   EntityID,
   FactEnvelope,
@@ -44,7 +44,7 @@ export interface JobInput<Value> {
 
 export interface JobPorts {
   blobs: BlobStore;
-  writeResult: (fact: FactEnvelope<JobResult<unknown>>) => Promise<AppendOutcome>;
+  writeResult: (fact: FactEnvelope<JobResult<unknown>>) => Promise<AppendBatchOutcome>;
   hasResult: (id: FactID) => Promise<boolean>;
 }
 

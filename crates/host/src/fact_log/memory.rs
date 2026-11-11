@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::envelope::is_fact_envelope;
+use super::check_batch::find_batch_problem;
 use super::{AppendOutcome, FactLog, RejectReason, StoredFact};
 use crate::error::HostError;
 
@@ -94,14 +94,14 @@ fn now_ms() -> u64 {
 }
 
 impl FactLog for MemoryLog {
-    fn append(
+    fn append_batch(
         &self,
         stream: &str,
-        body: &str,
+        bodies: &[String],
         expected_tail: u64,
     ) -> impl Future<Output = Result<AppendOutcome, HostError>> + Send {
         let mut state = self.lock();
-        let outcome = append_record(state.streams.get_mut(stream), body, expected_tail);
+        let outcome = append_records(state.streams.get_mut(stream), bodies, expected_tail);
         let is_reply_lost =
             state.is_reply_lost && matches!(outcome, AppendOutcome::Acknowledged { .. });
 
@@ -131,37 +131,49 @@ impl FactLog for MemoryLog {
     }
 }
 
-fn append_record(
+fn append_records(
     records: Option<&mut Vec<StoredFact>>,
-    body: &str,
+    bodies: &[String],
     expected_tail: u64,
 ) -> AppendOutcome {
-    if !is_fact_envelope(body) {
-        return AppendOutcome::Rejected(RejectReason::InvalidEnvelope);
+    if let Some(reason) = find_batch_problem(bodies) {
+        return AppendOutcome::Rejected(reason);
     }
 
     let Some(records) = records else {
         return AppendOutcome::Rejected(RejectReason::UnknownStream);
     };
-    let offset = records.len() as u64;
+    let first_offset = records.len() as u64;
 
-    if expected_tail != offset {
+    if expected_tail != first_offset {
         return AppendOutcome::Rejected(RejectReason::TailMismatch);
     }
 
-    records.push(StoredFact {
-        offset,
-        body: body.to_owned(),
-        appended_at_ms: now_ms(),
-    });
+    let appended_at_ms = now_ms();
 
-    AppendOutcome::Acknowledged { offset }
+    records.extend(
+        bodies
+            .iter()
+            .zip(first_offset..)
+            .map(|(body, offset)| StoredFact {
+                offset,
+                body: body.clone(),
+                appended_at_ms,
+            }),
+    );
+
+    AppendOutcome::Acknowledged {
+        first_offset,
+        count: bodies.len() as u64,
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+
+    const BODY: &str = r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#;
 
     #[tokio::test]
     async fn it_reports_an_unknown_outcome_for_an_append_whose_reply_is_lost() {
@@ -170,11 +182,7 @@ mod tests {
         log.lose_next_reply();
 
         let outcome = log
-            .append(
-                "facts.manual.link",
-                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
-                0,
-            )
+            .append_batch("facts.manual.link", &[BODY.to_owned()], 0)
             .await
             .expect("an outcome");
 
@@ -186,11 +194,7 @@ mod tests {
         let log = MemoryLog::new(&["facts.manual.link".to_owned()]);
 
         log.lose_next_reply();
-        log.append(
-                "facts.manual.link",
-                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
-                0,
-            )
+        log.append_batch("facts.manual.link", &[BODY.to_owned()], 0)
             .await
             .expect("an outcome");
 
@@ -204,20 +208,12 @@ mod tests {
         let log = MemoryLog::new(&["facts.manual.link".to_owned()]);
 
         log.lose_next_reply();
-        log.append(
-                "facts.manual.link",
-                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
-                0,
-            )
+        log.append_batch("facts.manual.link", &[BODY.to_owned()], 0)
             .await
             .expect("an outcome");
 
         let outcome = log
-            .append(
-                "facts.manual.link",
-                r#"{"id":"manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"link.asserted","v":1,"api":"pepys/1","entity":"gmail:msg:17","at":"2026-10-01T08:00:00Z","payload":{}}"#,
-                0,
-            )
+            .append_batch("facts.manual.link", &[BODY.to_owned()], 0)
             .await
             .expect("an outcome");
 

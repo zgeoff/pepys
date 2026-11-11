@@ -1,0 +1,77 @@
+{
+  "title": "acknowledges a list of facts with the offset of the first and the count",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "facts": [
+          {
+            "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "type": "link.asserted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T08:00:00Z",
+            "payload": {}
+          },
+          {
+            "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "type": "link.retracted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T09:00:00Z",
+            "payload": {}
+          },
+          {
+            "id": "manual:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "type": "link.asserted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T10:00:00Z",
+            "payload": {}
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 0,
+        "count": 3
+      }
+    },
+    {
+      "appendBatch": {
+        "stream": "facts.manual.link",
+        "expectedTail": 3,
+        "facts": [
+          {
+            "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "type": "link.asserted",
+            "v": 1,
+            "api": "pepys/1",
+            "entity": "gmail:msg:17",
+            "at": "2026-10-01T08:00:00Z",
+            "payload": {}
+          }
+        ]
+      },
+      "returns": {
+        "kind": "acknowledged",
+        "firstOffset": 3,
+        "count": 1
+      }
+    },
+    {
+      "readTail": {
+        "stream": "facts.manual.link"
+      },
+      "returns": {
+        "ok": true,
+        "value": 4
+      }
+    }
+  ]
+}

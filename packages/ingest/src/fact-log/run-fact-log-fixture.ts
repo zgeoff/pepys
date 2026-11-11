@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import type { EntityID, FactID, StreamName, StreamOffset } from '@pepys/kit';
+import type { EntityID, FactEnvelope, FactID, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { P, match } from 'ts-pattern';
 import { z } from 'zod';
@@ -22,17 +22,29 @@ const fixtureFactSchema = z.strictObject({
   payload: z.json(),
 });
 
-const appendSchema = z.strictObject({
+// A fact of a list is an envelope, or a wrapper that repeats it `repeat` times and, with
+// `payloadPadBytes`, sets its payload to `{"pad": <that many "x">}`, so a list that is over a limit
+// needs no thousand-line file. The Rust runner expands the wrapper the same way.
+const fixtureFactItemSchema = z.union([
+  fixtureFactSchema,
+  z.strictObject({
+    fact: fixtureFactSchema,
+    repeat: z.number().optional(),
+    payloadPadBytes: z.number().optional(),
+  }),
+]);
+
+const appendBatchSchema = z.strictObject({
   stream: streamSchema,
   expectedTail: offsetSchema,
-  fact: fixtureFactSchema,
+  facts: z.array(fixtureFactItemSchema),
 });
 
 const readSchema = z.strictObject({ stream: streamSchema, from: offsetSchema, count: z.number() });
 const readTailSchema = z.strictObject({ stream: streamSchema });
 
 const callSchema = z.union([
-  z.strictObject({ append: appendSchema, returns: z.json() }),
+  z.strictObject({ appendBatch: appendBatchSchema, returns: z.json() }),
   z.strictObject({ read: readSchema, returns: z.json() }),
   z.strictObject({ readTail: readTailSchema, returns: z.json() }),
 ]);
@@ -78,12 +90,29 @@ type FixtureCall = FactLogFixture['calls'][number];
 
 function runCall(log: FactLog, call: FixtureCall, startMs: number): Promise<unknown> {
   return match(call)
-    .with({ append: P.select() }, (append) =>
-      log.append(append.stream, append.fact, append.expectedTail),
+    .with({ appendBatch: P.select() }, (append) =>
+      log.appendBatch(append.stream, expandFixtureFacts(append.facts), append.expectedTail),
     )
     .with({ readTail: P.select() }, (readTail) => log.readTail(readTail.stream))
     .with({ read: P.select() }, (read) => readFacts(log, read, startMs))
     .exhaustive();
+}
+
+type FixtureFactItem = z.infer<typeof fixtureFactItemSchema>;
+
+function expandFixtureFacts(items: readonly FixtureFactItem[]): FactEnvelope<unknown>[] {
+  return items.flatMap((item) => {
+    if (!('fact' in item)) {
+      return [item];
+    }
+
+    const fact =
+      item.payloadPadBytes === undefined
+        ? item.fact
+        : { ...item.fact, payload: { pad: 'x'.repeat(item.payloadPadBytes) } };
+
+    return Array.from({ length: item.repeat ?? 1 }, () => fact);
+  });
 }
 
 type ReadCall = z.infer<typeof readSchema>;

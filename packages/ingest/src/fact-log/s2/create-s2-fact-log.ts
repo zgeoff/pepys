@@ -8,8 +8,8 @@ import {
 } from '@s2-dev/streamstore';
 import type { S2Basin, StreamConfig } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
-import type { AppendOutcome, FactLog, StoredFact } from '../fact-log.ts';
-import { parseStoredBody } from '../parse-stored-body.ts';
+import { checkAppendBatch } from '../check-append-batch.ts';
+import type { AppendBatchOutcome, FactLog, StoredFact } from '../fact-log.ts';
 import { parseStoredFact } from '../parse-stored-fact.ts';
 import { findAppendOutcome, isUnknownStream } from './find-append-outcome.ts';
 
@@ -44,7 +44,8 @@ export async function createS2FactLog(parameters: S2FactLogParameters): Promise<
   }
 
   return {
-    append: (stream, fact, expectedTail) => appendFact(appendBasin, stream, fact, expectedTail),
+    appendBatch: (stream, facts, expectedTail) =>
+      appendBatch(appendBasin, stream, facts, expectedTail),
     read: (stream, from, count) => readFacts(basin, stream, from, count),
     readTail: (stream) => readTail(basin, stream),
   };
@@ -77,26 +78,32 @@ async function createInfiniteStream(basin: S2Basin, stream: StreamName): Promise
   }
 }
 
-async function appendFact(
+async function appendBatch(
   basin: S2Basin,
   stream: StreamName,
-  fact: FactEnvelope<unknown>,
+  facts: readonly FactEnvelope<unknown>[],
   expectedTail: StreamOffset,
-): Promise<AppendOutcome> {
-  const body = parseStoredBody(fact);
+): Promise<AppendBatchOutcome> {
+  const checked = checkAppendBatch(facts);
 
-  if (body === null) {
-    return { kind: 'rejected', reason: 'invalid-envelope' };
+  if (!checked.ok) {
+    return { kind: 'rejected', ...checked.failure };
   }
 
-  const input = AppendInput.create([AppendRecord.string({ body })], {
-    matchSeqNum: expectedTail,
-  });
+  // The checks hold every limit, so `create` does not throw.
+  const input = AppendInput.create(
+    checked.value.map((body) => AppendRecord.string({ body })),
+    { matchSeqNum: expectedTail },
+  );
 
   try {
     const ack = await basin.stream(stream).append(input);
 
-    return { kind: 'acknowledged', offset: toTagged<StreamOffset>(ack.start.seqNum) };
+    return {
+      kind: 'acknowledged',
+      firstOffset: toTagged<StreamOffset>(ack.start.seqNum),
+      count: ack.end.seqNum - ack.start.seqNum,
+    };
   } catch (error: unknown) {
     const outcome = findAppendOutcome(error);
 
