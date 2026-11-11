@@ -10,11 +10,12 @@ use crate::database::Store;
 use crate::error::HostError;
 
 /// The tables the host makes in a consumer file, which the manifest does not list.
-const HOST_TABLES: [&str; 5] = [
+const HOST_TABLES: [&str; 6] = [
     "offsets",
     "change_log",
     "applied_facts",
     "scope_row",
+    "scope_fact",
     "link",
 ];
 

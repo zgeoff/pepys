@@ -11,6 +11,7 @@ pub mod diff;
 mod e2e;
 pub mod entity_ids;
 pub mod error;
+pub mod fact_index;
 pub mod fact_log;
 pub mod links;
 pub mod lock;
@@ -18,6 +19,8 @@ pub mod module_runner;
 pub mod operations;
 pub mod rows;
 pub mod schema_check;
+pub mod scope;
+pub mod scope_replace;
 #[cfg(test)]
 mod test_utils;
 pub mod versions;

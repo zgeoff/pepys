@@ -66,8 +66,24 @@ pub enum HostError {
         table: String,
         owner: String,
     },
-    #[error("this host runs fact-mode consumers only, and {0} is a scope consumer")]
-    ScopeMode(String),
+    #[error("the scope result of {scope} holds the row {key} of {table} twice")]
+    DuplicateRow {
+        scope: String,
+        table: String,
+        key: String,
+    },
+    #[error("the scope result of {scope} holds the link {key} twice")]
+    DuplicateLink { scope: String, key: String },
+    #[error("the scope {scope} returned {key} of {table}, which {} owns", owner.as_deref().unwrap_or("no scope"))]
+    ScopeConflict {
+        scope: String,
+        table: String,
+        key: String,
+        /// The scope that owns it, or none for a link that fact mode wrote.
+        owner: Option<String>,
+    },
+    #[error("the module of scope {scope} read the facts of {asked}")]
+    ForeignScopeRead { scope: String, asked: String },
     #[error("the task of {consumer} stopped: {source}")]
     Stopped {
         consumer: String,

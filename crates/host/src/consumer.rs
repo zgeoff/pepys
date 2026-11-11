@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use crate::error::HostError;
 
 /// The tables the host keeps in every consumer file, which no consumer may declare.
-pub const RESERVED_TABLES: [&str; 6] = [
+pub const RESERVED_TABLES: [&str; 7] = [
     "link",
     "entity",
     "offsets",
     "change_log",
     "applied_facts",
     "scope_row",
+    "scope_fact",
 ];
 
 const VERSION_FILE: &str = "version.json";

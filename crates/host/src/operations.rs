@@ -25,17 +25,45 @@ pub enum Operation {
     Unlink(LinkEnds),
 }
 
-/// Parses a module's output.
+/// One operation as the wire holds it: its verb, its table, and a body of the right shape. The
+/// parse has checked the shape and that the consumer owns the table, and nothing else.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WireOperation {
+    Upsert { table: String, row: Row },
+    Delete { table: String, row: Row },
+    Link(Link),
+    Unlink(LinkEnds),
+}
+
+/// Parses a module's output in fact mode: the shape of every operation first, then the row and
+/// link checks in operation order.
 ///
 /// # Errors
 /// Fails with [`HostError::BadOperation`] for output that is no list of one-verb operations,
 /// [`HostError::NotOwned`] for a table the manifest does not declare, [`HostError::BadRow`] for a
 /// row that does not fit its table, and [`HostError::BadLink`] for a link that fails the link
-/// check. The first operation in order that fails gives the error.
+/// check. A shape or ownership problem anywhere in the output comes before a check of a row or a
+/// link, as in the test store.
 pub fn parse_operations(
     manifest: &ConsumerManifest,
     output: &str,
 ) -> Result<Vec<Operation>, HostError> {
+    parse_wire(manifest, output)?
+        .into_iter()
+        .map(|operation| check_operation(manifest, operation))
+        .collect()
+}
+
+/// Parses the shape of a module's output, in both modes.
+///
+/// # Errors
+/// Fails with [`HostError::BadOperation`] for output that is no list of one-verb operations, and
+/// [`HostError::NotOwned`] for a table the manifest does not declare. The first operation in order
+/// that fails gives the error.
+pub fn parse_wire(
+    manifest: &ConsumerManifest,
+    output: &str,
+) -> Result<Vec<WireOperation>, HostError> {
     let Ok(Value::Array(items)) = serde_json::from_str::<Value>(output) else {
         return Err(HostError::BadOperation(
             "the output is not a JSON list".to_owned(),
@@ -44,11 +72,14 @@ pub fn parse_operations(
 
     items
         .into_iter()
-        .map(|item| parse_operation(manifest, item))
+        .map(|item| parse_wire_operation(manifest, item))
         .collect()
 }
 
-fn parse_operation(manifest: &ConsumerManifest, item: Value) -> Result<Operation, HostError> {
+fn parse_wire_operation(
+    manifest: &ConsumerManifest,
+    item: Value,
+) -> Result<WireOperation, HostError> {
     let Value::Object(verbs) = item else {
         return Err(HostError::BadOperation(format!("{item} is not an object")));
     };
@@ -61,7 +92,28 @@ fn parse_operation(manifest: &ConsumerManifest, item: Value) -> Result<Operation
 
     match verb.as_str() {
         "upsert" => {
-            let (table, info, row) = parse_table_body(manifest, body)?;
+            let (table, row) = parse_table_body(manifest, body)?;
+
+            Ok(WireOperation::Upsert { table, row })
+        }
+        "delete" => {
+            let (table, row) = parse_table_body(manifest, body)?;
+
+            Ok(WireOperation::Delete { table, row })
+        }
+        "link" => Ok(WireOperation::Link(parse_body(&verb, body)?)),
+        "unlink" => Ok(WireOperation::Unlink(parse_body(&verb, body)?)),
+        _ => Err(HostError::BadOperation(format!("an unknown verb {verb}"))),
+    }
+}
+
+fn check_operation(
+    manifest: &ConsumerManifest,
+    operation: WireOperation,
+) -> Result<Operation, HostError> {
+    match operation {
+        WireOperation::Upsert { table, row } => {
+            let info = table_info(manifest, &table)?;
 
             check_row(&table, info, &row)?;
 
@@ -71,26 +123,39 @@ fn parse_operation(manifest: &ConsumerManifest, item: Value) -> Result<Operation
                 row,
             })
         }
-        "delete" => {
-            let (table, info, row) = parse_table_body(manifest, body)?;
+        WireOperation::Delete { table, row } => {
+            let info = table_info(manifest, &table)?;
 
             Ok(Operation::Delete {
                 key: key_of_key_row(&table, info, &row)?,
                 table,
             })
         }
-        "link" => {
-            let link: Link = parse_body(&verb, body)?;
-
+        WireOperation::Link(link) => {
             if let Some(problem) = find_link_problem(&manifest.links, &link) {
                 return Err(HostError::BadLink(problem));
             }
 
             Ok(Operation::Link(link))
         }
-        "unlink" => Ok(Operation::Unlink(parse_body(&verb, body)?)),
-        _ => Err(HostError::BadOperation(format!("an unknown verb {verb}"))),
+        WireOperation::Unlink(ends) => Ok(Operation::Unlink(ends)),
     }
+}
+
+/// The columns of one of the consumer's tables.
+///
+/// # Errors
+/// Fails with [`HostError::NotOwned`] for a table the manifest does not declare.
+pub fn table_info<'a>(
+    manifest: &'a ConsumerManifest,
+    table: &str,
+) -> Result<&'a TableInfo, HostError> {
+    manifest
+        .tables
+        .get(table)
+        .ok_or_else(|| HostError::NotOwned {
+            table: table.to_owned(),
+        })
 }
 
 fn parse_body<T: serde::de::DeserializeOwned>(verb: &str, body: Value) -> Result<T, HostError> {
@@ -98,11 +163,8 @@ fn parse_body<T: serde::de::DeserializeOwned>(verb: &str, body: Value) -> Result
         .map_err(|error| HostError::BadOperation(format!("{verb}: {error}")))
 }
 
-// One table name, one row.
-fn parse_table_body(
-    manifest: &ConsumerManifest,
-    body: Value,
-) -> Result<(String, &TableInfo, Row), HostError> {
+// One table name, one row, of a table the consumer owns.
+fn parse_table_body(manifest: &ConsumerManifest, body: Value) -> Result<(String, Row), HostError> {
     let Value::Object(tables) = body else {
         return Err(HostError::BadOperation(format!(
             "{body} is not an object of one table"
@@ -114,14 +176,10 @@ fn parse_table_body(
             "an operation names exactly one table, with one row".to_owned(),
         ));
     };
-    let info = manifest
-        .tables
-        .get(&table)
-        .ok_or_else(|| HostError::NotOwned {
-            table: table.clone(),
-        })?;
 
-    Ok((table, info, row))
+    table_info(manifest, &table)?;
+
+    Ok((table, row))
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use turso::Connection;
 
-use crate::consumer::{ConsumerManifest, TableInfo};
+use crate::consumer::ConsumerManifest;
 use crate::database::Store;
 use crate::error::HostError;
 use crate::fact_log::StoredFact;
@@ -12,7 +12,7 @@ use crate::links::{
     LinkEnds, build_link_delete_entry, build_link_write_entry, delete_link, load_link, write_link,
 };
 use crate::module_runner::RowSource;
-use crate::operations::{Operation, parse_operations};
+use crate::operations::{Operation, parse_operations, table_info};
 use crate::rows::{Row, delete_row, is_same_row, key_of_read, load_row, write_row};
 
 /// Runs a consumer on one fact and returns its operations as JSON.
@@ -57,15 +57,6 @@ impl RowSource for StoreRows {
             })
         })
     }
-}
-
-fn table_info<'a>(manifest: &'a ConsumerManifest, table: &str) -> Result<&'a TableInfo, HostError> {
-    manifest
-        .tables
-        .get(table)
-        .ok_or_else(|| HostError::NotOwned {
-            table: table.to_owned(),
-        })
 }
 
 /// Applies facts of one stream as one batch: the operations the consumer returns for each, the
@@ -127,10 +118,22 @@ async fn write_batch(
         }
     }
 
+    write_offset_and_changes(&store.connection, stream, last_seq_num, &changes).await
+}
+
+/// Writes the stream's new offset and, when the batch changed something, one change log row.
+///
+/// # Errors
+/// Fails when a statement fails.
+pub async fn write_offset_and_changes(
+    connection: &Connection,
+    stream: &str,
+    last_seq_num: u64,
+    changes: &[Value],
+) -> Result<(), HostError> {
     let last = i64::try_from(last_seq_num).map_err(|_| HostError::OutOfBounds)?;
 
-    store
-        .connection
+    connection
         .execute(
             "INSERT OR REPLACE INTO offsets (stream, last_seq_num) VALUES (?1, ?2)",
             vec![turso::Value::from(stream), turso::Value::from(last)],
@@ -140,12 +143,11 @@ async fn write_batch(
     // A consumer of several streams reads one sequence number on each, so the batch number counts
     // the file's batches and is no stream offset.
     if !changes.is_empty() {
-        store
-            .connection
+        connection
             .execute(
                 "INSERT INTO change_log (batch, changes) \
                  VALUES ((SELECT coalesce(max(batch), 0) + 1 FROM change_log), ?1)",
-                vec![turso::Value::from(serde_json::to_string(&changes)?)],
+                vec![turso::Value::from(serde_json::to_string(changes)?)],
             )
             .await?;
     }
@@ -201,12 +203,7 @@ async fn apply_operation(
 
             delete_row(connection, &table, info, &key).await?;
 
-            Ok(Some(json!({
-                "type": table,
-                "key": key,
-                "old_value": old,
-                "headers": {"operation": "delete"},
-            })))
+            Ok(Some(build_row_delete_entry(&table, &key, &old)))
         }
         Operation::Link(link) => {
             let ends = LinkEnds {
@@ -236,7 +233,9 @@ async fn apply_operation(
     }
 }
 
-fn build_write_entry(table: &str, key: &str, row: &Row, old: Option<Row>) -> Value {
+/// The change entry of a written row: an insert, or an update with the stored row.
+#[must_use]
+pub fn build_write_entry(table: &str, key: &str, row: &Row, old: Option<Row>) -> Value {
     match old {
         Some(old) => json!({
             "type": table,
@@ -252,6 +251,17 @@ fn build_write_entry(table: &str, key: &str, row: &Row, old: Option<Row>) -> Val
             "headers": {"operation": "insert"},
         }),
     }
+}
+
+/// The change entry of a deleted row, which holds the stored row as its old value.
+#[must_use]
+pub fn build_row_delete_entry(table: &str, key: &str, old: &Row) -> Value {
+    json!({
+        "type": table,
+        "key": key,
+        "old_value": old,
+        "headers": {"operation": "delete"},
+    })
 }
 
 #[cfg(test)]

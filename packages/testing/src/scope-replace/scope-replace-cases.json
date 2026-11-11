@@ -1355,6 +1355,44 @@
         "ledger_entry": []
       },
       "links": []
+    },
+    {
+      "title": "a bad row before a bad link is refused as a bad link, because every link is checked first",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5.0,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"paid_by\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "bad-link"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a bad link before an upsert to a table that the consumer does not own is refused as not owned, because the parse checks each table first",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"link\":{\"type\":\"paid_by\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}},{\"upsert\":{\"harbour_berth\":{\"id\":\"harbour:berth:1\"}}}]"
+            }
+          ],
+          "refused": "not-owned"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
     }
   ]
 }

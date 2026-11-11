@@ -16,6 +16,7 @@ const reservedTableNames = new Set([
   'change_log',
   'applied_facts',
   'scope_row',
+  'scope_fact',
 ]);
 
 const hashSchema = z.custom<VersionHash>(

@@ -9,10 +9,12 @@ use tokio::task::JoinSet;
 
 use crate::batch::{FactRunner, apply_batch};
 use crate::consumer::{
-    BuildManifest, ConsumerManifest, ConsumerVersion, ListedConsumer, find_consumer,
+    BuildManifest, ConsumerInput, ConsumerManifest, ConsumerVersion, ListedConsumer, find_consumer,
     has_version_file, read_build_manifest, read_version, write_version,
 };
-use crate::database::{Store, checkpoint, open_store, prepare_store, read_offset};
+use crate::database::{
+    Store, checkpoint, open_store, prepare_scope_tables, prepare_store, read_offset,
+};
 use crate::diff::{diff_json, diff_rows};
 use crate::error::HostError;
 use crate::fact_log::FactLog;
@@ -21,6 +23,7 @@ use crate::lock::WriterLock;
 use crate::module_runner::{ModuleRunner, hash_module};
 use crate::rows::{Row, load_all_rows};
 use crate::schema_check::check_schema;
+use crate::scope::{ScopeRunner, apply_scope_batch};
 use crate::versions::{HostState, VersionState};
 
 const DATABASE_FILE: &str = "consumer.db";
@@ -64,8 +67,17 @@ impl HostConfig {
 /// A consumer file with the module that writes it and the manifest it was built from.
 struct Version {
     store: Store,
-    runner: Box<dyn FactRunner>,
+    runner: Runner,
     manifest: Arc<ConsumerManifest>,
+}
+
+/// The module of a version, in the mode its manifest gives.
+enum Runner {
+    Fact(Box<dyn FactRunner>),
+    Scope {
+        runner: Box<dyn ScopeRunner>,
+        scope_kind: String,
+    },
 }
 
 /// Opens the file of a version folder and checks it against the manifest. On a new file it runs
@@ -79,6 +91,11 @@ async fn open_version_store(
     let store = open_store(&directory.join(DATABASE_FILE)).await?;
 
     prepare_store(&store, &manifest.schema).await?;
+
+    if matches!(manifest.input, ConsumerInput::Scope { .. }) {
+        prepare_scope_tables(&store).await?;
+    }
+
     check_schema(&store, manifest).await?;
 
     Ok(store)
@@ -87,13 +104,6 @@ async fn open_version_store(
 /// The one way a version is opened: `up`, `run` and `preview` all call it. The module file must
 /// have the hash the version lists.
 async fn open_version(directory: &Path, version: &ConsumerVersion) -> Result<Version, HostError> {
-    if !matches!(
-        version.manifest.input,
-        crate::consumer::ConsumerInput::Fact { .. }
-    ) {
-        return Err(HostError::ScopeMode(version.name.clone()));
-    }
-
     let manifest = Arc::new(version.manifest.clone());
     let store = open_version_store(directory, &manifest).await?;
     let bytes = std::fs::read(directory.join(MODULE_FILE))?;
@@ -107,9 +117,18 @@ async fn open_version(directory: &Path, version: &ConsumerVersion) -> Result<Ver
         });
     }
 
+    let module = ModuleRunner::new(&bytes, Arc::clone(&manifest))?;
+    let runner = match &manifest.input {
+        ConsumerInput::Fact { .. } => Runner::Fact(Box::new(module)),
+        ConsumerInput::Scope { scope_kind, .. } => Runner::Scope {
+            runner: Box::new(module),
+            scope_kind: scope_kind.clone(),
+        },
+    };
+
     Ok(Version {
         store,
-        runner: Box::new(ModuleRunner::new(&bytes, Arc::clone(&manifest))?),
+        runner,
         manifest,
     })
 }
@@ -158,14 +177,29 @@ async fn replay_to(
             return Ok(applied);
         }
 
-        apply_batch(
-            &version.store,
-            &version.manifest,
-            version.runner.as_mut(),
-            stream,
-            &facts,
-        )
-        .await?;
+        match &mut version.runner {
+            Runner::Fact(runner) => {
+                apply_batch(
+                    &version.store,
+                    &version.manifest,
+                    runner.as_mut(),
+                    stream,
+                    &facts,
+                )
+                .await?;
+            }
+            Runner::Scope { runner, scope_kind } => {
+                apply_scope_batch(
+                    &version.store,
+                    &version.manifest,
+                    scope_kind,
+                    runner.as_mut(),
+                    stream,
+                    &facts,
+                )
+                .await?;
+            }
+        }
         applied += facts.len() as u64;
     }
 }
@@ -1070,7 +1104,7 @@ mod tests {
             store: open_version_store(directory, &manifest)
                 .await
                 .expect("a store"),
-            runner: Box::new(runner),
+            runner: Runner::Fact(Box::new(runner)),
             manifest,
         }
     }

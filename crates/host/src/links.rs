@@ -146,6 +146,17 @@ pub fn build_link_write_entry(link: &Link, old: Option<&Link>) -> Value {
     }
 }
 
+impl Link {
+    #[must_use]
+    pub fn to_ends(&self) -> LinkEnds {
+        LinkEnds {
+            link_type: self.link_type.clone(),
+            from: self.from.clone(),
+            to: self.to.clone(),
+        }
+    }
+}
+
 /// The change entry of a deleted link, which holds its key alone.
 #[must_use]
 pub fn build_link_delete_entry(ends: &LinkEnds) -> Value {
@@ -156,6 +167,13 @@ pub fn build_link_delete_entry(ends: &LinkEnds) -> Value {
     })
 }
 
+/// A stored link with the scope that owns it, or none for a link that fact mode wrote.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredLink {
+    pub scope: Option<String>,
+    pub link: Link,
+}
+
 /// The stored link with these ends.
 ///
 /// # Errors
@@ -164,9 +182,23 @@ pub async fn load_link(
     connection: &Connection,
     ends: &LinkEnds,
 ) -> Result<Option<Link>, HostError> {
+    Ok(load_stored_link(connection, ends)
+        .await?
+        .map(|stored| stored.link))
+}
+
+/// The stored link with these ends, with its scope.
+///
+/// # Errors
+/// Fails when the query fails.
+pub async fn load_stored_link(
+    connection: &Connection,
+    ends: &LinkEnds,
+) -> Result<Option<StoredLink>, HostError> {
     let mut rows = connection
         .query(
-            "SELECT confidence, evidence FROM link WHERE type = ?1 AND from_id = ?2 AND to_id = ?3",
+            "SELECT confidence, evidence, scope FROM link \
+             WHERE type = ?1 AND from_id = ?2 AND to_id = ?3",
             vec![
                 turso::Value::from(ends.link_type.as_str()),
                 turso::Value::from(ends.from.as_str()),
@@ -179,13 +211,45 @@ pub async fn load_link(
         return Ok(None);
     };
 
-    Ok(Some(Link {
-        link_type: ends.link_type.clone(),
-        from: ends.from.clone(),
-        to: ends.to.clone(),
-        confidence: row.get(0)?,
-        evidence: row.get(1)?,
+    Ok(Some(StoredLink {
+        scope: row.get(2)?,
+        link: Link {
+            link_type: ends.link_type.clone(),
+            from: ends.from.clone(),
+            to: ends.to.clone(),
+            confidence: row.get(0)?,
+            evidence: row.get(1)?,
+        },
     }))
+}
+
+/// Every link that `scope` owns.
+///
+/// # Errors
+/// Fails when the query fails.
+pub async fn load_scope_links(
+    connection: &Connection,
+    scope: &str,
+) -> Result<Vec<Link>, HostError> {
+    let mut rows = connection
+        .query(
+            "SELECT type, from_id, to_id, confidence, evidence FROM link WHERE scope = ?1",
+            vec![turso::Value::from(scope)],
+        )
+        .await?;
+    let mut links = Vec::new();
+
+    while let Some(row) = rows.next().await? {
+        links.push(Link {
+            link_type: row.get(0)?,
+            from: row.get(1)?,
+            to: row.get(2)?,
+            confidence: row.get(3)?,
+            evidence: row.get(4)?,
+        });
+    }
+
+    Ok(links)
 }
 
 /// Writes `link` for the consumer `origin`, owned by `scope`, or by no scope in fact mode.

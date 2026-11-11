@@ -9,6 +9,7 @@ use crate::batch::FactRunner;
 use crate::clock;
 use crate::consumer::{ConsumerManifest, Read};
 use crate::error::HostError;
+use crate::scope::{FactSource, ScopeRunner};
 
 /// Serves the consumer's row reads. The host answers a read with the JSON of the stored row.
 pub trait RowSource: Send + Sync {
@@ -19,9 +20,25 @@ pub trait RowSource: Send + Sync {
     fn read_row(&self, table: &str, argument: &str) -> Result<Option<Vec<u8>>, HostError>;
 }
 
+/// What the module's reads reach: a fact consumer's rows, or the facts of the scope it was called
+/// for.
+enum Reads {
+    Rows(Arc<dyn RowSource>),
+    ScopeFacts(Arc<dyn FactSource>),
+}
+
+/// The one read of a manifest import.
+#[derive(Clone)]
+enum ReadTarget {
+    Row(String),
+    ScopeFacts,
+}
+
 struct Host {
     wasi: WasiP1Ctx,
-    rows: Arc<dyn RowSource>,
+    reads: Reads,
+    // The first refusal of a read, kept whole: a host function can hand wasmtime only a message.
+    refusal: Option<HostError>,
 }
 
 /// A consumer module compiled once and instantiated for each fact, linked by the symbols its
@@ -57,10 +74,11 @@ impl ModuleRunner {
         })
     }
 
-    fn instantiate(&self, rows: Arc<dyn RowSource>) -> Result<(Store<Host>, Instance), HostError> {
+    fn instantiate(&self, reads: Reads) -> Result<(Store<Host>, Instance), HostError> {
         let host = Host {
             wasi: clock::build_context().build_p1(),
-            rows,
+            reads,
+            refusal: None,
         };
         let mut store = Store::new(&self.engine, host);
         let mut linker: Linker<Host> = Linker::new(&self.engine);
@@ -68,43 +86,39 @@ impl ModuleRunner {
         p1::add_to_linker_sync(&mut linker, |host| &mut host.wasi)?;
 
         for read in &self.manifest.imports {
-            match read {
+            let (target, length, into) = match read {
                 Read::Row {
                     table,
                     length,
                     into,
-                } => {
-                    let length_table = table.clone();
-                    let into_table = table.clone();
+                } => (ReadTarget::Row(table.clone()), length, into),
+                Read::ScopeFacts { length, into } => (ReadTarget::ScopeFacts, length, into),
+            };
+            let into_target = target.clone();
 
-                    linker.func_wrap(
-                        "scriptc",
-                        length,
-                        move |caller: Caller<'_, Host>, pointer: i32, size: i32| {
-                            read_row_length(caller, &length_table, pointer, size)
-                        },
-                    )?;
-                    linker.func_wrap(
-                        "scriptc",
-                        into,
-                        move |caller: Caller<'_, Host>,
-                              key_pointer: i32,
-                              key_length: i32,
-                              row_pointer: i32,
-                              row_length: i32| {
-                            read_row_into(
-                                caller,
-                                &into_table,
-                                (key_pointer, key_length),
-                                (row_pointer, row_length),
-                            )
-                        },
-                    )?;
-                }
-                Read::ScopeFacts { .. } => {
-                    return Err(HostError::ScopeMode(self.manifest.name.clone()));
-                }
-            }
+            linker.func_wrap(
+                "scriptc",
+                length,
+                move |caller: Caller<'_, Host>, pointer: i32, size: i32| {
+                    read_length(caller, &target, pointer, size)
+                },
+            )?;
+            linker.func_wrap(
+                "scriptc",
+                into,
+                move |caller: Caller<'_, Host>,
+                      argument_pointer: i32,
+                      argument_length: i32,
+                      buffer_pointer: i32,
+                      buffer_length: i32| {
+                    read_into(
+                        caller,
+                        &into_target,
+                        (argument_pointer, argument_length),
+                        (buffer_pointer, buffer_length),
+                    )
+                },
+            )?;
         }
 
         linker.func_wrap("scriptc", "panic", panic)?;
@@ -120,13 +134,32 @@ impl ModuleRunner {
 
         Ok((store, instance))
     }
+
+    fn apply(&self, reads: Reads, input: &str) -> Result<String, HostError> {
+        let (mut store, instance) = self.instantiate(reads)?;
+        let output = call_string_export(&mut store, &instance, &self.manifest.exports.apply, input);
+
+        // A trap that a refused read caused reports the refusal, not the trap.
+        match (store.data_mut().refusal.take(), output) {
+            (Some(refusal), Err(_)) => Err(refusal),
+            (_, output) => output,
+        }
+    }
 }
 
 impl FactRunner for ModuleRunner {
     fn apply_fact(&mut self, fact: &str, rows: Arc<dyn RowSource>) -> Result<String, HostError> {
-        let (mut store, instance) = self.instantiate(rows)?;
+        self.apply(Reads::Rows(rows), fact)
+    }
+}
 
-        call_string_export(&mut store, &instance, &self.manifest.exports.apply, fact)
+impl ScopeRunner for ModuleRunner {
+    fn apply_scope(
+        &mut self,
+        scope: &str,
+        facts: Arc<dyn FactSource>,
+    ) -> Result<String, HostError> {
+        self.apply(Reads::ScopeFacts(facts), scope)
     }
 }
 
@@ -193,50 +226,65 @@ fn read_key(caller: &mut Caller<'_, Host>, pointer: i32, length: i32) -> wasmtim
     Ok(String::from_utf8(bytes.to_vec())?)
 }
 
-fn read_stored(
+// A row read answers `None` for no row; the scope read always answers.
+fn read_value(
     caller: &mut Caller<'_, Host>,
-    table: &str,
+    target: &ReadTarget,
     pointer: i32,
     length: i32,
 ) -> wasmtime::Result<Option<Vec<u8>>> {
-    let key = read_key(caller, pointer, length)?;
+    let argument = read_key(caller, pointer, length)?;
+    let read = match (&caller.data().reads, target) {
+        (Reads::Rows(rows), ReadTarget::Row(table)) => rows.read_row(table, &argument),
+        (Reads::ScopeFacts(facts), ReadTarget::ScopeFacts) => {
+            facts.read_scope_facts(&argument).map(Some)
+        }
+        (Reads::Rows(_), ReadTarget::ScopeFacts) | (Reads::ScopeFacts(_), ReadTarget::Row(_)) => {
+            Err(HostError::BadManifest {
+                path: "manifest.imports".to_owned(),
+                reason: "a read of the other mode".to_owned(),
+            })
+        }
+    };
 
-    caller
-        .data()
-        .rows
-        .read_row(table, &key)
-        .map_err(|error| wasmtime::Error::msg(error.to_string()))
+    read.map_err(|error| {
+        let message = error.to_string();
+
+        caller.data_mut().refusal.get_or_insert(error);
+
+        wasmtime::Error::msg(message)
+    })
 }
 
-fn read_row_length(
+fn read_length(
     mut caller: Caller<'_, Host>,
-    table: &str,
+    target: &ReadTarget,
     pointer: i32,
     length: i32,
 ) -> wasmtime::Result<f64> {
     Ok(
-        read_stored(&mut caller, table, pointer, length)?.map_or(-1.0, |row| {
-            f64::from(u32::try_from(row.len()).unwrap_or(u32::MAX))
+        read_value(&mut caller, target, pointer, length)?.map_or(-1.0, |value| {
+            f64::from(u32::try_from(value.len()).unwrap_or(u32::MAX))
         }),
     )
 }
 
-fn read_row_into(
+fn read_into(
     mut caller: Caller<'_, Host>,
-    table: &str,
-    (key_pointer, key_length): (i32, i32),
-    (row_pointer, row_length): (i32, i32),
+    target: &ReadTarget,
+    (argument_pointer, argument_length): (i32, i32),
+    (buffer_pointer, buffer_length): (i32, i32),
 ) -> wasmtime::Result<()> {
-    let Some(row) = read_stored(&mut caller, table, key_pointer, key_length)? else {
+    let Some(value) = read_value(&mut caller, target, argument_pointer, argument_length)? else {
         return Ok(());
     };
-    let capacity = usize::try_from(row_length)?;
+    let capacity = usize::try_from(buffer_length)?;
     let memory = caller_memory(&mut caller)?;
 
     memory.write(
         &mut caller,
-        usize::try_from(row_pointer)?,
-        &row[..row.len().min(capacity)],
+        usize::try_from(buffer_pointer)?,
+        &value[..value.len().min(capacity)],
     )?;
 
     Ok(())

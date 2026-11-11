@@ -24,6 +24,20 @@ const LINK_TO_ID_INDEX: &str = "CREATE INDEX IF NOT EXISTS link_to_id_idx ON lin
 
 const LOCK_WAIT: Duration = Duration::from_secs(10);
 
+// A scope consumer's file records the scope that owns each row, and holds the facts of its own
+// streams, one row per fact ID, so that the index of a batch's facts commits or rolls back with
+// the batch.
+const SCOPE_TABLES: [&str; 5] = [
+    "CREATE TABLE IF NOT EXISTS scope_row (table_name TEXT NOT NULL, key TEXT NOT NULL, \
+     scope TEXT NOT NULL, PRIMARY KEY (table_name, key))",
+    "CREATE INDEX IF NOT EXISTS scope_row_scope_idx ON scope_row (scope)",
+    "CREATE INDEX IF NOT EXISTS link_scope_idx ON link (scope)",
+    "CREATE TABLE IF NOT EXISTS scope_fact (fact_id TEXT NOT NULL PRIMARY KEY, \
+     entity TEXT NOT NULL, at_sort TEXT NOT NULL, stream TEXT NOT NULL, \
+     seq_num INTEGER NOT NULL, body TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS scope_fact_entity_idx ON scope_fact (entity, at_sort, stream, seq_num)",
+];
+
 /// One consumer file, opened with Turso's multi-process WAL so that readers in other processes
 /// see each commit.
 pub struct Store {
@@ -81,6 +95,20 @@ pub async fn prepare_store(store: &Store, consumer_schema: &str) -> Result<(), H
     store.connection.execute(APPLIED_FACTS_TABLE, ()).await?;
     store.connection.execute(LINK_TABLE, ()).await?;
     store.connection.execute(LINK_TO_ID_INDEX, ()).await?;
+
+    Ok(())
+}
+
+/// Creates the tables of scope mode when they are missing: the scope of each row, the index of
+/// `link` by scope, and the fact index. Call it after [`prepare_store`].
+///
+/// # Errors
+/// Fails when a statement fails.
+pub async fn prepare_scope_tables(store: &Store) -> Result<(), HostError> {
+    // One statement per call: `execute_batch` on an open file fails with "connection is busy".
+    for statement in SCOPE_TABLES {
+        store.connection.execute(statement, ()).await?;
+    }
 
     Ok(())
 }

@@ -271,6 +271,7 @@ const hostTableNames: ReadonlySet<string> = new Set([
   'change_log',
   'applied_facts',
   'scope_row',
+  'scope_fact',
 ]);
 
 function collectReservedNames(
