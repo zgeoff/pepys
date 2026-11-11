@@ -16,5 +16,7 @@ export async function readSentBody(
     return new Uint8Array(0);
   }
 
-  return await readStreamUpTo(request.body, limitBytes);
+  const body = await readStreamUpTo(request.body, limitBytes);
+
+  return body;
 }
