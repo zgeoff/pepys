@@ -13,16 +13,16 @@ metadata:
 
 ## Facts
 
-| Fact       | Where                                                                                                                                                                                                                                         |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lanes      | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with the test paths it runs and its `slow-timeout`. Bun: the `test:e2e` script in [`package.json`](../../../package.json), with the folder it runs and its `--timeout` |
-| Test utils | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                                             |
+| Fact          | Where                                                                                                                                                                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Test commands | Rust: each profile in [`nextest.toml`](../../../.config/nextest.toml), with the test paths it runs and its `slow-timeout`. Bun: the `test:e2e` script in [`package.json`](../../../package.json), with the folder it runs and its `--timeout` |
+| Test utils    | `src/test-utils/` of the package that owns what the helper starts, builds or fakes, such as [`packages/api/src/test-utils`](../../../packages/api/src/test-utils)                                                                             |
 
 ## Departures
 
 - Put a test that needs s2-lite or Garage in the root `e2e/` folder for Bun. Put it in an `e2e`
-  module for Rust. The shared [Lanes](../testing/references/slow-tests.md#lanes) table puts it in a
-  `<name>.docker.test.ts` file, but pepys runs no command for such files. `bun run test` and
+  module for Rust. The shared [slow tests reference](../testing/references/slow-tests.md) puts it in
+  a `<name>.docker.test.ts` file, but pepys runs no command for such files. `bun run test` and
   `cargo nextest run` can't hold these tests either: s2-lite takes longer to start from a fresh
   image than the `slow-timeout` of the default profile in
   [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test timeout allow.
@@ -35,9 +35,10 @@ metadata:
   test in `e2e/` needs it, in place of the setup hook of the `@zgeoff/rig` test runner in
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
   `bun run test:e2e` runs the `e2e/` folder with plain `bun test` and loads `start-stack.ts` first.
-- Leave [`rig.config.ts`](../../../rig.config.ts) without lanes. pepys runs only `bun run test`
-  through the `@zgeoff/rig` test runner, and rig never looks for an `e2e/` folder at the root of a
-  repo with workspaces.
+- Leave `lanes` empty in [`rig.config.ts`](../../../rig.config.ts), in place of the `e2e` entry that
+  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts) puts there.
+  pepys runs only `bun run test` through the `@zgeoff/rig` test runner, and rig never looks for an
+  `e2e/` folder at the root of a repo with workspaces.
 
 ## Where each test goes
 
