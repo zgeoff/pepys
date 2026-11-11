@@ -79,10 +79,17 @@ Write an entry file by these rules. scriptc refuses a break of each with an erro
 
 Sketch: [03-manifest-host.ts](./v1/sketches/03-manifest-host.ts), parts D to F.
 
-`pepys-host` has three commands. `up` deploys a consumer version, `run` applies facts, and `preview`
-shows what a version would change. `run` refuses to start when a listed consumer has no current
-version, and `run --up` deploys every listed consumer first, so a deployment whose one entry command
-is the host gets each version with no person.
+`pepys-host` has three commands, and each reads `consumers.json` at `--consumers` or
+`PEPYS_CONSUMERS`. `up [<consumer>]` deploys the listed version of a consumer, or of every listed
+consumer in file order, and stops at the first failure with the consumer's name.
+`up <consumer> --version <version>` swaps a kept previous version back in. `run` applies facts, and
+`preview <consumer>` shows what the listed version would change. `run` refuses to start when a
+listed consumer has no current version or two current versions own one table, and `run --up` deploys
+every listed consumer first, so a deployment whose one entry command is the host gets each version
+with no person.
+
+`run` runs one task per listed consumer. A failed batch stops that consumer's task, and the host
+prints the error and keeps the other tasks running. When every task has stopped, `run` exits 1.
 
 **How the host runs a module.** The host links the module's read imports by the symbols in the
 manifest, and calls the two exports in the manifest. The module reads through those imports,
@@ -90,14 +97,28 @@ computes, and returns its operations as text. Beside those reads, it imports a p
 four WASI calls, for the clock, the environment and the exit. The host parses the operations, and
 the host runs the link check and the scope replace on that output. The module calls neither.
 
-**`up`.** The host writes the module and its entry to a new version folder, runs the manifest's SQL
-on a new file, and compares the file's tables with the manifest's columns before it reads one fact.
-It replays beside the live version, takes the consumer's writer lock for the last facts, and swaps
-the current version. The live `run` task opens the new folder on its next pass.
+A row read answers `-1` for no row. For a table whose key has one column, the module passes the
+column's value as text. For a key of several columns, it passes the JSON list of the values in key
+order.
+
+**`up`.** The module file's SHA-256 must equal the entry's `module`. A version folder that holds a
+`version.json` other than the entry's is a version clash, and `up` stops. So does a table that
+another consumer's current version owns. The host writes the module and its entry to a new version
+folder, runs the manifest's SQL on a new file, and compares the file's tables with the manifest's
+columns before it reads one fact. It replays beside the live version, takes the consumer's writer
+lock for the last facts, and swaps the current version. The live `run` task opens the new folder on
+its next pass.
 
 **A fact-mode batch** is one transaction: for each fact that the consumer has not applied, the
 module, the parse, the link check, the writes; then the offset and one change log row. Any error
 rolls the batch back and stops the consumer's task.
+
+- A fact-mode change entry has the shape of a scope mode one, in the order of the operations. An
+  upsert equal to the stored row and a delete of a row that is not stored change nothing and give no
+  entry.
+- A delete operation holds its key as a row of the key's columns.
+- The batch number of a change log row counts the file's batches from 1. A consumer of two streams
+  reads one sequence number on each, so a stream offset cannot number its batches.
 
 **A scope-mode batch** is up to 100 records of one stream:
 

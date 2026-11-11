@@ -111,6 +111,9 @@ docs/
   needs Docker, the host built at `target/debug/pepys` and the consumers built, so run
   `bun run test:e2e:prepare` first, with the same two variables set. The `e2e` job in `pr.yml` runs
   the lane on every pull request.
+- The host, `target/debug/pepys`, runs `up [<consumer>]`, `run [--up]` and `preview <consumer>` from
+  the `consumers.json` at `PEPYS_CONSUMERS`, such as `build/consumers/consumers.json`, with the
+  store at `PEPYS_STORE_DIR` and the S2 log at the `PEPYS_S2_` variables.
 - `bun run test:e2e:rust` runs the Rust e2e lane, the fact log and blob store fixtures on s2-lite
   and Garage, in a stack of its own. It needs Docker and `cargo-nextest`. The `e2e` job runs it
   after the Bun lane.

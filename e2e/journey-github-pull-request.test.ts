@@ -19,7 +19,6 @@ function setupTest() {
   const s2AccessToken = process.env['PEPYS_S2_ACCESS_TOKEN'];
   const s2Basin = process.env['PEPYS_S2_BASIN'];
   const storeDirectory = process.env['PEPYS_STORE_DIR'];
-  const modulePath = process.env['PEPYS_E2E_MODULE'];
   const apiURL = process.env['PEPYS_E2E_API_URL'];
 
   invariant(
@@ -27,7 +26,6 @@ function setupTest() {
       s2AccessToken !== undefined &&
       s2Basin !== undefined &&
       storeDirectory !== undefined &&
-      modulePath !== undefined &&
       apiURL !== undefined,
     'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
   );
@@ -45,7 +43,6 @@ function setupTest() {
   const api: APIClient = createORPCClient(new RPCLink({ url: apiURL }));
 
   return {
-    modulePath,
     api,
     runHost: async (args: readonly string[]) => {
       // the preload sets the host's variables after start-up, which a spawn without env misses
@@ -128,8 +125,8 @@ test('it writes an insert, then an update, to the change log', async () => {
   expect(result).toStrictEqual({
     ok: true,
     value: [
-      { key: 'github:pull_request:1874433021', operation: 'insert' },
-      { key: 'github:pull_request:1874433021', operation: 'update' },
+      { key: '["github:pull_request:1874433021"]', operation: 'insert' },
+      { key: '["github:pull_request:1874433021"]', operation: 'update' },
     ],
   });
 });
@@ -137,7 +134,7 @@ test('it writes an insert, then an update, to the change log', async () => {
 test('it shows an empty preview diff for the module that is already current', async () => {
   const ctx = setupTest();
 
-  const output = await ctx.runHost(['preview', 'github_pull_request', '--module', ctx.modulePath]);
+  const output = await ctx.runHost(['preview', 'github_pull_request']);
 
   const diff: unknown = JSON.parse(output.stdout);
 
@@ -147,10 +144,10 @@ test('it shows an empty preview diff for the module that is already current', as
   });
 });
 
-test('it swaps nothing when up runs again with the same module', async () => {
+test('it swaps nothing when up runs again with the same consumers.json', async () => {
   const ctx = setupTest();
 
-  const output = await ctx.runHost(['up', 'github_pull_request', '--module', ctx.modulePath]);
+  const output = await ctx.runHost(['up']);
 
   expect(output).toStrictEqual({
     exitCode: 0,

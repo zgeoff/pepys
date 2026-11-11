@@ -1,7 +1,7 @@
 import { join, relative } from 'node:path';
 import { checkBuildTarget, collectGlueFiles } from '@pepys/cli';
 import type { DeploymentFailure } from '@pepys/kit';
-import { generateKyselyTypes, generateRustTypes } from '@pepys/schema';
+import { generateKyselyTypes } from '@pepys/schema';
 import { stubDeployment } from './stub-deployment.ts';
 
 export interface GeneratedFile {
@@ -38,10 +38,6 @@ export function buildGeneratedFiles(): GeneratedFiles {
         content: withHeader('//', generateKyselyTypes(consumers)),
       },
       ...sourceFiles,
-      {
-        path: 'crates/schema/src/generated.rs',
-        content: withHeader('//', generateRustTypes(consumers)),
-      },
     ],
   };
 }

@@ -2298,11 +2298,11 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "pepys-schema",
  "prost",
  "rusty-s3",
  "s2-api",
  "s2-sdk",
+ "serde",
  "serde_json",
  "sha2 0.11.1",
  "tempfile",
@@ -2314,14 +2314,6 @@ dependencies = [
  "url",
  "wasmtime",
  "wasmtime-wasi",
-]
-
-[[package]]
-name = "pepys-schema"
-version = "0.0.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

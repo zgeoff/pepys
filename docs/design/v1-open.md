@@ -29,7 +29,10 @@ did not change. What the host needed:
 The run wrote the manifest and its SQL by hand, and `pepys build` made neither. Turso took all of
 the design's SQL, and serde parsed the manifest with unknown fields refused.
 
-The sketch does not match the real host in 9 places. The first 6 change what the builder writes:
+The sketch does not match the real host in the places below. The host now holds the run's other
+findings: the `entityID` serde name, a parse that reads no field of a flat link as a table name, a
+row key built with its table name for its error, a delete that holds its key as a row, and a row
+read that answers `-1` for no row. The places that change what the builder writes:
 
 1. **The fact source needs a multi-thread runtime.** The module calls the read from inside a
    synchronous wasm call, and the index read is async. The fix is the one that the row read uses:
@@ -37,31 +40,20 @@ The sketch does not match the real host in 9 places. The first 6 change what the
    host test that runs a real read needs the multi-thread flavour.
 2. **The fact source must own what it reads from.** A read that borrows the index cannot serve the
    module. The run added a read that takes a connection, and cloned the index's connection.
-3. **The entity ID column kind needs its own serde name.** A camel case rename gives `entityId`, and
-   the manifest holds `entityID`.
-4. **A stored number is not the wire's number.** A confidence is `1` on the wire and `1.0` from a
+3. **A stored number is not the wire's number.** A confidence is `1` on the wire and `1.0` from a
    REAL column, and the two JSON values are not equal. The scope replace must compare a link's
    confidence, and each REAL column of a row, as floats. Otherwise a replay writes each link again.
-5. **The repo's parse of operations refuses the flat link.** Before the typed parse, it reads the
-   keys of each verb's body as table names, so it reports an operation on a table named
-   `confidence`. That scan goes with the function.
-6. **The repo's log port refused a pushed fact,** with the ID `event:boxxy:…`. Slice 1 made the
+4. **The repo's log port refused a pushed fact,** with the ID `event:boxxy:…`. Slice 1 made the
    envelope change in [01-kit.ts](./v1/sketches/01-kit.ts): the kit's envelope parser and the Rust
    host's envelope check both accept `event:<source>:<event ID>`.
-7. The function that builds a row's key has no table name for its error. The run added the table as
-   a parameter.
-8. A delete operation holds its key as a row, where the sketch has text, and the fact index holds an
-   open store, where the sketch has a path.
-9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
-   adapter is a few lines.
+5. The fact index holds an open store, where the sketch has a path.
+6. The scope read returns bytes and never answers `-1`, so its adapter over the row read is a few
+   lines.
 
 The [scope replace case file](./v1-host.md#the-scope-replace-case-file) is the rule for duplicate
 keys, a link stored with no scope, change entries, integer columns and a refused link. The trial run
-differs from the case file in two places, and the case file wins:
-
-- The key of a link's change entry is JSON text. The run held a JSON list.
-- The key of a row's change entry is the JSON text of the list of the key's values. The repo's
-  current entry holds the bare ID.
+held the key of a link's change entry as a JSON list, and the case file, which wins, holds JSON
+text.
 
 The sketch leaves the meanings below open, and the trial run picked one for each:
 
@@ -73,8 +65,6 @@ The sketch leaves the meanings below open, and the trial run picked one for each
 
 The run did not check:
 
-- `consumers.json`, its load rules, the version file, the version clash, the schema check at open,
-  `up`, `run` and `preview`;
 - the S2 log, because every run used the memory log;
 - a read of another scope, a consumer with two streams, and two dirty scopes through a real module;
 - a batch above 100 records, a scope above 60 facts, and speed;
@@ -132,8 +122,6 @@ brands every ID with a fixed tag and adds the kind as a second tag.
 
 - An agent's own session ID never equals the atc session ID of another session.
 - One fact ID belongs to one stream.
-- `PRAGMA table_info` in Turso gives the declared type, the not-null flag and the key order, as in
-  SQLite.
 - The body that GitHub's deliveries API returns parses to the same JSON value as the body it sent.
   The recovery pull is not in this repo yet.
 - The GitHub App's token may read a pull request and a release.

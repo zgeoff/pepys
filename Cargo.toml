@@ -15,7 +15,6 @@ clap = { version = "=4.6.7", features = ["derive", "env"] }
 http-body-util = "=0.1.5"
 hyper = "=1.12.0"
 hyper-util = { version = "=0.1.21", features = ["client-legacy", "http1", "tokio"] }
-pepys-schema = { path = "crates/schema", version = "=0.0.0" }
 prost = "=0.14.4"
 # The S3 signing alone: the Garage adapter sends each request through hyper-util.
 rusty-s3 = { version = "=0.11.0", default-features = false, features = ["rustcrypto"] }

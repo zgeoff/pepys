@@ -75,11 +75,11 @@ version that runs beside the champion, and nobody sees its output until the owne
 strategy changes only through the job or query that runs it: a new strategy in a job makes a new job
 version.
 
-| Versioned thing | Champion recorded by | Challenger compared on                                         | Score against                                       | Promoted by                    |
-| --------------- | -------------------- | -------------------------------------------------------------- | --------------------------------------------------- | ------------------------------ |
-| consumer        | the host             | every fact up to the champion's offset in each of its streams  | nothing: the report is the row diff                 | `pepys up <consumer> --module` |
-| enrichment job  | enrichment           | the inputs the champion processed, in the challenger's buckets | see the job table below                             | `pepys up enrich <job>`        |
-| ranking         | the deployment       | the golden queries                                             | the results the owner expects for each golden query | a change to the deployment     |
+| Versioned thing | Champion recorded by | Challenger compared on                                         | Score against                                       | Promoted by                |
+| --------------- | -------------------- | -------------------------------------------------------------- | --------------------------------------------------- | -------------------------- |
+| consumer        | the host             | every fact up to the champion's offset in each of its streams  | nothing: the report is the row diff                 | `pepys up [<consumer>]`    |
+| enrichment job  | enrichment           | the inputs the champion processed, in the challenger's buckets | see the job table below                             | `pepys up enrich <job>`    |
+| ranking         | the deployment       | the golden queries                                             | the results the owner expects for each golden query | a change to the deployment |
 
 A job promotion gives each consumer that reads the job a new
 [consumer version](./host.md#consumer-versions), which the host builds to the side and swaps. A

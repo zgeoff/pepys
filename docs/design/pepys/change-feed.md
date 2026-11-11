@@ -11,9 +11,10 @@ one file.
 
 ## The change log
 
-The change log is a table in each consumer file with one row per batch: the batch number, which is
-the stream offset, and the batch's changes as State Protocol messages. A message holds a type, a
-key, a value, the old value when there is one, and an operation of insert, update or delete.
+The change log is a table in each consumer file with one row per batch: the batch number, which
+counts the file's batches from 1, and the batch's changes as State Protocol messages. A message
+holds a type, a key, a value, the old value when there is one, and an operation of insert, update or
+delete.
 
 The host writes the change log row in the batch's own transaction, so a change exists exactly when
 the writes it describes exist. That removes any need for producer IDs, epochs or duplicate checks

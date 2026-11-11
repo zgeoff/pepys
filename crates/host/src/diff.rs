@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use pepys_schema::GithubPullRequestRow;
+use crate::consumer::TableInfo;
+use crate::error::HostError;
+use crate::rows::{Row, is_same_row, key_of};
 
 /// The keys of one table that differ between two versions.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -17,46 +19,57 @@ impl TableDiff {
     }
 }
 
-/// Compares the rows of the current version with the rows of the previewed one.
-#[must_use]
+/// Compares the rows of one table in the current version with its rows in the previewed one.
+///
+/// # Errors
+/// Fails when a row lacks a key column.
 pub fn diff_rows(
-    current: &[GithubPullRequestRow],
-    previewed: &[GithubPullRequestRow],
-) -> TableDiff {
-    let before: BTreeMap<&str, &GithubPullRequestRow> =
-        current.iter().map(|row| (row.id.as_str(), row)).collect();
-    let after: BTreeMap<&str, &GithubPullRequestRow> =
-        previewed.iter().map(|row| (row.id.as_str(), row)).collect();
+    table: &str,
+    info: &TableInfo,
+    current: &[Row],
+    previewed: &[Row],
+) -> Result<TableDiff, HostError> {
+    let key_rows = |rows: &[Row]| {
+        rows.iter()
+            .map(|row| Ok((key_of(table, info, row)?, row.clone())))
+            .collect::<Result<BTreeMap<String, Row>, HostError>>()
+    };
+    let before = key_rows(current)?;
+    let after = key_rows(previewed)?;
 
-    TableDiff {
+    Ok(TableDiff {
         added: after
             .keys()
             .filter(|key| !before.contains_key(*key))
-            .map(|key| (*key).to_owned())
+            .cloned()
             .collect(),
         changed: after
             .iter()
-            .filter(|(key, row)| before.get(*key).is_some_and(|old| old != *row))
-            .map(|(key, _)| (*key).to_owned())
+            .filter(|(key, row)| {
+                before
+                    .get(*key)
+                    .is_some_and(|old| !is_same_row(info, old, row))
+            })
+            .map(|(key, _)| key.clone())
             .collect(),
         removed: before
             .keys()
             .filter(|key| !after.contains_key(*key))
-            .map(|key| (*key).to_owned())
+            .cloned()
             .collect(),
-    }
+    })
 }
 
 /// The JSON `pepys preview` prints: an object keyed by table that holds only the tables with a
 /// difference, each with its added, changed and removed keys.
 #[must_use]
-pub fn diff_json(diffs: &[(&str, TableDiff)]) -> serde_json::Value {
+pub fn diff_json(diffs: &[(String, TableDiff)]) -> serde_json::Value {
     let tables: serde_json::Map<String, serde_json::Value> = diffs
         .iter()
         .filter(|(_, diff)| !diff.is_empty())
         .map(|(table, diff)| {
             (
-                (*table).to_owned(),
+                table.clone(),
                 serde_json::json!({
                     "added": diff.added,
                     "changed": diff.changed,
@@ -70,27 +83,30 @@ pub fn diff_json(diffs: &[(&str, TableDiff)]) -> serde_json::Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
+    use serde_json::{Value, json};
+
     use super::*;
 
-    fn row(id: &str, title: &str) -> GithubPullRequestRow {
-        GithubPullRequestRow {
-            id: id.to_owned(),
-            number: 1,
-            repository_id: "github:repo:1".to_owned(),
-            title: title.to_owned(),
-            state: "open".to_owned(),
-            is_draft: false,
-            is_merged: false,
-            author_id: None,
-            url: "https://github.example/acme/harbour/pull/1".to_owned(),
-            merge_commit_sha: None,
-            created_at: "2026-10-01T09:00:00Z".to_owned(),
-            updated_at: "2026-10-01T09:00:00Z".to_owned(),
-            closed_at: None,
-            merged_at: None,
-            payload: serde_json::Value::Null,
-        }
+    fn info() -> TableInfo {
+        serde_json::from_value(json!({
+            "columns": {
+                "id": {"kind": "entityID", "nullable": false},
+                "title": {"kind": "text", "nullable": false},
+            },
+            "primaryKey": ["id"],
+            "indexes": [],
+        }))
+        .expect("a table")
+    }
+
+    fn row(id: &str, title: &str) -> Row {
+        let Value::Object(row) = json!({"id": id, "title": title}) else {
+            panic!("a row is an object");
+        };
+
+        row
     }
 
     #[test]
@@ -99,11 +115,11 @@ mod tests {
         let previewed = [row("a", "same"), row("b", "new"), row("d", "fresh")];
 
         assert_eq!(
-            diff_rows(&current, &previewed),
+            diff_rows("ticket", &info(), &current, &previewed).expect("a diff"),
             TableDiff {
-                added: vec!["d".to_owned()],
-                changed: vec!["b".to_owned()],
-                removed: vec!["c".to_owned()],
+                added: vec![r#"["d"]"#.to_owned()],
+                changed: vec![r#"["b"]"#.to_owned()],
+                removed: vec![r#"["c"]"#.to_owned()],
             }
         );
     }
@@ -112,14 +128,18 @@ mod tests {
     fn it_finds_no_difference_between_equal_rows() {
         let rows = [row("a", "same")];
 
-        assert!(diff_rows(&rows, &rows).is_empty());
+        assert!(
+            diff_rows("ticket", &info(), &rows, &rows)
+                .expect("a diff")
+                .is_empty()
+        );
     }
 
     #[test]
     fn it_prints_an_empty_object_for_an_empty_diff() {
         assert_eq!(
-            diff_json(&[("github_pull_request", TableDiff::default())]),
-            serde_json::json!({})
+            diff_json(&[("ticket".to_owned(), TableDiff::default())]),
+            json!({})
         );
     }
 
@@ -132,10 +152,8 @@ mod tests {
         };
 
         assert_eq!(
-            diff_json(&[("github_pull_request", diff)]),
-            serde_json::json!({
-                "github_pull_request": {"added": ["d"], "changed": [], "removed": ["c"]}
-            })
+            diff_json(&[("ticket".to_owned(), diff)]),
+            json!({"ticket": {"added": ["d"], "changed": [], "removed": ["c"]}})
         );
     }
 }

@@ -21,6 +21,7 @@ const consumerName = 'github_pull_request';
 const streamName = 'facts.github.pull_request';
 const webhookSecret = 'github-pr-webhook-secret';
 const host = join(root, 'target/debug/pepys');
+const consumersPath = join(root, 'build/consumers/consumers.json');
 
 // closes what the setup started in the reverse order, and runs every step even when one throws
 const cleanup = new AsyncDisposableStack();
@@ -29,18 +30,21 @@ const testsDone = Promise.withResolvers<void>();
 
 beforeAll(
   async () => {
-    const modulePath = await readModule();
+    await checkBuilt();
+
     const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-'));
 
     cleanup.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
     const stack = await startStack();
 
-    Object.assign(process.env, { ...buildStackEnv(stack), PEPYS_STORE_DIR: storeDirectory });
+    Object.assign(process.env, {
+      ...buildStackEnv(stack),
+      PEPYS_STORE_DIR: storeDirectory,
+      PEPYS_CONSUMERS: consumersPath,
+    });
 
-    await runSlice({ stack, modulePath, storeDirectory });
-
-    process.env['PEPYS_E2E_MODULE'] = modulePath;
+    await runSlice({ stack, storeDirectory });
 
     process.env['PEPYS_E2E_API_URL'] = await startAPI(stack.stop);
   },
@@ -51,26 +55,22 @@ beforeAll(
 
 afterAll(() => cleanup.disposeAsync());
 
-// the module that consumers.json lists, which the last `bun run consumers:build` wrote
-async function readModule(): Promise<string> {
-  const directory = join(root, 'build/consumers');
-  const manifestPath = join(directory, 'consumers.json');
-
-  if (!existsSync(host) || !existsSync(manifestPath)) {
+// the host reads consumers.json and each module it lists, which the last
+// `bun run consumers:build` wrote
+async function checkBuilt(): Promise<void> {
+  if (!existsSync(host) || !existsSync(consumersPath)) {
     throw new Error('build the host and the consumers first: bun run test:e2e:prepare');
   }
 
-  const text: unknown = await Bun.file(manifestPath).json();
+  const text: unknown = await Bun.file(consumersPath).json();
 
   const listed = consumerBuildManifestSchema
     .parse(text)
-    .consumers.find((consumer) => consumer.name === consumerName);
+    .consumers.some((consumer) => consumer.name === consumerName);
 
-  if (listed === undefined) {
+  if (!listed) {
     throw new Error(`consumers.json lists no ${consumerName}: bun run test:e2e:prepare`);
   }
-
-  return join(directory, listed.path);
 }
 
 // withStack removes the compose project when its callback returns, so the callback holds the stack
@@ -107,7 +107,6 @@ async function waitForStackEnd(run: Promise<void>): Promise<null> {
 
 interface SliceOptions {
   stack: RunningStack;
-  modulePath: string;
   storeDirectory: string;
 }
 
@@ -123,7 +122,7 @@ async function runSlice(options: SliceOptions): Promise<void> {
   const webhookURL = `http://127.0.0.1:${ingestPort}/webhook`;
 
   await waitForIngest(webhookURL, options.stack.stop);
-  await runHost(['up', consumerName, '--module', options.modulePath]);
+  await runHost(['up']);
 
   const opened = buildDelivery({
     deliveryID: 'github-pr-delivery-1',
@@ -272,7 +271,7 @@ async function runUntilCaughtUp(
   tail: number,
   stop: AbortSignal,
 ): Promise<void> {
-  const run = runChild([host, 'run', consumerName], process.env);
+  const run = runChild([host, 'run'], process.env);
   const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
   const deadline = Date.now() + 60_000;
 

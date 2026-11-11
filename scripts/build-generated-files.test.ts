@@ -30,6 +30,5 @@ test('it builds the files of the github pull request consumer', () => {
     'packages/schema/src/generated/kysely-db.ts',
     'packages/source-github/src/generated/github-pull-request-boundary.ts',
     'packages/source-github/src/generated/github-pull-request.sql',
-    'crates/schema/src/generated.rs',
   ]);
 });

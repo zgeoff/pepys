@@ -34,24 +34,29 @@ struct Connection {
     /// The directory that holds the consumers' files.
     #[arg(long, env = "PEPYS_STORE_DIR", global = true)]
     store_dir: Option<PathBuf>,
+    /// The consumers.json that `pepys build` wrote.
+    #[arg(long, env = "PEPYS_CONSUMERS", global = true)]
+    consumers: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Tail the stream and apply batches until stopped.
-    Run { consumer: String },
-    /// Build a module's version beside the current one and swap it in.
+    /// Run every listed consumer's current version, tailing its streams until stopped.
+    Run {
+        /// Deploy every listed consumer first.
+        #[arg(long)]
+        up: bool,
+    },
+    /// Build a listed version beside the current one and swap it in; with no name, every listed
+    /// consumer in file order.
     Up {
-        consumer: String,
-        #[arg(long)]
-        module: PathBuf,
+        consumer: Option<String>,
+        /// A kept previous version to swap back in, in place of the listed one.
+        #[arg(long, requires = "consumer")]
+        version: Option<String>,
     },
-    /// Print the row diff a module would make against the current version.
-    Preview {
-        consumer: String,
-        #[arg(long)]
-        module: PathBuf,
-    },
+    /// Print the row diff the listed version would make against the current version.
+    Preview { consumer: String },
 }
 
 fn required<T>(value: Option<T>, flag: &str) -> Result<T, HostError> {
@@ -66,6 +71,7 @@ fn config(connection: Connection) -> Result<HostConfig, HostError> {
             basin: required(connection.s2_basin, "--s2-basin")?,
         },
         store_dir: required(connection.store_dir, "--store-dir")?,
+        consumers: required(connection.consumers, "--consumers")?,
     })
 }
 
@@ -73,14 +79,17 @@ async fn execute(cli: Cli) -> Result<(), HostError> {
     let config = config(cli.connection)?;
 
     match cli.command {
-        Command::Run { consumer } => commands::run(&config, &consumer).await,
-        Command::Up { consumer, module } => {
-            print!("{}", commands::up(&config, &consumer, &module).await?);
+        Command::Run { up } => commands::run(&config, up).await,
+        Command::Up { consumer, version } => {
+            print!(
+                "{}",
+                commands::up(&config, consumer.as_deref(), version.as_deref()).await?
+            );
 
             Ok(())
         }
-        Command::Preview { consumer, module } => {
-            println!("{}", commands::preview(&config, &consumer, &module).await?);
+        Command::Preview { consumer } => {
+            println!("{}", commands::preview(&config, &consumer).await?);
 
             Ok(())
         }

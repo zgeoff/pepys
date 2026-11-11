@@ -8,8 +8,78 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use crate::batch::FactRunner;
+use crate::consumer::{BuildManifest, ConsumerManifest, read_build_manifest_text};
 use crate::error::HostError;
 use crate::module_runner::RowSource;
+
+/// The case "accepts the stub deployment" of the shared manifest case file: the `consumers.json`
+/// that `pepys build` writes for the repo's stub deployment, with one fact consumer of the GitHub
+/// pull request table.
+///
+/// # Panics
+/// When the case file has no such case or the host refuses it.
+#[must_use]
+pub fn stub_build_manifest() -> BuildManifest {
+    let cases: Value = serde_json::from_str(include_str!(
+        "../../../packages/schema/src/consumer-manifest/consumer-manifest-cases.json"
+    ))
+    .unwrap_or_else(|error| panic!("the case file: {error}"));
+    let file = cases["cases"]
+        .as_array()
+        .and_then(|cases| {
+            cases
+                .iter()
+                .find(|case| case["title"] == "accepts the stub deployment")
+        })
+        .map_or_else(
+            || panic!("the case file holds the stub deployment"),
+            |case| case["file"].to_string(),
+        );
+
+    read_build_manifest_text(&file).unwrap_or_else(|error| panic!("the stub: {error}"))
+}
+
+/// A module in the WebAssembly text form, which wasmtime compiles as it compiles a binary one. It
+/// exports `init` and `apply` as a scriptc module does, and `apply` returns `output` for any fact.
+#[must_use]
+pub fn build_text_module(init: &str, apply: &str, output: &str) -> Vec<u8> {
+    let data = output.replace('\\', "\\\\").replace('"', "\\\"");
+    let length = output.len();
+
+    format!(
+        r#"(module
+  (memory (export "memory") 1)
+  (global $next (mut i32) (i32.const 32768))
+  (data (i32.const 16) "{data}")
+  (func (export "_initialize"))
+  (func (export "{init}"))
+  (func (export "scriptc_alloc") (param $size i32) (result i32)
+    (local $at i32)
+    (local.set $at (global.get $next))
+    (global.set $next (i32.add (global.get $next) (i32.add (local.get $size) (i32.const 8))))
+    (local.get $at))
+  (func (export "{apply}") (param i32 i32 i32 i32)
+    (i32.store (local.get 2) (i32.const 16))
+    (i32.store (local.get 3) (i32.const {length}))))"#
+    )
+    .into_bytes()
+}
+
+/// The manifest of the stub deployment's one consumer.
+///
+/// # Panics
+/// When the stub has no consumer.
+#[must_use]
+pub fn stub_manifest() -> ConsumerManifest {
+    stub_build_manifest()
+        .consumers
+        .into_iter()
+        .next()
+        .map_or_else(
+            || panic!("the stub lists a consumer"),
+            |consumer| consumer.manifest,
+        )
+}
 
 /// A pull request row as JSON, which differs from another only by its ID and title.
 pub fn row_json(id: &str, title: &str) -> Value {
@@ -90,7 +160,7 @@ mod tests {
         struct NoRows;
 
         impl RowSource for NoRows {
-            fn read_row(&self, _key: &str) -> Result<Option<Vec<u8>>, HostError> {
+            fn read_row(&self, _table: &str, _key: &str) -> Result<Option<Vec<u8>>, HostError> {
                 Ok(None)
             }
         }

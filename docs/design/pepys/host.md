@@ -60,16 +60,17 @@ dirty every dependent scope whose input rows the diff changed. It asks nothing. 
 preview's throwaway file, so a deploy of a new version replays from the start.
 
 Building to the side keeps readers on the old version until the swap, so no reader sees a
-half-replayed table. The previous version's file stays on disk. `pepys up` with the previous hash
-catches that file up from its own offsets to the live head and swaps it back, which costs only the
-facts that arrived since the earlier swap, never a full replay.
+half-replayed table. The previous version's file stays on disk.
+`pepys up <consumer> --version <version>` with the previous version catches that file up from its
+own offsets to the live head and swaps it back, which costs only the facts that arrived since the
+earlier swap, never a full replay.
 
 ## File layout
 
 ```text
 store/<consumer>/
-  <version hash>/     the database file with its write-ahead log files
-  <version hash>/
+  <version>/          the database file with its write-ahead log files, the module and version.json
+  <version>/
   current ->          symlink to the live version's directory
 ```
 

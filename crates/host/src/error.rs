@@ -22,6 +22,8 @@ pub enum HostError {
     NotOwned { table: String },
     #[error("the consumer returned an operation the host cannot read: {0}")]
     BadOperation(String),
+    #[error("the consumer returned a row of {table} the host refuses: {reason}")]
+    BadRow { table: String, reason: String },
     #[error("the module does not export {0}")]
     MissingExport(String),
     #[error("the module wrote a result outside its memory")]
@@ -38,4 +40,38 @@ pub enum HostError {
     Locked(String),
     #[error("{0}")]
     Config(String),
+    #[error("the manifest is refused at {path}: {reason}")]
+    BadManifest { path: String, reason: String },
+    #[error("the module file of {consumer} has the hash {found}, and the manifest lists {listed}")]
+    ModuleHash {
+        consumer: String,
+        listed: String,
+        found: String,
+    },
+    #[error("the file does not match the manifest's table {table}: {reason}")]
+    SchemaMismatch { table: String, reason: String },
+    #[error("{0} has no current version; run pepys up {0}")]
+    NoCurrentVersion(String),
+    #[error(
+        "{consumer} already holds a version {version} built from another manifest; the host refuses two manifests under one version"
+    )]
+    VersionClash { consumer: String, version: String },
+    #[error("{consumer} declares the table {table}, which the current version of {owner} owns")]
+    TableOwned {
+        consumer: String,
+        table: String,
+        owner: String,
+    },
+    #[error("this host runs fact-mode consumers only, and {0} is a scope consumer")]
+    ScopeMode(String),
+    #[error("the task of {consumer} stopped: {source}")]
+    Stopped {
+        consumer: String,
+        source: Box<HostError>,
+    },
+    #[error("up {consumer} failed: {source}")]
+    Up {
+        consumer: String,
+        source: Box<HostError>,
+    },
 }

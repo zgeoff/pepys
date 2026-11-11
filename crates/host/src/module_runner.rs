@@ -1,5 +1,4 @@
 use std::fmt::Write;
-use std::path::Path;
 use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
@@ -8,14 +7,16 @@ use wasmtime_wasi::p1::{self, WasiP1Ctx};
 
 use crate::batch::FactRunner;
 use crate::clock;
-use crate::consumer::ConsumerSpec;
+use crate::consumer::{ConsumerManifest, Read};
 use crate::error::HostError;
 
 /// Serves the consumer's row reads. The host answers a read with the JSON of the stored row.
 pub trait RowSource: Send + Sync {
+    /// Reads the row of `table` whose key the module passed as `argument`.
+    ///
     /// # Errors
     /// Fails when the row cannot be read.
-    fn read_row(&self, key: &str) -> Result<Option<Vec<u8>>, HostError>;
+    fn read_row(&self, table: &str, argument: &str) -> Result<Option<Vec<u8>>, HostError>;
 }
 
 struct Host {
@@ -23,11 +24,12 @@ struct Host {
     rows: Arc<dyn RowSource>,
 }
 
-/// A consumer module compiled once and instantiated for each fact.
+/// A consumer module compiled once and instantiated for each fact, linked by the symbols its
+/// manifest names.
 pub struct ModuleRunner {
     engine: Engine,
     module: Module,
-    spec: &'static ConsumerSpec,
+    manifest: Arc<ConsumerManifest>,
 }
 
 /// The SHA-256 of a module's bytes in lowercase hexadecimal, which names its version.
@@ -44,27 +46,15 @@ pub fn hash_module(bytes: &[u8]) -> String {
 impl ModuleRunner {
     /// # Errors
     /// Fails when the bytes are not a valid module.
-    pub fn new(bytes: &[u8], spec: &'static ConsumerSpec) -> Result<Self, HostError> {
+    pub fn new(bytes: &[u8], manifest: Arc<ConsumerManifest>) -> Result<Self, HostError> {
         let engine = Engine::default();
         let module = Module::new(&engine, bytes)?;
 
         Ok(Self {
             engine,
             module,
-            spec,
+            manifest,
         })
-    }
-
-    /// # Errors
-    /// Fails when the file cannot be read or is not a valid module.
-    pub fn from_file(
-        path: &Path,
-        spec: &'static ConsumerSpec,
-    ) -> Result<(Self, String), HostError> {
-        let bytes = std::fs::read(path)?;
-        let hash = hash_module(&bytes);
-
-        Ok((Self::new(&bytes, spec)?, hash))
     }
 
     fn instantiate(&self, rows: Arc<dyn RowSource>) -> Result<(Store<Host>, Instance), HostError> {
@@ -77,9 +67,44 @@ impl ModuleRunner {
 
         p1::add_to_linker_sync(&mut linker, |host| &mut host.wasi)?;
 
-        for read in self.spec.reads {
-            linker.func_wrap("scriptc", read.length, read_row_length)?;
-            linker.func_wrap("scriptc", read.into, read_row_into)?;
+        for read in &self.manifest.imports {
+            match read {
+                Read::Row {
+                    table,
+                    length,
+                    into,
+                } => {
+                    let length_table = table.clone();
+                    let into_table = table.clone();
+
+                    linker.func_wrap(
+                        "scriptc",
+                        length,
+                        move |caller: Caller<'_, Host>, pointer: i32, size: i32| {
+                            read_row_length(caller, &length_table, pointer, size)
+                        },
+                    )?;
+                    linker.func_wrap(
+                        "scriptc",
+                        into,
+                        move |caller: Caller<'_, Host>,
+                              key_pointer: i32,
+                              key_length: i32,
+                              row_pointer: i32,
+                              row_length: i32| {
+                            read_row_into(
+                                caller,
+                                &into_table,
+                                (key_pointer, key_length),
+                                (row_pointer, row_length),
+                            )
+                        },
+                    )?;
+                }
+                Read::ScopeFacts { .. } => {
+                    return Err(HostError::ScopeMode(self.manifest.name.clone()));
+                }
+            }
         }
 
         linker.func_wrap("scriptc", "panic", panic)?;
@@ -90,7 +115,7 @@ impl ModuleRunner {
             .get_typed_func::<(), ()>(&mut store, "_initialize")?
             .call(&mut store, ())?;
         instance
-            .get_typed_func::<(), ()>(&mut store, &format!("{}_init", self.spec.name))?
+            .get_typed_func::<(), ()>(&mut store, &self.manifest.exports.init)?
             .call(&mut store, ())?;
 
         Ok((store, instance))
@@ -100,9 +125,8 @@ impl ModuleRunner {
 impl FactRunner for ModuleRunner {
     fn apply_fact(&mut self, fact: &str, rows: Arc<dyn RowSource>) -> Result<String, HostError> {
         let (mut store, instance) = self.instantiate(rows)?;
-        let export = format!("{}_apply_fact", self.spec.name);
 
-        call_string_export(&mut store, &instance, &export, fact)
+        call_string_export(&mut store, &instance, &self.manifest.exports.apply, fact)
     }
 }
 
@@ -171,6 +195,7 @@ fn read_key(caller: &mut Caller<'_, Host>, pointer: i32, length: i32) -> wasmtim
 
 fn read_stored(
     caller: &mut Caller<'_, Host>,
+    table: &str,
     pointer: i32,
     length: i32,
 ) -> wasmtime::Result<Option<Vec<u8>>> {
@@ -179,17 +204,18 @@ fn read_stored(
     caller
         .data()
         .rows
-        .read_row(&key)
+        .read_row(table, &key)
         .map_err(|error| wasmtime::Error::msg(error.to_string()))
 }
 
 fn read_row_length(
     mut caller: Caller<'_, Host>,
+    table: &str,
     pointer: i32,
     length: i32,
 ) -> wasmtime::Result<f64> {
     Ok(
-        read_stored(&mut caller, pointer, length)?.map_or(-1.0, |row| {
+        read_stored(&mut caller, table, pointer, length)?.map_or(-1.0, |row| {
             f64::from(u32::try_from(row.len()).unwrap_or(u32::MAX))
         }),
     )
@@ -197,12 +223,11 @@ fn read_row_length(
 
 fn read_row_into(
     mut caller: Caller<'_, Host>,
-    key_pointer: i32,
-    key_length: i32,
-    row_pointer: i32,
-    row_length: i32,
+    table: &str,
+    (key_pointer, key_length): (i32, i32),
+    (row_pointer, row_length): (i32, i32),
 ) -> wasmtime::Result<()> {
-    let Some(row) = read_stored(&mut caller, key_pointer, key_length)? else {
+    let Some(row) = read_stored(&mut caller, table, key_pointer, key_length)? else {
         return Ok(());
     };
     let capacity = usize::try_from(row_length)?;
