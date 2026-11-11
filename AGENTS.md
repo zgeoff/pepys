@@ -83,8 +83,8 @@ docs/
   checks; `bacon` runs clippy on every save. CI also runs `cargo fmt --check`, `cargo shear`,
   `cargo deny check` and `cargo test --doc`, because nextest skips doctests.
 - `bun run schema:generate` writes the generated files, and `bun run schema:check` exits 1 on a
-  stale one. The glue of each consumer comes from `collectGlueFiles` in `@pepys/cli`, the code that
-  `pepys build <file> [--check]` runs, so the repo has one glue writer.
+  stale one. Both write each consumer's boundary file and SQL schema, its glue, with the code of
+  `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`. That command needs no Docker.
 - `bun run consumers:build` compiles each consumer with scriptc to
   `build/consumers/<name>/<hash>.wasm`. It needs zig 0.16.0 and wasm-tools 1.262.0, the version CI
   pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
