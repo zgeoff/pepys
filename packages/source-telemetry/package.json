@@ -1,0 +1,17 @@
+{
+  "name": "@pepys/source-telemetry",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/kit": "workspace:*",
+    "@zgeoff/std": "catalog:",
+    "tiny-invariant": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@pepys/cli": "workspace:*",
+    "@pepys/ingest": "workspace:*",
+    "@pepys/testing": "workspace:*"
+  }
+}

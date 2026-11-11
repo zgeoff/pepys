@@ -173,6 +173,20 @@
         "tiny-invariant": "catalog:",
       },
     },
+    "packages/source-telemetry": {
+      "name": "@pepys/source-telemetry",
+      "dependencies": {
+        "@pepys/kit": "workspace:*",
+        "@zgeoff/std": "catalog:",
+        "tiny-invariant": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@pepys/cli": "workspace:*",
+        "@pepys/ingest": "workspace:*",
+        "@pepys/testing": "workspace:*",
+      },
+    },
     "packages/testing": {
       "name": "@pepys/testing",
       "version": "0.0.1",
@@ -555,6 +569,8 @@
     "@pepys/schema": ["@pepys/schema@workspace:packages/schema"],
 
     "@pepys/source-github": ["@pepys/source-github@workspace:packages/source-github"],
+
+    "@pepys/source-telemetry": ["@pepys/source-telemetry@workspace:packages/source-telemetry"],
 
     "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
 
