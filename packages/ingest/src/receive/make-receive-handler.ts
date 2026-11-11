@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { isDeliveryAuthentic } from '@pepys/kit';
-import type { ReceivePath, Received, Sender, SenderProof, SourceDefinition } from '@pepys/kit';
+import type {
+  ReceivePath,
+  Received,
+  Sender,
+  SenderProof,
+  SenderRequirement,
+  SourceDefinition,
+} from '@pepys/kit';
 import { match } from 'ts-pattern';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
 import { buildFailureAnswer, buildRetryAnswer } from './answers/build-failure-answer.ts';
@@ -179,13 +186,30 @@ async function readCheckedDelivery(
     return { kind: 'checked', sent, sender: undefined };
   }
 
-  const sender = await dependencies.senderProof.prove(path.sender, request.headers);
+  const sender = await readProvenSender(path.sender, request.headers, dependencies.senderProof);
 
   if (sender === null) {
     return { kind: 'answer', answer: buildFailureAnswer(401, 'not authorised') };
   }
 
   return { kind: 'checked', sent, sender };
+}
+
+// A proof that throws proves nothing. The error may quote the request, so only its fact is logged.
+async function readProvenSender(
+  requirement: SenderRequirement,
+  headers: Headers,
+  senderProof: SenderProof,
+): Promise<Sender | null> {
+  try {
+    const sender = await senderProof.prove(requirement, headers);
+
+    return sender;
+  } catch {
+    console.error('the sender proof threw, so the delivery proves no sender');
+
+    return null;
+  }
 }
 
 // On a path with a sender, one body from two senders is two deliveries.

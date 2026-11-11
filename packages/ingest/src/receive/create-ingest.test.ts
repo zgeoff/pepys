@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, spyOn, test } from 'bun:test';
 import { createHmac } from 'node:crypto';
 import type { EntityID, StreamName, StreamOffset } from '@pepys/kit';
 import { createFactBatchSender } from '@pepys/kit/send';
@@ -461,6 +461,34 @@ test('it refuses every delivery on a path that needs a sender when no adapter pr
   const ctx = setupTest();
   const log = ctx.createLog();
   const ingest = ctx.createIngestOver({ log, senderProof: noSenderProof });
+
+  const request = ctx.buildBeaconRequest({
+    body: JSON.stringify({ readings: [{ lamp: 'north', at: '2026-10-01T08:00:00Z', level: 3 }] }),
+  });
+
+  const response = await ingest.handleRequest(request);
+  const answer = await ctx.readAnswer(response);
+  const ids = await ctx.readIDs(ctx.streams.lamp, log);
+
+  expect({ answer, ids }).toStrictEqual({
+    answer: { status: 401, body: { error: 'not authorised' } },
+    ids: [],
+  });
+});
+
+test('it refuses with 401 a delivery whose sender proof throws, and stores nothing', async () => {
+  const ctx = setupTest();
+  const log = ctx.createLog();
+  const error = spyOn(console, 'error').mockImplementation(() => null);
+
+  onTestFinished(() => {
+    error.mockRestore();
+  });
+
+  const ingest = ctx.createIngestOver({
+    log,
+    senderProof: { prove: () => Promise.reject(new Error('the verifier broke')) },
+  });
 
   const request = ctx.buildBeaconRequest({
     body: JSON.stringify({ readings: [{ lamp: 'north', at: '2026-10-01T08:00:00Z', level: 3 }] }),
