@@ -19,7 +19,10 @@
     "access": "public"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "catalog:",
     "@orpc/contract": "catalog:",
+    "@orpc/mcp": "catalog:",
+    "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@pepys/contract": "workspace:*",
     "@pepys/kit": "workspace:*",
@@ -32,12 +35,13 @@
     "openapi-types": "catalog:",
     "tiny-invariant": "catalog:",
     "ts-pattern": "catalog:",
+    "type-fest": "catalog:",
     "typebox": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@orpc/client": "catalog:",
-    "@pepys/ingest": "workspace:*",
+    "@pepys/testing": "workspace:*",
     "@zgeoff/std": "catalog:"
   }
 }

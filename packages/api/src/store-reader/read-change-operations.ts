@@ -1,29 +1,38 @@
-import type { Result } from '@pepys/kit';
+import type { ConsumerDeclaration, Result, StoreReader, StoreReaderFailure } from '@pepys/kit';
+import { sql } from 'kysely';
 import { z } from 'zod';
-import type { StoreReader } from './store-reader.ts';
 
 interface ChangeOperation {
   key: string;
   operation: string;
 }
 
+const changeLogRowSchema = z.object({ changes: z.string() });
+const changeLogRowsSchema = z.object({ rows: z.array(changeLogRowSchema) });
+
+const changeSchema = z.object({
+  key: z.string(),
+  headers: z.object({ operation: z.string() }),
+});
+
 // each change log row holds one batch as a JSON list of State Protocol messages
-const headersSchema = z.object({ operation: z.string() });
-const changesSchema = z.array(z.object({ key: z.string(), headers: headersSchema }));
+const changesSchema = z.array(changeSchema);
 
 export async function readChangeOperations(
   store: StoreReader,
-  consumerName: string,
-): Promise<Result<ChangeOperation[], { reason: 'no-current-version' }>> {
-  const result = await store.withConsumer(consumerName, (transaction) =>
-    transaction.selectFrom('change_log').select('changes').orderBy('batch').execute(),
+  consumer: ConsumerDeclaration,
+): Promise<Result<ChangeOperation[], StoreReaderFailure>> {
+  const table = sql.table(`${consumer.name}.change_log`);
+
+  const result = await store.withConsumers([consumer], (db) =>
+    sql`select changes from ${table} order by batch`.execute(db),
   );
 
   if (!result.ok) {
     return result;
   }
 
-  const operations = result.value.flatMap((row) => {
+  const operations = changeLogRowsSchema.parse(result.value).rows.flatMap((row) => {
     const changes: unknown = JSON.parse(row.changes);
 
     return changesSchema

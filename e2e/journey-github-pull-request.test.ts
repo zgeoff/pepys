@@ -2,19 +2,16 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import {
-  createStoreReader,
-  openConsumerDatabase,
-  readChangeOperations,
-  readOffsets,
-  readPullRequests,
-} from '@pepys/api';
-import type { APIClient } from '@pepys/api';
+import { createStoreReader, readChangeOperations, readOffsets } from '@pepys/api';
+import type { DeploymentClient } from '@pepys/api';
+import { defineDeployment } from '@pepys/kit';
+import { githubPlugin, githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 
 function setupTest() {
+  const deployment = defineDeployment({ name: 'github', plugins: [githubPlugin] });
   const s2Endpoint = process.env['PEPYS_S2_ENDPOINT'];
   const s2AccessToken = process.env['PEPYS_S2_ACCESS_TOKEN'];
   const s2Basin = process.env['PEPYS_S2_BASIN'];
@@ -31,7 +28,7 @@ function setupTest() {
   );
 
   const host = join(import.meta.dir, '../target/debug/pepys');
-  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
+  const store = createStoreReader({ storeDirectory });
 
   onTestFinished(() => store.close());
 
@@ -40,7 +37,11 @@ function setupTest() {
     endpoints: { account: s2Endpoint, basin: s2Endpoint },
   });
 
-  const api: APIClient = createORPCClient(new RPCLink({ url: apiURL }));
+  const apiAddress = new URL(apiURL);
+
+  const api: DeploymentClient<typeof deployment> = createORPCClient(
+    new RPCLink({ url: '/rpc', origin: apiAddress.origin }),
+  );
 
   return {
     api,
@@ -63,9 +64,12 @@ function setupTest() {
       return { exitCode, stdout };
     },
     readTail: () => s2.basin(s2Basin).stream('facts.github.pull_request').checkTail(),
-    readPullRequests: () => readPullRequests(store),
-    readOffsets: () => readOffsets(store, 'github_pull_request'),
-    readChangeOperations: () => readChangeOperations(store, 'github_pull_request'),
+    readPullRequests: () =>
+      store.withConsumers([githubPullRequestConsumer], (db) =>
+        db.selectFrom('github_pull_request').selectAll().orderBy('id').execute(),
+      ),
+    readOffsets: () => readOffsets(store, githubPullRequestConsumer),
+    readChangeOperations: () => readChangeOperations(store, githubPullRequestConsumer),
   };
 }
 
@@ -80,7 +84,7 @@ test('it appends three records after four deliveries, because ingest drops the r
 test('it stores the row of the newest pull request update, not the older one that arrived out of order', async () => {
   const ctx = setupTest();
 
-  const result = await ctx.readPullRequests();
+  const result: unknown = await ctx.readPullRequests();
 
   expect(result).toStrictEqual({
     ok: true,
@@ -169,6 +173,8 @@ test("it serves the stored row through the API's get_entity", async () => {
       actor: 'github:user:4401',
       updated_at: '2026-10-01T10:00:00Z',
     },
+    consumer: 'github_pull_request',
+    table: 'github_pull_request',
     row: {
       id: 'github:pull_request:1874433021',
       number: 12,
@@ -201,6 +207,5 @@ test("it serves the stored row through the API's get_entity", async () => {
         merged_at: null,
       },
     },
-    aliases: [],
   });
 });

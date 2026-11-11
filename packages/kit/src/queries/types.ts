@@ -5,18 +5,22 @@ import type { ConsumerDeclaration } from '../consumers/types.ts';
 import type { ConsumersDB } from '../store-reader/store-reader.ts';
 import type { TableRow } from '../tables/table-row.ts';
 
-// The Kysely tables of a set of consumers, from their declarations.
-export type StoreTables<Consumers extends readonly ConsumerDeclaration[]> = Simplify<
-  UnionToIntersection<
-    {
-      [Index in keyof Consumers]: {
-        -readonly [Table in keyof Consumers[Index]['tables']]: TableRow<
-          Consumers[Index]['tables'][Table]
-        >;
-      };
-    }[number]
-  >
->;
+// The Kysely tables of a set of consumers, from their declarations. No consumers give no tables,
+// where the intersection of an empty union would give `never`.
+export type StoreTables<Consumers extends readonly ConsumerDeclaration[]> =
+  Consumers extends readonly []
+    ? Record<never, never>
+    : Simplify<
+        UnionToIntersection<
+          {
+            [Index in keyof Consumers]: {
+              -readonly [Table in keyof Consumers[Index]['tables']]: TableRow<
+                Consumers[Index]['tables'][Table]
+              >;
+            };
+          }[number]
+        >
+      >;
 
 export interface QueryCall<Input, Consumers extends readonly ConsumerDeclaration[]> {
   input: Input;

@@ -1,77 +1,64 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
+import {
+  createConsumerVersion,
+  writeCurrentVersion,
+} from '../test-utils/create-consumer-version.ts';
+import { harbourVesselConsumer } from '../test-utils/harbour/harbour-plugin.ts';
 import { createStoreReader } from './create-store-reader.ts';
-import { openConsumerDatabase } from './open-consumer-database.ts';
 import { readChangeOperations } from './read-change-operations.ts';
 
 async function setupTest() {
-  const stack = new AsyncDisposableStack();
-
-  onTestFinished(() => stack.disposeAsync());
-
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-change-log-'));
 
-  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
+  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
 
-  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
+  const store = createStoreReader({ storeDirectory });
 
-  stack.defer(() => store.close());
+  onTestFinished(() => store.close());
 
-  return { store, consumerDirectory: join(storeDirectory, 'github_pull_request') };
+  return { store, storeDirectory };
 }
 
 test('it reads the key and operation of each change, batch by batch', async () => {
   const ctx = await setupTest();
 
-  await createStubConsumerVersion({
-    versionDirectory: join(ctx.consumerDirectory, 'v1'),
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
     changeLog: [
       {
         batch: 2,
         changes:
-          '[{"key":"github:pull_request:5","headers":{"operation":"update"}},{"key":"github:pull_request:6","headers":{"operation":"insert"}}]',
+          '[{"key":"harbour:vessel:7","headers":{"operation":"update"}},{"key":"harbour:vessel:8","headers":{"operation":"insert"}}]',
       },
-      { batch: 1, changes: '[{"key":"github:pull_request:5","headers":{"operation":"insert"}}]' },
+      { batch: 1, changes: '[{"key":"harbour:vessel:7","headers":{"operation":"insert"}}]' },
     ],
   });
 
-  await symlink(join(ctx.consumerDirectory, 'v1'), join(ctx.consumerDirectory, 'current'));
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
-  const result = await readChangeOperations(ctx.store, 'github_pull_request');
+  const result = await readChangeOperations(ctx.store, harbourVesselConsumer);
 
   expect(result).toStrictEqual({
     ok: true,
     value: [
-      { key: 'github:pull_request:5', operation: 'insert' },
-      { key: 'github:pull_request:5', operation: 'update' },
-      { key: 'github:pull_request:6', operation: 'insert' },
+      { key: 'harbour:vessel:7', operation: 'insert' },
+      { key: 'harbour:vessel:7', operation: 'update' },
+      { key: 'harbour:vessel:8', operation: 'insert' },
     ],
   });
 });
 
 test('it returns no-current-version for a consumer with no current version', async () => {
   const ctx = await setupTest();
-  const result = await readChangeOperations(ctx.store, 'github_pull_request');
+  const result = await readChangeOperations(ctx.store, harbourVesselConsumer);
 
-  expect(result).toStrictEqual({ ok: false, failure: { reason: 'no-current-version' } });
+  expect(result).toStrictEqual({
+    ok: false,
+    failure: { reason: 'no-current-version', consumers: ['harbour_vessel'] },
+  });
 });

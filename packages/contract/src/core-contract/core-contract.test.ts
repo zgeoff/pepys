@@ -1,230 +1,80 @@
 import { expect, test } from 'bun:test';
 import { call, implement } from '@orpc/server';
-import type { FactID } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
+import { z } from 'zod';
 import { coreContract } from './core-contract.ts';
 
 function setupTest() {
   const contract = implement(coreContract);
-  const assertLink = contract.assert_link.handler(() => ({ fact: 'manual:aa' }));
-  const retractLink = contract.retract_link.handler(() => ({ fact: 'manual:bb' }));
-  const correctLabel = contract.correct_label.handler(() => ({ fact: 'manual:cc' }));
-  const neighbourhood = contract.neighbourhood.handler(() => ({ entities: [], links: [] }));
-  const search = contract.search.handler(() => ({ results: [] }));
 
-  return { assertLink, retractLink, correctLabel, neighbourhood, search };
+  const neighbourhood = contract.neighbourhood.handler((options) => ({
+    entities: [],
+    links: [],
+    unresolved: [JSON.stringify(options.input)],
+    skippedConsumers: [],
+    isTruncated: false,
+  }));
+
+  return { neighbourhood };
 }
 
-test.each([0, 101, 1.5])('it refuses a search whose limit is %d', (limit) => {
+test('it fills each left-out neighbourhood field with its default', async () => {
   const ctx = setupTest();
 
-  expect(call(ctx.search, { text: 'harbour map', kinds: null, limit })).rejects.toMatchObject({
-    code: 'BAD_REQUEST',
-  });
-});
+  const result = await call(ctx.neighbourhood, { id: 'harbour:vessel:7' });
 
-test.each([1, 100])('it accepts a search whose limit is %d', (limit) => {
-  const ctx = setupTest();
+  const parsed: unknown = JSON.parse(result.unresolved[0] ?? '');
 
-  expect(call(ctx.search, { text: 'harbour map', kinds: null, limit })).resolves.toStrictEqual({
-    results: [],
+  expect(parsed).toStrictEqual({
+    id: 'harbour:vessel:7',
+    depthLimit: 1,
+    entityLimit: 50,
+    linkTypes: null,
+    includeHubs: false,
+    minimumConfidence: 0,
   });
 });
 
 test.each([
-  { depthLimit: 0, minimumConfidence: 0.5 },
-  { depthLimit: 4, minimumConfidence: 0.5 },
-  { depthLimit: 1.5, minimumConfidence: 0.5 },
-  { depthLimit: 1, minimumConfidence: -0.1 },
-  { depthLimit: 1, minimumConfidence: 1.2 },
+  { depthLimit: 0, entityLimit: 50, minimumConfidence: 0 },
+  { depthLimit: 4, entityLimit: 50, minimumConfidence: 0 },
+  { depthLimit: 1.5, entityLimit: 50, minimumConfidence: 0 },
+  { depthLimit: 1, entityLimit: 0, minimumConfidence: 0 },
+  { depthLimit: 1, entityLimit: 201, minimumConfidence: 0 },
+  { depthLimit: 1, entityLimit: 50, minimumConfidence: -0.1 },
+  { depthLimit: 1, entityLimit: 50, minimumConfidence: 1.2 },
 ])(
-  'it refuses a neighbourhood with depth limit $depthLimit and minimum confidence $minimumConfidence',
+  'it refuses a neighbourhood with depth limit $depthLimit, entity limit $entityLimit and minimum confidence $minimumConfidence',
   (row) => {
     const ctx = setupTest();
 
-    expect(
-      call(ctx.neighbourhood, {
-        id: 'gmail:msg:17',
-        depthLimit: row.depthLimit,
-        linkTypes: null,
-        includeHubs: false,
-        minimumConfidence: row.minimumConfidence,
-      }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect(call(ctx.neighbourhood, { id: 'harbour:vessel:7', ...row })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   },
 );
 
 test.each([
-  { depthLimit: 1, minimumConfidence: 0 },
-  { depthLimit: 3, minimumConfidence: 1 },
-])(
-  'it accepts a neighbourhood with depth limit $depthLimit and minimum confidence $minimumConfidence',
-  (row) => {
-    const ctx = setupTest();
-
-    expect(
-      call(ctx.neighbourhood, {
-        id: 'gmail:msg:17',
-        depthLimit: row.depthLimit,
-        linkTypes: null,
-        includeHubs: false,
-        minimumConfidence: row.minimumConfidence,
-      }),
-    ).resolves.toStrictEqual({ entities: [], links: [] });
-  },
-);
-
-test.each([
-  { procedure: 'get_entity', codes: ['NOT_FOUND'] },
-  { procedure: 'neighbourhood', codes: ['NOT_IMPLEMENTED'] },
-  { procedure: 'search', codes: ['NOT_IMPLEMENTED'] },
-  { procedure: 'entity_history', codes: ['NOT_IMPLEMENTED'] },
-  { procedure: 'assert_link', codes: ['NOT_IMPLEMENTED', 'UNPROCESSABLE_CONTENT'] },
-  { procedure: 'retract_link', codes: ['NOT_IMPLEMENTED'] },
-  { procedure: 'correct_label', codes: ['NOT_IMPLEMENTED'] },
+  { procedure: 'get_entity', codes: ['BAD_REQUEST', 'NOT_FOUND', 'SERVICE_UNAVAILABLE'] },
+  { procedure: 'neighbourhood', codes: ['BAD_REQUEST', 'NOT_FOUND'] },
 ] as const)('it declares the errors $codes on $procedure', (row) => {
-  expect(coreContract[row.procedure]['~orpc'].errorMap).toContainAllKeys([...row.codes]);
+  const errorMap: Record<string, unknown> = coreContract[row.procedure]['~orpc'].errorMap;
+
+  expect(errorMap).toContainAllKeys([...row.codes]);
 });
 
-test.each([
-  { procedure: 'get_entity', code: 'NOT_FOUND', status: 404 },
-  { procedure: 'neighbourhood', code: 'NOT_IMPLEMENTED', status: 501 },
-  { procedure: 'search', code: 'NOT_IMPLEMENTED', status: 501 },
-  { procedure: 'entity_history', code: 'NOT_IMPLEMENTED', status: 501 },
-  { procedure: 'assert_link', code: 'NOT_IMPLEMENTED', status: 501 },
-  { procedure: 'assert_link', code: 'UNPROCESSABLE_CONTENT', status: 422 },
-  { procedure: 'retract_link', code: 'NOT_IMPLEMENTED', status: 501 },
-  { procedure: 'correct_label', code: 'NOT_IMPLEMENTED', status: 501 },
-] as const)('it gives $code on $procedure the HTTP status $status', (row) => {
-  const errorMap: Readonly<Record<string, { status?: number } | undefined>> =
-    coreContract[row.procedure]['~orpc'].errorMap;
+// A transform has no JSON Schema, so the MCP schemas could not carry it: zod throws on one when it
+// writes the schema of what a parse returns.
+test.each(['get_entity', 'neighbourhood'] as const)(
+  'it gives the input and output of $procedure a JSON Schema with no transform',
+  (procedure) => {
+    const definition = coreContract[procedure]['~orpc'];
+    const schemas = [...(definition.inputSchemas ?? []), ...(definition.outputSchemas ?? [])];
+    const zodSchemas = schemas.filter((schema) => schema instanceof z.ZodType);
 
-  expect(errorMap[row.code]?.status).toBe(row.status);
-});
+    expect(zodSchemas).toBeArrayOfSize(2);
 
-test('it refuses an assert link with an empty request ID', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.assertLink, {
-      requestID: '',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 0.4,
-      evidence: 'the email quotes the issue title',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
-
-test('it refuses a retract link with an empty request ID', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.retractLink, {
-      requestID: '',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      reason: 'the email quotes another issue',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
-
-test('it refuses a correct label with an empty request ID', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.correctLabel, {
-      requestID: '',
-      entity: 'gmail:msg:17',
-      job: 'mail_label',
-      label: 'receipt',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
-
-test('it accepts a retract link and a correct label with a request ID', async () => {
-  const ctx = setupTest();
-
-  const results = await Promise.all([
-    call(ctx.retractLink, {
-      requestID: 'request-2',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      reason: 'the email quotes another issue',
-    }),
-    call(ctx.correctLabel, {
-      requestID: 'request-3',
-      entity: 'gmail:msg:17',
-      job: 'mail_label',
-      label: 'receipt',
-    }),
-  ]);
-
-  expect(results).toStrictEqual([
-    { fact: toTagged<FactID>('manual:bb') },
-    { fact: toTagged<FactID>('manual:cc') },
-  ]);
-});
-
-test('it refuses an assert link with empty evidence at the input schema', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.assertLink, {
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 0.4,
-      evidence: '',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
-
-test.each([1.2, -0.1])('it refuses an assert link whose confidence is %d', (confidence) => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.assertLink, {
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence,
-      evidence: 'the email quotes the issue title',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
-
-test('it accepts an assert link with confidence 0.4 from any client', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.assertLink, {
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 0.4,
-      evidence: 'the email quotes the issue title',
-    }),
-  ).resolves.toStrictEqual({ fact: toTagged<FactID>('manual:aa') });
-});
-
-test('it refuses an assert link whose source is not an entity ID', () => {
-  const ctx = setupTest();
-
-  expect(
-    call(ctx.assertLink, {
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'harbour',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 0.4,
-      evidence: 'the email quotes the issue title',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-});
+    expect(() =>
+      zodSchemas.map((schema) => z.toJSONSchema(schema, { io: 'output' })),
+    ).not.toThrow();
+  },
+);

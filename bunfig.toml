@@ -12,6 +12,23 @@ minimumReleaseAge = 604800
 # behind it. Renovate bumps @zgeoff packages as soon as they publish, so each
 # one pepys installs, directly or through another first-party package, needs an
 # entry here, or bun install refuses the bump.
+# @orpc/client 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/contract 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/json-schema 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/mcp 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/openapi 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/server 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @orpc/shared 2.0.0-beta.50 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @openapi-spec/downgrader 0.8.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @openapi-spec/router 0.8.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @openapi-spec/types 0.8.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/aws-lambda 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/core 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/fastify 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/fetch 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/node 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/peer 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @standard-server/shared 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
 minimumReleaseAgeExcludes = [
   "@zgeoff/agent-hooks",
   "@zgeoff/bun-test-extended",
@@ -23,6 +40,23 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/oxlint-config",
   "@zgeoff/rig",
   "@zgeoff/std",
+  "@orpc/client",
+  "@orpc/contract",
+  "@orpc/json-schema",
+  "@orpc/mcp",
+  "@orpc/openapi",
+  "@orpc/server",
+  "@orpc/shared",
+  "@openapi-spec/downgrader",
+  "@openapi-spec/router",
+  "@openapi-spec/types",
+  "@standard-server/aws-lambda",
+  "@standard-server/core",
+  "@standard-server/fastify",
+  "@standard-server/fetch",
+  "@standard-server/node",
+  "@standard-server/peer",
+  "@standard-server/shared",
 ]
 
 [test]

@@ -1,116 +1,173 @@
 import { realpath } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { Result } from '@pepys/kit';
+import { basename, dirname, join } from 'node:path';
+import type { ConsumerDeclaration, ConsumersDB, StoreReader } from '@pepys/kit';
 import { createTursoDialect } from '@pepys/kysely-turso';
+import { connect } from '@tursodatabase/database';
 import type { Database } from '@tursodatabase/database';
 import { Kysely } from 'kysely';
-import type { Transaction } from 'kysely';
-import type { ConsumerDB, StoreReader } from './store-reader.ts';
+import { buildSharedViewsPlugin } from './build-shared-views-plugin.ts';
+import { pickAttachedFiles } from './pick-attached-files.ts';
+import type { AttachedFile, CurrentFile } from './pick-attached-files.ts';
 
-interface OpenConsumer {
-  target: string;
-  database: Kysely<ConsumerDB>;
+interface StoreReaderOptions {
+  storeDirectory: string;
+}
+
+// One open read-only handle on a consumer file. Turso 0.8.3 refuses to attach a file that the
+// host holds open with its multi-process WAL, unless this process holds a handle of its own.
+interface FileKeeper {
+  path: string;
+  database: Promise<Database>;
   readers: number;
   isRetired: boolean;
 }
 
-interface StoreReaderOptions {
-  storeDirectory: string;
-  openDatabase: (path: string) => Promise<Database>;
-}
-
+// The Turso adapter of the store reader port. Each call opens one connection on an empty
+// in-memory database, attaches the current file of each consumer read-only under the consumer's
+// name, and runs the work in one transaction, which holds one snapshot of each file.
 export function createStoreReader(options: StoreReaderOptions): StoreReader {
-  const open = new Map<string, OpenConsumer>();
-  const retired = new Set<OpenConsumer>();
+  const keepers = new Map<string, FileKeeper>();
+  const retired = new Set<FileKeeper>();
 
-  const withConsumer = async <Value>(
-    consumerName: string,
-    work: (transaction: Transaction<ConsumerDB>) => Promise<Value>,
-  ): Promise<Result<Value, { reason: 'no-current-version' }>> => {
-    // the link swings to a new version directory when `pepys up` swaps, and the old file stays
-    const target = await readCurrentTarget(join(options.storeDirectory, consumerName, 'current'));
+  const holdKeeper = (file: AttachedFile): FileKeeper => {
+    const held = keepers.get(file.consumer.name);
 
-    if (target === null) {
-      return { ok: false, failure: { reason: 'no-current-version' } };
+    if (held?.path === file.path) {
+      held.readers += 1;
+
+      return held;
     }
 
-    const opened = openConsumer(consumerName, target);
-    const consumer = opened.consumer;
-
-    consumer.readers += 1;
-
-    if (opened.replaced !== undefined) {
-      await destroyIfDrained(opened.replaced);
-    }
-
-    try {
-      // one transaction keeps every read of a call on one connection and one snapshot
-      return { ok: true, value: await consumer.database.transaction().execute(work) };
-    } finally {
-      consumer.readers -= 1;
-
-      await destroyIfDrained(consumer);
-    }
-  };
-
-  const openConsumer = (
-    consumerName: string,
-    target: string,
-  ): { consumer: OpenConsumer; replaced?: OpenConsumer } => {
-    const existing = open.get(consumerName);
-
-    if (existing?.target === target) {
-      return { consumer: existing };
-    }
-
-    const consumer: OpenConsumer = {
-      target,
-      database: new Kysely<ConsumerDB>({
-        dialect: createTursoDialect({
-          database: () => options.openDatabase(join(target, 'consumer.db')),
-        }),
-      }),
-      readers: 0,
+    const keeper: FileKeeper = {
+      path: file.path,
+      database: connect(file.path, { readonly: true, experimental: ['multiprocess_wal'] }),
+      readers: 1,
       isRetired: false,
     };
 
-    open.set(consumerName, consumer);
+    keepers.set(file.consumer.name, keeper);
 
-    if (existing === undefined) {
-      return { consumer };
+    // the host swapped the version: the old file closes once its last call ends
+    if (held !== undefined) {
+      held.isRetired = true;
+
+      retired.add(held);
     }
 
-    existing.isRetired = true;
-
-    retired.add(existing);
-
-    return { consumer, replaced: existing };
+    return keeper;
   };
 
-  const destroyIfDrained = async (consumer: OpenConsumer): Promise<void> => {
-    if (consumer.isRetired && consumer.readers === 0 && retired.delete(consumer)) {
-      await consumer.database.destroy();
+  const releaseKeeper = async (keeper: FileKeeper): Promise<void> => {
+    keeper.readers -= 1;
+
+    if (keeper.isRetired && keeper.readers === 0 && retired.delete(keeper)) {
+      const database = await keeper.database;
+
+      await database.close();
     }
   };
 
-  const close = async (): Promise<void> => {
-    const consumers = [...open.values(), ...retired];
+  return {
+    withConsumers: async (consumers, work, callOptions) => {
+      // every file resolves before anything opens, so a swap during the call changes nothing
+      const [required, optional] = await Promise.all([
+        readCurrentFiles(options.storeDirectory, consumers),
+        readCurrentFiles(options.storeDirectory, callOptions?.whenCurrent ?? []),
+      ]);
 
-    open.clear();
-    retired.clear();
+      const plan = pickAttachedFiles(required, optional);
 
-    // a destroy waits for the reads still running on the database
-    await Promise.all(consumers.map((consumer) => consumer.database.destroy()));
+      if (plan.kind === 'missing') {
+        return { ok: false, failure: { reason: 'no-current-version', consumers: plan.consumers } };
+      }
+
+      const held = plan.files.map((file) => holdKeeper(file));
+
+      try {
+        await Promise.all(held.map((keeper) => keeper.database));
+
+        const connection = await connect(':memory:', { experimental: ['attach'] });
+
+        const db = new Kysely<ConsumersDB<typeof consumers>>({
+          dialect: createTursoDialect({ database: () => Promise.resolve(connection) }),
+        });
+
+        try {
+          for (const file of plan.files) {
+            await connection.exec(formatAttachStatement(file));
+          }
+
+          const call = {
+            attached: Object.fromEntries(
+              plan.files.map((file) => [
+                file.consumer.name,
+                { version: basename(dirname(file.path)) },
+              ]),
+            ),
+            skipped: plan.skipped,
+          };
+
+          const views = buildSharedViewsPlugin(plan.files.map((file) => file.consumer));
+
+          // A failed write ends Turso's transaction itself, and Kysely's own rollback would then
+          // fail and hide the first error, so the call opens and ends the transaction by hand.
+          await connection.exec('begin');
+
+          try {
+            const value = await work(db.withPlugin(views), call);
+
+            return { ok: true, value };
+          } finally {
+            if (connection.inTransaction) {
+              await connection.exec('rollback');
+            }
+          }
+        } finally {
+          await db.destroy();
+        }
+      } finally {
+        await Promise.all(held.map((keeper) => releaseKeeper(keeper)));
+      }
+    },
+    close: async () => {
+      const open = [...keepers.values(), ...retired];
+
+      keepers.clear();
+      retired.clear();
+
+      await Promise.all(
+        open.map(async (keeper) => {
+          const database = await keeper.database;
+
+          await database.close();
+        }),
+      );
+    },
   };
-
-  return { withConsumer, close };
 }
 
-async function readCurrentTarget(currentLink: string): Promise<string | null> {
+function readCurrentFiles(
+  storeDirectory: string,
+  consumers: readonly ConsumerDeclaration[],
+): Promise<CurrentFile[]> {
+  return Promise.all(
+    consumers.map(async (consumer) => {
+      const path = await readRealPath(
+        join(storeDirectory, consumer.name, 'current', 'consumer.db'),
+      );
+
+      return { consumer, path };
+    }),
+  );
+}
+
+async function readRealPath(path: string): Promise<string | null> {
   try {
-    return await realpath(currentLink);
+    const resolved = await realpath(path);
+
+    return resolved;
   } catch (error: unknown) {
-    if (isMissingFileError(error)) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return null;
     }
 
@@ -118,6 +175,13 @@ async function readCurrentTarget(currentLink: string): Promise<string | null> {
   }
 }
 
-function isMissingFileError(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+// A URI opens the file read-only. The path is percent-encoded, so a `?`, `#`, `%` or quote in a
+// folder name stays part of the path.
+function formatAttachStatement(file: AttachedFile): string {
+  const encoded = encodeURI(file.path)
+    .replaceAll('?', '%3F')
+    .replaceAll('#', '%23')
+    .replaceAll("'", '%27');
+
+  return `ATTACH 'file:${encoded}?mode=ro' AS "${file.consumer.name.replaceAll('"', '""')}"`;
 }

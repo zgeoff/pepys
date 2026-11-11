@@ -22,7 +22,6 @@
     "@pepys/api": "workspace:*",
     "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
-    "@pepys/schema": "workspace:*",
     "@zgeoff/std": "catalog:",
     "zod": "catalog:"
   },

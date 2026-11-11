@@ -1,181 +1,126 @@
 import { oc } from '@orpc/contract';
 import type { InferContractRouterInputs, InferContractRouterOutputs } from '@orpc/contract';
-import { parseEntityID } from '@pepys/kit';
-import type { EntityID, FactID, Reference, RequestID } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
+import { openapi } from '@orpc/openapi';
 import { z } from 'zod';
 
-const parsedEntityIDSchema = z.string().transform((text, ctx) => {
-  const parsed = parseEntityID(text);
+// No schema here has a transform: the MCP input and output schemas are the JSON Schema of these
+// zod schemas, and a transform has none.
+export const neighbourhoodCaps = {
+  depthLimit: { default: 1, max: 3 },
+  entityLimit: { default: 50, max: 200 },
 
-  if (!parsed.ok) {
-    ctx.issues.push({
-      code: 'custom',
-      message: `not an entity ID: ${parsed.failure.reason}`,
-      input: text,
-    });
-
-    return z.NEVER;
-  }
-
-  return { id: toTagged<EntityID>(text), parts: parsed.value };
-});
-
-const entityIDSchema = parsedEntityIDSchema.transform((parsed) => parsed.id);
-const nameSchema = z.string().min(1);
-const nameListSchema = z.array(nameSchema).nullable();
+  // link rows read per hop; fixed, not an input
+  linkReadLimit: 1000,
+} as const;
 
 const entitySummarySchema = z.object({
-  id: z.string(),
-  kind: z.string(),
-  title: z.string(),
-  url: z.string(),
-  actor: z.string().nullable(),
-  updated_at: z.string(),
+  id: z.string().describe('The entity ID, as <source>:<kind>:<id>.'),
+  kind: z.string().describe('The entity kind, as <source>:<kind>.'),
+  title: z.string().describe('A short title for a person to read.'),
+  url: z.string().nullable().describe('The page of the entity at its source, when it has one.'),
+  actor: z.string().nullable().describe('The entity ID of who made or owns the entity.'),
+  updated_at: z.string().describe('When the entity last changed, as an ISO 8601 time.'),
 });
 
-const getEntityInput = z.object({ id: parsedEntityIDSchema });
+const getEntityInput = z.object({
+  id: z
+    .string()
+    .describe('The entity ID, as <source>:<kind>:<id>, such as github:pull_request:9001.'),
+});
 
 const getEntityOutput = z.object({
   entity: entitySummarySchema,
-  row: z.record(z.string(), z.unknown()),
-  aliases: z.array(z.string()),
+  consumer: z.string().describe('The consumer whose entity view holds the entity.'),
+  table: z.string().describe('The table that holds the full row.'),
+  row: z
+    .record(z.string(), z.unknown())
+    .describe('The full row, each column as its declared kind.'),
 });
-
-const referenceSchema = nameSchema.transform((text) => toTagged<Reference>(text));
-
-const linkTargetSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('entity'), id: entityIDSchema }),
-  z.object({ kind: z.literal('reference'), reference: referenceSchema }),
-]);
-
-const linkEndsSchema = z.object({ type: nameSchema, from: entityIDSchema, to: linkTargetSchema });
 
 const neighbourhoodInput = z.object({
-  id: entityIDSchema,
-  depthLimit: z.number().int().min(1).max(3),
-  linkTypes: nameListSchema,
-  includeHubs: z.boolean(),
-  minimumConfidence: z.number().min(0).max(1),
+  id: z.string().describe('The entity to start from, as <source>:<kind>:<id>.'),
+  depthLimit: z
+    .number()
+    .int()
+    .min(1)
+    .max(neighbourhoodCaps.depthLimit.max)
+    .default(neighbourhoodCaps.depthLimit.default)
+    .describe('How many links away from the start to walk, from 1 to 3.'),
+  entityLimit: z
+    .number()
+    .int()
+    .min(1)
+    .max(neighbourhoodCaps.entityLimit.max)
+    .default(neighbourhoodCaps.entityLimit.default)
+    .describe('The most entities to return, the start included, from 1 to 200.'),
+  linkTypes: z
+    .array(z.string().min(1))
+    .nullable()
+    .default(null)
+    .describe('The link types to follow; null follows every type.'),
+  includeHubs: z
+    .boolean()
+    .default(false)
+    .describe('Whether to follow a hub link type, one that joins many entities.'),
+  minimumConfidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0)
+    .describe('The lowest link confidence to follow, from 0 to 1.'),
 });
 
-const neighbourhoodLinkSchema = linkEndsSchema.extend({
-  direction: z.enum(['outgoing', 'incoming']),
-  confidence: z.number(),
-  depth: z.number().int(),
+const neighbourhoodLinkSchema = z.object({
+  type: z.string().describe('The link type.'),
+  from: z.string().describe('The entity ID the link starts at.'),
+  to: z.string().describe('The entity ID the link ends at.'),
+  direction: z
+    .enum(['outgoing', 'incoming'])
+    .describe('outgoing when the walk reached the link at its start, incoming at its end.'),
+  origin: z.string().describe('The consumer that wrote the link.'),
+  confidence: z.number().describe('The confidence of the link, from 0 to 1.'),
+  depth: z.number().int().describe('The hop of the walk that followed the link.'),
+});
+
+const neighbourhoodEntitySchema = entitySummarySchema.extend({
+  depth: z.number().int().describe('How many links away from the start the walk reached it.'),
 });
 
 const neighbourhoodOutput = z.object({
-  entities: z.array(entitySummarySchema),
-  links: z.array(neighbourhoodLinkSchema),
+  entities: z
+    .array(neighbourhoodEntitySchema)
+    .describe('The start first, then by depth and ID; only the entities that have a row.'),
+  links: z.array(neighbourhoodLinkSchema).describe('Every followed link.'),
+  unresolved: z.array(z.string()).describe('The IDs the walk reached that no entity view holds.'),
+  skippedConsumers: z
+    .array(z.string())
+    .describe('The consumers with no current version, whose rows and links are left out.'),
+  isTruncated: z
+    .boolean()
+    .describe('true when the entity limit or the read limit of a hop cut the walk short.'),
 });
-
-const searchInput = z.object({
-  text: nameSchema,
-  kinds: nameListSchema,
-  limit: z.number().int().min(1).max(100),
-});
-
-const searchResultSchema = z.object({ entity: entitySummarySchema, rank: z.number() });
-const searchOutput = z.object({ results: z.array(searchResultSchema) });
-const entityHistoryInput = z.object({ id: entityIDSchema, field: nameSchema.nullable() });
-
-const transitionSchema = z.object({
-  field: z.string(),
-  oldValue: z.unknown(),
-  newValue: z.unknown(),
-  earliestAt: z.string(),
-  latestAt: z.string(),
-  fidelity: z.enum(['event', 'observed']),
-});
-
-const entityHistoryOutput = z.object({ transitions: z.array(transitionSchema) });
-const requestIDSchema = nameSchema.transform((text) => toTagged<RequestID>(text));
-
-const assertLinkInput = linkEndsSchema.extend({
-  requestID: requestIDSchema,
-  confidence: z.number().min(0).max(1),
-  evidence: nameSchema,
-});
-
-const factIDSchema = z.string().transform((text) => toTagged<FactID>(text));
-const factOutput = z.object({ fact: factIDSchema });
-const retractLinkInput = linkEndsSchema.extend({ requestID: requestIDSchema, reason: nameSchema });
-
-const correctLabelInput = z.object({
-  requestID: requestIDSchema,
-  entity: entityIDSchema,
-  job: nameSchema,
-  label: nameSchema,
-});
-
-const notFoundErrors = { NOT_FOUND: { status: 404, message: 'no such entity' } };
-
-const notImplementedErrors = {
-  NOT_IMPLEMENTED: { status: 501, message: 'the API has no handler for this procedure' },
-};
-
-const assertLinkErrors = {
-  ...notImplementedErrors,
-  UNPROCESSABLE_CONTENT: { status: 422, message: 'a link needs evidence' },
-};
 
 export const coreContract = {
   get_entity: oc
-    .errors(notFoundErrors)
-    .route({
-      description:
-        "Returns one entity by its ID, such as github:pull_request:1874433021: its row in the owning consumer's entity view, its full row, and the references that resolve to it.",
-    })
+    .errors({ BAD_REQUEST: {}, NOT_FOUND: {}, SERVICE_UNAVAILABLE: {} })
+    .meta(
+      openapi({
+        description:
+          'Returns one entity by its ID, such as github:pull_request:9001: its summary, the consumer and table that hold it, and its full row.',
+      }),
+    )
     .input(getEntityInput)
     .output(getEntityOutput),
   neighbourhood: oc
-    .errors(notImplementedErrors)
-    .route({
-      description:
-        'Returns the entities linked to one entity, in both directions, up to a depth of 3. It skips hub kinds such as people unless includeHubs is true.',
-    })
+    .errors({ BAD_REQUEST: {}, NOT_FOUND: {} })
+    .meta(
+      openapi({
+        description:
+          'Returns the entities linked to one entity, in both directions, up to 3 links away. It follows a hub link type only when includeHubs is true.',
+      }),
+    )
     .input(neighbourhoodInput)
     .output(neighbourhoodOutput),
-  search: oc
-    .errors(notImplementedErrors)
-    .route({
-      description:
-        'Returns the entities that match a text, ranked by full-text and vector search together.',
-    })
-    .input(searchInput)
-    .output(searchOutput),
-  entity_history: oc
-    .errors(notImplementedErrors)
-    .route({
-      description:
-        "Returns one entity's transitions, each marked event when the source recorded it or observed when pepys saw it change.",
-    })
-    .input(entityHistoryInput)
-    .output(entityHistoryOutput),
-  assert_link: oc
-    .errors(assertLinkErrors)
-    .route({
-      description:
-        'Asserts a link between two entities, with a confidence from 0 to 1 and the evidence for it. The link records the calling client as its origin.',
-    })
-    .input(assertLinkInput)
-    .output(factOutput),
-  retract_link: oc
-    .errors(notImplementedErrors)
-    .route({
-      description: 'Retracts a link between two entities, whoever asserted it, with the reason.',
-    })
-    .input(retractLinkInput)
-    .output(factOutput),
-  correct_label: oc
-    .errors(notImplementedErrors)
-    .route({
-      description:
-        "Corrects the label that an enrichment job gave an entity. The correction counts as labelled data for the job's next version.",
-    })
-    .input(correctLabelInput)
-    .output(factOutput),
 };
 
 export type CoreContract = typeof coreContract;
@@ -183,3 +128,9 @@ export type CoreContract = typeof coreContract;
 export type CoreInputs = InferContractRouterInputs<CoreContract>;
 
 export type CoreOutputs = InferContractRouterOutputs<CoreContract>;
+
+// The input a handler gets: parsed, with each default filled in.
+export interface CoreParsedInputs {
+  get_entity: z.output<typeof getEntityInput>;
+  neighbourhood: z.output<typeof neighbourhoodInput>;
+}

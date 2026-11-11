@@ -33,3 +33,10 @@ test('it types the tables, the offsets and the two shared views of the attached 
 
   expectTypeOf<Database['link_effective']>().toEqualTypeOf<LinkRow>();
 });
+
+test('it types only the two shared views for a call that names no consumer', () => {
+  type Database = ConsumersDB<readonly []>;
+
+  expectTypeOf<keyof Database>().toEqualTypeOf<'entity' | 'link_effective'>();
+  expectTypeOf<Database['link_effective']>().toEqualTypeOf<LinkRow>();
+});

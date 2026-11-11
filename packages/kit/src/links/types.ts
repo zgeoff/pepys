@@ -1,3 +1,8 @@
+import type { LinkTypeDeclaration } from '../link-types/types.ts';
+
+// Each link type of a deployment, by name.
+export type LinkRegistry = ReadonlyMap<string, LinkTypeDeclaration>;
+
 // What is wrong with one link that a consumer returns. The host has no deployment registry, so a
 // type is declared by the consumer that writes it, or by nothing.
 export type LinkProblem =

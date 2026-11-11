@@ -3,6 +3,9 @@ import { parsePort } from '@pepys/schema';
 
 export interface APIConfig {
   storeDirectory: string;
+
+  // the listen address; 127.0.0.1 unless the deployment sets another
+  host: string;
   port: number;
 }
 
@@ -10,6 +13,7 @@ export function readAPIConfig(
   environment: Readonly<Record<string, string | undefined>>,
 ): Result<APIConfig, string[]> {
   const storeDirectory = environment['PEPYS_STORE_DIR'] ?? '';
+  const host = environment['PEPYS_API_HOST'] ?? '';
   const portText = environment['PEPYS_API_PORT'] ?? '';
   const port = portText === '' ? ({ ok: true, value: 8081 } as const) : parsePort(portText);
 
@@ -22,5 +26,8 @@ export function readAPIConfig(
     return { ok: false, failure: problems };
   }
 
-  return { ok: true, value: { storeDirectory, port: port.value } };
+  return {
+    ok: true,
+    value: { storeDirectory, host: host === '' ? '127.0.0.1' : host, port: port.value },
+  };
 }

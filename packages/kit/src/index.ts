@@ -1,4 +1,5 @@
 export { buildEnrichmentFactID } from './facts/build-enrichment-fact-id.ts';
+export { buildLinkRegistry } from './links/build-link-registry.ts';
 export { buildEntityID } from './entity-ids/build-entity-id.ts';
 export { buildEventFactID } from './facts/build-event-fact-id.ts';
 export { buildManualFactID } from './facts/build-manual-fact-id.ts';

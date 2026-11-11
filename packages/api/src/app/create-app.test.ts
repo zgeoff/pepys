@@ -1,262 +1,243 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import { createStoreReader } from '../store-reader/create-store-reader.ts';
-import { openConsumerDatabase } from '../store-reader/open-consumer-database.ts';
-import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
-import { stubPullRequestConsumer } from '../test-utils/stub-pull-request-consumer.ts';
+import { checkDeployment, defineDeployment, definePlugin, defineQuery } from '@pepys/kit';
+import { createTestStore } from '@pepys/testing';
+import invariant from 'tiny-invariant';
+import { z } from 'zod';
+import type { DeploymentClient } from '../client/deployment-client.ts';
+import { buildQueryContext } from '../queries/build-query-context.ts';
+import { harbourPlugin, harbourSource } from '../test-utils/harbour/harbour-plugin.ts';
+import { readMCPAnswer } from '../test-utils/read-mcp-answer.ts';
 import { createApp } from './create-app.ts';
-import type { APIClient } from './create-router.ts';
+import { createRouter } from './create-router.ts';
 
 async function setupTest() {
-  const stack = new AsyncDisposableStack();
+  const deployment = defineDeployment({ name: 'harbour', plugins: [harbourPlugin] });
 
-  onTestFinished(() => stack.disposeAsync());
+  const store = await createTestStore({ plugins: [harbourPlugin] });
 
-  const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-api-'));
+  onTestFinished(() => store[Symbol.asyncDispose]());
 
-  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
+  const checked = checkDeployment(deployment);
 
-  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
+  invariant(checked.ok, 'the harbour deployment is valid');
 
-  stack.defer(() => store.close());
+  const app = createApp(buildQueryContext(store.reader, checked.value));
 
-  const app = createApp({ store, consumers: [stubPullRequestConsumer] });
+  // the HTTP status of each /rpc answer, which the client's error does not carry
+  const statuses: number[] = [];
 
   const link = new RPCLink({
-    url: 'http://pepys.test/rpc',
+    url: '/rpc',
+    origin: 'http://pepys.test',
 
     // RPCLink fixes this option name
     // oxlint-disable-next-line zgeoff/function-verb
-    fetch: (request) => app.handle(request),
+    fetch: async (url, init) => {
+      const response = await app.handle(new Request(url, init));
+
+      statuses.push(response.status);
+
+      return response;
+    },
   });
 
-  const client: APIClient = createORPCClient(link);
+  const client: DeploymentClient<typeof deployment> = createORPCClient(link);
 
-  return { consumerDirectory: join(storeDirectory, 'github_pull_request'), client };
+  return {
+    store,
+    client,
+    statuses,
+    callMCP: (method: string, params: Readonly<Record<string, unknown>>) =>
+      readMCPAnswer((request) => app.handle(request), method, params),
+  };
 }
 
-test('it serves get_entity from the contract: the entity view row, the full row and the aliases', async () => {
+test('it serves get_entity at /rpc', async () => {
   const ctx = await setupTest();
 
-  const versionDirectory = join(ctx.consumerDirectory, 'v1');
-
-  await createStubConsumerVersion({
-    versionDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 1,
-      is_merged: 0,
-      author_id: 'github:user:77',
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{"labels":["map"]}',
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.vessel.named',
+      event: 'evt-1',
+      entity: 'harbour:vessel:7',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { name: 'Tern' },
     },
-  });
+  ]);
 
-  await symlink(versionDirectory, join(ctx.consumerDirectory, 'current'));
+  const found = await ctx.client.get_entity({ id: 'harbour:vessel:7' });
 
-  const result = await ctx.client.get_entity({ id: 'github:pull_request:5' });
-
-  expect(result).toStrictEqual({
+  expect(found).toStrictEqual({
     entity: {
-      id: 'github:pull_request:5',
-      kind: 'github:pull_request',
-      title: 'Chart the shoals',
-      url: 'https://github.example/acme/harbour/pull/5',
-      actor: 'github:user:77',
-      updated_at: '2026-10-01T09:00:00Z',
+      id: 'harbour:vessel:7',
+      kind: 'harbour:vessel',
+      title: 'Tern',
+      url: null,
+      actor: null,
+      updated_at: '2026-11-01T08:00:00.000Z',
     },
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: true,
-      is_merged: false,
-      author_id: 'github:user:77',
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: { labels: ['map'] },
-    },
-    aliases: [],
+    consumer: 'harbour_vessel',
+    table: 'harbour_vessel',
+    row: { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
   });
 });
 
-test('it answers UNPROCESSABLE_CONTENT with HTTP 422 for an assert link with no evidence', async () => {
+test('it serves neighbourhood at /rpc with every default filled in', async () => {
   const ctx = await setupTest();
 
-  expect(
-    ctx.client.assert_link({
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 0.4,
-      evidence: '',
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.voyage.departed',
+      event: 'evt-1',
+      entity: 'harbour:voyage:12',
+      at: '2026-11-02T06:00:00.000Z',
+      payload: { vessel: 'harbour:vessel:7', port: 'harbour:port:north', confidence: 1 },
+    },
+  ]);
+
+  const near = await ctx.client.neighbourhood({ id: 'harbour:voyage:12' });
+
+  expect(near).toStrictEqual({
+    entities: [expect.objectContaining({ id: 'harbour:voyage:12', depth: 0 })],
+    links: [expect.objectContaining({ type: 'voyage_of', to: 'harbour:vessel:7', depth: 1 })],
+    unresolved: ['harbour:vessel:7'],
+    skippedConsumers: [],
+    isTruncated: false,
+  });
+});
+
+test('it serves a plug-in query at /rpc by its name', async () => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.voyage.departed',
+      event: 'evt-1',
+      entity: 'harbour:voyage:12',
+      at: '2026-11-02T06:00:00.000Z',
+      payload: { vessel: 'harbour:vessel:7', port: 'harbour:port:north', confidence: 1 },
+    },
+  ]);
+
+  const counted = await ctx.client.harbour_voyage_count({ vessel: 'harbour:vessel:7' });
+
+  expect(counted).toStrictEqual({ count: 1 });
+});
+
+test('it answers 404 for an entity no row holds', async () => {
+  const ctx = await setupTest();
+
+  const error = await ctx.client.get_entity({ id: 'harbour:vessel:404' }).then(
+    () => null,
+    (error_: unknown) => error_,
+  );
+
+  expect(error).toMatchObject({ code: 'NOT_FOUND' });
+  expect(ctx.statuses).toStrictEqual([404]);
+});
+
+test('it answers 503 for a plug-in query whose consumer has no current version', async () => {
+  const ctx = await setupTest();
+
+  ctx.store.reader.markDown('harbour_voyage');
+
+  const error = await ctx.client.harbour_voyage_count({ vessel: 'harbour:vessel:7' }).then(
+    () => null,
+    (error_: unknown) => error_,
+  );
+
+  expect(error).toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+  expect(ctx.statuses).toStrictEqual([503]);
+});
+
+test('it lists the core procedures and every plug-in query as MCP tools, each with its description', async () => {
+  const ctx = await setupTest();
+  const listed = await ctx.callMCP('tools/list', {});
+
+  expect(listed).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: {
+      tools: [
+        expect.objectContaining({
+          name: 'get_entity',
+          description: expect.stringContaining('one entity'),
+        }),
+        expect.objectContaining({
+          name: 'neighbourhood',
+          description: expect.stringContaining('linked'),
+        }),
+        expect.objectContaining({
+          name: 'harbour_voyage_count',
+          description: 'Counts the voyages of one vessel.',
+        }),
+        expect.objectContaining({
+          name: 'harbour_vessel_ports',
+          description:
+            'Lists the ports each named vessel left from, with the title of each voyage.',
+        }),
+      ],
+    },
+  });
+});
+
+test('it runs neighbourhood as an MCP tool with only the start given', async () => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.vessel.named',
+      event: 'evt-1',
+      entity: 'harbour:vessel:7',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { name: 'Tern' },
+    },
+  ]);
+
+  const answer = await ctx.callMCP('tools/call', {
+    name: 'neighbourhood',
+    arguments: { id: 'harbour:vessel:7' },
+  });
+
+  const start = expect.objectContaining({ id: 'harbour:vessel:7', depth: 0 });
+
+  expect(answer).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: expect.objectContaining({
+      structuredContent: expect.objectContaining({ entities: [start], links: [] }),
     }),
-  ).rejects.toMatchObject({ code: 'UNPROCESSABLE_CONTENT', status: 422, defined: true });
-});
-
-test('it answers BAD_REQUEST for an assert link whose only fault is its confidence', async () => {
-  const ctx = await setupTest();
-
-  expect(
-    ctx.client.assert_link({
-      requestID: 'request-1',
-      type: 'mentions',
-      from: 'gmail:msg:17',
-      to: { kind: 'entity', id: 'github:issue:412' },
-      confidence: 1.2,
-      evidence: 'the email quotes the issue title',
-    }),
-  ).rejects.toMatchObject({ code: 'BAD_REQUEST', status: 400 });
-});
-
-test('it answers NOT_IMPLEMENTED for a contract procedure with no handler yet', async () => {
-  const ctx = await setupTest();
-
-  expect(
-    ctx.client.neighbourhood({
-      id: 'github:pull_request:5',
-      depthLimit: 1,
-      linkTypes: null,
-      includeHubs: false,
-      minimumConfidence: 0.5,
-    }),
-  ).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED', status: 501 });
-});
-
-test('it answers NOT_FOUND for an entity the consumer does not hold', async () => {
-  const ctx = await setupTest();
-
-  const versionDirectory = join(ctx.consumerDirectory, 'v1');
-
-  await createStubConsumerVersion({
-    versionDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await symlink(versionDirectory, join(ctx.consumerDirectory, 'current'));
-
-  expect(ctx.client.get_entity({ id: 'github:pull_request:6' })).rejects.toMatchObject({
-    code: 'NOT_FOUND',
   });
 });
 
-test('it answers NOT_FOUND for an entity kind no consumer serves', async () => {
+test('it answers an MCP tool call that fails with an error result', async () => {
   const ctx = await setupTest();
 
-  expect(ctx.client.get_entity({ id: 'github:issue:5' })).rejects.toMatchObject({
-    code: 'NOT_FOUND',
+  const answer = await ctx.callMCP('tools/call', {
+    name: 'get_entity',
+    arguments: { id: 'harbour:vessel:404' },
+  });
+
+  expect(answer).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: expect.objectContaining({ isError: true }),
   });
 });
 
-test('it answers NOT_FOUND while the consumer has no current version', async () => {
-  const ctx = await setupTest();
-
-  expect(ctx.client.get_entity({ id: 'github:pull_request:5' })).rejects.toMatchObject({
-    code: 'NOT_FOUND',
-  });
-});
-
-test('it rejects an ID that is not an entity ID', async () => {
-  const ctx = await setupTest();
-
-  expect(ctx.client.get_entity({ id: 'harbour' })).rejects.toMatchObject({
-    code: 'BAD_REQUEST',
-  });
-});
-
-test('it serves the new row after the current link is repointed', async () => {
-  const ctx = await setupTest();
-
-  const firstDirectory = join(ctx.consumerDirectory, 'v1');
-  const secondDirectory = join(ctx.consumerDirectory, 'v2');
-  const currentLink = join(ctx.consumerDirectory, 'current');
-
-  await createStubConsumerVersion({
-    versionDirectory: firstDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
+test('#createRouter refuses a plug-in query with a zod transform', () => {
+  const query = defineQuery({
+    name: 'harbour_tide',
+    description: 'Gives the tide.',
+    input: z.object({ at: z.string().transform((text) => new Date(text)) }),
+    output: z.object({ metres: z.number() }),
+    reads: [],
+    handler: () => Promise.resolve({ metres: 2 }),
   });
 
-  await createStubConsumerVersion({
-    versionDirectory: secondDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals and reefs',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T10:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
+  const plugin = definePlugin({ name: 'tide', queries: [query] });
 
-  await symlink(firstDirectory, currentLink);
-
-  await ctx.client.get_entity({ id: 'github:pull_request:5' });
-
-  await unlink(currentLink);
-  await symlink(secondDirectory, currentLink);
-
-  const result = await ctx.client.get_entity({ id: 'github:pull_request:5' });
-
-  expect(result.entity.title).toBe('Chart the shoals and reefs');
+  expect(() => createRouter(plugin.queries)).toThrow(/harbour_tide has a zod transform/u);
 });

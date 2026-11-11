@@ -1,11 +1,10 @@
-export { createRouter } from './app/create-router.ts';
-export type { APIClient } from './app/create-router.ts';
 export { createApp } from './app/create-app.ts';
-export type * from './change-feed/change-feed.ts';
-export type * from './principal/principal.ts';
+export { createRouter } from './app/create-router.ts';
+export type { DeploymentClient } from './client/deployment-client.ts';
 export { readAPIConfig } from './config/read-api-config.ts';
+export { buildQueryContext } from './queries/build-query-context.ts';
+export type { QueryContext } from './queries/types.ts';
+export { serveAPI } from './serve/serve-api.ts';
 export { createStoreReader } from './store-reader/create-store-reader.ts';
-export { openConsumerDatabase } from './store-reader/open-consumer-database.ts';
 export { readChangeOperations } from './store-reader/read-change-operations.ts';
 export { readOffsets } from './store-reader/read-offsets.ts';
-export { readPullRequests } from './store-reader/read-pull-requests.ts';

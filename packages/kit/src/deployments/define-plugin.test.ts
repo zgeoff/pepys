@@ -7,7 +7,7 @@ import { defineSource } from '../sources/define-source.ts';
 import { defineTable } from '../tables/define-table.ts';
 import { buildStubConsumer } from '../test-utils/build-stub-consumer.ts';
 import { definePlugin } from './define-plugin.ts';
-import type { PluginClient } from './types.ts';
+import type { Plugin, PluginClient } from './types.ts';
 
 test('it fills the parts a plug-in leaves out', () => {
   expect(definePlugin({ name: 'ledger' })).toStrictEqual({
@@ -115,6 +115,12 @@ test('it types a call of each query of a plug-in by its name', () => {
   expectTypeOf<PluginClient<typeof plugin>>().toEqualTypeOf<{
     ledger_takings: (input: TakingsInput) => Promise<{ cents: number }>;
   }>();
+});
+
+test('it types no call for a plug-in with no queries whose query type is the widest one', () => {
+  const plugin: Plugin = definePlugin({ name: 'lighthouse' });
+
+  expectTypeOf<PluginClient<typeof plugin>>().toEqualTypeOf<Record<never, never>>();
 });
 
 interface TakingsInput {

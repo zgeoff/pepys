@@ -1,252 +1,299 @@
-import { expect, mock, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
+import { expect, onTestFinished, test } from 'bun:test';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import invariant from 'tiny-invariant';
-import { createStubConsumerVersion } from '../test-utils/create-stub-consumer-version.ts';
+import { sql } from 'kysely';
+import {
+  createConsumerVersion,
+  writeCurrentVersion,
+} from '../test-utils/create-consumer-version.ts';
+import {
+  harbourVesselConsumer,
+  harbourVoyageConsumer,
+} from '../test-utils/harbour/harbour-plugin.ts';
+import { startLiveWriter } from '../test-utils/start-live-writer.ts';
 import { createStoreReader } from './create-store-reader.ts';
-import { openConsumerDatabase } from './open-consumer-database.ts';
 
 async function setupTest() {
-  const stack = new AsyncDisposableStack();
-
-  onTestFinished(() => stack.disposeAsync());
-
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-reader-'));
 
-  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
+  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
 
-  const openDatabase = mock(openConsumerDatabase);
-  const store = createStoreReader({ storeDirectory, openDatabase });
+  const store = createStoreReader({ storeDirectory });
 
-  stack.defer(() => store.close());
+  onTestFinished(() => store.close());
 
-  return { store, openDatabase, consumerDirectory: join(storeDirectory, 'github_pull_request') };
+  return { store, storeDirectory };
 }
 
-test('it finishes a read that spans a swap of the current link', async () => {
+test('it joins the tables of two attached files and shows the entities and links of both', async () => {
   const ctx = await setupTest();
 
-  const firstDirectory = join(ctx.consumerDirectory, 'v1');
-  const secondDirectory = join(ctx.consumerDirectory, 'v2');
-  const currentLink = join(ctx.consumerDirectory, 'current');
-
-  await createStubConsumerVersion({
-    versionDirectory: firstDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await createStubConsumerVersion({
-    versionDirectory: secondDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals and reefs',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await symlink(firstDirectory, currentLink);
-
-  const titles = await ctx.store.withConsumer('github_pull_request', async (transaction) => {
-    const first = await transaction.selectFrom('entity').select('title').executeTakeFirstOrThrow();
-
-    await unlink(currentLink);
-    await symlink(secondDirectory, currentLink);
-
-    // a second request sees the new target and retires the database the first still reads
-    const second = await ctx.store.withConsumer('github_pull_request', (other) =>
-      other.selectFrom('entity').select('title').executeTakeFirstOrThrow(),
-    );
-
-    const rest = await transaction
-      .selectFrom('github_pull_request')
-      .select('title')
-      .executeTakeFirstOrThrow();
-
-    invariant(second.ok);
-
-    return [first.title, second.value.title, rest.title];
-  });
-
-  expect(titles).toStrictEqual({
-    ok: true,
-    value: ['Chart the shoals', 'Chart the shoals and reefs', 'Chart the shoals'],
-  });
-});
-
-test('it reports no current version for a consumer whose current link does not exist', async () => {
-  const ctx = await setupTest();
-
-  const result = await ctx.store.withConsumer('github_pull_request', (transaction) =>
-    transaction.selectFrom('entity').select('title').execute(),
-  );
-
-  expect(result).toStrictEqual({ ok: false, failure: { reason: 'no-current-version' } });
-});
-
-test('it serves concurrent reads of a new target from one database', async () => {
-  const ctx = await setupTest();
-
-  const firstDirectory = join(ctx.consumerDirectory, 'v1');
-  const secondDirectory = join(ctx.consumerDirectory, 'v2');
-  const currentLink = join(ctx.consumerDirectory, 'current');
-
-  await createStubConsumerVersion({
-    versionDirectory: firstDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await createStubConsumerVersion({
-    versionDirectory: secondDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals and reefs',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await symlink(firstDirectory, currentLink);
-
-  await ctx.store.withConsumer('github_pull_request', (transaction) =>
-    transaction.selectFrom('entity').select('title').execute(),
-  );
-
-  await unlink(currentLink);
-  await symlink(secondDirectory, currentLink);
-
-  const results = await Promise.all([
-    ctx.store.withConsumer('github_pull_request', (transaction) =>
-      transaction.selectFrom('entity').select('title').executeTakeFirstOrThrow(),
-    ),
-    ctx.store.withConsumer('github_pull_request', (transaction) =>
-      transaction.selectFrom('entity').select('title').executeTakeFirstOrThrow(),
-    ),
-  ]);
-
-  expect(ctx.openDatabase.mock.calls).toStrictEqual([
-    [join(firstDirectory, 'consumer.db')],
-    [join(secondDirectory, 'consumer.db')],
-  ]);
-
-  expect(results).toStrictEqual([
-    { ok: true, value: { title: 'Chart the shoals and reefs' } },
-    { ok: true, value: { title: 'Chart the shoals and reefs' } },
-  ]);
-});
-
-test('it keeps one snapshot for a read that spans a commit to the same file', async () => {
-  const ctx = await setupTest();
-
-  const versionDirectory = join(ctx.consumerDirectory, 'v1');
-
-  await createStubConsumerVersion({
-    versionDirectory,
-    row: {
-      id: 'github:pull_request:5',
-      number: 5,
-      repository_id: 'github:repo:2',
-      title: 'Chart the shoals',
-      state: 'open',
-      is_draft: 0,
-      is_merged: 0,
-      author_id: null,
-      url: 'https://github.example/acme/harbour/pull/5',
-      merge_commit_sha: null,
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: '2026-10-01T09:00:00Z',
-      closed_at: null,
-      merged_at: null,
-      payload: '{}',
-    },
-  });
-
-  await symlink(versionDirectory, join(ctx.consumerDirectory, 'current'));
-
-  const titles = await ctx.store.withConsumer('github_pull_request', async (transaction) => {
-    const first = await transaction.selectFrom('entity').select('title').executeTakeFirstOrThrow();
-
-    // Turso shares one database per path within a process, so the writer runs in its own, as the
-    // host does
-    const writer = Bun.spawn(
-      [
-        process.execPath,
-        '--eval',
-        `import { connect } from '@tursodatabase/database';
-         const writer = await connect(${JSON.stringify(join(versionDirectory, 'consumer.db'))}, { experimental: ['multiprocess_wal'] });
-         await writer.run("update github_pull_request set title = 'Chart the reefs'");
-         await writer.close();`,
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {
+      harbour_vessel: [
+        { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
       ],
-      { cwd: import.meta.dir },
+    },
+  });
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVoyageConsumer,
+    version: 'v3',
+    rows: {
+      harbour_voyage: [
+        {
+          id: 'harbour:voyage:12',
+          vessel_id: 'harbour:vessel:7',
+          port_id: 'harbour:port:north',
+          is_hailed: true,
+          departed_at: '2026-11-02T06:00:00.000Z',
+        },
+      ],
+    },
+    links: [
+      {
+        type: 'voyage_of',
+        from_id: 'harbour:voyage:12',
+        to_id: 'harbour:vessel:7',
+        scope: null,
+        origin: 'harbour_voyage',
+        confidence: 1,
+        evidence: 'the manifest',
+      },
+    ],
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+  await writeCurrentVersion(ctx.storeDirectory, harbourVoyageConsumer, 'v3');
+
+  const result: unknown = await ctx.store.withConsumers(
+    [harbourVesselConsumer, harbourVoyageConsumer],
+    async (db, call) => ({
+      call,
+      joined: await db
+        .selectFrom('harbour_voyage')
+        .innerJoin('harbour_vessel', 'harbour_vessel.id', 'harbour_voyage.vessel_id')
+        .select(['harbour_voyage.id', 'harbour_vessel.name'])
+        .execute(),
+      entities: await db.selectFrom('entity').select(['id', 'kind']).orderBy('id').execute(),
+      links: await db.selectFrom('link_effective').select(['type', 'from_id', 'to_id']).execute(),
+    }),
+  );
+
+  expect(result).toStrictEqual({
+    ok: true,
+    value: {
+      call: {
+        attached: { harbour_vessel: { version: 'v1' }, harbour_voyage: { version: 'v3' } },
+        skipped: [],
+      },
+      joined: [{ id: 'harbour:voyage:12', name: 'Tern' }],
+      entities: [
+        { id: 'harbour:vessel:7', kind: 'harbour:vessel' },
+        { id: 'harbour:voyage:12', kind: 'harbour:voyage' },
+      ],
+      links: [{ type: 'voyage_of', from_id: 'harbour:voyage:12', to_id: 'harbour:vessel:7' }],
+    },
+  });
+});
+
+test('it names every required consumer with no current version and runs no work', async () => {
+  const ctx = await setupTest();
+
+  let isRun = false;
+
+  const result = await ctx.store.withConsumers(
+    [harbourVesselConsumer, harbourVoyageConsumer],
+    () => {
+      isRun = true;
+
+      return Promise.resolve(null);
+    },
+  );
+
+  expect({ result, isRun }).toStrictEqual({
+    result: {
+      ok: false,
+      failure: { reason: 'no-current-version', consumers: ['harbour_vessel', 'harbour_voyage'] },
+    },
+    isRun: false,
+  });
+});
+
+test('it attaches each optional consumer with a current version and names the rest as skipped', async () => {
+  const ctx = await setupTest();
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {
+      harbour_vessel: [
+        { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+      ],
+    },
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  const result = await ctx.store.withConsumers(
+    [],
+    async (db, call) => ({
+      call,
+      entities: await db.selectFrom('entity').select('id').execute(),
+      links: await db.selectFrom('link_effective').select('type').execute(),
+    }),
+    { whenCurrent: [harbourVesselConsumer, harbourVoyageConsumer] },
+  );
+
+  expect(result).toStrictEqual({
+    ok: true,
+    value: {
+      call: { attached: { harbour_vessel: { version: 'v1' } }, skipped: ['harbour_voyage'] },
+      entities: [{ id: 'harbour:vessel:7' }],
+      links: [],
+    },
+  });
+});
+
+test('it finishes a call on the version it resolved when the current link swings during it', async () => {
+  const ctx = await setupTest();
+
+  for (const [version, name] of [
+    ['v1', 'Tern'],
+    ['v2', 'Tern of the North'],
+  ] as const) {
+    await createConsumerVersion({
+      storeDirectory: ctx.storeDirectory,
+      consumer: harbourVesselConsumer,
+      version,
+      rows: {
+        harbour_vessel: [{ id: 'harbour:vessel:7', name, updated_at: '2026-11-01T08:00:00.000Z' }],
+      },
+    });
+  }
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  const result = await ctx.store.withConsumers([harbourVesselConsumer], async (db) => {
+    const first = await db.selectFrom('harbour_vessel').select('name').executeTakeFirstOrThrow();
+
+    await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v2');
+
+    const second = await ctx.store.withConsumers([harbourVesselConsumer], (other) =>
+      other.selectFrom('harbour_vessel').select('name').executeTakeFirstOrThrow(),
     );
 
-    const writerExitCode = await writer.exited;
+    const rest = await db.selectFrom('entity').select('title').executeTakeFirstOrThrow();
 
-    const rest = await transaction
-      .selectFrom('github_pull_request')
-      .select('title')
-      .executeTakeFirstOrThrow();
-
-    return { writerExitCode, titles: [first.title, rest.title] };
+    return { first: first.name, second, rest: rest.title };
   });
 
-  expect(titles).toStrictEqual({
+  expect(result).toStrictEqual({
     ok: true,
-    value: { writerExitCode: 0, titles: ['Chart the shoals', 'Chart the shoals'] },
+    value: {
+      first: 'Tern',
+      second: { ok: true, value: { name: 'Tern of the North' } },
+      rest: 'Tern',
+    },
   });
+});
+
+test('it keeps one snapshot of a file that the host holds open and commits to during the call', async () => {
+  const ctx = await setupTest();
+
+  const directory = await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {
+      harbour_vessel: [
+        { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+      ],
+    },
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  const writer = await startLiveWriter(join(directory, 'consumer.db'));
+
+  onTestFinished(() => writer.stop());
+
+  // oxlint-disable-next-line zgeoff/seed-only -- the host's own write, which the reader must see
+  await writer.run("update harbour_vessel set name = 'Tern II'");
+
+  const during = await ctx.store.withConsumers([harbourVesselConsumer], async (db) => {
+    const first = await db.selectFrom('harbour_vessel').select('name').executeTakeFirstOrThrow();
+
+    // oxlint-disable-next-line zgeoff/seed-only -- the host's write during the call
+    await writer.run("update harbour_vessel set name = 'Tern III'");
+
+    const rest = await db.selectFrom('entity').select('title').executeTakeFirstOrThrow();
+
+    return [first.name, rest.title];
+  });
+
+  const after = await ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+    db.selectFrom('harbour_vessel').select('name').executeTakeFirstOrThrow(),
+  );
+
+  expect({ during, after }).toStrictEqual({
+    during: { ok: true, value: ['Tern II', 'Tern II'] },
+    after: { ok: true, value: { name: 'Tern III' } },
+  });
+});
+
+test('it refuses a write to an attached file', async () => {
+  const ctx = await setupTest();
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  expect(
+    ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+      // oxlint-disable-next-line zgeoff/seed-only -- the write the reader must refuse
+      db.deleteFrom('harbour_vessel').execute(),
+    ),
+  ).rejects.toThrow(/readonly/u);
+});
+
+test('it attaches a file whose folder name holds a space, a percent sign, a hash and a quote', async () => {
+  const ctx = await setupTest();
+
+  const storeDirectory = join(ctx.storeDirectory, "dock 7%20#north's");
+
+  await mkdir(storeDirectory);
+
+  await createConsumerVersion({
+    storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {
+      harbour_vessel: [
+        { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+      ],
+    },
+  });
+
+  await writeCurrentVersion(storeDirectory, harbourVesselConsumer, 'v1');
+
+  const store = createStoreReader({ storeDirectory });
+
+  onTestFinished(() => store.close());
+
+  const result = await store.withConsumers([harbourVesselConsumer], (db) =>
+    sql`select name from harbour_vessel`.execute(db),
+  );
+
+  expect(result).toStrictEqual({ ok: true, value: { rows: [{ name: 'Tern' }] } });
 });

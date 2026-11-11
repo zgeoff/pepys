@@ -40,9 +40,11 @@ export interface Deployment<Plugins extends readonly Plugin[] = readonly Plugin[
   readonly settings?: Readonly<Record<string, Readonly<Record<string, SettingValue>>>> | undefined;
 }
 
-// The typed client of one plug-in's queries. A type only, so the kit needs no oRPC.
+// The typed client of one plug-in's queries. A type only, so the kit needs no oRPC. A plug-in with
+// no queries, written inside `defineDeployment`, takes its query type from the call's context, so
+// a query name that is no literal gives no method rather than an index signature.
 export type PluginClient<Target extends Plugin> = {
-  [Query in Target['queries'][number] as Query['name']]: (
+  [Query in Target['queries'][number] as string extends Query['name'] ? never : Query['name']]: (
     input: z.input<Query['input']>,
   ) => Promise<z.output<Query['output']>>;
 };

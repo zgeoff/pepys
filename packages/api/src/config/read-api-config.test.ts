@@ -1,24 +1,32 @@
 import { expect, test } from 'bun:test';
 import { readAPIConfig } from './read-api-config.ts';
 
-test('it reads the store directory and port from the environment', () => {
-  expect(readAPIConfig({ PEPYS_STORE_DIR: '/var/pepys', PEPYS_API_PORT: '9191' })).toStrictEqual({
+test('it reads the store directory and the listen address from the environment', () => {
+  const environment = {
+    PEPYS_STORE_DIR: '/var/pepys',
+    PEPYS_API_HOST: '0.0.0.0',
+    PEPYS_API_PORT: '9191',
+  };
+
+  expect(readAPIConfig(environment)).toStrictEqual({
     ok: true,
-    value: { storeDirectory: '/var/pepys', port: 9191 },
+    value: { storeDirectory: '/var/pepys', host: '0.0.0.0', port: 9191 },
   });
 });
 
-test('it listens on port 8081 when no port is set', () => {
+test('it listens on 127.0.0.1 and port 8081 when neither is set', () => {
   expect(readAPIConfig({ PEPYS_STORE_DIR: '/var/pepys' })).toStrictEqual({
     ok: true,
-    value: { storeDirectory: '/var/pepys', port: 8081 },
+    value: { storeDirectory: '/var/pepys', host: '127.0.0.1', port: 8081 },
   });
 });
 
-test('it listens on port 8081 when the port is set to an empty value', () => {
-  expect(readAPIConfig({ PEPYS_STORE_DIR: '/var/pepys', PEPYS_API_PORT: '' })).toStrictEqual({
+test('it listens on 127.0.0.1 and port 8081 when both are set to an empty value', () => {
+  const environment = { PEPYS_STORE_DIR: '/var/pepys', PEPYS_API_HOST: '', PEPYS_API_PORT: '' };
+
+  expect(readAPIConfig(environment)).toStrictEqual({
     ok: true,
-    value: { storeDirectory: '/var/pepys', port: 8081 },
+    value: { storeDirectory: '/var/pepys', host: '127.0.0.1', port: 8081 },
   });
 });
 

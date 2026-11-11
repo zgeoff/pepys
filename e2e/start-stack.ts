@@ -8,8 +8,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
-import { createStoreReader, openConsumerDatabase, readOffsets } from '@pepys/api';
+import { createStoreReader, readOffsets } from '@pepys/api';
 import { consumerBuildManifestSchema } from '@pepys/schema';
+import { githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
 import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 import { buildStackEnv } from '../stack/build-stack-env.ts';
@@ -272,14 +273,14 @@ async function runUntilCaughtUp(
   stop: AbortSignal,
 ): Promise<void> {
   const run = runChild([host, 'run'], process.env);
-  const store = createStoreReader({ storeDirectory, openDatabase: openConsumerDatabase });
+  const store = createStoreReader({ storeDirectory });
   const deadline = Date.now() + 60_000;
 
   try {
     while (Date.now() < deadline) {
       stop.throwIfAborted();
 
-      const offsets = await readOffsets(store, consumerName);
+      const offsets = await readOffsets(store, githubPullRequestConsumer);
 
       if (offsets.ok && offsets.value.some((offset) => offset.lastSeqNum === tail - 1)) {
         return;
