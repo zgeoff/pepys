@@ -138,6 +138,8 @@ GitHub:
   it does not, the deploy rule falls back to the status rows with no change.
 - The update time that GitHub puts in a delivery for a deleted release. The tombstone rule does not
   rest on it.
+- That the pull request consumer reads release bump rows from a payload that the real host stored.
+  The e2e lane reads the stored row back through the host, with no release URL in its payload.
 
 The build and the host:
 
