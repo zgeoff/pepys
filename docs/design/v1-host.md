@@ -201,13 +201,13 @@ what the scope no longer returns.
 `not-owned` is about tables: the consumer wrote outside its own. `scope-conflict` is about rows in
 the consumer's own tables: another scope of the same consumer holds the row or the link.
 
-- **Numbers.** An integer column refuses a number written with a fraction or an exponent, even
-  `5.0`. A REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value. A
-  JSON column compares as a value, whatever the order of its keys.
+- **Numbers.** An integer column refuses a fraction or an exponent, even `5.0`, and a number that
+  fails `Number.isSafeInteger`. A REAL column and a link's confidence compare as floats, so `2` and
+  `2.0` are one value and one key. A JSON column compares as a value, whatever its key order.
 - **Row entries.** A written row gives `{ type: <table>, key, value, headers: { operation } }`, with
   the operation `insert` or `update`. An update adds `old_value`, the stored row. The key is the
-  JSON text of the list of the key's values. A deleted row gives no `value`: it gives the type, the
-  key, `old_value` and `headers: { operation: 'delete' }`.
+  list of the key's values as `JSON.stringify` writes it. A deleted row gives no `value`: it gives
+  the type, the key, `old_value` and `headers: { operation: 'delete' }`.
 - **Link entries.** A link gives the type `link`, the key as the JSON text of `[type, from, to]`,
   and the value `{ type, from, to, confidence, evidence }`, with `old_value` on an update. A deleted
   link gives only the type, the key and `headers: { operation: 'delete' }`.

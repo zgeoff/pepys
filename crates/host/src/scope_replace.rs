@@ -336,8 +336,8 @@ fn find_conflict(scope: &str, result: &ScopeResult, state: &ScopeState) -> Optio
 }
 
 // A row as JSON, with every number compared as a float, so that a REAL column holds `2` and `2.0`
-// as one value. The check of the row has refused a fraction in an integer column, and a stored
-// integer never reads back with one.
+// as one value. The check of the row has refused a fraction in an integer column, and an integer
+// past 2^53, where two integers become one float; a stored integer never reads back with either.
 fn is_same_value(stored: &Row, row: &Row) -> bool {
     stored.len() == row.len()
         && stored.iter().all(|(name, value)| {
@@ -629,6 +629,81 @@ mod tests {
             "rows": case.rows,
             "links": case.links,
         }))
+    }
+
+    #[tokio::test]
+    async fn it_keeps_one_row_when_a_real_key_comes_back_as_2_then_2_0() {
+        let mut manifest = stub_scope_manifest();
+
+        manifest.tables = serde_json::from_value(json!({
+            "item": {
+                "columns": {"id": {"kind": "real", "nullable": false}},
+                "primaryKey": ["id"],
+                "indexes": []
+            }
+        }))
+        .expect("the tables");
+        manifest.schema = "CREATE TABLE item (id REAL NOT NULL PRIMARY KEY);".into();
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let store = open_case_store(&directory, &manifest).await;
+        let scope = "ledger:account:a";
+
+        replace_scope(
+            &store.connection,
+            &manifest,
+            scope,
+            r#"[{"upsert":{"item":{"id":2}}}]"#,
+        )
+        .await
+        .expect("the first replace");
+        replace_scope(
+            &store.connection,
+            &manifest,
+            scope,
+            r#"[{"upsert":{"item":{"id":2.0}}}]"#,
+        )
+        .await
+        .expect("the second replace");
+
+        let rows = load_all_rows(&store.connection, "item", &manifest.tables["item"])
+            .await
+            .expect("the rows");
+
+        assert_eq!(rows.len(), 1);
+    }
+
+    // Past 2^53 two integers compare as one float, so the diff would drop the update.
+    #[tokio::test]
+    async fn it_refuses_an_integer_past_2_to_the_53_before_the_diff() {
+        let mut manifest = stub_scope_manifest();
+
+        manifest.tables = serde_json::from_value(json!({
+            "item": {
+                "columns": {
+                    "id": {"kind": "text", "nullable": false},
+                    "count": {"kind": "integer", "nullable": false}
+                },
+                "primaryKey": ["id"],
+                "indexes": []
+            }
+        }))
+        .expect("the tables");
+        manifest.schema =
+            "CREATE TABLE item (id TEXT NOT NULL PRIMARY KEY, count INTEGER NOT NULL);".into();
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let store = open_case_store(&directory, &manifest).await;
+
+        let result = replace_scope(
+            &store.connection,
+            &manifest,
+            "ledger:account:a",
+            r#"[{"upsert":{"item":{"id":"a","count":9007199254740993}}}]"#,
+        )
+        .await;
+
+        assert!(matches!(result, Err(HostError::BadRow { .. })));
     }
 
     // The test store's TypeScript replace runs the same cases, so the two replaces cannot drift

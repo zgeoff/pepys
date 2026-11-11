@@ -38,8 +38,13 @@ pub fn check_row(table: &str, info: &TableInfo, row: &Row) -> Result<(), HostErr
     Ok(())
 }
 
+// `Number.MAX_SAFE_INTEGER`: past it, a TypeScript reader and the float compare of the scope
+// replace can no longer tell two integers apart.
+const MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
+
 // An integer column refuses a number written with a fraction or an exponent, even `5.0`: serde
-// reads such a number as a float.
+// reads such a number as a float. It refuses an integer outside the safe range too, as the test
+// store does with `Number.isSafeInteger`.
 fn fits(column: ColumnInfo, value: &Value) -> bool {
     match (value, column.kind) {
         (Value::Null, _) => column.nullable,
@@ -47,7 +52,9 @@ fn fits(column: ColumnInfo, value: &Value) -> bool {
         | (Value::Bool(_), ColumnKind::Boolean)
         | (Value::Number(_), ColumnKind::Real)
         | (_, ColumnKind::Json) => true,
-        (Value::Number(number), ColumnKind::Integer) => number.is_i64(),
+        (Value::Number(number), ColumnKind::Integer) => number
+            .as_i64()
+            .is_some_and(|integer| integer.unsigned_abs() <= MAX_SAFE_INTEGER),
         (
             Value::String(_)
             | Value::Bool(_)
@@ -64,8 +71,9 @@ fn fits(column: ColumnInfo, value: &Value) -> bool {
     }
 }
 
-/// The primary key as text: the JSON list of the key's values, in primary key order. One form for
-/// a key of one column and of several. The change log holds it.
+/// The primary key as text: the JSON list of the key's values, in primary key order, as
+/// `JSON.stringify` writes it. One form for a key of one column and of several. The change log and
+/// `scope_row` hold it, so equal numbers, such as `2` and `2.0`, give one key.
 ///
 /// # Errors
 /// Fails when the row lacks a key column.
@@ -80,7 +88,72 @@ pub fn key_of(table: &str, info: &TableInfo, row: &Row) -> Result<String, HostEr
         })
         .collect::<Result<Vec<Value>, HostError>>()?;
 
-    Ok(Value::Array(values).to_string())
+    Ok(format_key_json(&Value::Array(values)))
+}
+
+// JSON text as `JSON.stringify` writes it, so that the test store and the host give one key for a
+// value. Each number is a double, written as JavaScript writes one.
+fn format_key_json(value: &Value) -> String {
+    match value {
+        Value::Number(number) => number
+            .as_f64()
+            .map_or_else(|| number.to_string(), format_js_number),
+        Value::Array(items) => {
+            let items: Vec<String> = items.iter().map(format_key_json).collect();
+
+            format!("[{}]", items.join(","))
+        }
+        Value::Object(map) => {
+            let entries: Vec<String> = map
+                .iter()
+                .map(|(name, item)| {
+                    format!("{}:{}", Value::String(name.clone()), format_key_json(item))
+                })
+                .collect();
+
+            format!("{{{}}}", entries.join(","))
+        }
+        Value::Null | Value::Bool(_) | Value::String(_) => value.to_string(),
+    }
+}
+
+// ECMAScript's Number::toString for a finite double. Rust's `{:e}` gives the same shortest digits
+// that round-trip; JavaScript places the point by the exponent.
+fn format_js_number(number: f64) -> String {
+    if number == 0.0 {
+        return "0".to_owned();
+    }
+
+    let scientific = format!("{:e}", number.abs());
+    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((&scientific, "0"));
+    let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
+    let point = exponent.parse::<i32>().unwrap_or(0) + 1;
+    let count = i32::try_from(digits.len()).unwrap_or(i32::MAX);
+    let sign = if number < 0.0 { "-" } else { "" };
+    let zeros = |count: i32| "0".repeat(usize::try_from(count).unwrap_or(0));
+
+    let text = if count <= point && point <= 21 {
+        format!("{digits}{}", zeros(point - count))
+    } else if 0 < point && point <= 21 {
+        let (whole, fraction) = digits.split_at(usize::try_from(point).unwrap_or(0));
+
+        format!("{whole}.{fraction}")
+    } else if -6 < point && point <= 0 {
+        format!("0.{}{digits}", zeros(-point))
+    } else {
+        let (first, rest) = digits.split_at(1);
+        let power = point - 1;
+        let power_sign = if power < 0 { "-" } else { "+" };
+        let point_and_rest = if rest.is_empty() {
+            String::new()
+        } else {
+            format!(".{rest}")
+        };
+
+        format!("{first}{point_and_rest}e{power_sign}{}", power.abs())
+    };
+
+    format!("{sign}{text}")
 }
 
 /// The key of a delete operation, which holds the key's columns as a row and no other column.
@@ -416,6 +489,91 @@ mod tests {
         assert_eq!(
             check_row("ledger_entry", &ledger(), &fractional).map_err(|error| error.to_string()),
             Err("the consumer returned a row of ledger_entry the host refuses: the column day holds 3.0".to_owned())
+        );
+    }
+
+    #[test]
+    fn it_refuses_an_integer_past_the_safe_integers_and_accepts_the_largest_safe_one() {
+        let checks: Vec<(i64, bool)> = [
+            9_007_199_254_740_991,
+            9_007_199_254_740_992,
+            -9_007_199_254_740_991,
+            -9_007_199_254_740_992,
+        ]
+        .into_iter()
+        .map(|day| {
+            let mut row = entry();
+
+            row.insert("day".to_owned(), json!(day));
+
+            (day, check_row("ledger_entry", &ledger(), &row).is_ok())
+        })
+        .collect();
+
+        assert_eq!(
+            checks,
+            vec![
+                (9_007_199_254_740_991, true),
+                (9_007_199_254_740_992, false),
+                (-9_007_199_254_740_991, true),
+                (-9_007_199_254_740_992, false),
+            ]
+        );
+    }
+
+    // The texts are what `JSON.stringify(JSON.parse(text))` gives in JavaScript.
+    #[test]
+    fn it_writes_a_key_as_json_stringify_writes_it() {
+        let info: TableInfo = serde_json::from_value(json!({
+            "columns": {"id": {"kind": "json", "nullable": false}},
+            "primaryKey": ["id"],
+            "indexes": [],
+        }))
+        .expect("a table");
+        let keys: Vec<(&str, String)> = [
+            "2.0",
+            "1.25",
+            "1e21",
+            "1e20",
+            "1e-7",
+            "0.000001",
+            "-0.0",
+            "-2.5",
+            "1.5e-7",
+            "9007199254740993",
+            "123456789.125",
+            r#"["a",2.50,true,null]"#,
+        ]
+        .into_iter()
+        .map(|text| {
+            let value: Value = serde_json::from_str(text).expect("a value");
+
+            (
+                text,
+                key_of("item", &info, &row(json!({ "id": value }))).expect("a key"),
+            )
+        })
+        .collect();
+
+        assert_eq!(
+            keys,
+            vec![
+                ("2.0", "[2]".to_owned()),
+                ("1.25", "[1.25]".to_owned()),
+                ("1e21", "[1e+21]".to_owned()),
+                ("1e20", "[100000000000000000000]".to_owned()),
+                ("1e-7", "[1e-7]".to_owned()),
+                ("0.000001", "[0.000001]".to_owned()),
+                ("-0.0", "[0]".to_owned()),
+                ("-2.5", "[-2.5]".to_owned()),
+                ("1.5e-7", "[1.5e-7]".to_owned()),
+                ("9007199254740993", "[9007199254740992]".to_owned()),
+                ("123456789.125", "[123456789.125]".to_owned()),
+                (
+                    r#"["a",2.50,true,null]"#,
+                    r#"[["a",2.5,true,null]]"#.to_owned()
+                ),
+            ]
         );
     }
 
