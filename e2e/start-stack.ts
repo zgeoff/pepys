@@ -9,9 +9,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
 import { createStoreReader, readOffsets } from '@pepys/api';
+import { createS2FactLog } from '@pepys/ingest';
+import { parseFactEnvelope } from '@pepys/kit';
+import type { FactEnvelope, StreamName, StreamOffset } from '@pepys/kit';
 import { consumerBuildManifestSchema } from '@pepys/schema';
 import { githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
+import { toTagged } from '@zgeoff/std';
+import ledgerJourney from '../packages/testing/src/test-utils/ledger/ledger-journey.json' with { type: 'json' };
 import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 import { buildStackEnv } from '../stack/build-stack-env.ts';
 import { withStack } from '../stack/with-stack.ts';
@@ -127,6 +132,7 @@ async function runSlice(options: SliceOptions): Promise<void> {
   const webhookURL = `http://127.0.0.1:${ingestPort}/webhook/github`;
 
   await waitForIngest(webhookURL, options.stack.stop);
+  await writeLedgerJourney(options.stack);
   await runHost(['up']);
 
   const opened = buildDelivery({
@@ -157,6 +163,38 @@ async function runSlice(options: SliceOptions): Promise<void> {
   const tail = await readTail(options.stack);
 
   await runUntilCaughtUp(options.storeDirectory, tail, options.stack.stop);
+}
+
+// The stub deployment's scope consumer reads the ledger stream, which no ingest of the lane serves,
+// so the setup appends the journey's records itself, before `up` replays them.
+async function writeLedgerJourney(stack: RunningStack): Promise<void> {
+  const stream = toTagged<StreamName>('facts.ledger.account');
+
+  const log = await createS2FactLog({
+    endpoint: stack.s2Endpoint,
+    accessToken: stack.s2AccessToken,
+    basin: stack.s2Basin,
+    streams: [stream],
+  });
+
+  const envelopes: FactEnvelope<unknown>[] = [];
+
+  for (const record of ledgerJourney.records) {
+    const body: unknown = JSON.parse(record.body);
+    const parsed = parseFactEnvelope(body);
+
+    if (!parsed.ok) {
+      throw new Error(`the ledger journey holds a record that is no envelope: ${record.body}`);
+    }
+
+    envelopes.push(parsed.value);
+  }
+
+  const outcome = await log.appendBatch(stream, envelopes, toTagged<StreamOffset>(0));
+
+  if (outcome.kind !== 'acknowledged') {
+    throw new Error(`s2-lite refused the ledger journey: ${JSON.stringify(outcome)}`);
+  }
 }
 
 // each child leads its own process group, so cleanup also stops anything the child forked

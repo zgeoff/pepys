@@ -115,6 +115,7 @@
     "@zgeoff/format-codemod": "catalog:",
     "@zgeoff/oxlint-config": "catalog:",
     "@zgeoff/rig": "catalog:",
+    "@zgeoff/std": "catalog:",
     "knip": "catalog:",
     "lefthook": "catalog:",
     "msw": "catalog:",
