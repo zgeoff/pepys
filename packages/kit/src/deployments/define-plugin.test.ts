@@ -120,7 +120,10 @@ test('it types a call of each query of a plug-in by its name', () => {
 test('it types no call for a plug-in with no queries whose query type is the widest one', () => {
   const plugin: Plugin = definePlugin({ name: 'lighthouse' });
 
-  expectTypeOf<keyof PluginClient<typeof plugin>>().toEqualTypeOf<never>();
+  // the client of this plug-in is `{}`, which the type-aware lint refuses to see written out
+  type CallName<Target extends Plugin> = keyof PluginClient<Target>;
+
+  expectTypeOf<CallName<typeof plugin>>().toEqualTypeOf<never>();
 });
 
 interface TakingsInput {
