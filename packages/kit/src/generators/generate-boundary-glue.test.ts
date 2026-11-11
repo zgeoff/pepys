@@ -187,12 +187,12 @@ function setupTest() {
 
       hostFunctions.push(`read${name}Length`, `read${name}Into`);
 
-      Object.assign(globalThis, {
-        [`read${name}Length`]: (key: string): number =>
-          key in answers ? encoder.encode(JSON.stringify(answers[key])).length : -1,
-        [`read${name}Into`]: (key: string, buffer: Uint8Array): void => {
-          buffer.set(encoder.encode(JSON.stringify(answers[key])));
-        },
+      Reflect.set(globalThis, `read${name}Length`, (key: string): number =>
+        key in answers ? encoder.encode(JSON.stringify(answers[key])).length : -1,
+      );
+
+      Reflect.set(globalThis, `read${name}Into`, (key: string, buffer: Uint8Array): void => {
+        buffer.set(encoder.encode(JSON.stringify(answers[key])));
       });
     },
   };

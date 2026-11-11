@@ -25,7 +25,9 @@ export function buildPayloadShape(schema: z.core.$ZodType): PayloadShape {
     )
     .with(P.instanceOf(z.ZodObject), (object) => ({
       kind: 'object' as const,
-      fields: Object.entries(object.shape).map(([name, field]) => buildPayloadField(name, field)),
+      fields: Object.entries<z.core.$ZodType>(object.shape).map(([name, field]) =>
+        buildPayloadField(name, field),
+      ),
     }))
     .with(P.instanceOf(z.ZodArray), (array) => ({
       kind: 'array' as const,

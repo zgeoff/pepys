@@ -53,7 +53,9 @@ export function createFactBatchSender<Source extends SourceDefinition>(
 
     const request = buildRequest(path, options.url, options.secret, facts);
 
-    return await sendRequest(send, request);
+    const outcome = await sendRequest(send, request);
+
+    return outcome;
   };
 }
 
