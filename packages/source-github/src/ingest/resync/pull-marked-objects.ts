@@ -1,9 +1,5 @@
-import { parseFactEnvelope } from '@pepys/kit';
-import type { PendingFact, PullContext, Pulled, StreamName } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
+import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
-import { releaseFamily } from '../../families/release-family.ts';
-import { buildBodyHash } from '../../utils/build-body-hash.ts';
 import { buildGithubFact } from '../build-github-fact.ts';
 import { findAppJWT } from '../github-app/find-app-jwt.ts';
 import { pickPullFailure } from '../github-app/pick-pull-failure.ts';
@@ -15,19 +11,18 @@ import type { ResyncTarget } from './collect-resync-targets.ts';
 
 // The resync pull: each marked pull request and release, read again from the API as one fact in the
 // shape of its webhook body. The fact comes after the deliveries, so it wins a tie of times and sets
-// the row to GitHub's state. A release the API no longer has gives a `deleted` fact.
+// the row to GitHub's state.
 export async function pullMarkedObjects(
   _cursor: string | null,
   context: PullContext,
 ): Promise<Pulled> {
   const targets = collectResyncTargets(context.marks);
-  const nowMs = Date.now();
 
   if (targets.length === 0) {
     return { kind: 'batch', batch: { facts: [] }, cursor: 'resynced', isDone: true };
   }
 
-  const appJWT = findAppJWT(context.env, nowMs);
+  const appJWT = findAppJWT(context.env, Date.now());
 
   if (appJWT === undefined) {
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };
@@ -48,7 +43,7 @@ export async function pullMarkedObjects(
       continue;
     }
 
-    const read = await readObject(target, token.token, nowMs);
+    const read = await readObject(target, token.token);
 
     if (read.kind === 'failed') {
       return pickPullFailure(read.status);
@@ -88,14 +83,14 @@ type ReadObject =
   | { kind: 'none' }
   | { kind: 'failed'; status: number };
 
-// A pull request the API does not give is left alone: GitHub deletes none, so the App lost access.
-async function readObject(target: ResyncTarget, token: string, nowMs: number): Promise<ReadObject> {
+// An object the API answers 404 for is left alone. GitHub deletes no pull request, and shows a draft
+// release only to a token that can push, so a 404 cannot prove a delete. A deleted release's own
+// `deleted` delivery sets its tombstone.
+async function readObject(target: ResyncTarget, token: string): Promise<ReadObject> {
   const answer = await requestGithubAPI(target.path, token);
 
   if (answer.status === 404) {
-    return target.kind === 'release'
-      ? toReadObject(buildDeletedFact(target, nowMs))
-      : { kind: 'none' };
+    return { kind: 'none' };
   }
 
   if (answer.status !== 200) {
@@ -132,26 +127,4 @@ async function readObject(target: ResyncTarget, token: string, nowMs: number): P
 
 function toReadObject(fact: PendingFact | 'ignored' | 'invalid'): ReadObject {
   return typeof fact === 'string' ? { kind: 'none' } : { kind: 'fact', fact };
-}
-
-// The time of a delete is when the pull saw it. The ID hashes the payload alone, so two pulls that
-// see one delete give one fact.
-function buildDeletedFact(target: ResyncTarget, nowMs: number): PendingFact | 'invalid' {
-  const payload = { action: 'deleted', release: { id: Number(target.path.split('/').at(-1)) } };
-
-  const envelope = parseFactEnvelope({
-    id: `observation:${buildBodyHash(payload)}`,
-    type: 'github.release.deleted',
-    v: 1,
-    api: releaseFamily.api,
-    entity: target.entity,
-    at: new Date(nowMs).toISOString(),
-    payload,
-  });
-
-  if (!envelope.ok) {
-    return 'invalid';
-  }
-
-  return { stream: toTagged<StreamName>(releaseFamily.stream), fact: envelope.value, blobs: [] };
 }

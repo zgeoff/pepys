@@ -516,7 +516,14 @@ export interface PullPath {
   readonly name: string;
   readonly intervalMs: number | null;
   readonly env?: readonly string[];
-  readonly pull: (cursor: string | null, context: { env: Readonly<Record<string, string>> }) => Promise<Pulled>;
+  readonly pull: (cursor: string | null, context: PullContext) => Promise<Pulled>;
+}
+
+// `marks`: for a `resync` pull, the source's marked entities when the run starts, each with the
+// locator of the last fact stored for it; empty for any other pull.
+export interface PullContext {
+  env: Readonly<Record<string, string>>;
+  marks: readonly { entity: EntityID; locator: string | undefined }[];
 }
 
 export type Pulled =
@@ -533,6 +540,9 @@ export interface PendingFact {
   stream: StreamName;
   fact: FactEnvelope<unknown>;
   blobs: readonly { hash: BlobHash; bytes: Uint8Array }[];
+  // What a resync pull needs to read the entity again, such as an API path. Ingest keeps it beside
+  // the entity's mark, and stores it in no fact.
+  locator?: string;
 }
 
 // The receive path of a fact batch. Its `read` parses FactBatchBody against the source's families

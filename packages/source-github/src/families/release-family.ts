@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { buildFamilyTypes } from './build-family-types.ts';
 
 // The `action` values of GitHub's `release` webhook event, and `resynced` for a release that the
-// resync pull read from the API. The resync pull gives `deleted` for a release the API no longer has.
+// resync pull read from the API.
 const actions = [
   'created',
   'deleted',

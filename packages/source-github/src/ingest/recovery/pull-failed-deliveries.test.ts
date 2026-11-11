@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
-import { githubDeliveries } from '../../mocks/github-api-handlers.ts';
+import { githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
 function setupTest() {

@@ -15,10 +15,10 @@ All three paths produce events wherever the source has a history API. Observatio
 gap longer than the source keeps its history, and for objects with no history API, such as Gmail
 labels. The first two sources fill the three paths as follows.
 
-| Source | Live                                     | Recovery                               | Backfill        |
-| ------ | ---------------------------------------- | -------------------------------------- | --------------- |
-| GitHub | GitHub App webhooks                      | redelivery of failed deliveries        | timeline APIs   |
-| Gmail  | polling `history.list` from a history ID | the same poll, resumed from its cursor | `messages.list` |
+| Source | Live                                     | Recovery                                | Backfill        |
+| ------ | ---------------------------------------- | --------------------------------------- | --------------- |
+| GitHub | GitHub App webhooks                      | failed deliveries from the delivery log | timeline APIs   |
+| Gmail  | polling `history.list` from a history ID | the same poll, resumed from its cursor  | `messages.list` |
 
 ## GitHub
 

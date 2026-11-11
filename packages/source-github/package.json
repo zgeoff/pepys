@@ -16,7 +16,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./github-api-handlers": "./src/mocks/github-api-handlers.ts"
+    "./github-api-handlers": "./src/test-utils/github-api-handlers.ts"
   },
   "publishConfig": {
     "access": "public"

@@ -659,7 +659,8 @@ export interface GithubEventRule {
   readonly family: FactFamily;
   // `ignored`: a delivery pepys does not keep, such as a push to a feature branch.
   // `invalid`: the body is not what the event documents; the route answers 422.
-  readonly read: (body: unknown) => { type: string; entity: string; actor: string | undefined; at: string } | 'ignored' | 'invalid';
+  // `locator`: the API path the resync pull reads the entity at, from the body's `url`.
+  readonly read: (body: unknown) => { type: string; entity: string; actor: string | undefined; at: string; locator: string | undefined } | 'ignored' | 'invalid';
 }
 
 // pull_request, release, push, deployment, deployment_status, workflow_run, issues, pull_request_review
@@ -832,8 +833,10 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //   `repository` with its ID and full name, which the release API leaves out), ID
 //   `observation:<sha256 of the canonical payload>`. It arrives after the deliveries, so by the
 //   tie rule (part 4) it wins a tie and sets the row to GitHub's current state. Two resyncs
-//   of one unchanged state are one fact. A release that GitHub no longer has (404) gives
-//   `github.release.deleted`, timed when the pull saw the 404. Each family's `types` gains `github.<family>.resynced`.
+//   of one unchanged state are one fact. A 404 writes nothing: GitHub deletes no pull request,
+//   and shows a draft release only to a token that can push, so a 404 proves no delete. A
+//   deleted release's own `deleted` delivery sets its tombstone. The pull also skips a mark with
+//   no locator and a repository with no App installation; ingest removes those marks. Each family's `types` gains `github.<family>.resynced`.
 //   A replay cannot use this to set a row: the resync fact holds what GitHub's API says at
 //   that time, never what the replayed body says. A replay can only cause one API read.
 //   Limits: the marks and `lastBodies` are in ingest's memory. A restart between the first A

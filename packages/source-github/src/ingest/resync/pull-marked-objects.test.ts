@@ -12,9 +12,10 @@ import { githubPlugin } from '../../github-plugin.ts';
 import { githubSource } from '../../github-source.ts';
 import {
   GITHUB_API_URL,
+  githubPullRequests,
   githubReleases,
   githubRepositories,
-} from '../../mocks/github-api-handlers.ts';
+} from '../../test-utils/github-api-handlers.ts';
 import { toAppliedFact } from '../../test-utils/to-applied-fact.ts';
 
 async function setupTest() {
@@ -48,12 +49,8 @@ async function setupTest() {
 
   onTestFinished(() => store[Symbol.asyncDispose]());
 
-  const readStored = async () => {
-    const read = await log.read(
-      toTagged<StreamName>('facts.github.release'),
-      toTagged<StreamOffset>(0),
-      100,
-    );
+  const readStored = async (stream: string) => {
+    const read = await log.read(toTagged<StreamName>(stream), toTagged<StreamOffset>(0), 100);
 
     invariant(read.ok, 'the stream exists');
 
@@ -63,28 +60,28 @@ async function setupTest() {
   return {
     ingest,
     store,
-    send: (deliveryID: string, body: string) =>
+    send: (event: string, deliveryID: string, body: string) =>
       ingest.handleRequest(
         new Request('http://ingest.test/webhook/github', {
           method: 'POST',
           headers: {
             'x-hub-signature-256': `sha256=${createHmac('sha256', 'harbour-webhook-secret').update(body).digest('hex')}`,
-            'x-github-event': 'release',
+            'x-github-event': event,
             'x-github-delivery': deliveryID,
           },
           body,
         }),
       ),
-    readTypes: async () => {
-      const stored = await readStored();
+    readTypes: async (stream: string) => {
+      const stored = await readStored(stream);
 
       return stored.map((item): string => item.fact.type);
     },
-    applyStored: async () => {
-      for (const item of await readStored()) {
+    applyStored: async (stream: string) => {
+      for (const item of await readStored(stream)) {
         await store.apply(githubSource, [
           toAppliedFact({
-            stream: toTagged<StreamName>('facts.github.release'),
+            stream: toTagged<StreamName>(stream),
             fact: item.fact,
             blobs: [],
           }),
@@ -115,13 +112,28 @@ test('it sets the release row to the API state after a draft, a publish and the 
 
   await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
   await githubReleases.create({ repository: 'acme/harbour', id: 5, record: draft });
-  await ctx.send('d-1', JSON.stringify({ action: 'created', release: draft, repository }));
-  await ctx.send('d-2', JSON.stringify({ action: 'published', release: published, repository }));
-  await ctx.send('d-3', JSON.stringify({ action: 'created', release: draft, repository }));
+
+  await ctx.send(
+    'release',
+    'd-1',
+    JSON.stringify({ action: 'created', release: draft, repository }),
+  );
+
+  await ctx.send(
+    'release',
+    'd-2',
+    JSON.stringify({ action: 'published', release: published, repository }),
+  );
+
+  await ctx.send(
+    'release',
+    'd-3',
+    JSON.stringify({ action: 'created', release: draft, repository }),
+  );
 
   const run = await ctx.ingest.runPull('github', 'resync', null);
 
-  await ctx.applyStored();
+  await ctx.applyStored('facts.github.release');
 
   const rows = await ctx.store.readRows('github_release');
 
@@ -152,11 +164,27 @@ test('it keeps the published row when a stranger replays the draft and the API a
 
   await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
   await githubReleases.create({ repository: 'acme/harbour', id: 6, record: published });
-  await ctx.send('d-1', JSON.stringify({ action: 'created', release: draft, repository }));
-  await ctx.send('d-2', JSON.stringify({ action: 'published', release: published, repository }));
-  await ctx.send('d-stranger', JSON.stringify({ action: 'created', release: draft, repository }));
+
+  await ctx.send(
+    'release',
+    'd-1',
+    JSON.stringify({ action: 'created', release: draft, repository }),
+  );
+
+  await ctx.send(
+    'release',
+    'd-2',
+    JSON.stringify({ action: 'published', release: published, repository }),
+  );
+
+  await ctx.send(
+    'release',
+    'd-stranger',
+    JSON.stringify({ action: 'created', release: draft, repository }),
+  );
+
   await ctx.ingest.runPull('github', 'resync', null);
-  await ctx.applyStored();
+  await ctx.applyStored('facts.github.release');
 
   const rows = await ctx.store.readRows('github_release');
 
@@ -169,7 +197,7 @@ test('it keeps the published row when a stranger replays the draft and the API a
   ]);
 });
 
-test('it writes a deleted fact for a marked release that the API no longer has', async () => {
+test('it writes nothing and drops the mark of a release that the API answers 404 for', async () => {
   const ctx = await setupTest();
 
   const release = {
@@ -190,23 +218,74 @@ test('it writes a deleted fact for a marked release that the API no longer has',
   await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
 
   await ctx.send(
+    'release',
     'd-1',
     JSON.stringify({ action: 'published', release: { ...release, name: 'One' }, repository }),
   );
 
   await ctx.send(
+    'release',
     'd-2',
     JSON.stringify({ action: 'edited', release: { ...release, name: 'Two' }, repository }),
   );
 
+  const run = await ctx.ingest.runPull('github', 'resync', null);
+  const types = await ctx.readTypes('facts.github.release');
+
+  const marks: unknown = ctx.ingest.resyncMarks.list('github');
+
+  expect({ run, types, marks }).toStrictEqual({
+    run: { kind: 'stored', stored: 0, cursor: 'resynced', isDone: true },
+    types: ['github.release.published', 'github.release.edited'],
+    marks: [],
+  });
+});
+
+test('it sets the pull request row to the API state after two bodies with one time', async () => {
+  const ctx = await setupTest();
+
+  const pullRequest = {
+    id: 91,
+    number: 6,
+    state: 'open',
+    url: 'https://api.github.com/repos/acme/harbour/pulls/6',
+    html_url: 'https://github.example/acme/harbour/pull/6',
+    user: { id: 4401, type: 'User' },
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-07T09:00:00Z',
+    updated_at: '2026-10-07T09:00:00Z',
+  };
+
+  await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
+
+  await githubPullRequests.create({
+    repository: 'acme/harbour',
+    number: 6,
+    record: { ...pullRequest, title: 'Tidy the dock list' },
+  });
+
+  await ctx.send(
+    'pull_request',
+    'd-1',
+    JSON.stringify({
+      action: 'opened',
+      pull_request: { ...pullRequest, title: 'Tidy the dock list' },
+    }),
+  );
+
+  await ctx.send(
+    'pull_request',
+    'd-2',
+    JSON.stringify({ action: 'edited', pull_request: { ...pullRequest, title: 'Tidy docks' } }),
+  );
+
   await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.applyStored('facts.github.pull_request');
 
-  const types = await ctx.readTypes();
+  const rows = await ctx.store.readRows('github_pull_request');
 
-  expect(types).toStrictEqual([
-    'github.release.published',
-    'github.release.edited',
-    'github.release.deleted',
+  expect(rows).toStrictEqual([
+    expect.objectContaining({ id: 'github:pull_request:91', title: 'Tidy the dock list' }),
   ]);
 });
 
@@ -253,9 +332,10 @@ test('it keeps every mark when the API is unavailable', async () => {
     ),
   );
 
-  await ctx.send('d-1', JSON.stringify({ action: 'published', release, repository }));
+  await ctx.send('release', 'd-1', JSON.stringify({ action: 'published', release, repository }));
 
   await ctx.send(
+    'release',
     'd-2',
     JSON.stringify({ action: 'edited', release: { ...release, name: 'Renamed' }, repository }),
   );

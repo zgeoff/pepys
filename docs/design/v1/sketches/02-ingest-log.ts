@@ -98,7 +98,14 @@ declare function createIngest(options: {
   senderProof: import('./01-kit.ts').SenderProof;
   appendRetry: { maxAttempts: number; retryDelayMs: number };
   now: () => number;
-}): { handleRequest: (request: Request) => Promise<Response>; resyncMarks: ResyncMarks };
+}): {
+  handleRequest: (request: Request) => Promise<Response>;
+  resyncMarks: ResyncMarks;
+  // One run of a pull path, with its batch stored. Ingest's own timers call it for each pull path
+  // that has an interval; the cursor lives in memory.
+  runPull: (source: string, path: 'live' | 'recovery' | 'backfill' | 'resync', cursor: string | null) => Promise<PullRun>;
+};
+declare type PullRun = { kind: 'stored'; stored: number; cursor: string; isDone: boolean } | { kind: 'not-stored' } | { kind: 'refused'; reason: string } | Exclude<import('./01-kit.ts').Pulled, { kind: 'batch' }>;
 declare function createFakeSenderProof(senders: Readonly<Record<string, import('./01-kit.ts').Sender>>): import('./01-kit.ts').SenderProof;
 
 // packages/ingest/src/fact-log/make-batch-appender.test.ts: the memory adapter is the test fake.
@@ -264,14 +271,14 @@ interface ReceiveDependencies {
   // Per entity, the last body this process stored for it and that fact's `at`; and the entities
   // that the source's `resync` pull must read again. Kept only for a source with a `resync` pull,
   // 10,000 entries each at most, in memory.
-  lastBodies: Map<EntityID, { digest: string; at: string }>;
-  resyncMarks: Set<EntityID>;
+  lastBodies: Map<EntityID, { digest: string; at: string; locator: string | undefined }>;
+  resyncMarks: Map<EntityID, string | undefined>; // each mark with the locator of its last fact
 }
 
-// What a resync pull reads (createIngest returns it). The pull lists a source's marks, and removes
-// each one only after the fact it pulled for that entity is stored, so a failed pull keeps it.
+// What a resync pull reads (createIngest returns it). `runPull` gives the pull the source's marks,
+// and removes every one of them once the run's whole batch is stored, so a failed run keeps them.
 interface ResyncMarks {
-  list: (source: string) => readonly EntityID[];
+  list: (source: string) => readonly { entity: EntityID; locator: string | undefined }[];
   remove: (source: string, entity: EntityID) => void;
 }
 
@@ -327,7 +334,7 @@ export function handleReceiveRoute(source: SourceDefinition, path: ReceivePath, 
       // B, A). The copy is still dropped; the entity is marked for the resync pull.
       for (const entity of known.entities) {
         if (dependencies.lastBodies.get(entity)?.digest !== digest) {
-          dependencies.resyncMarks.add(entity);
+          dependencies.resyncMarks.set(entity, dependencies.lastBodies.get(entity)?.locator);
         }
       }
 

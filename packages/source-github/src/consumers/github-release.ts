@@ -67,7 +67,7 @@ function mapFact(factJSON: string): GithubReleaseOperation[] {
   return [{ upsert: { github_release: next } }];
 }
 
-// A `deleted` fact of the resync pull holds the release ID alone, and gives no row of its own.
+// A fact that holds the release ID alone gives no row of its own.
 function buildReleaseRow(
   id: GithubReleaseRow['id'],
   payload: unknown,

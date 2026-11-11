@@ -122,10 +122,10 @@
           },
           {
             "name": "github_release",
-            "module": "db69d90600cf69351ee7905b3e322e620236666d769a59349d53c4fc262c881b",
-            "path": "github_release/db69d90600cf69351ee7905b3e322e620236666d769a59349d53c4fc262c881b.wasm",
+            "module": "b0aef4796c8553963fa89fc8d854994c8fe4f85dfbb22bb6ee05dc963c41d6b6",
+            "path": "github_release/b0aef4796c8553963fa89fc8d854994c8fe4f85dfbb22bb6ee05dc963c41d6b6.wasm",
             "pins": {},
-            "version": "30e75b9d8b925630b115225e0f43dba136b17f0ff0287ac14850f98f99d1379a",
+            "version": "d1d737314ec0bcaecc73f1f364bedd095cf331e2998f8a6c6f32946983d72f52",
             "manifest": {
               "name": "github_release",
               "input": {

@@ -153,21 +153,21 @@ fact arrives after the deliveries, so it wins a tie and sets the row to GitHub's
 reads that get the same answer are one fact. A replay cannot set a row through the resync: the fact
 holds what the API returns at that time, so a replay can cause one API read and nothing more.
 
-The webhook route keeps each fact's API path beside its mark, and the pull reads that path. A
-release that the API answers 404 for gives a `deleted` fact, timed when the pull saw it, with an ID
-from the release ID alone. The pull skips three kinds of mark, and ingest removes them with the
-rest:
+The webhook route keeps each fact's API path beside its mark, and the pull reads that path. The pull
+skips three kinds of mark, and ingest removes them with the rest:
 
 - a mark of another family, or with no API path;
-- a pull request that the API answers 404 for, because GitHub deletes no pull request;
+- an object that GitHub returns 404 for: GitHub deletes no pull request, and shows a draft release
+  only to a token that can push, so a 404 proves no delete. A deleted release's own `deleted`
+  delivery sets its tombstone;
 - a mark in a repository where the App has no installation.
 
 Any other failed call stops the run with no fact stored, and every mark stays for the next run.
 
 The ingest process keeps the marks in memory, for each source that has a resync pull, and the pull
-of that source runs in the same process and reads them there. The pull removes a mark only after the
-fact it pulled for that object is stored, so a failed pull keeps the mark. A restart loses every
-mark, and an object that loses its mark keeps a stale row until its next delivery.
+of that source runs in the same process and reads them there. Ingest removes the marks that a run
+read only after the run's whole batch is stored, so a failed run keeps every mark. A restart loses
+every mark, and an object that loses its mark keeps a stale row until its next delivery.
 
 **Deploys.** Two signals report a deploy, and one table holds both: a push that moves a tag that
 matches the deploy tag pattern, and a deployment status of `success`. The pattern is a
