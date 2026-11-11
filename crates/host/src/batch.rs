@@ -5,7 +5,7 @@ use tokio::runtime::Handle;
 use turso::Connection;
 
 use crate::consumer::ConsumerManifest;
-use crate::database::Store;
+use crate::database::{Store, with_transaction};
 use crate::error::HostError;
 use crate::fact_log::StoredFact;
 use crate::links::{
@@ -77,20 +77,11 @@ pub async fn apply_batch(
         return Ok(());
     };
 
-    store.connection.execute("BEGIN IMMEDIATE", ()).await?;
-
-    match write_batch(store, manifest, runner, stream, facts, last.offset).await {
-        Ok(()) => {
-            store.connection.execute("COMMIT", ()).await?;
-
-            Ok(())
-        }
-        Err(error) => {
-            store.connection.execute("ROLLBACK", ()).await?;
-
-            Err(error)
-        }
-    }
+    with_transaction(
+        &store.connection,
+        write_batch(store, manifest, runner, stream, facts, last.offset),
+    )
+    .await
 }
 
 async fn write_batch(
@@ -328,6 +319,30 @@ mod tests {
             .expect("a count")
             .get(0)
             .expect("an integer")
+    }
+
+    #[tokio::test]
+    async fn it_rolls_the_batch_back_when_the_change_log_write_fails() {
+        let (_directory, store, manifest) = setup().await;
+        let mut canned =
+            CannedRunner::new(&[("a", Ok(upsert_json("github:pull_request:1", "First")))]);
+
+        store
+            .connection
+            .execute("DROP TABLE change_log", ())
+            .await
+            .expect("the drop");
+
+        let result = apply_batch(&store, &manifest, &mut canned, STREAM, &[fact(4, "a")]).await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            (
+                count_rows(&store).await,
+                read_offset(&store, STREAM).await.expect("an offset"),
+            ),
+            (0, None)
+        );
     }
 
     #[tokio::test]

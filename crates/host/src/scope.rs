@@ -12,7 +12,7 @@ use turso::Connection;
 
 use crate::batch::write_offset_and_changes;
 use crate::consumer::ConsumerManifest;
-use crate::database::Store;
+use crate::database::{Store, with_transaction};
 use crate::entity_ids::kind_of;
 use crate::error::HostError;
 use crate::fact_index::{index_facts, read_entity_facts};
@@ -111,23 +111,12 @@ pub async fn apply_scope_batch(
         return Ok(());
     };
 
-    store.connection.execute("BEGIN IMMEDIATE", ()).await?;
+    with_transaction(&store.connection, async {
+        let changes = write_scope_batch(store, manifest, scope_kind, runner, stream, facts).await?;
 
-    let written = write_scope_batch(store, manifest, scope_kind, runner, stream, facts).await;
-
-    match written {
-        Ok(changes) => {
-            write_offset_and_changes(&store.connection, stream, last.offset, &changes).await?;
-            store.connection.execute("COMMIT", ()).await?;
-
-            Ok(())
-        }
-        Err(error) => {
-            store.connection.execute("ROLLBACK", ()).await?;
-
-            Err(error)
-        }
-    }
+        write_offset_and_changes(&store.connection, stream, last.offset, &changes).await
+    })
+    .await
 }
 
 async fn write_scope_batch(
@@ -280,6 +269,36 @@ mod tests {
             }}
         ])
         .to_string()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_rolls_the_batch_back_when_the_change_log_write_fails() {
+        let ctx = setup_test().await;
+        let mut runner =
+            ScopeCannedRunner::new(&[("ledger:account:a", Ok(account_output("ledger:account:a")))]);
+
+        ctx.store
+            .connection
+            .execute("DROP TABLE change_log", ())
+            .await
+            .expect("the drop");
+
+        let result = ctx
+            .apply(
+                &mut runner,
+                &[fact(0, "event:ledger:1", "ledger:account:a")],
+            )
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            (
+                ctx.count("ledger_account").await,
+                ctx.count("scope_fact").await,
+                read_offset(&ctx.store, STREAM).await.expect("an offset"),
+            ),
+            (0, 0, None)
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

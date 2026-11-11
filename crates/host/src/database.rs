@@ -134,6 +134,35 @@ pub async fn read_offset(store: &Store, stream: &str) -> Result<Option<u64>, Hos
     Ok(u64::try_from(value).ok())
 }
 
+/// Runs `body` inside one write transaction on `connection`. When `body` or the commit fails, the
+/// transaction rolls back, so a failed batch leaves no write on the connection.
+///
+/// # Errors
+/// Fails with the error of `body`, of the commit, or of the `BEGIN`.
+pub async fn with_transaction<T>(
+    connection: &Connection,
+    body: impl Future<Output = Result<T, HostError>>,
+) -> Result<T, HostError> {
+    connection.execute("BEGIN IMMEDIATE", ()).await?;
+
+    let result = match body.await {
+        Ok(value) => connection
+            .execute("COMMIT", ())
+            .await
+            .map(|_| value)
+            .map_err(HostError::from),
+        Err(error) => Err(error),
+    };
+
+    if result.is_err() {
+        // A commit that failed may have ended the transaction, and the rollback then fails too.
+        // The caller needs the first error, so the rollback's is dropped.
+        drop(connection.execute("ROLLBACK", ()).await);
+    }
+
+    result
+}
+
 /// Runs a checkpoint, so the main file holds every committed page.
 ///
 /// # Errors
@@ -153,6 +182,67 @@ pub async fn checkpoint(store: &Store) -> Result<(), HostError> {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+
+    async fn count_items(store: &Store) -> i64 {
+        let mut rows = store
+            .connection
+            .query("SELECT count(*) FROM item", ())
+            .await
+            .expect("a count");
+
+        rows.next()
+            .await
+            .expect("a row")
+            .expect("a count row")
+            .get(0)
+            .expect("an integer")
+    }
+
+    // A deferred foreign key passes each statement and fails the commit.
+    #[tokio::test]
+    async fn it_rolls_back_when_the_commit_fails_and_leaves_the_connection_free() {
+        let directory = tempfile::tempdir().expect("a temporary directory");
+        let store = open_store(&directory.path().join("consumer.db"))
+            .await
+            .expect("a store");
+
+        for statement in [
+            "PRAGMA foreign_keys = ON",
+            "CREATE TABLE owner (id INTEGER PRIMARY KEY)",
+            "CREATE TABLE item (id INTEGER PRIMARY KEY, owner INTEGER NOT NULL \
+             REFERENCES owner (id) DEFERRABLE INITIALLY DEFERRED)",
+        ] {
+            store
+                .connection
+                .execute(statement, ())
+                .await
+                .expect("the setup");
+        }
+
+        let failed = with_transaction(&store.connection, async {
+            store
+                .connection
+                .execute("INSERT INTO item (id, owner) VALUES (1, 7)", ())
+                .await?;
+
+            Ok(())
+        })
+        .await;
+        let next = with_transaction(&store.connection, async {
+            store
+                .connection
+                .execute("INSERT INTO owner (id) VALUES (7)", ())
+                .await?;
+
+            Ok(())
+        })
+        .await;
+
+        assert_eq!(
+            (failed.is_err(), next.is_ok(), count_items(&store).await),
+            (true, true, 0)
+        );
+    }
 
     #[tokio::test]
     async fn it_makes_the_link_table_with_the_columns_of_the_test_store() {
