@@ -16,9 +16,11 @@
 // Place 1 (invented): boxxy repo, packages/pepys/src — the package `@boxxy/pepys`, ABRIDGED
 //
 // A short cut of the real package, with the real names. The whole package is in the boxxy repo,
-// in the design sketches of its pepys package: the family, the source, the consumer and the entry
-// file; the queries `boxxy_cost_to_land` and `boxxy_stage_time`; the tests; and the fact catalog,
-// with the 27 fact types and their payloads.
+// under docs/design/boxxy/sketches/v1:
+//   pepys-package/01-package.ts   the family, the source, the consumer, the entry file
+//   pepys-package/02-queries.ts   `boxxy_cost_to_land` and `boxxy_stage_time`
+//   pepys-package/04-test.ts      the tests
+//   core/04-facts.ts              the catalog: the 27 fact types and their payloads
 // Where this cut and those files differ, those files are right.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 import { defineConsumer, defineFactFamily, defineLinkType, definePlugin, defineSource, defineTable, receiveFactBatch } from '@pepys/kit';

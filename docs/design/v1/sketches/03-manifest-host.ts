@@ -220,7 +220,8 @@ export type BoxxyAttemptID = KindedID<'boxxy:attempt'>;
 export type GithubPullRequestID = KindedID<'github:pull_request'>;
 
 // One member per fact type of the families on the consumer's streams (27 for boxxy; 3 shown).
-// The names and fields are the fact catalog's, in the boxxy repo.
+// The names and fields are the fact catalog's, in the boxxy repo
+// (docs/design/boxxy/sketches/v1/core/04-facts.ts).
 export type BoxxyWorkFact =
   | { id: string; type: 'boxxy.item.filed'; at: string; payload: { kind: string; repo: string; title: string; fields: { designMode?: string }; acceptance: { text: string; evidence: string[] }[]; foundInAttempt: string | null } }
   | { id: string; type: 'boxxy.attempt.session_bound'; at: string; payload: { attempt: string; atcSession: string; agentSession: string; product: string; source: 'worker' | 'hook'; seenAt: number } }
