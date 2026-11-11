@@ -13,6 +13,14 @@
 
 - [pepys design](./design/pepys/README.md) — the principles, the pipeline, and the index of design
   docs.
+- [pepys v1](./design/v1.md) — what the first version builds: the kit, ingest, the log, the
+  manifest, the host and the store API.
+- [The manifest and the host](./design/v1-host.md) — `consumers.json`, and how the host runs a
+  module in fact mode and in scope mode.
+- [The plug-ins of v1](./design/v1-plug-ins.md) — the telemetry and GitHub plug-ins.
+- [Open for the builder](./design/v1-open.md) — what two trial runs found, and what no run has
+  checked.
+- [The v1 work list](./design/v1-work-list.md) — the build, as numbered slices in dependency order.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
 - [Architecture](./design/pepys/architecture.md) — ports, strategies, champion and challenger, and
   buckets.
@@ -57,3 +65,4 @@
 - [0021: Rust tooling](./decisions/0021-rust-tooling.md)
 - [0022: Consumers are core modules that read through host-written memory](./decisions/0022-consumers-are-core-modules.md)
 - [0023: Contracts follow ports, strategies and champion-challenger](./decisions/0023-ports-strategies-champion-challenger.md)
+- [0024: The scope of v1](./decisions/0024-v1-scope.md)
