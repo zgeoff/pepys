@@ -39,10 +39,12 @@ function setupTest() {
   const stub = buildStubReceiveDeployment();
   const streams = stub.streams;
   const clock = { nowMs: 0 };
-  const createLog = () => createMemoryFactLog([streams.till, streams.lamp, streams.stray]);
+
+  const createLog = () =>
+    createMemoryFactLog([streams.till, streams.lamp, streams.stray, streams.strayMark]);
 
   const createIngestOver = (
-    overrides: Partial<Pick<IngestOptions, 'log' | 'secrets' | 'senderProof'>>,
+    overrides: Partial<Pick<IngestOptions, 'log' | 'secrets' | 'senderProof' | 'appendRetry'>>,
   ) =>
     createIngest({
       deployment: stub.deployment,
@@ -224,6 +226,11 @@ test.each([
   },
   { row: 'a body that is not JSON', request: { text: 'not json' }, status: 400 },
   {
+    row: 'a body that is not JSON and has no signature',
+    request: { text: 'not json', signature: 'none' },
+    status: 401,
+  },
+  {
     row: 'a fact of a type the source does not have',
     request: {
       facts: [
@@ -383,15 +390,31 @@ test.each([
 );
 
 test.each([
-  { row: 'a fact on a stream the source does not own', mode: 'foreign-stream', status: 422 },
-  { row: 'a fact with a blob, which ingest has no store for', mode: 'blob', status: 500 },
-  { row: 'a read that throws', mode: 'throw', status: 500 },
+  {
+    row: 'a fact on a stream the source does not own',
+    mode: 'foreign-stream',
+    token: 'stray-key',
+    status: 422,
+  },
+  {
+    row: 'a fact with a blob, which ingest has no store for',
+    mode: 'blob',
+    token: 'stray-key',
+    status: 500,
+  },
+  { row: 'a read that throws', mode: 'throw', token: 'stray-key', status: 500 },
+  {
+    row: 'a wrong token, before the read that would throw runs',
+    mode: 'throw',
+    token: 'stray-lock',
+    status: 401,
+  },
 ])('it answers $status and appends nothing to $row', async (row) => {
   const ctx = setupTest();
 
   const request = new Request('http://ingest.test/stray/notes', {
     method: 'POST',
-    headers: { authorization: 'stray-key', 'x-stray-mode': row.mode },
+    headers: { authorization: row.token, 'x-stray-mode': row.mode },
     body: '{}',
   });
 
@@ -450,6 +473,84 @@ test('it refuses every delivery on a path that needs a sender when no adapter pr
   expect({ answer, ids }).toStrictEqual({
     answer: { status: 401, body: { error: 'not authorised' } },
     ids: [],
+  });
+});
+
+test('it answers 500 when the log refuses one stream of two, and the other stream keeps what it stored', async () => {
+  const ctx = setupTest();
+  const log = createMemoryFactLog([ctx.streams.stray]);
+  const ingest = ctx.createIngestOver({ log });
+
+  const request = new Request('http://ingest.test/stray/notes', {
+    method: 'POST',
+    headers: { authorization: 'stray-key', 'x-stray-mode': 'two-streams' },
+    body: '{}',
+  });
+
+  const response = await ingest.handleRequest(request);
+  const answer = await ctx.readAnswer(response);
+  const ids = await ctx.readIDs(ctx.streams.stray, log);
+
+  expect({ answer, ids }).toStrictEqual({
+    answer: { status: 500, body: { error: 'the log refused the batch' } },
+    ids: ['event:stray:note-1'],
+  });
+});
+
+test('it answers 500 when an append throws', async () => {
+  const ctx = setupTest();
+
+  const log = {
+    ...ctx.createLog(),
+    appendBatch: () => Promise.reject(new Error('the access token is not valid')),
+  };
+
+  const ingest = ctx.createIngestOver({ log });
+
+  const request = ctx.buildLedgerRequest({
+    facts: [
+      {
+        type: 'ledger.till.opened',
+        event: 'e-1',
+        entity: 'ledger:till:7',
+        at: '2026-10-01T08:00:00Z',
+        payload: { float: 1 },
+      },
+    ],
+  });
+
+  const response = await ingest.handleRequest(request);
+  const answer = await ctx.readAnswer(response);
+
+  expect(answer).toStrictEqual({ status: 500, body: { error: 'the log refused the batch' } });
+});
+
+test('it stores a delivery that got 503 when it is sent again, and never drops it as a repeat', async () => {
+  const ctx = setupTest();
+  const log = ctx.createLog();
+  const ingest = ctx.createIngestOver({ log, appendRetry: { maxAttempts: 1, retryDelayMs: 0 } });
+
+  const facts = [
+    {
+      type: 'ledger.till.opened',
+      event: 'e-1',
+      entity: 'ledger:till:7',
+      at: '2026-10-01T08:00:00Z',
+      payload: { float: 1 },
+    },
+  ];
+
+  log.dropNextAppend({ thenAppend: [] });
+
+  await ingest.handleRequest(ctx.buildLedgerRequest({ facts }));
+
+  const response = await ingest.handleRequest(ctx.buildLedgerRequest({ facts }));
+  const again = await ctx.readAnswer(response);
+  const ids = await ctx.readIDs(ctx.streams.till, log);
+
+  expect({ again, ids }).toStrictEqual({
+    again: { status: 200, body: { status: 'stored', stored: 1 } },
+    ids: ['event:ledger:e-1'],
   });
 });
 

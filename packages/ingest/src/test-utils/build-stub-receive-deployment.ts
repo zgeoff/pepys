@@ -23,15 +23,17 @@ import { z } from 'zod';
 export interface StubReceiveDeployment {
   deployment: CheckedDeployment;
   ledgerSource: SourceDefinition;
-  streams: { till: StreamName; lamp: StreamName; stray: StreamName };
+  streams: { till: StreamName; lamp: StreamName; stray: StreamName; strayMark: StreamName };
 }
 
 const tillStream = toTagged<StreamName>('facts.ledger.till');
 const lampStream = toTagged<StreamName>('facts.beacon.lamp');
 const strayStream = toTagged<StreamName>('facts.stray.note');
+const strayMarkStream = toTagged<StreamName>('facts.stray.mark');
 
 // Three receive paths that cover every field ingest reads: a signed fact batch with a resync pull, a
-// token path with a proven sender, gzip and an ignored route, and a path whose read breaks a rule.
+// token path with a proven sender, gzip and an ignored route, and a path on two streams whose read
+// does what its `x-stray-mode` header asks.
 export function buildStubReceiveDeployment(): StubReceiveDeployment {
   const opened = z.object({ float: z.number() });
   const noted = z.object({ note: z.string() });
@@ -56,6 +58,13 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
     api: 'stray/1',
     entityKind: 'stray:note',
     types: { 'stray.note.written': z.object({}) },
+  });
+
+  const markFamily = defineFactFamily({
+    stream: 'facts.stray.mark',
+    api: 'stray/1',
+    entityKind: 'stray:mark',
+    types: { 'stray.mark.made': z.object({}) },
   });
 
   const ledgerSource = defineSource({
@@ -93,7 +102,7 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
 
   const straySource = defineSource({
     name: 'stray',
-    families: [noteFamily],
+    families: [noteFamily, markFamily],
     live: {
       kind: 'receive',
       route: '/stray/notes',
@@ -118,7 +127,7 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
   return {
     deployment: deployment.value,
     ledgerSource,
-    streams: { till: tillStream, lamp: lampStream, stray: strayStream },
+    streams: { till: tillStream, lamp: lampStream, stray: strayStream, strayMark: strayMarkStream },
   };
 }
 
@@ -190,5 +199,18 @@ function readStrayNote(delivery: Delivery): Received {
     payload: {},
   };
 
-  return { kind: 'batch', batch: { facts: [{ stream, blobs, fact }] } };
+  const mark = {
+    id: toTagged<FactID>('event:stray:mark-1'),
+    type: 'stray.mark.made',
+    v: 1 as const,
+    api: 'stray/1',
+    entity: toTagged<EntityID>('stray:mark:1'),
+    at: '2026-10-01T08:00:00Z',
+    payload: {},
+  };
+
+  // 'two-streams': one fact on each of the source's two streams
+  const marks = mode === 'two-streams' ? [{ stream: strayMarkStream, blobs: [], fact: mark }] : [];
+
+  return { kind: 'batch', batch: { facts: [{ stream, blobs, fact }, ...marks] } };
 }

@@ -62,15 +62,3 @@ export interface PendingFact {
   fact: FactEnvelope<unknown>;
   blobs: readonly { hash: BlobHash; bytes: Uint8Array }[];
 }
-
-export interface Ingest {
-  routes: Readonly<Record<string, (request: Request) => Promise<Response>>>;
-  start: () => void;
-  stop: () => Promise<void>;
-  runCommand: (command: IngestCommand) => Promise<Result<{ facts: number }, { reason: string }>>;
-}
-
-export interface IngestCommand {
-  source: string;
-  path: 'backfill' | 'recovery' | 'resync';
-}

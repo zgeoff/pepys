@@ -281,6 +281,8 @@ export type HarbourClient = DeploymentClient<typeof deployment>;
 //   await client.boxxy_stage_time({ item: 'boxxy:item:…', environment: 'production' });
 
 // src/ingest.ts:  await serveIngest({ deployment, environment: process.env });     (file 2)
+//   The image sets PEPYS_INGEST_HOST: ingest listens on 127.0.0.1 otherwise, which no network
+//   rule reaches.
 // src/api.ts:     await serveAPI({ deployment, environment: process.env });        (file 4)
 
 // The deployment repo's infrastructure code reads the route table from the same definition, and
