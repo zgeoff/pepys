@@ -1,14 +1,15 @@
 //! Stand-ins that the host's tests share.
 
+pub mod stub_s2;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 
-use crate::batch::{Fact, FactRunner};
+use crate::batch::FactRunner;
 use crate::error::HostError;
 use crate::module_runner::RowSource;
-use crate::stream::FactLog;
 
 /// A pull request row as JSON, which differs from another only by its ID and title.
 pub fn row_json(id: &str, title: &str) -> Value {
@@ -53,77 +54,36 @@ impl FactRunner for CannedRunner {
     }
 }
 
-/// A log held in memory, whose record at index `n` has sequence number `n`.
-pub struct MemoryLog {
-    bodies: Vec<String>,
-}
+/// The names of the JSON files in the fixtures folder of `port` in `packages/ingest`, sorted.
+///
+/// # Panics
+/// When the folder cannot be read.
+#[must_use]
+pub fn read_fixture_files(port: &str) -> Vec<String> {
+    let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/ingest/src")
+        .join(port)
+        .join("fixtures");
+    let mut names: Vec<String> = std::fs::read_dir(&folder)
+        .unwrap_or_else(|_| panic!("{} is readable", folder.display()))
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| {
+            std::path::Path::new(name)
+                .extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .collect();
 
-impl MemoryLog {
-    pub fn new(bodies: &[&str]) -> Self {
-        Self {
-            bodies: bodies.iter().map(|body| (*body).to_owned()).collect(),
-        }
-    }
+    names.sort();
 
-    fn records(&self, from: u64, count: usize) -> Result<Vec<Fact>, HostError> {
-        let start = usize::try_from(from).map_err(|_| HostError::OutOfBounds)?;
-
-        Ok(self
-            .bodies
-            .iter()
-            .enumerate()
-            .skip(start)
-            .take(count)
-            .map(|(index, body)| Fact {
-                seq_num: index as u64,
-                body: body.clone(),
-            })
-            .collect())
-    }
-}
-
-impl FactLog for MemoryLog {
-    fn tail(&self) -> impl Future<Output = Result<u64, HostError>> {
-        std::future::ready(Ok(self.bodies.len() as u64))
-    }
-
-    fn read(&self, from: u64, count: usize) -> impl Future<Output = Result<Vec<Fact>, HostError>> {
-        std::future::ready(self.records(from, count))
-    }
+    names
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn it_reads_up_to_count_records_from_a_sequence_number() {
-        let log = MemoryLog::new(&["a", "b", "c", "d"]);
-
-        let facts = log.read(1, 2).await.expect("the records");
-
-        assert_eq!(
-            facts,
-            vec![
-                Fact {
-                    seq_num: 1,
-                    body: "b".to_owned()
-                },
-                Fact {
-                    seq_num: 2,
-                    body: "c".to_owned()
-                },
-            ]
-        );
-    }
-
-    #[tokio::test]
-    async fn it_reports_the_record_count_as_the_tail() {
-        let log = MemoryLog::new(&["a", "b"]);
-
-        assert_eq!(log.tail().await.expect("a tail"), 2);
-    }
 
     #[test]
     fn it_returns_the_listed_output_for_a_fact_and_none_for_another() {

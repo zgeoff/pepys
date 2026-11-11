@@ -1,9 +1,9 @@
 import { makeShutdownHandler } from '@pepys/schema';
 import { githubPullRequestConsumer } from '@pepys/source-github';
-import { createApp } from './create-app.ts';
-import { createStoreReader } from './create-store-reader.ts';
-import { openConsumerDatabase } from './open-consumer-database.ts';
-import { readAPIConfig } from './read-api-config.ts';
+import { createApp } from './app/create-app.ts';
+import { readAPIConfig } from './config/read-api-config.ts';
+import { createStoreReader } from './store-reader/create-store-reader.ts';
+import { openConsumerDatabase } from './store-reader/open-consumer-database.ts';
 
 const config = readAPIConfig(process.env);
 

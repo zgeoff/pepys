@@ -11,8 +11,15 @@
   },
   "overrides": [
     {
+      // the consumer build finds this file by the consumer's name and calls fixed export names
+      "files": ["packages/source-*/src/consumers/*.ts"],
+      "rules": {
+        "zgeoff/file-named-for-export": "off"
+      }
+    },
+    {
       // the fact envelope names its version field `v`, and the log doc fixes that name
-      "files": ["packages/*/src/**"],
+      "files": ["packages/*/src/**", "packages/*/integration/**"],
       "rules": {
         "id-length": [
           "error",

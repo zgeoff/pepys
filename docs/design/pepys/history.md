@@ -33,9 +33,14 @@ A past state of one entity is a replay of that entity's facts from the fact inde
 
 ## The lake
 
-A compaction job runs daily and appends the new facts from each stream to Parquet files in the lake
-bucket, by stream and by day. It records the stream offset it reached, so it resumes where it
-stopped.
+A compaction job in `@pepys/compaction` runs daily and appends the new facts from each stream to
+Parquet files in the lake bucket, by stream and by day. It records the stream offset it reached, so
+it resumes where it stopped.
+
+The recorded offset is the next record to copy. A run that crashes after it writes a file, and
+before it records the offset, leaves a file that starts at or past that offset. The next run would
+write those records again, and the lake would hold them twice. Each run therefore starts by removing
+every file whose first record is at or past the recorded offset.
 
 The lake has two purposes. It is the escape hatch for s2-lite: if s2-lite fails, the facts survive
 in a format that no stream engine owns, and every projection rebuilds from them. It also serves
@@ -45,5 +50,10 @@ store.
 The lake is plain Parquet. DuckLake, which adds a catalog, snapshots and schema changes on top,
 joins only if the lake gets queried often.
 
-The [escape hatch spike](../../../research/parquet-escape-hatch/README.md) rebuilds one consumer
-from the lake with s2-lite stopped, which proves the copy is complete.
+The host's fact log port has a lake adapter, so `pepys rebuild <consumer>` rebuilds a consumer from
+the lake with s2-lite stopped. The rebuild writes to a new directory to the side, as `pepys preview`
+does. It ignores a crashed run's file that starts at or past the recorded offset, by the rule
+compaction uses to remove one. The rebuild refuses a lake with a gap in its records, and a lake that
+holds fewer records than the recorded offset. The
+[escape hatch spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/parquet-escape-hatch/README.md)
+rebuilt one consumer from the lake and got the same rows as a replay from s2-lite.

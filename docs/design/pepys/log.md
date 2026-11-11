@@ -13,12 +13,12 @@ entity consumer reading it. Streams are named after what is projected, not after
 webhook event names: `facts.github.pull_request` holds pull request webhooks and pull request
 timeline backfill alike.
 
-| Stream                                                    | Holds                                               |
-| --------------------------------------------------------- | --------------------------------------------------- |
-| one per source fact family, such as `facts.gmail.message` | source events and observations                      |
-| `facts.cursors`                                           | each poller's position in its source                |
-| `facts.manual`                                            | links and corrections that people and agents assert |
-| `facts.enrich.*`                                          | enrichment results                                  |
+| Stream                                                                           | Holds                                               |
+| -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| one per source fact family, such as `facts.gmail.message` or `facts.gmail.label` | source events and observations                      |
+| `facts.cursors`                                                                  | each poller's position in its source                |
+| `facts.manual`                                                                   | links and corrections that people and agents assert |
+| `facts.enrich.*`                                                                 | enrichment results                                  |
 
 S2 orders records within a stream and assigns each a sequence number, which consumers use as their
 offset. The log gives no order between streams, and no consumer needs one: single-event links depend
@@ -27,8 +27,8 @@ on one fact each, and join links recompute from state.
 One entity's history is a query over the fact index, not a stream of its own, so consumers tail a
 fixed set of streams.
 
-s2-lite has no built-in access control, so a k3s NetworkPolicy lets only its four clients reach it:
-ingest, enrichment and the API append facts, and the host reads them.
+s2-lite has no built-in access control, so a k3s NetworkPolicy lets only its five clients reach it:
+ingest, enrichment and the API append facts, and the host and compaction only read them.
 
 ## The fact envelope
 
@@ -55,17 +55,23 @@ consumer reads `api` and handles each shape it knows, then replays.
 A fact's ID derives from its content, so the same fact written twice has the same ID and consumers
 drop the duplicate.
 
-| Fact kind         | ID                                                          |
-| ----------------- | ----------------------------------------------------------- |
-| webhook           | the source's delivery ID                                    |
-| observation       | a hash of the source, the entity and the source update time |
-| enrichment result | a hash of the job, the job version and the input hash       |
-| manual assertion  | a UUID, since people do not repeat themselves by accident   |
+| Fact kind            | ID                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| webhook              | the source's delivery ID                                                                               |
+| source history event | `event:<source>:<source event ID>`, such as `event:gmail:<history id>:<message id>:<change>` for Gmail |
+| observation          | a hash of the source, the entity and the source update time                                            |
+| enrichment result    | a hash of the job, the job version and the input hash                                                  |
+| manual assertion     | a hash of the client ID and the request ID the client sends                                            |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
-webhooks repeat, and neither needs to prevent it at write time. s2-lite can also store an append
-whose acknowledgement never arrived, so a writer retries every append with an unknown outcome, and
-the fact ID makes the stored copy harmless.
+webhooks repeat, and neither needs to prevent it at write time.
+
+s2-lite can store an append whose acknowledgement never arrived, so a writer sets `matchSeqNum` to
+the tail it expects on every append, the first attempt included. A writer resolves an append with an
+unknown outcome by reading the stream's tail. When the fact ID is there, the append landed.
+Otherwise the writer retries with `matchSeqNum` set to the new tail. A first attempt that lands late
+then fails its own guard, so exactly one copy lands
+([S2 on linearizability](https://s2.dev/blog/linearizability)).
 
 ## Cursors
 

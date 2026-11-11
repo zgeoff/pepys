@@ -1,0 +1,16 @@
+{
+  "name": "@pepys/ingest",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/schema": "workspace:*",
+    "@s2-dev/streamstore": "catalog:",
+    "@zgeoff/std": "catalog:",
+    "tiny-invariant": "catalog:",
+    "ts-pattern": "catalog:"
+  },
+  "devDependencies": {
+    "zod": "catalog:"
+  }
+}

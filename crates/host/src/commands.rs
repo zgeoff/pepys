@@ -10,10 +10,11 @@ use crate::consumer::{ConsumerSpec, find_consumer};
 use crate::database::{Store, checkpoint, open_store, prepare_store, read_offset};
 use crate::diff::{TableDiff, diff_json, diff_rows};
 use crate::error::HostError;
+use crate::fact_log::FactLog;
+use crate::fact_log::s2::{S2Log, S2Settings};
 use crate::lock::WriterLock;
 use crate::module_runner::ModuleRunner;
 use crate::pull_request_rows::{TABLE, load_all_rows};
-use crate::stream::{FactLog, S2Settings, StreamReader};
 use crate::versions::{HostState, VersionState};
 
 const DATABASE_FILE: &str = "consumer.db";
@@ -75,7 +76,7 @@ async fn catch_up(
     reader: &impl FactLog,
 ) -> Result<(), HostError> {
     loop {
-        let tail = reader.tail().await?;
+        let tail = reader.read_tail(spec.stream).await?;
 
         if replay_to(version, spec, reader, tail).await? == 0 {
             return Ok(());
@@ -103,7 +104,7 @@ async fn replay_to(
         }
 
         let count = usize::try_from(stop - next).map_or(BATCH_SIZE, |left| left.min(BATCH_SIZE));
-        let facts = reader.read(next, count).await?;
+        let facts = reader.read(spec.stream, next, count).await?;
 
         if facts.is_empty() {
             return Ok(applied);
@@ -203,7 +204,7 @@ async fn wait_for_stop() -> Result<(), HostError> {
 pub async fn run(config: &HostConfig, consumer: &str) -> Result<(), HostError> {
     let spec = find_consumer(consumer)?;
     let consumer_dir = config.consumer_dir(consumer);
-    let reader = StreamReader::connect(&config.s2, spec.stream)?;
+    let reader = S2Log::connect(&config.s2)?;
     let stop = wait_for_stop();
     let mut opened: Option<(String, Version)> = None;
 
@@ -249,7 +250,7 @@ pub async fn run(config: &HostConfig, consumer: &str) -> Result<(), HostError> {
 pub async fn up(config: &HostConfig, consumer: &str, module: &Path) -> Result<String, HostError> {
     let spec = find_consumer(consumer)?;
     let consumer_dir = config.consumer_dir(consumer);
-    let reader = StreamReader::connect(&config.s2, spec.stream)?;
+    let reader = S2Log::connect(&config.s2)?;
     let bytes = std::fs::read(module)?;
     let hash = crate::module_runner::hash_module(&bytes);
 
@@ -322,7 +323,7 @@ fn no_swap_report(consumer: &str, hash: &str) -> String {
 async fn keep_current(
     config: &HostConfig,
     spec: &'static ConsumerSpec,
-    reader: &StreamReader,
+    reader: &S2Log,
     hash: &str,
 ) -> Result<Option<String>, HostError> {
     let consumer_dir = config.consumer_dir(spec.name);
@@ -353,7 +354,7 @@ pub async fn preview(
 ) -> Result<serde_json::Value, HostError> {
     let spec = find_consumer(consumer)?;
     let consumer_dir = config.consumer_dir(consumer);
-    let reader = StreamReader::connect(&config.s2, spec.stream)?;
+    let reader = S2Log::connect(&config.s2)?;
     let scratch = consumer_dir.join(format!("preview-{}", std::process::id()));
 
     std::fs::create_dir_all(&consumer_dir)?;
@@ -370,7 +371,7 @@ async fn replay_and_compare(
     consumer_dir: &Path,
     scratch: &Path,
     module: &Path,
-    reader: &StreamReader,
+    reader: &S2Log,
 ) -> Result<serde_json::Value, HostError> {
     let previewed = open_version(scratch, spec, module).await?;
 
@@ -394,7 +395,7 @@ async fn compare_with_current(
             read_rows_and_stop(&store, spec).await?
         }
         Err(HostError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            (Vec::new(), reader.tail().await?)
+            (Vec::new(), reader.read_tail(spec.stream).await?)
         }
         Err(error) => return Err(error),
     };
@@ -411,7 +412,8 @@ async fn compare_with_current(
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::test_utils::{CannedRunner, MemoryLog, upsert_json};
+    use crate::fact_log::memory::MemoryLog;
+    use crate::test_utils::{CannedRunner, upsert_json};
 
     async fn open_test_version(directory: &Path, runner: CannedRunner) -> Version {
         let spec = find_consumer("github_pull_request").expect("the consumer");
@@ -446,9 +448,13 @@ mod tests {
         };
         let mut current = open_test_version(&directory.path().join("abc123"), module()).await;
 
-        catch_up(&mut current, spec, &MemoryLog::new(&["a", "b"]))
-            .await
-            .expect("the current version at offset 1");
+        catch_up(
+            &mut current,
+            spec,
+            &MemoryLog::seeded(spec.stream, &["a", "b"]),
+        )
+        .await
+        .expect("the current version at offset 1");
         repoint_current(directory.path(), "abc123").expect("a current link");
 
         let previewed = open_test_version(&directory.path().join("preview"), module()).await;
@@ -457,7 +463,7 @@ mod tests {
             spec,
             directory.path(),
             previewed,
-            &MemoryLog::new(&["a", "b", "c"]),
+            &MemoryLog::seeded(spec.stream, &["a", "b", "c"]),
         )
         .await
         .expect("a diff");
@@ -499,7 +505,7 @@ mod tests {
             spec,
             directory.path(),
             previewed,
-            &MemoryLog::new(&["a", "b"]),
+            &MemoryLog::seeded(spec.stream, &["a", "b"]),
         )
         .await
         .expect("a diff");

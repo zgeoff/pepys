@@ -1,10 +1,10 @@
 # Storage
 
 pepys keeps all durable state in one S3-compatible object store, Garage, running on the owner's k3s
-server. The log, the lake, consumer modules, store snapshots and attachments each live in their own
-bucket. Every other component holds only caches and projections, so recovery needs the buckets and
-the binaries. Garage runs as a single node at first and grows to three nodes with three copies of
-each object as more machines join the owner's tailnet.
+cluster on the geoff.cloud host. The log, the lake, consumer modules, store snapshots and
+attachments each live in their own bucket. Every other component holds only caches and projections,
+so recovery needs the buckets and the binaries. Garage runs as a single node at first and grows to
+three nodes with three copies of each object as more machines join the owner's tailnet.
 
 ## Garage
 
@@ -14,13 +14,14 @@ with two volumes: a small one on SSD for its metadata database and a large one f
 Metadata on SSD speeds up every read and write.
 
 With one node, Garage keeps one copy of each object, so a failed disk loses the data that is not in
-a backup. The owner's existing backups cover the server. Each backup of the facts and blobs buckets
-copies objects and never mirrors deletions, so a bug that deletes facts cannot delete the backup
-copy on the next run. A second and third node join the cluster as more machines join the tailnet,
-and at three nodes Garage keeps three copies and survives the loss of one node.
+a backup. The owner's existing backups cover the server. Each backup of the facts, blobs and modules
+buckets copies objects and never mirrors deletions, so a bug that deletes facts cannot delete the
+backup copy on the next run. A second and third node join the cluster as more machines join the
+tailnet, and at three nodes Garage keeps three copies and survives the loss of one node.
 
-LUKS encrypts the disk under Garage. One layer of encryption covers the buckets, the git mirrors and
-every other cache on the same disk.
+ZFS encrypts the `tank/cloud` datasets that hold the cluster's data, as the cloud repository's
+[host doc](https://github.com/zgeoff/cloud/blob/main/docs/architecture/host/host.md) sets out. One
+layer of encryption covers the buckets, the git mirrors and every other cache in the cluster.
 
 ## Buckets and keys
 
@@ -29,15 +30,15 @@ every other cache on the same disk.
 | facts     | the log, through s2-lite                            | s2-lite            | no                 |
 | blobs     | attachments and raw messages, named by content hash | ingest, enrichment | no                 |
 | lake      | Parquet copies of the facts                         | the compaction job | yes, from facts    |
-| modules   | compiled consumer modules, named by content hash    | CI                 | yes, from git      |
+| modules   | compiled consumer modules, named by content hash    | the host           | yes, from git      |
 | snapshots | copies of the store's consumer files                | the host           | yes, by replay     |
 
 Each service has its own access key, scoped to the buckets it uses. A bug in the compaction job can
 then damage the lake and nothing else.
 
 Old consumer modules stay in the modules bucket even though git can rebuild them, because every
-store row records the hash of the module that wrote it, and a removed module would leave those
-hashes pointing at nothing.
+store row records the hash of the consumer version that wrote it, and a removed module would leave
+that version with no module.
 
 ## Blobs
 

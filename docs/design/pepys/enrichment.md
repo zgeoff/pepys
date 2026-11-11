@@ -22,9 +22,10 @@ flowchart LR
   run --> fact[write the fact]
 ```
 
-A job's fact ID is a hash of the job, the job version and the input hash. Before it runs, a job
-looks up that ID in enrichment's own Turso file, so a restart, a replay or a second trigger never
-repeats the work on the same input.
+A job's fact ID is a hash of the job, the job version and the input hash. The fact's `at` is the
+input fact's source time, so the whole fact follows from its input. Before it runs, a job looks up
+that ID in enrichment's own Turso file, so a restart, a replay or a second trigger never repeats the
+work on the same input.
 
 ## Jobs
 
@@ -39,21 +40,24 @@ repeats the work on the same input.
 
 ### Git
 
-Enrichment keeps a bare mirror of each followed repository and fetches it on each push fact. It runs
-the `git` CLI through Bun's shell. A local mirror gives complete diffs with no rate limit, and
-blame, which the GitHub API does not offer.
+Enrichment keeps a bare mirror of every repository that has a repository entity, and fetches it on
+each push fact. It runs the `git` CLI through Bun's shell. A local mirror gives complete diffs with
+no rate limit, and blame, which the GitHub API does not offer.
 
 Blame runs on every merged pull request: on the files it changed, at the parent commit, and on the
 lines it removed or changed, since new lines have no earlier author. The result maps commits to pull
 requests through each pull request's merge commit SHA, which the pull request consumer records as an
 alias. That mapping holds for squash merges. A repository that merges with merge commits or rebases
-needs each pull request's commit list, which joins when such a repository is followed.
+needs each pull request's commit list, which joins when a mirrored repository merges that way.
 
 ### Mail text
 
-The mail text job parses each raw MIME message with an npm MIME parser and writes the plain text as
-a blob plus a fact. Every later mail job reads that text. The
-[MIME spike](../../../research/mime-parsers/README.md) picks the parser.
+The mail text job parses each raw MIME message with `postal-mime` and writes the plain text as a
+blob plus a fact. Every later mail job reads that text. `postal-mime` returns no text for a message
+with no text part, so the job converts that message's HTML with `html-to-text`. A message that still
+yields no text gets a fact that flags it, and no later mail job runs on it. The
+[MIME spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/mime-parsers/README.md)
+compared the parsers on an invented corpus.
 
 ### Models
 
@@ -61,22 +65,43 @@ High-volume typed decisions go to Jev, through its API. Jev returns one choice f
 defines, with a calibrated probability, which matches labelling an email or judging a candidate
 pair. Jev does not find links: code proposes each candidate pair, and Jev only judges it.
 
+The link judgement job asks one question per candidate pair, each with the answers related,
+unrelated and unclear, and sends every pair for one input in one call. One question per pair lets an
+input link to more than one candidate. A single question over the candidate set returns one winner
+at most.
+
+A related pair becomes a link of type `relates_to`. An unclear pair writes no link, and keeps only
+its judgement row. When a preview scores a link judgement version, a manual link on a judged pair
+counts as agreement, and a retraction counts as disagreement.
+
+Jev sees the text of every email, third-party senders' mail included. TypeSafe, which runs Jev,
+never trains a model on that text. Its terms set no retention period, and let it keep telemetry
+about each call, labels included, forever. The
+[Jev spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/jev-terms/README.md)
+quotes the terms.
+
 Claude, on the owner's subscription, does agent work over MCP, such as briefs and reply drafts. That
 work reads the graph and is not an enrichment job. When an agent's output must become a fact, it
 follows the same write-back pattern.
 
 pepys runs no local language model. LEAF-IR is a small embedding model that runs on the CPU, so the
-embedding job runs locally.
+embedding job runs locally. The job runs LEAF-IR's fp32 weights through `@huggingface/transformers`,
+one text per call, and truncates a text past the model's 512-token limit. The q8 weights are faster,
+but a q8 vector changes with the batch it runs in, as the
+[LEAF-IR spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/leaf-ir-bun/README.md)
+measured.
 
 ## Job versions
 
 A model fact records the hashes of the model, the prompt, the grammar and the input. Prompts, label
 sets and trigger rules live in versioned data files rather than code, and a change to any of them
-gives a new job version without a rebuild. Consumers read only the facts of the job's champion
-version, and the facts of other versions stay for comparison.
+gives a new job version without a rebuild. The version files live in `@pepys/deployment`, because
+label sets and prompts are personal to the owner, and `@pepys/enrichment` defines their schema.
+Consumers read only the facts of the job's champion version, and the facts of other versions stay
+for comparison.
 
 `pepys preview enrich <job>` runs a new version as a challenger on the scopes in its buckets and
 shows the labels that change. `pepys up enrich <job>` promotes it and runs it on every item. The
-owner's own corrections, which the API writes as facts, form the test set, so a preview reports how
-often a new version agrees with them. The
-[architecture design](./architecture.md#champion-and-challenger) covers challengers and buckets.
+label corrections, which the API writes as facts, form the test set, so a preview reports how often
+a new version agrees with them. The [architecture design](./architecture.md#champion-and-challenger)
+covers challengers and buckets.

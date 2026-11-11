@@ -1,11 +1,11 @@
 # Host
 
-The host is a Rust process that runs every consumer on every fact. It embeds wasmtime to run
-consumer modules and the Turso engine to write the store, and reads the log through S2's Rust SDK.
-It schedules work per scope, applies the operations consumers return in batched transactions, keeps
-each consumer's offset in the same transaction as its writes, and deploys new consumer versions
-without a gap for readers. Rust is used here because the host runs on every fact; the services that
-wait on networks are TypeScript.
+The host is one Rust process that runs every consumer on every fact, each consumer as its own task.
+It embeds wasmtime to run consumer modules and the Turso engine to write the store, and reads the
+log through S2's Rust SDK. It schedules work per scope, applies the operations consumers return in
+batched transactions, keeps each consumer's offset in the same transaction as its writes, and
+deploys new consumer versions without a gap for readers. Rust is used here because the host runs on
+every fact; the services that wait on networks are TypeScript.
 
 ## Batches and offsets
 
@@ -19,17 +19,19 @@ upserts make that harmless.
 
 A scope runs on one worker at a time: the host takes a keyed lock per scope, so two recomputes of
 one pull request never overlap and miss each other's facts. Different scopes run in parallel, up to
-a concurrency limit per consumer.
+a concurrency limit per consumer of 4 by default.
 
-The host keeps the set of dirty scopes in memory and debounces it, so a burst of pushes to one pull
-request causes one recompute. Each scope consumer keeps an offset into the change feed it listens
+The host keeps the set of dirty scopes in memory and debounces it for 500 ms by default, so a burst
+of pushes to one pull request causes one recompute. The host's config sets both the concurrency
+limit and the debounce window. Each scope consumer keeps an offset into the change feed it listens
 to, and on restart the host rebuilds the dirty set from that offset.
 
 ## Consumer versions
 
-A consumer version is a module identified by the hash of its content, and every row the host writes
-records the hash of the module that wrote it. The host owns the lifecycle of a version as a
-transition table:
+A consumer version is a module plus the champion version of each enrichment job the module reads.
+The host names a version by one hash of the module's content and those champions, so a job promotion
+gives each reader a new version. Every row the host writes records the hash of the version that
+wrote it. The host owns the lifecycle of a version as a transition table:
 
 ```mermaid
 stateDiagram-v2
@@ -54,8 +56,8 @@ replays every fact. It changes nothing a reader can see, and it exists for devel
 
 `pepys up` deploys. It replays into a new file to the side, catches the new file up to the live head
 of the log, pauses that consumer's writer for the last few facts, swaps the new file in, and marks
-dirty every dependent scope whose input rows the diff changed. It asks nothing. When a preview of
-the same hash exists, `up` reuses its file and replays only the facts that arrived since.
+dirty every dependent scope whose input rows the diff changed. It asks nothing. `up` never reuses a
+preview's throwaway file, so a deploy of a new version replays from the start.
 
 Building to the side keeps readers on the old version until the swap, so no reader sees a
 half-replayed table. The previous version's file stays on disk. `pepys up` with the previous hash
@@ -66,10 +68,13 @@ facts that arrived since the earlier swap, never a full replay.
 
 ```text
 store/<consumer>/
-  <module hash>/      the database file with its write-ahead log files
-  <module hash>/
+  <version hash>/     the database file with its write-ahead log files
+  <version hash>/
   current ->          symlink to the live version's directory
 ```
+
+The [fact index](./consumers.md#the-fact-index) is a file of its own under `store/`, which the host
+owns. The host keeps one offset per stream for it.
 
 A swap never renames a database file, because SQLite finds its write-ahead log files by path and a
 renamed file can pick up a stale log. The swap runs in this order:
@@ -77,15 +82,19 @@ renamed file can pick up a stale log. The swap runs in this order:
 1. The host builds the new version in its own directory.
 2. The host stops that consumer's writer and checkpoints the new file's write-ahead log.
 3. The host repoints the `current` symlink, which is one atomic step.
-4. The host writes a `consumer.swapped` event so the API attaches the new file.
+4. The host sends a `consumer.swapped` event over the commit socket
+   ([waking readers](#waking-readers)), so the API attaches the new file.
 5. The host keeps the old directory for rollback.
 
 ## Snapshots
 
 After a checkpoint, the host copies each current file to the snapshots bucket on a schedule. A
-restore downloads the snapshots and replays only the facts after each snapshot's offsets.
+restore downloads the snapshots and replays only the facts after each snapshot's offsets. A restored
+file starts a new generation of its change stream, as `pepys up` does
+([change feed](./change-feed.md#generations)), because its replayed change log differs from the one
+readers already read.
 
 ## Waking readers
 
-After each commit, the host signals the API over a local socket, so live change-stream readers get
-new rows without polling the files.
+After each commit, the host signals the API over a local socket, the commit socket, so live
+change-stream readers get new rows without polling the files.

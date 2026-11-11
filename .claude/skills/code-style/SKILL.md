@@ -14,20 +14,21 @@ metadata:
 ## Files and modules
 
 - Give each file one main export, and name the file after it: `parse-cli-args.ts` exports
-  `parseCLIArgs`. `index.ts`, `types.ts` and `constants.ts` have no main export. Name a module that
-  only has a side effect for what it does: `augment-bun-test.ts`.
+  `parseCLIArgs`. `index.ts`, `types.ts` and `constants.ts` have no main export. When a module has
+  only a side effect, name it for what it does: `augment-bun-test.ts`.
 - Order a file as imports, the main export, then its helpers in the order it calls them. Put each
   type or constant just above its first use.
-- No classes, except a custom error (`class QuotaError extends Error`). Make objects with factory
-  functions.
+- Make objects with factory functions, and never write a class. The one exception is a custom error,
+  such as `class QuotaError extends Error`.
 
 ## Names
 
 - Write an acronym in capitals: `parseCLIArgs`, `userID`, `packageURL`. At the start of a camelCase
   name, write it in lowercase: `cliPath`, `idToken`.
 - Name a value for what it holds, in full words: `session`, not `s`; `manager`, not `mgr`.
-- You may use these short names: `x` and `y` (coordinates), `z` (zod), `$` (Bun's shell), `_`
-  (unused), `ctx`, `id`, `db`, `args`, `params`, `repo`, `info`.
+- Use a short name only from this list:
+  - `x` and `y` for coordinates, `z` for zod, `$` for Bun's shell, `_` for an unused value;
+  - `ctx`, `id`, `db`, `args`, `params`, `repo` and `info`.
 - End a name with its unit: `timeoutMs`, never `ms` alone.
 
 ## State
@@ -42,22 +43,23 @@ metadata:
 
 - Sleep with `Bun.sleep` in Bun-only code, and with `setTimeout` from `node:timers/promises` in code
   that ships to Node.
-- Wait for one event with `events.once`. When outside code settles a promise, make it with
-  `Promise.withResolvers()`.
+- Wait for one event with `events.once`. When code outside the promise's executor settles the
+  promise, make it with `Promise.withResolvers()`.
 - Write `new Promise` by hand only when none of these fits.
 
 ## Unions
 
 - Branch on a union with `match(value)…exhaustive()` from `ts-pattern`, never `switch`, so a new
   member fails the type check.
-- End with `.otherwise()` only when the value comes from outside the program, such as a string.
+- End with `.otherwise()` only when the value comes from outside the program, such as a string read
+  from input that no schema has parsed.
 
 ## Types
 
-- No type assertions except `as const`. Use a type guard, an annotation, `satisfies`, or a schema
-  parse.
-- When an assertion has to stay, get the maintainer's approval in the PR, and add a disable comment
-  with the reason. In review, flag every new assertion, approved or not.
+- Use a type guard, an annotation, `satisfies` or a schema parse, and never a type assertion. The
+  one exception is `as const`.
+- When an assertion has to stay, get the maintainer's approval in the PR, and add a lint disable
+  comment that gives the reason. In review, flag every new assertion, approved or not.
 - Never let `any` reach a typed value. Make it `unknown` and narrow it, or parse it. `JSON.parse`
   returns `any`.
 
@@ -65,17 +67,45 @@ metadata:
 
 - Send data between processes or packages through the repo's typed interface: its RPC layer, a
   shared schema, or its CLI parser. Never match a route, parse a body or read arguments by hand.
-- Split a function that does I/O and branches on what it reads in two: a pure function that decides,
-  and a thin one that acts.
-- No wrapper that only passes its arguments on.
-- No option, parameter or extension point until a caller passes it.
-- Reach I/O through dependencies the caller passes in. Only the entry point builds real clients.
+- Split a function in two when it reads something, branches on what it read, and then writes,
+  removes or runs something:
+  - a pure function that takes the values read and returns what to do. Give it a verb from a no-I/O
+    row of the [verb table](#function-names), such as `collect` or `pick`, so the
+    [`zgeoff/verb-contract`](https://github.com/zgeoff/tools/blob/main/docs/architecture/oxlint-config-code-style.md)
+    rule in `@zgeoff/oxlint-config` keeps I/O out of it;
+  - a thin function that does the reads, calls the pure one, and acts on its result. Give it the I/O
+    verb that fits, such as `run`, `write` or `remove`, and no decision of its own.
+- Write the pure function first, from the values you will read, then the thin one around it. You
+  then test each edge case with one `test.each` row of plain data. In one combined function, each
+  case needs a stand-in for every read and write, so the edges go untested.
+- Lock a file across processes only with `withFileLock` from `@zgeoff/std/with-file-lock`, imported
+  directly in the thin function. Read, decide and write in its callback, so the lock spans all
+  three. Write your own lock only for a need it can't meet, such as a lock readers share, and name
+  the need in a comment.
+- Reach I/O through dependencies the caller passes in. Create real clients only in the entry point.
+- Never write a wrapper that only passes its arguments on.
+- Never add an option, a parameter or an extension point before a caller passes it.
+
+```ts
+export function collectDueReminders(tasks: readonly Task[], now: number): Task[] {
+  return tasks.filter((task) => task.dueAt < now && task.remindedAt === null);
+}
+
+export async function runReminders(dependencies: ReminderDependencies): Promise<void> {
+  const tasks = await dependencies.db.readOpenTasks();
+
+  for (const task of collectDueReminders(tasks, dependencies.clock.now())) {
+    await dependencies.mail.writeReminder(task.owner, task.id);
+  }
+}
+```
 
 ## Errors and logs
 
 - Return an expected outcome, such as a miss or bad input from outside, as a value of the return
   type. Throw only what the caller can't plan for.
-- Don't check what the value's source already guarantees.
+- Never check again what the value's source already guarantees, such as its type, a schema parse or
+  a library's documented behaviour. An example is a `null` check on a field the schema requires.
 - Call `invariant()` from `tiny-invariant` on a state that only a bug can reach.
 - Log failures, state changes and slow calls. Never log each call of code that runs once per request
   or per item.
@@ -86,8 +116,8 @@ metadata:
   the file: a library bug, a runtime quirk, a measured number. Put it at the line, in three lines at
   most.
 - Never restate what the code or a test shows.
-- No history or project state ("previously", issue numbers, "not wired yet"). That goes in the
-  commit.
+- Never write history or project state in a comment, such as "previously", an issue number or "not
+  wired yet". Put it in the commit.
 - Put what callers rely on in a test name, such as `it returns null for an unknown ID`, not in a
   comment. When code in another package depends on an invariant of yours, also state it in the doc
   under `docs/` for that part of the system.
@@ -101,7 +131,8 @@ metadata:
 ## Function names
 
 When a function's job has a row, start its name with that row's verb, and keep the row's guarantee.
-Give any other function any verb that fits, except a banned one.
+Give any other function any verb that fits, except a banned verb from the last bullet of this
+section, such as `fetch` or `process`.
 
 | Job                                                                                                       | Verb                         | Guarantee                                                                      |
 | --------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------ |
@@ -123,21 +154,25 @@ Give any other function any verb that fits, except a banned one.
 | function that returns a function                                                                          | `make`                       | returns a function                                                             |
 | higher-order wrapper                                                                                      | `with`                       | runs a callback inside a context                                               |
 | React hook                                                                                                | `use`                        | follows the rules of hooks                                                     |
-| event-callback prop or parameter                                                                          | `on`                         | follows the framework's callback convention                                    |
+| prop or parameter that takes an event callback                                                            | `on`                         | follows the framework's callback convention                                    |
 | function passed to an `on` prop, or a function that handles a framework lifecycle event such as a request | `handle`                     | follows the framework's callback convention                                    |
 | a test file's per-test fixture                                                                            | `setupTest`                  | as the testing skill's [setupTest](../testing/SKILL.md#setuptest) section says |
-| stored state put in place for a test, through the code of the module that writes it                       | `seed`                       | may do I/O; test code only                                                     |
+| stored state put in place for a test, through the production module when the module can make that state   | `seed`                       | may do I/O; test code only ([seeding rules](../testing/references/seeding.md)) |
 
 - Keep a pure function pure all the way down: a `build` that calls a `read` does I/O. The
-  `zgeoff/verb-contract` lint rule can't see I/O inside an npm package or behind a helper whose name
-  hides it. Check those by hand.
-- Start a function that returns a boolean and does no I/O with `is`, `has`, `can` or `should`, even
-  when another verb reads well. An I/O verb may return a success flag (`removeFile`), and `use`,
-  `on` and `handle` keep their prefix.
+  [`zgeoff/verb-contract`](https://github.com/zgeoff/tools/blob/main/docs/architecture/oxlint-config-code-style.md)
+  rule in `@zgeoff/oxlint-config` checks the verbs, but it can't see I/O inside an npm package or
+  behind a helper whose name hides it. Check those by hand.
+- Start a boolean function with `is`, `has`, `can` or `should` even when another verb reads well.
+  Two kinds of boolean function keep their own verb:
+  - a function with an I/O verb that returns a success flag, such as `removeFile`;
+  - a function whose name starts with `use`, `on` or `handle`.
 - Never use `make`, `with`, `use`, `on` or `to` as a whole name. Follow it with a noun, such as
   `toPosixPath`.
-- Never start a name with `process`, `manage`, `do`, `perform`, `execute`, `compute`, `fetch`,
-  `save`, `store`, `delete`, `search` or `lookup`, or with `handle` outside a callback. These verbs
-  say nothing about I/O or a miss. For a database read that can miss, use `read` and return `null`.
-  You may start a name with `resolve` whether or not it does I/O, such as for a pure lookup or a
+- You may start a name with `resolve` whether or not it does I/O, such as for a pure lookup or a
   filesystem search.
+- Never start a name with one of these verbs. They say nothing about I/O or a miss:
+  - `process`, `manage`, `do`, `perform`, `execute` or `compute`;
+  - `fetch`, `save`, `store`, `delete`, `search` or `lookup`. For a database read that can miss, use
+    `read` and return `null`;
+  - `handle`, outside a callback.

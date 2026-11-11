@@ -5,7 +5,7 @@ scriptc to a WebAssembly module, and run by the [host](./host.md) inside wasmtim
 random number imports and with the clock bound to a constant. The host hands a consumer either one
 fact or one scope, the consumer reads what it needs from the host, and it returns a list of
 operations that the host applies. Because a consumer can do nothing else, the same facts always
-produce the same output, and replay rebuilds every projection exactly.
+produce the same output, and replay rebuilds every row exactly.
 
 ## The contract
 
@@ -17,7 +17,8 @@ returns the length of the row, and the second writes the row into a buffer the c
 That second call relies on scriptc passing a byte buffer argument as a view of the module's own
 memory, which scriptc documents only as borrowed for the call. A scriptc that copied the buffer
 would hand the consumer an empty row, so the host's boundary tests run against every scriptc version
-before pepys moves to it. The [host boundary spike](../../../research/host-boundary/README.md)
+before pepys moves to it. The
+[host boundary spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/host-boundary/README.md)
 measured this shape against the others.
 
 A consumer reads four things from the host:
@@ -39,12 +40,13 @@ no database.
 
 | Mode  | Input                                               | Used for                                                |
 | ----- | --------------------------------------------------- | ------------------------------------------------------- |
-| fact  | one fact from one stream                            | entity state from full-state events, single-event links |
+| fact  | one fact from one of its streams                    | entity state from full-state events, single-event links |
 | scope | one scope, such as a pull request or a Gmail thread | history, join links, entities built from delta events   |
 
-A fact-mode consumer reads its stream in order and keeps an offset into it. Most source events carry
-the full object, so the newest source update time wins and one fact is enough; a fact older than the
-stored row changes nothing.
+A fact-mode consumer declares one or more streams, reads each in order, and keeps one offset per
+stream. A consumer ignores a fact whose type it does not handle. It rejects a fact of its own type
+whose payload fails to parse. Most source events carry the full object, so the newest source update
+time wins and one fact is enough; a fact older than the stored row changes nothing.
 
 A scope-mode consumer runs when anything in its scope changes and recomputes everything it owns for
 that scope from the current state. The result depends only on that state, not on the order the facts
@@ -84,8 +86,8 @@ scriptc compiles TypeScript and JavaScript to native code and WebAssembly using 
 TypeScript compiler checks, and supports a subset of the language. pepys uses scriptc only, with no
 second compiler. When a consumer uses something outside the subset, the consumer changes to fit.
 Consumers are small pure functions with few imports, which keeps that rare. The
-[scriptc spike](../../../research/scriptc-wasm/results.md#the-scriptc-subset) records the subset
-limits a consumer meets.
+[scriptc spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/scriptc-wasm/results.md#the-scriptc-subset)
+records the subset limits a consumer meets.
 
 Every consumer builds as a scriptc library with `determinism.fences` covering the Date, performance,
 process, random, filesystem and OS APIs. Such a build refuses a call to any of them at compile time,

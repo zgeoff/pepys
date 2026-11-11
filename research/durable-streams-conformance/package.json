@@ -1,6 +1,0 @@
-{
-  "name": "@pepys/spike-durable-streams-conformance",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module"
-}

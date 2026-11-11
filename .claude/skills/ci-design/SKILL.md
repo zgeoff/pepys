@@ -1,10 +1,9 @@
 ---
 name: ci-design
 description:
-  "How CI runs in a zgeoff repo: job layout, test budgets, timeouts, reusable workflows, step
-  scripts, path filters, cancelling, builds, checkout depth, reruns, first-party packages and
-  dependency exceptions. Load it before you add, change or review a workflow, a job or a trigger, or
-  a release-age exclude, override or audit ignore. For how to write tests, load the testing skill.
+  "Rules for CI in a zgeoff repo: workflows, jobs, test budgets, timeouts, triggers, builds and the
+  dependency gates. Load it before you add, change or review a workflow, a job or a trigger, or a
+  release-age exclude, override or audit ignore. For how to write tests, load the testing skill.
   Load the repo's project-ci-design skill beside it; where they disagree, the project skill wins."
 metadata:
   kind: rule-set
@@ -12,79 +11,95 @@ metadata:
 
 # CI design
 
-After you change a workflow, run `bun x @zgeoff/chex workflows` and fix every warning. CI stays
-green on a warning.
+## References
+
+- [Dependency exceptions](./references/dependency-exceptions.md): adding a release-age exclude, an
+  override or an audit ignore for a third-party package.
+
+## Workflow lint
+
+- After you change a workflow, run `bun x @zgeoff/chex workflows` and fix every warning. CI stays
+  green on a warning.
 
 ## Jobs
 
-Call [`bun-checks.yml`](https://github.com/zgeoff/tools/blob/main/.github/workflows/bun-checks.yml)
-from zgeoff/tools in the repo's CI workflow, pinned as [Reusable workflows](#reusable-workflows)
-says. Make its `checks` job a required check. GitHub lists it as `<your job> / checks`.
+Never edit [`pr.yml`](https://github.com/zgeoff/tools/blob/main/sync/workflow-callers/pr.yml):
+[repo-sync](https://github.com/zgeoff/tools/blob/main/docs/architecture/repo-sync.md) copies it from
+zgeoff/tools and overwrites your change. `pr.yml` runs the shared
+[`bun-checks.yml`](https://github.com/zgeoff/tools/blob/main/.github/workflows/bun-checks.yml) on
+each pull request.
 
-Add CI work as a package script, so `bun-checks.yml` runs it:
+- Add CI work as a package script. Unless `BUN_CHECK_SCRIPTS` is set, `bun-checks.yml` runs the
+  standard list: `audit`, `deadcode`, `format:check`, `lint`, `typecheck`, `test`, and each script
+  the repo defines for a lane in [Lanes](../testing/references/slow-tests.md#lanes) except
+  `model-api`.
+- To run a repo-only script, such as a `test:kvm` lane, list every script to run, the standard ones
+  too, in the repo variable `BUN_CHECK_SCRIPTS`. A script you leave out stops running, and a name
+  that `package.json` lacks fails the run.
+- Expect a private repo to run every script in one `checks` job. In a public repo, `bun-checks.yml`
+  runs each standard lane in a `test-<lane>` job, each other `test:<name>` script in the `test` job,
+  and the rest in the `static` job.
+- Require `pr / checks` in the `main` ruleset. In a public repo, the `checks` job fails when any
+  other job fails.
+- Put a job of your own in a workflow you write, such as `image.yml`.
+- Never require a branch to be up to date before merge. The push run on `main` tests the merged
+  tree.
 
-- It runs `audit`, `deadcode`, `format:check`, `lint`, `typecheck` and `test`, then each of
-  `test:e2e`, `test:browser`, `test:docker` and `test:host` that the repo defines.
-- To run another script, set the repo variable `BUN_CHECK_SCRIPTS` to every script to run, separated
-  by spaces. It replaces the list above, so list those scripts too.
-- In a private repo, it runs every script as a step of the one `checks` job, because GitHub bills
-  each job at least a minute. In a public repo, it runs the tests in their own jobs.
+Find the repo's test budget in the Facts table of its project-ci-design skill. The budget caps the
+median test time of the last 20 push runs on `main` that restored no `actions/cache` entry, from
+`gh run list --branch main --event push --limit 20`. Measure the slowest test job in a public repo,
+and the sum of the test and lane steps in a private one. When the repo has no budget, skip each rule
+that uses one.
 
-Look up the repo's test budget in the Facts table of its project-ci-design skill. The budget is the
-median time the CI tests take on a run that restores no `actions/cache` entry: the slowest test job
-in a public repo, and the sum of the test steps in a private one. When the repo has no budget, skip
-each rule below that uses one.
-
-- In a public repo, write a job of your own only when it saves 60 s of wall time over a script in
-  `bun-checks.yml`. Shard tests only when the repo is still over its test budget.
+- In a public repo, write a job of your own only when the script's step takes over 60 s longer than
+  a job's setup steps. Read both times from `gh run view <run-id> --json jobs`. Shard tests only
+  when the repo is over its test budget.
 - In a private repo, write a job of your own only for a heavy check: one on any runner but a
-  GitHub-hosted `ubuntu-*`, or one that sets up KVM. Run it on `schedule` or `workflow_dispatch`,
-  because GitHub bills its minutes on every push to a pull request. Never make it a required check.
-- When you make a job of your own a required check, make it always run. GitHub counts a skipped
-  required check as a pass.
+  GitHub-hosted `ubuntu-*`, or one that sets up KVM. Run it on `schedule` or `workflow_dispatch`. A
+  required check runs on every push to a pull request, so never require a heavy check.
+- Give a required job no `if:` or path filter. GitHub counts a skipped required check as a pass.
 
 ## Timeouts
 
-Set `timeout-minutes` on every job that runs steps. GitHub refuses the key on a job that calls a
-reusable workflow, such as the `changes` job under [Path filters](#path-filters), so the called
-workflow sets its own timeouts. Set the timeout of `bun-checks.yml` with the repo variable
-`BUN_CHECK_TIMEOUT_MINUTES`. In the repo's CI workflow, pass that variable to the `timeout-minutes`
-input of `bun-checks.yml`:
-`timeout-minutes: ${{ fromJSON(vars.BUN_CHECK_TIMEOUT_MINUTES || '20') }}` under `with:`.
-
-Set the timeout to 20 minutes while the repo has no test budget, and until its tests have stayed
-within the budget for a week. Then set the timeout to twice the budget, plus the job's median time
-outside its tests, and at least 5 minutes. Read the median from the job's recent runs in the Actions
-tab. For a job with no tests, use twice its median time.
+- Set `timeout-minutes` on every job that runs steps. On a job that calls a reusable workflow, pass
+  it as the `timeout-minutes` input when the workflow takes one.
+- Set 20 minutes on a job with tests until its tests have stayed within the test budget for a week
+  of runs on `main`. Then set twice the budget plus the job's median time outside its tests.
+- Set twice the median time on a job with no tests, and never less than 5 minutes. Take each median
+  from the test budget's 20 runs.
+- Set the timeout of the `bun-checks.yml` jobs with the repo variable `BUN_CHECK_TIMEOUT_MINUTES`.
+  Set it to the slowest test job's timeout. In a workflow you write that calls `bun-checks.yml`,
+  pass the variable the way
+  [`pr.yml`](https://github.com/zgeoff/tools/blob/main/sync/workflow-callers/pr.yml) does.
 
 ## Reusable workflows
 
-Share steps as a reusable workflow. A composite action's failure shows as one red line, with no step
-to point at. Check zgeoff/tools for a shared one before you write setup steps by hand. When you add
-the call, pin it to the latest commit on `main`:
+- Share steps as a reusable workflow. A composite action fails as one red line, with no step to
+  point at.
+- Before you write setup steps, look for a shared workflow in zgeoff/tools.
+- In a workflow you write, pin each call of a zgeoff/tools workflow to the latest commit on `main`,
+  with the `# main` comment:
 
-```yaml
-uses: zgeoff/tools/.github/workflows/<name>.yml@<commit> # main
-```
+  ```yaml
+  uses: zgeoff/tools/.github/workflows/<name>.yml@<commit> # main
+  ```
 
-After that, never move the pin by hand. repo-sync in zgeoff/tools opens a pull request in each repo,
-and that pull request moves the pin to the new commit.
+- Never move the pin by hand. Repo-sync opens a pull request that moves it.
 
 ## Step scripts
 
-Keep each `run:` to one plain command, such as `run: bun run --silent ci:tag-release`, with no `if`,
-loop, `&&`, `||`, `;`, pipe or `${{ }}`. Pass an expression's value through `env:`.
-
-Write the script a step runs in TypeScript, in a folder of `scripts/` named for its job, such as
-`scripts/release/tag-release.ts`. Run it through a package script, so the step stays one plain
-command. Keep it out of `.github/`, because `bun test` skips hidden folders and never runs its
-tests.
+- Keep each `run:` to one plain command, with no shell `if`, loop, `&&`, `||`, `;`, pipe or
+  `${{ }}`. Pass an expression's value through `env:`.
+- Write the script in TypeScript under `scripts/<job>/`, and run it through a package script, such
+  as `run: bun run --silent ci:tag-release` for `scripts/release/tag-release.ts`.
+- Keep step scripts out of `.github/`. Each script's test sits beside it, and `bun test` skips
+  hidden folders.
 
 ## Path filters
 
-Filter a job only when its inputs are a known part of the tree, such as an image, a native build or
-an e2e suite. Filter it with a `changes` job, never with `paths` on a trigger. If the workflow
-doesn't start, its required check never reports and the pull request can't merge.
+Filter a job only when you can list every path it reads, shared packages, `bun.lock` and the
+workflow's own file included. Filter it with a `changes` job, and leave `paths` off the trigger: a
+workflow that never starts reports no checks, so a required check in it blocks the merge.
 
 ```yaml
 jobs:
@@ -93,47 +108,51 @@ jobs:
     with:
       paths: |
         services/api/**
+        packages/shared/**
         bun.lock
         .github/workflows/image.yml
   image: # not a required check, so a skip is safe
     needs: changes
     # != 'false', so a failed changes job still runs the image build
     if: ${{ !cancelled() && needs.changes.outputs.changed != 'false' }}
+    timeout-minutes: 15
 ```
 
 ## Cancelling runs
 
-- In a checks workflow, cancel the older run when a newer commit arrives:
+- Run the checks of a push to `main` in a workflow of their own, such as a `main.yml` that calls
+  `bun-checks.yml`. Never cancel its runs: a cancelled run leaves that merged commit untested.
+- In each pull-request workflow you write, cancel the older run. Name the workflow in the group, so
+  two workflows never cancel each other:
 
-```yaml
-concurrency:
-  group: checks-${{ github.ref }}
-  cancel-in-progress: true
-```
+  ```yaml
+  concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+  ```
 
-- Never cancel a release, deploy or migrate job, because a deploy cut off halfway leaves its target
-  half changed. Give it a job-level group, such as `deploy-${{ github.ref }}`, with
-  `cancel-in-progress: false`. When the checks share that workflow, move their group to job level
-  too. A workflow-level group cancels every job in the run, the deploy included.
+- Never cancel a release, deploy or migrate job: a deploy cut off halfway leaves its target half
+  changed. Give the job its own job-level group, such as `deploy-${{ github.ref }}`, with
+  `cancel-in-progress: false`.
+- When checks and a deploy share a workflow, put the checks' group at job level too. Then a newer
+  run cancels only the checks.
 - In a workflow that runs only on `main`, group by `github.sha`, with `cancel-in-progress: false`.
-  Each commit then gets its own group, and no later push cancels its run.
+  Then two runs of one commit, such as a rerun and a dispatch, wait for each other.
 
 ## Builds
 
 - Build each artifact once per run. Pass an image on through the registry or buildx's `type=gha`
   cache, and a file through `actions/upload-artifact`.
-- Never cache `~/.bun/install/cache` or `node_modules`. `bun install --frozen-lockfile` runs faster
+- Never cache `~/.bun/install/cache` or `node_modules`. `bun install --frozen-lockfile` is faster
   than the restore.
-- When a job reads history, check out with `fetch-depth: 0` and `filter: blob:none`, or `filter: ''`
-  when it reads many old files. For a diff against the base branch, use `fetch-depth: 2`.
+- When a job reads git history, such as tags, check out with `fetch-depth: 0` and
+  `filter: blob:none`, or `filter: ''` when it reads many old files. For a diff against the base
+  branch, use `fetch-depth: 2`.
 
-## Merging and `workflow_run`
+## `workflow_run` triggers
 
-Don't require a branch to be up to date before merge. The push run on `main` already tests the
-merged tree.
-
-A `workflow_run` trigger takes a `branches:` filter, but a fork's `main` matches it. When the job
-holds a secret or write access, check the event and the repo too:
+When a job that `workflow_run` starts holds a secret or write access, give the job this `if:`. A
+`pull_request` run can hold a fork's code, and a fork's `main` passes the `branches:` filter.
 
 ```yaml
 if: >-
@@ -143,61 +162,27 @@ if: >-
 
 ## First-party packages
 
-Add each package under `@zgeoff/`, `@impz/`, `@wringer/` or `@heynixie/` to the
-`minimumReleaseAgeExcludes` list in `bunfig.toml`, by its full name, such as `@zgeoff/std`. These
-are the scopes in
-[`first-party-scopes.ts`](https://github.com/zgeoff/tools/blob/main/packages/chex/src/dependency-gates/first-party-scopes.ts).
-`minimumReleaseAge` in the same file makes `bun install` refuse each release younger than that age,
-and an excluded package skips that wait. Renovate bumps these packages as soon as they publish, so
-each new release fails to install without an exclude. A repo that sets no `minimumReleaseAge` skips
-this section.
+When `bunfig.toml` sets `minimumReleaseAge`, give each first-party package an exclude. Renovate
+bumps each one as soon as it publishes, and `bun install` refuses a release younger than that age.
 
-- Exclude each one the lock file installs, even one that only another package depends on.
-  `chex dependency-gates` lists each one that has no exclude.
-- Never write a scope, such as `@zgeoff/*`. Bun accepts a scope entry with no warning, and the entry
-  lets no package through.
-- Never put a dated removal comment above a first-party exclude. The audit-fix workflow deletes an
-  exclude on the date in that comment.
-- Add a missing exclude in its own pull request on `main`, because Renovate rebuilds its own branch
-  and drops your commit. After it merges, tick the rebase checkbox in each red Renovate pull
-  request.
+- Run `bun x @zgeoff/chex dependency-gates`, and add each first-party package it lists to
+  `minimumReleaseAgeExcludes`, by its full name, such as `@zgeoff/std`.
+- Never write a scope, such as `@zgeoff/*`. Bun accepts it with no warning and lets nothing through.
+- Never put a [removal comment](./references/dependency-exceptions.md#release-age-excludes) above a
+  first-party exclude. The
+  [audit-fix workflow](https://github.com/zgeoff/tools/blob/main/docs/architecture/dependency-updates.md#the-audit-fix-workflow)
+  deletes the exclude on the comment's date.
+- Add a missing exclude in a pull request of its own into `main`. Renovate drops a commit you push
+  to its branch. Once yours merges, tick the rebase checkbox in each red Renovate pull request.
 
 ## Dependency exceptions
 
-For any other package, add an exception only for a named reason, such as a fix the repo needs. If an
-older release works, pin the newest one that is older than `minimumReleaseAge`, and add no
-exception. An exception is one of these:
-
-- A release-age exclude: the package's name in `minimumReleaseAgeExcludes`, for one exact version
-  that the catalog or the override pins.
-- An override: an entry in the `overrides` of `package.json`, pinned to one exact version. It needs
-  no comment.
-- An audit ignore: an `--ignore` flag on the `audit` script in `package.json`, for one advisory ID.
-  Give it an entry in the root `audit-ignores.json`, keyed by that advisory ID, with its `package`,
-  its `reason` and an ISO `expires` date, so the audit-fix workflow audits it again.
-
-Before you add a release-age exclude, check that the release has npm provenance:
-
-```bash
-npm view <package>@<version> dist.attestations.provenance
-```
-
-If it prints nothing, the release has no provenance. Don't exclude it: pin an older release, or wait
-until this one is older than `minimumReleaseAge`.
-
-Above a release-age exclude, add the dated removal comment that the
-[audit-fix workflow](https://github.com/zgeoff/tools/blob/main/.github/workflows/audit-fix.yml)
-writes. Give the date the release passes `minimumReleaseAge`. Keep the comment's wording as it is,
-"ages past the gate" included, because the audit-fix workflow and the check match it exactly:
-
-```toml
-# @scope/example 2.4.1 (published 2026-10-30) ages past the gate ~2026-11-06 — remove then
-```
-
-`chex dependency-gates` runs in `bun-checks.yml`. It fails on each of these:
-
-- A release-age exclude past its date, or with no removal comment. A first-party exclude passes with
-  no comment.
-- A first-party package with no exclude.
-- An override that changes nothing, because every locked version already meets it.
-- An audit ignore that no locked package needs.
+- Add a release-age exclude, an override or an audit ignore for a third-party package only for a
+  named reason, such as a fix the repo needs. Add it as
+  [Dependency exceptions](./references/dependency-exceptions.md) says.
+- When a release older than `minimumReleaseAge` holds the fix, lock it as step 2 of
+  [Release-age excludes](./references/dependency-exceptions.md#release-age-excludes) says, and add
+  no exclude.
+- Remove each exclude, override or ignore once it guards nothing. `chex dependency-gates` fails the
+  run on an expired exclude, an override that every `bun.lock` range admits, and an ignore that no
+  locked package needs.

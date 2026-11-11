@@ -1,0 +1,88 @@
+{
+  "title": "reads facts in append order from an offset",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "fact": {
+          "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T08:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 0 }
+    },
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 1,
+        "fact": {
+          "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "type": "link.retracted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T09:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 1 }
+    },
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 2,
+        "fact": {
+          "id": "manual:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T10:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 2 }
+    },
+    {
+      "read": { "stream": "facts.manual.link", "from": 1, "count": 2 },
+      "returns": {
+        "ok": true,
+        "value": [
+          {
+            "offset": 1,
+            "body": {
+              "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "type": "link.retracted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T09:00:00Z",
+              "payload": {}
+            },
+            "appendedAtMs": "during-fixture"
+          },
+          {
+            "offset": 2,
+            "body": {
+              "id": "manual:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "type": "link.asserted",
+              "v": 1,
+              "api": "pepys/1",
+              "entity": "gmail:msg:17",
+              "at": "2026-10-01T10:00:00Z",
+              "payload": {}
+            },
+            "appendedAtMs": "during-fixture"
+          }
+        ]
+      }
+    }
+  ]
+}

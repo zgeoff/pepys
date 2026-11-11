@@ -13,9 +13,10 @@ the CPU, so pepys embeds text locally. The embedding job in [enrichment](./enric
 each extracted email text and each pull request and issue text, and writes each vector as a fact. A
 consumer projects the vectors into a Turso table.
 
-A question gets embedded with the same model, and the nearest vectors are the candidates. Turso's
-exact vector search is fast enough at the volume one person produces, so pepys needs no approximate
-index.
+The API asks enrichment's embed route for a question's vector ([runtime](./runtime.md#network)), so
+every question is embedded with the champion embedding version, and the nearest vectors are the
+candidates. Turso's exact vector search is fast enough at the volume one person produces, so pepys
+needs no approximate index.
 
 ## Full-text search
 
@@ -27,16 +28,13 @@ over the same texts the embedding job reads.
 The two searches fail in opposite ways. A paraphrase defeats full-text search, and an exact
 identifier defeats vector search. Running both and merging the rankings with reciprocal rank fusion
 keeps both strengths, and it needs no score calibration between the two engines, because it uses
-only each result's rank.
+only each result's rank. pepys sets the fusion constant k to 60.
+
+A golden query tests the ranking. It passes when its expected entities lead the results, in the
+expected order.
 
 ## Link candidates
 
 Link judgement needs candidate pairs, since Jev judges pairs and never finds them. Hybrid search
 proposes them: the emails nearest to an issue's text within a time window, for example. Jev then
 judges only the top candidates, which keeps model calls to a small fraction of all possible pairs.
-
-## Open questions
-
-The [LEAF-IR spike](../../../research/leaf-ir-bun/README.md) checks that the model runs under Bun.
-The [Turso spike](../../../research/turso-bindings/README.md) checks how stable Turso's full-text
-search is.

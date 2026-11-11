@@ -1,0 +1,26 @@
+{
+  "title": "rejects an envelope that fails the envelope parse",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "fact": {
+          "id": "not-a-fact-id",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T08:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "rejected", "reason": "invalid-envelope" }
+    },
+    {
+      "readTail": { "stream": "facts.manual.link" },
+      "returns": { "ok": true, "value": 0 }
+    }
+  ]
+}

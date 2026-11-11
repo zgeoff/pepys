@@ -1,0 +1,16 @@
+{
+  "title": "stores a blob under the SHA-256 of its bytes",
+  "calls": [
+    {
+      "write": { "text": "the harbour map" },
+      "returns": {
+        "ok": true,
+        "value": "1e9235ef9eea62853718d748d756259eb51bfd343feba26b9e2cdd6f3e072d66"
+      }
+    },
+    {
+      "read": { "hash": "1e9235ef9eea62853718d748d756259eb51bfd343feba26b9e2cdd6f3e072d66" },
+      "returns": { "ok": true, "value": { "text": "the harbour map" } }
+    }
+  ]
+}

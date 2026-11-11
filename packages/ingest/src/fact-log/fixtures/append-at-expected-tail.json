@@ -1,0 +1,42 @@
+{
+  "title": "acknowledges an append whose expected tail is the stream's tail",
+  "streams": ["facts.manual.link"],
+  "calls": [
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 0,
+        "fact": {
+          "id": "manual:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:17",
+          "at": "2026-10-01T08:00:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 0 }
+    },
+    {
+      "readTail": { "stream": "facts.manual.link" },
+      "returns": { "ok": true, "value": 1 }
+    },
+    {
+      "append": {
+        "stream": "facts.manual.link",
+        "expectedTail": 1,
+        "fact": {
+          "id": "manual:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "type": "link.asserted",
+          "v": 1,
+          "api": "pepys/1",
+          "entity": "gmail:msg:18",
+          "at": "2026-10-01T08:30:00Z",
+          "payload": {}
+        }
+      },
+      "returns": { "kind": "acknowledged", "offset": 1 }
+    }
+  ]
+}

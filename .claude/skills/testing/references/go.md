@@ -3,15 +3,15 @@
 Write Go tests with the standard `testing` runner. These sections of the testing skill apply to Go
 tests as they stand: [Principles](../SKILL.md#principles), [Test data](../SKILL.md#test-data),
 [Assertions](../SKILL.md#assertions), [Errors](../SKILL.md#errors),
-[Access rules](../SKILL.md#access-rules) and [Narrowing](../SKILL.md#narrowing). From
+[Access rules](./schemas-and-access.md#access-rules) and [Narrowing](../SKILL.md#narrowing). From
 [Test shape](../SKILL.md#test-shape), keep the titles and the one act per test. This file replaces
-the rest of it for Go. The Bun-only parts don't apply: `setupTest`, the test preload, the
+the rest of Test shape for Go. The Bun-only parts don't apply: `setupTest`, the test preload, the
 jest-extended matchers, lanes and the `bun test` flags.
 
 The mistakes to avoid:
 
-- Never pass mutable state from a parent test to its subtests. A subtest that changes it breaks the
-  ones after it.
+- Never pass mutable state from a parent test to its subtests. When one subtest changes it, the
+  subtests after it break.
 - Never give each case a random ID so that cases which share state stop colliding. The shared state
   stays, and a later test fails on it.
 - Never retry a failed test, such as with gotestsum's `--rerun-fails`, or skip one behind a check of
