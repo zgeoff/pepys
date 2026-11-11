@@ -32,16 +32,19 @@ of the export, as `origin { issuer, subject }`. The origin is the one part of a 
 the sender did not write. Each consumer copies it into the `origin_issuer` and `origin_subject`
 columns of its table.
 
-**The sender proof.** `createImpIdentitySenderProof` in `@pepys/ingest` reads the `imp-identity`
-header and hands the token to an injected verifier, which checks the signature, the issuer, the
-audience and the expiry. The issuer and the subject come only from the verified token. Ingest gives
-401 to a missing or malformed header, a token the verifier refuses, a verifier that throws, and a
-token with no issuer or no subject. Ingest never logs the token.
+**The sender proof.** A sender sends one `Imp-Identity` header that holds a compact ES256 token,
+which the broker of the worker's machine adds. `serveIngest` hands the header to `verifyImpIdentity`
+of `@impz/client/identity`, which checks the signature, the issuer, the audience and the time. The
+issuer and the subject come only from the verified token. Ingest gives 401 to a missing, repeated or
+malformed header, a token the verifier refuses, and a verifier that throws. Ingest never logs the
+token.
 
 At start, ingest reads two deployment settings. `PEPYS_IMP_IDENTITY_ISSUERS` holds the path of a
-folder of trust documents, one `.json` file per issuing host. `PEPYS_IMP_IDENTITY_AUDIENCE` holds
-the audience that a token must name, the same host name that the broker rule which adds the token
-uses. When either setting is unset or empty, ingest refuses every export.
+folder of trust documents, one `.json` file per issuing host, which `loadIdentityIssuers` of
+`@impz/client/identity` checks. `PEPYS_IMP_IDENTITY_AUDIENCE` holds the audience that a token must
+name, the same name that the broker rule which adds the token uses. When either setting is unset or
+empty, ingest starts and refuses every export. A folder that cannot be read, or an invalid document,
+stops the start.
 
 **Tolerant parsing.** Neither exporter's shape on the wire is checked, so a consumer takes a number
 as a JSON number or as decimal text. A Claude Code record is one whose event name starts with

@@ -164,8 +164,8 @@ The store and the API:
   worker can move its own cost between its own attempts. Sessions on one machine are one sender. A
   session that can prove no sender cannot send telemetry at all.
 - **The telemetry route refuses every export until its trust documents and audience are set.** The
-  cost of every attempt then reads as none. The verifier package has no `./identity` export yet, so
-  `serveIngest` runs with no sender proof, and the route refuses every export until it has one.
+  cost of every attempt then reads as none. Ingest starts without them, so a deployment notices only
+  from the 401 answers.
 - **A replay of a signed delivery grows the log.** It changes no row and no link. Past the hour of
   the drop, after a restart, or on another replica, each replay adds one copy of its facts. The
   GitHub route is public, so the size limit and that hour are the bound.

@@ -21,6 +21,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@impz/client": "catalog:",
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@s2-dev/streamstore": "catalog:",

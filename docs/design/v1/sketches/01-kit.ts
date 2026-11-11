@@ -489,11 +489,12 @@ export interface Delivery {
 
 // pepys's own words for a proven sender, and the port that ingest calls.
 // The name follows the kit's other ports (`FactLog`, `BlobStore`): a noun, no `Port` suffix.
-// Adapters, in packages/ingest/src/sender-proof: `impIdentitySenderProof` (it verifies the signed
-// token in the `Imp-Identity` header: `issuer` is the token's `iss`, `subject` is its `sub`),
-// `createFakeSenderProof` for tests (it maps a value of the `imp-identity` header to a sender), and
-// `noSenderProof` (always null), which ingest uses for a path whose trust documents are missing,
-// so that the path refuses every delivery.
+// Adapters, in packages/ingest/src/sender-proof: `createImpIdentitySenderProof` (it verifies the
+// signed token in the `Imp-Identity` header with `verifyImpIdentity` of `@impz/client/identity`:
+// `issuer` is the token's `iss`, `subject` is its `sub`; a path whose trust documents or audience
+// are unset refuses every delivery), `createFakeSenderProof` for tests (it maps a value of the
+// `imp-identity` header to a sender), and `noSenderProof` (always null), for tests of a route
+// with no proof.
 export interface Sender { readonly issuer: string; readonly subject: string; readonly name: string }
 export interface SenderProof {
   prove: (requirement: SenderRequirement, headers: Headers) => Promise<Sender | null>;

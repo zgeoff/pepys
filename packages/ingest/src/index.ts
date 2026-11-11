@@ -15,15 +15,9 @@ export type { PullPathName, PullRun, PullRunner } from './pull/make-pull-runner.
 export type { ResyncMarks } from './receive/resync-marks/create-resync-marks.ts';
 export { createFakeSenderProof } from './sender-proof/fake/create-fake-sender-proof.ts';
 export { createImpIdentitySenderProof } from './sender-proof/imp-identity/create-imp-identity-sender-proof.ts';
+export { readImpIdentitySenderProof } from './sender-proof/imp-identity/read-imp-identity-sender-proof.ts';
 export { readImpIdentityTrust } from './sender-proof/imp-identity/read-imp-identity-trust.ts';
-
-export type {
-  ImpIdentityTrust,
-  ImpIdentityVerifier,
-  VerifiedImp,
-  VerifyOptions,
-} from './sender-proof/imp-identity/types.ts';
-
+export type { ImpIdentityTrust } from './sender-proof/imp-identity/types.ts';
 export { noSenderProof } from './sender-proof/none/no-sender-proof.ts';
 export { serveIngest } from './serve/serve-ingest.ts';
 export type * from './source-port/types.ts';

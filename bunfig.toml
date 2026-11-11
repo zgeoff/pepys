@@ -29,6 +29,10 @@ minimumReleaseAge = 604800
 # @standard-server/node 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
 # @standard-server/peer 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
 # @standard-server/shared 0.16.0 (published 2026-11-09) ages past the gate ~2026-11-16 — remove then (audit-fix)
+# @impz/client 6.12.0 (published 2026-11-11) ages past the gate ~2026-11-18 — remove then (audit-fix)
+# @orpc/standard-server 1.16.2 (published 2026-11-06) ages past the gate ~2026-11-13 — remove then (audit-fix)
+# @orpc/standard-server-fetch 1.16.2 (published 2026-11-06) ages past the gate ~2026-11-13 — remove then (audit-fix)
+# @orpc/standard-server-peer 1.16.2 (published 2026-11-06) ages past the gate ~2026-11-13 — remove then (audit-fix)
 minimumReleaseAgeExcludes = [
   "@zgeoff/agent-hooks",
   "@zgeoff/bun-test-extended",
@@ -57,6 +61,10 @@ minimumReleaseAgeExcludes = [
   "@standard-server/node",
   "@standard-server/peer",
   "@standard-server/shared",
+  "@impz/client",
+  "@orpc/standard-server",
+  "@orpc/standard-server-fetch",
+  "@orpc/standard-server-peer",
 ]
 
 [test]

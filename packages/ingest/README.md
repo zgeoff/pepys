@@ -25,6 +25,8 @@ bun add @pepys/ingest
 ## Features
 
 - `serveIngest` and `createIngest`: the receive routes of a deployment.
+- The sender proof port, with the adapter that verifies a worker machine's identity token through
+  `@impz/client/identity`.
 - The fact log port, with its S2 and memory adapters.
 - The blob store port, with its Garage and local folder adapters.
 

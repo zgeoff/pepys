@@ -1,4 +1,5 @@
 import { expect, mock, onTestFinished, spyOn, test } from 'bun:test';
+import type { verifyImpIdentity } from '@impz/client/identity';
 import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -6,13 +7,10 @@ import { createMemoryFactLog } from '../../fact-log/memory/create-memory-fact-lo
 import { createIngest } from '../../receive/create-ingest.ts';
 import { buildStubReceiveDeployment } from '../../test-utils/build-stub-receive-deployment.ts';
 import { createImpIdentitySenderProof } from './create-imp-identity-sender-proof.ts';
-import type { ImpIdentityTrust, ImpIdentityVerifier } from './types.ts';
+import { createIdentityIssuer } from './test-utils/create-identity-issuer.ts';
+import type { ImpIdentityTrust } from './types.ts';
 
-interface TrustDocument {
-  issuer: string;
-}
-
-type Verify = ImpIdentityVerifier<TrustDocument>['verify'];
+type Verify = typeof verifyImpIdentity;
 
 function setupTest() {
   const stub = buildStubReceiveDeployment();
@@ -31,7 +29,7 @@ function setupTest() {
   });
 
   return {
-    createIngestWith: (verify: Verify, trust: ImpIdentityTrust<TrustDocument>) =>
+    createIngestWith: (verify: Verify, trust: ImpIdentityTrust) =>
       createIngest({
         deployment: stub.deployment,
         secrets: { LEDGER_SECRET: 'till-secret', BEACON_TOKEN: 'tide-key', STRAY_TOKEN: 'stray' },
@@ -40,7 +38,8 @@ function setupTest() {
         appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
         now: () => 0,
       }),
-    readLogged: () => logged.flatMap((spy) => spy.mock.calls.flat().map(String)),
+    readLogged: () =>
+      logged.flatMap((spy) => spy.mock.calls.flat().map((part) => Bun.inspect(part))),
     readStoredIDs: async () => {
       const read = await log.read(stub.streams.lamp, toTagged<StreamOffset>(0), 100);
 
@@ -59,8 +58,11 @@ function setupTest() {
   };
 }
 
-test('it proves the issuer and subject of the verified token, for the audience of the path', async () => {
+test('it hands the verifier the header, the documents and audience of the path, and the time', async () => {
   const ctx = setupTest();
+
+  const harbour = await createIdentityIssuer('harbour-host');
+
   const token = 'lamp-head.lamp-body.lamp-seal';
 
   const verify = mock<Verify>(() =>
@@ -68,7 +70,7 @@ test('it proves the issuer and subject of the verified token, for the audience o
   );
 
   const ingest = ctx.createIngestWith(verify, {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
+    issuers: new Map([['BEACON_ISSUERS', [harbour.document]]]),
     audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
   });
 
@@ -84,145 +86,57 @@ test('it proves the issuer and subject of the verified token, for the audience o
     status: 200,
     stored: ['event:beacon:north-2026-11-11T02:20:00Z'],
     verified: [
-      [
-        token,
-        {
-          issuers: [{ issuer: 'harbour-host' }],
-          audience: 'pepys-ingest',
-          nowSeconds: 1_794_370_812,
-        },
-      ],
+      [token, { issuers: [harbour.document], audience: 'pepys-ingest', nowSeconds: 1_794_370_812 }],
     ],
   });
 });
 
-test('it refuses with 401 a token for another audience than the deployment sets', async () => {
-  const ctx = setupTest();
-
-  const verify = mock<Verify>((_header, options) => {
-    const verified =
-      options.audience === 'lantern-ingest'
-        ? { issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }
-        : null;
-
-    return Promise.resolve(verified);
-  });
-
-  const ingest = ctx.createIngestWith(verify, {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
-    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
-  });
-
-  const response = await ingest.handleRequest(
-    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-  );
-
-  expect({
-    status: response.status,
-    stored: await ctx.readStoredIDs(),
-    askedAudiences: verify.mock.calls.map((call) => call[1].audience),
-  }).toStrictEqual({ status: 401, stored: [], askedAudiences: ['pepys-ingest'] });
-});
-
 test.each([
-  { row: 'no identity header', headers: {} },
-  { row: 'a header that is no token', headers: { 'imp-identity': 'Bearer let-me-in' } },
-  {
-    row: 'two joined tokens',
-    headers: { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln, aGVhZA.Ym9keQ.c2ln' },
+  { row: 'no trust document', hasDocuments: false, hasAudience: true },
+  { row: 'no audience', hasDocuments: true, hasAudience: false },
+])(
+  'it refuses every delivery with 401 when $row is configured, and never calls the verifier',
+  async (row) => {
+    const ctx = setupTest();
+
+    const harbour = await createIdentityIssuer('harbour-host');
+
+    const verify = mock<Verify>(() =>
+      Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
+    );
+
+    const issuers = row.hasDocuments ? [harbour.document] : [];
+
+    const audiences = row.hasAudience
+      ? new Map([['BEACON_AUDIENCE', 'pepys-ingest']])
+      : new Map<string, string>();
+
+    const ingest = ctx.createIngestWith(verify, {
+      issuers: new Map([['BEACON_ISSUERS', issuers]]),
+      audiences,
+    });
+
+    const response = await ingest.handleRequest(
+      ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
+    );
+
+    expect({
+      status: response.status,
+      stored: await ctx.readStoredIDs(),
+      verified: verify.mock.calls.length,
+    }).toStrictEqual({ status: 401, stored: [], verified: 0 });
   },
-])('it refuses $row with 401, stores nothing and never calls the verifier', async (row) => {
-  const ctx = setupTest();
-
-  const verify = mock<Verify>(() =>
-    Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
-  );
-
-  const ingest = ctx.createIngestWith(verify, {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
-    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
-  });
-
-  const response = await ingest.handleRequest(ctx.buildRequest('/beacon/readings', row.headers));
-
-  expect({
-    status: response.status,
-    stored: await ctx.readStoredIDs(),
-    verified: verify.mock.calls.length,
-  }).toStrictEqual({ status: 401, stored: [], verified: 0 });
-});
-
-test('it refuses every delivery with 401 when no trust document is configured', async () => {
-  const ctx = setupTest();
-
-  const verify = mock<Verify>(() =>
-    Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
-  );
-
-  const ingest = ctx.createIngestWith(verify, {
-    issuers: new Map(),
-    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
-  });
-
-  const response = await ingest.handleRequest(
-    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-  );
-
-  expect({
-    status: response.status,
-    stored: await ctx.readStoredIDs(),
-    verified: verify.mock.calls.length,
-  }).toStrictEqual({ status: 401, stored: [], verified: 0 });
-});
-
-test('it refuses every delivery with 401 when no audience is configured', async () => {
-  const ctx = setupTest();
-
-  const verify = mock<Verify>(() =>
-    Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
-  );
-
-  const ingest = ctx.createIngestWith(verify, {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
-    audiences: new Map(),
-  });
-
-  const response = await ingest.handleRequest(
-    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-  );
-
-  expect({
-    status: response.status,
-    stored: await ctx.readStoredIDs(),
-    verified: verify.mock.calls.length,
-  }).toStrictEqual({ status: 401, stored: [], verified: 0 });
-});
-
-test('it refuses with 401 a token that the verifier refuses', async () => {
-  const ctx = setupTest();
-
-  const ingest = ctx.createIngestWith(() => Promise.resolve(null), {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
-    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
-  });
-
-  const response = await ingest.handleRequest(
-    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-  );
-
-  expect({ status: response.status, stored: await ctx.readStoredIDs() }).toStrictEqual({
-    status: 401,
-    stored: [],
-  });
-});
+);
 
 test('it refuses with 401 when the verifier throws, and logs no token', async () => {
   const ctx = setupTest();
 
+  const harbour = await createIdentityIssuer('harbour-host');
+
   const ingest = ctx.createIngestWith(
     (header) => Promise.reject(new Error(`no key for ${header ?? ''}`)),
     {
-      issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
+      issuers: new Map([['BEACON_ISSUERS', [harbour.document]]]),
       audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
     },
   );
@@ -238,32 +152,13 @@ test('it refuses with 401 when the verifier throws, and logs no token', async ()
   }).toStrictEqual({ status: 401, stored: [], logged: [] });
 });
 
-test.each([
-  { row: 'no subject', verified: { issuer: 'harbour-host', id: '', name: 'tidy-otter' } },
-  { row: 'no issuer', verified: { issuer: '', id: 'imp-0193', name: 'tidy-otter' } },
-])('it refuses with 401 a verified token with $row', async (row) => {
-  const ctx = setupTest();
-
-  const ingest = ctx.createIngestWith(() => Promise.resolve(row.verified), {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
-    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
-  });
-
-  const response = await ingest.handleRequest(
-    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-  );
-
-  expect({ status: response.status, stored: await ctx.readStoredIDs() }).toStrictEqual({
-    status: 401,
-    stored: [],
-  });
-});
-
 test('it refuses the ignored route with 401 when the verifier refuses the token', async () => {
   const ctx = setupTest();
 
+  const harbour = await createIdentityIssuer('harbour-host');
+
   const ingest = ctx.createIngestWith(() => Promise.resolve(null), {
-    issuers: new Map([['BEACON_ISSUERS', [{ issuer: 'harbour-host' }]]]),
+    issuers: new Map([['BEACON_ISSUERS', [harbour.document]]]),
     audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
   });
 

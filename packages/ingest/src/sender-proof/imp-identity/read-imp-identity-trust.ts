@@ -1,25 +1,26 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { loadIdentityIssuers } from '@impz/client/identity';
+import type { IdentityTrustDocument } from '@impz/client/identity';
 import type { Result, SenderRequirement, SourceDefinition } from '@pepys/kit';
-import type { ImpIdentityTrust, ImpIdentityVerifier } from './types.ts';
+import type { ImpIdentityTrust } from './types.ts';
 
-interface TrustReadOptions<Document> {
+interface TrustReadOptions {
   sources: readonly SourceDefinition[];
 
   // the environment of the ingest process; never a request
   environment: Readonly<Record<string, string | undefined>>;
-  loadIssuers: ImpIdentityVerifier<Document>['loadIssuers'];
 }
 
 // An unset or empty variable, or an empty folder, leaves its paths with no entry, so they refuse
-// every delivery. A folder that cannot be read, or a document the verifier refuses, fails the
+// every delivery. A folder that cannot be read, or a document that the loader refuses, fails the
 // start.
-export async function readImpIdentityTrust<Document>(
-  options: TrustReadOptions<Document>,
-): Promise<Result<ImpIdentityTrust<Document>, string>> {
+export async function readImpIdentityTrust(
+  options: TrustReadOptions,
+): Promise<Result<ImpIdentityTrust, string>> {
   const requirements = collectSenderRequirements(options.sources);
 
-  const issuers = new Map<string, readonly Document[]>();
+  const issuers = new Map<string, readonly IdentityTrustDocument[]>();
   const audiences = new Map<string, string>();
 
   for (const name of new Set(requirements.map((requirement) => requirement.audienceEnv))) {
@@ -48,9 +49,9 @@ export async function readImpIdentityTrust<Document>(
     }
 
     try {
-      issuers.set(name, options.loadIssuers(documents.value));
+      issuers.set(name, loadIdentityIssuers(documents.value));
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'the verifier gave no reason';
+      const reason = error instanceof Error ? error.message : 'the loader gave no reason';
 
       return { ok: false, failure: `${name}: the trust documents are invalid: ${reason}` };
     }

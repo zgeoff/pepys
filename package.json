@@ -8,6 +8,7 @@
     ],
     "catalog": {
       "@commitlint/cli": "21.2.4",
+      "@impz/client": "6.12.0",
       "@msw/data": "1.1.8",
       "@mswjs/interceptors": "0.45.11",
       "@octokit/webhooks": "14.2.0",
