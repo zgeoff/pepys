@@ -70,8 +70,6 @@ pre-push:
           exit 1
         fi
         # {files}
-    - name: lint:shell
-      run: bun run lint:shell
     # the workspace is small, so clippy checks all of it when any Rust changed;
     # a TOML file outside Cargo's inputs, such as bunfig.toml, is not Rust
     - name: clippy

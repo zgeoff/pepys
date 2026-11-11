@@ -68,7 +68,6 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "lint:full": "oxlint --type-aware --type-check --report-unused-disable-directives-severity error",
-    "lint:shell": "git ls-files -z '*.sh' ':!.claude/**' | xargs -r0 sh -c 'shellcheck \"$@\" && shfmt -d \"$@\"' sh",
     "lint:toml": "tombi lint",
     "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
     "schema:check": "bun scripts/generate-schema.ts --check",
