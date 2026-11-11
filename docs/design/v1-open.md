@@ -117,15 +117,6 @@ brands every ID with a fixed tag and adds the kind as a second tag.
 
 ## Gaps inside the sketches
 
-The proven sender did not reach every place in the sketches:
-
-- Neither telemetry table declares the two origin columns, and both consumers write them.
-- The telemetry test in [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts) applies facts
-  with no origin, and the consumer reads the origin of every fact. The test store's `apply` takes a
-  `sender` option and writes the origin into each payload, so the test must pass one.
-
-More gaps:
-
 - The [runtime](./pepys/runtime.md#network) doc's public rule matches the path `/webhook/github`,
   and the GitHub source's route is `/webhook`. The public rule must match the exact path of the
   route.
@@ -159,6 +150,8 @@ Telemetry:
 - Claude Code's OTLP shape on the wire: the scope name, and numbers as numbers or as text.
 - Either exporter's batch size, and whether either one sends gzip.
 - That an OTLP exporter retries on 503 and stops on 500, as the OTLP specification requires.
+- The attribute that holds the subagent of a request. Until it is known, the `agent` column of a
+  model request is null.
 
 GitHub:
 
@@ -193,7 +186,9 @@ The store and the API:
   worker can move its own cost between its own attempts. Sessions on one machine are one sender. A
   session that can prove no sender cannot send telemetry at all.
 - **The telemetry route refuses every export until its trust documents exist.** The cost of every
-  attempt then reads as none.
+  attempt then reads as none. The verifier of the `imp-identity` token is in no released impz
+  client, so `serveIngest` runs with no sender proof, and the route refuses every export until it
+  is.
 - **A replay of a signed delivery grows the log.** It changes no row and no link. Past the hour of
   the drop, after a restart, or on another replica, each replay adds one copy of its facts. The
   GitHub route is public, so the size limit and that hour are the bound.

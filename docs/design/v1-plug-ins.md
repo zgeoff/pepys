@@ -16,17 +16,34 @@ parts 1 and 2.
 **The paths.** Ingest serves the three standard OTLP paths over HTTP at the root: `/v1/logs`,
 `/v1/metrics` and `/v1/traces`. An exporter gets a bare origin and adds the path itself. Log records
 become facts. Metrics and traces pass the same token check, get 200 with `{}`, and store nothing, so
-an exporter that sends them does not retry for ever. The logs path takes JSON, with or without gzip,
-and refuses protobuf with 400. It answers 200 with `{}` for a stored export and for an ignored one,
-which is what an OTLP exporter expects. An exporter drops an export that gets a 4xx answer, so the
-path refuses only a body that is no export at all, and takes up to 1000 facts and 4 MiB in one
-export.
+an exporter that sends them does not retry for ever.
+
+**The logs path.** Ingest takes OTLP JSON on `/v1/logs`, with or without gzip, up to 1000 facts and
+4 MiB in one export. Ingest gives 200 with `{}` for a stored export and for an ignored one, as an
+OTLP exporter expects. An exporter drops an export that gets a 4xx, so ingest gives 400 only to a
+body that is no OTLP JSON: protobuf, a content type other than `application/json`, text that is not
+JSON, or JSON with no `resourceLogs` list. Inside an export, the source skips a malformed part and
+drops a malformed record.
 
 **The checks.** An exporter cannot sign a body, so the check is a token in the `authorization`
 header. The path also needs a proven sender, through the `SenderProof` port of
 [ingest](./v1.md#ingest). The source's read copies the proven sender into the payload of every fact
 of the export, as `origin { issuer, subject }`. The origin is the one part of a telemetry fact that
-the sender did not write. Each consumer copies it into two columns of its table.
+the sender did not write. Each consumer copies it into the `origin_issuer` and `origin_subject`
+columns of its table.
+
+**The sender proof.** `createImpIdentitySenderProof` in `@pepys/ingest` reads the `imp-identity`
+header and hands the token to an injected verifier, which checks the signature, the issuer, the
+audience and the expiry. The issuer and the subject come only from the verified token. Ingest gives
+401 to a missing or malformed header, a token the verifier refuses, a verifier that throws, and a
+token with no issuer or no subject. Ingest never logs the token. At start, ingest reads the trust
+documents from the folder in `PEPYS_IMP_IDENTITY_ISSUERS`, one `.json` file per issuing host. With
+no documents, ingest refuses every export. The audience is `pepys.imp.example`, and the broker rule
+that adds the token must use the same name.
+
+**Tolerant parsing.** Neither exporter's shape on the wire is checked, so a consumer takes a number
+as a JSON number or as decimal text. A Claude Code record is one whose event name starts with
+`claude_code.` or whose scope name starts with `com.anthropic.claude_code`.
 
 **The session.** The session of a record is the value of the `atc.session.id` attribute, read from
 the OTLP resource, then from the record. The agent's own session ID is the fallback. The fact's

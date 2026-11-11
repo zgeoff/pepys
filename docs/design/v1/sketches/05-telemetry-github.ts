@@ -95,6 +95,9 @@ export const telemetryModelRequestConsumer = defineConsumer({
         duration_ms: { kind: 'integer', nullable: true },
         agent: { kind: 'text', nullable: true }, // the subagent, when the product names one
         at: { kind: 'timestamp' },
+        // the proven sender of the export, from `payload.origin`
+        origin_issuer: { kind: 'text' },
+        origin_subject: { kind: 'text' },
       },
       primaryKey: ['id'],
       indexes: [{ columns: ['session_id'] }, { columns: ['at'] }],
@@ -126,6 +129,8 @@ export const telemetryTurnCostConsumer = defineConsumer({
         model: { kind: 'text', nullable: true },
         cost_usd: { kind: 'real' },
         at: { kind: 'timestamp' },
+        origin_issuer: { kind: 'text' },
+        origin_subject: { kind: 'text' },
       },
       primaryKey: ['id'],
       indexes: [{ columns: ['session_id'] }],
@@ -178,7 +183,17 @@ function claudeCode() {
   return defineTelemetryProduct({
     name: 'claude_code',
     // Claude Code puts the short name in `event.name`, such as `api_request`.
-    readEvent: (record) => (record.scope.name === 'com.anthropic.claude_code.events' ? readText(record, 'event.name') : undefined),
+    // The wire shape is not checked: an event name with the `claude_code.` prefix, or a scope name
+    // that starts with `com.anthropic.claude_code`, marks a Claude Code record.
+    readEvent: (record) => {
+      const name = readText(record, 'event.name');
+
+      if (name?.startsWith('claude_code.')) {
+        return name.slice('claude_code.'.length);
+      }
+
+      return record.scope.name.startsWith('com.anthropic.claude_code') ? name : undefined;
+    },
     agentSessionAttribute: 'session.id',
     timeAttribute: 'event.timestamp',
     events: {
@@ -217,8 +232,11 @@ test('it gives the same rows for an export sent twice and for records in any ord
   await using once = await createTestStore({ plugins: [telemetryPlugin] });
   await using twice = await createTestStore({ plugins: [telemetryPlugin] });
 
-  await once.apply(telemetrySource, inOrder);
-  await twice.apply(telemetrySource, [...inOrder.toReversed(), ...inOrder]);
+  // the store writes the proven sender into `payload.origin` of each fact, as ingest does
+  const sender = { issuer: 'harbour-host', subject: 'imp-0193', name: 'tidy-otter' };
+
+  await once.apply(telemetrySource, inOrder, { sender });
+  await twice.apply(telemetrySource, [...inOrder.toReversed(), ...inOrder], { sender });
 
   expect(await twice.readRows('telemetry_model_request')).toStrictEqual(await once.readRows('telemetry_model_request'));
 
