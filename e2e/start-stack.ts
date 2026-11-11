@@ -469,14 +469,27 @@ async function runUntilCaughtUp(
   tails: ReadonlyMap<string, number>,
   stop: AbortSignal,
 ): Promise<void> {
-  const run = runChild([host, 'run'], process.env);
+  const run = Bun.spawn([host, 'run'], {
+    cwd: root,
+    env: process.env,
+    stdout: 'inherit',
+    stderr: 'pipe',
+    detached: true,
+  });
+
+  cleanup.defer(() => stopProcessGroup(run));
+
+  const hostErrors: HostErrors = { text: '' };
+  const reading = readHostErrors(run.stderr, hostErrors);
   const store = createStoreReader({ storeDirectory });
   const deadline = Date.now() + 60_000;
-  let lagging: string[] = [];
+  let lagging = readConsumers.map((entry) => entry.consumer.name);
 
   try {
-    while (Date.now() < deadline) {
+    while (lagging.length > 0 && Date.now() < deadline) {
       stop.throwIfAborted();
+
+      throwOnStoppedTask(hostErrors.text);
 
       lagging = [];
 
@@ -496,18 +509,52 @@ async function runUntilCaughtUp(
         }
       }
 
-      if (lagging.length === 0) {
-        return;
+      if (lagging.length > 0) {
+        await Bun.sleep(200);
       }
-
-      await Bun.sleep(200);
     }
-
-    throw new Error(`pepys run did not catch up before the deadline: ${lagging.join(', ')}`);
   } finally {
     await store.close();
 
     await stopProcessGroup(run);
+  }
+
+  // a task that stopped after its consumer caught up still fails the lane
+  await reading;
+
+  throwOnStoppedTask(hostErrors.text);
+
+  if (lagging.length > 0) {
+    throw new Error(`pepys run did not catch up before the deadline: ${lagging.join(', ')}`);
+  }
+}
+
+// The host keeps running when one consumer task stops, and only prints the error, so the lane reads
+// the host's stderr for it. Each line still reaches the lane's own stderr.
+interface HostErrors {
+  text: string;
+}
+
+async function readHostErrors(
+  stream: ReadableStream<Uint8Array>,
+  hostErrors: HostErrors,
+): Promise<void> {
+  const decoder = new TextDecoder();
+
+  for await (const chunk of stream) {
+    process.stderr.write(chunk);
+
+    hostErrors.text += decoder.decode(chunk, { stream: true });
+  }
+}
+
+const stoppedTaskPattern = /^pepys: (?:the task of \S+ stopped|a consumer task ended): /u;
+
+function throwOnStoppedTask(text: string): void {
+  const stopped = text.split('\n').filter((line) => stoppedTaskPattern.test(line));
+
+  if (stopped.length > 0) {
+    throw new Error(`a consumer task of pepys run stopped:\n${stopped.join('\n')}`);
   }
 }
 
