@@ -154,14 +154,12 @@ The build and the host:
 
 The store and the API:
 
-- Turso: a read-only attach by URI on an in-memory main database; a TEMP view over attached files;
-  one snapshot per attached file in one transaction; a second process that opens the fact index
-  file. When Turso refuses the TEMP view, the adapter builds the two unions as common table
-  expressions per query.
-- zod defaults in an MCP input schema, and that an agent may then leave those fields out.
-- A zod schema with a transform in an MCP input or output schema. The contract uses none.
-- The `SERVICE_UNAVAILABLE` code in oRPC's common status map. The API sets the status itself, so the
-  answer does not rest on that map.
+- That the store reader reads the files the Rust host writes. The integration test in
+  `packages/api/integration/store-files.test.ts` runs on files that `createConsumerVersion` writes
+  in the host's layout. Once the host builds and runs a plug-in's consumers, give the test files
+  that `pepys up` and `pepys run` wrote for a plug-in like the stub harbour plug-in, two consumers
+  with an entity view each and links from one to the other, and keep its assertions. Its setup keeps
+  `createStoreReader` and `createApp` as they are.
 
 ## Known limits
 
@@ -187,6 +185,9 @@ The store and the API:
   Ingest keeps storing facts. A scope conflict stops its consumer until a new module is up.
 - **Each table is described twice in `consumers.json`,** as columns and as SQL. The check at open
   holds the two together.
+- **One call reads each consumer file at its own instant.** The host commits each consumer's batch
+  in its own file, so a join across two files can see one file's newer batch beside the other's
+  older one.
 - **`neighbourhood` shows no release and no deploy,** and never resolves a session. A repository and
   a user are in column values and are kinds of no plug-in, so `get_entity` finds neither.
 - **The delivery tie has three known gaps.** A bump in two steps reports the deploy early. A

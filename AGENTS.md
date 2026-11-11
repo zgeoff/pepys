@@ -118,6 +118,6 @@ docs/
   and Garage, in a stack of its own. It needs Docker and `cargo-nextest`. The `e2e` job runs it
   after the Bun lane.
 - `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`
-  on 127.0.0.1. It reads `PEPYS_STORE_DIR`, the store the host writes, and `PEPYS_API_PORT`, which
-  defaults to 8081.
+  and MCP at `/mcp`. It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which
+  defaults to 127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

@@ -99,7 +99,7 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
 
           const call = {
             attached: Object.fromEntries(
-              plan.files.map((file) => [
+              plan.files.map((file): [string, { version: string }] => [
                 file.consumer.name,
                 { version: basename(dirname(file.path)) },
               ]),

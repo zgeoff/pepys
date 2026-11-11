@@ -5,7 +5,9 @@
 // LinkRegistry, LinkProblem, findLinkProblem, EntityKindIndex, the core contract, serveAPI,
 // DeploymentClient.
 
+import type { ContractRouterClient } from '@orpc/contract';
 import type { Kysely } from 'kysely';
+import type { UnionToIntersection } from 'type-fest';
 import type { z } from 'zod';
 import type { CheckedDeployment, ConsumerDeclaration, Deployment, EntityKind, EntityViewDeclaration, LinkTypeDeclaration, PluginClient, QueryDefinition, Result, StoreTables } from './01-kit.ts';
 
@@ -14,11 +16,11 @@ import type { CheckedDeployment, ConsumerDeclaration, Deployment, EntityKind, En
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 
 // deployment repo, src/api.ts — the API process. serveAPI reads PEPYS_STORE_DIR, PEPYS_API_PORT
-// (default 8081) and PEPYS_API_HOST. The host setting is new. Its default is 127.0.0.1,
-// which is what serve.ts has as a constant today; a deployment behind a Service sets 0.0.0.0.
-// v1 has no token check, so the listen address and the network rules are all that guard the API.
+// (default 8081) and PEPYS_API_HOST (default 127.0.0.1); a deployment behind a Service sets
+// 0.0.0.0. v1 has no token check, so the listen address and the network rules guard the API.
+// serveAPI returns once the server listens; the server keeps the process alive.
 declare const deployment: Deployment;
-await serveAPI({ deployment, environment: process.env });
+serveAPI({ deployment, environment: process.env });
 
 // A typed caller. The client type comes from the deployment definition.
 declare const client: DeploymentClient<Deployment>;
@@ -31,8 +33,8 @@ const found = await client.get_entity({ id: 'boxxy:attempt:0193a1b2-0000-7000-80
 //             actor: null, updated_at: '2026-11-03T04:10:00.000Z' },
 //   consumer: 'boxxy_work', table: 'boxxy_attempt',
 //   row: { id: 'boxxy:attempt:…a1', item_id: 'boxxy:item:…01', phase: 'build', state: 'succeeded', outcome: 'built', … } }
-// Errors: NOT_FOUND (no entity view holds the kind, or no row has the ID); SERVICE_UNAVAILABLE
-// (the owning consumer has no current version).
+// Errors: BAD_REQUEST (the text is no entity ID); NOT_FOUND (no entity view holds the kind, or
+// no row has the ID); SERVICE_UNAVAILABLE (the owning consumer has no current version).
 
 const near = await client.neighbourhood({ id: 'boxxy:item:0193a1b2-0000-7000-8000-000000000001', depthLimit: 2 });
 // { entities: [ { id: 'boxxy:item:…01', kind: 'boxxy:item', …, depth: 0 },
@@ -122,9 +124,9 @@ export interface AttachedCall {
   skipped: readonly string[];
 }
 
-// Adapter 1 — packages/api/src/store-reader/create-store-reader.ts (changed). `withConsumer`
-// (one consumer, by name) and the per-consumer `open` map go: a call owns its connection.
-export declare function createStoreReader(options: { storeDirectory: string; openConnection: () => Promise<unknown> }): StoreReader;
+// Adapter 1 — packages/api/src/store-reader/create-store-reader.ts. A call owns its connection;
+// the reader keeps one read-only handle per current file between calls (part 5, step c).
+export declare function createStoreReader(options: { storeDirectory: string }): StoreReader;
 
 // Adapter 2 — packages/testing/src/memory-store-reader/create-memory-store-reader.ts (new). No
 // files and no attach: it reads the test store's one database, so the shared views show every
@@ -197,8 +199,8 @@ export type QueryFailure = { code: 'NOT_FOUND' | 'BAD_REQUEST' | 'SERVICE_UNAVAI
 // packages/contract/src/core-contract/core-contract.ts (changed). Two procedures. search,
 // entity_history, assert_link, retract_link and correct_label leave it: each would be an MCP tool
 // that always fails. Every field has a zod `.describe()` text, which the MCP input schema carries.
-// IDs are plain `z.string()` here, with no `.transform`: no run has checked a schema
-// with a transform in an MCP input or output schema.
+// IDs are plain `z.string()` here, with no `.transform`: zod writes no JSON Schema for what a
+// transform returns, so `createRouter` refuses a plug-in query with one at start.
 export interface EntitySummary {
   id: string;
   kind: string; // `<source>:<kind>`
@@ -225,6 +227,8 @@ export declare const neighbourhoodCaps: {
   readonly linkReadLimit: 1000; // link rows read per hop; fixed, not an input
 };
 
+// as a handler gets it, every default filled in (`CoreParsedInputs['neighbourhood']`); a caller,
+// MCP agents included, may leave out every field but `id`
 export interface NeighbourhoodInput {
   id: string; // 'The entity to start from.'
   depthLimit: number; // 1 to 3, default 1
@@ -248,7 +252,7 @@ export interface NeighbourhoodOutput {
 
 // The description of each procedure comes from `oc.meta(openapi({ description }))`
 // (@orpc/openapi). oRPC v2 has no `oc.route({ description })`.
-//   get_entity:    oc.errors({ NOT_FOUND: {}, SERVICE_UNAVAILABLE: {} }).meta(openapi({ description })).input(…).output(…)
+//   get_entity:    oc.errors({ BAD_REQUEST: {}, NOT_FOUND: {}, SERVICE_UNAVAILABLE: {} }).meta(openapi({ description })).input(…).output(…)
 //   neighbourhood: oc.errors({ NOT_FOUND: {}, BAD_REQUEST: {} }).meta(openapi({ description })).input(…).output(…)
 export declare const coreContract: { get_entity: unknown; neighbourhood: unknown };
 
@@ -275,17 +279,17 @@ export interface APIConfig {
   port: number; // PEPYS_API_PORT, default 8081
 }
 
-export declare function serveAPI(options: { deployment: Deployment; environment: Readonly<Record<string, string | undefined>> }): Promise<void>;
+export declare function serveAPI(options: { deployment: Deployment; environment: Readonly<Record<string, string | undefined>> }): void;
 
-// The typed client of one deployment: the core procedures and each plug-in query by its name.
-// The plug-in part is the kit's `PluginClient` (file 1, part G), once per plug-in. A
+// The typed client of one deployment: oRPC's client of the core contract, and each plug-in query
+// by its name. The plug-in part is the kit's `PluginClient` (file 1, part G), once per plug-in. A
 // package that needs one plug-in's queries uses `PluginClient` alone and imports no @pepys/api.
-export type DeploymentClient<Target extends Deployment> = {
-  get_entity: (input: GetEntityInput) => Promise<GetEntityOutput>;
-  neighbourhood: (input: Pick<NeighbourhoodInput, 'id'> & Partial<NeighbourhoodInput>) => Promise<NeighbourhoodOutput>;
-} & UnionToIntersection<PluginClient<Target['plugins'][number]>>;
+// `PluginClient` gives no method for a query name that is no literal, so a plug-in with no queries
+// written inline in `defineDeployment` adds nothing.
+export type DeploymentClient<Target extends Deployment> = ContractRouterClient<CoreContract> &
+  UnionToIntersection<PluginClient<Target['plugins'][number]>>;
 
-type UnionToIntersection<Union> = (Union extends unknown ? (value: Union) => void : never) extends (value: infer Intersection) => void ? Intersection : never;
+type CoreContract = typeof coreContract;
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 // Flow
@@ -297,28 +301,35 @@ type UnionToIntersection<Union> = (Union extends unknown ? (value: Union) => voi
 //      The call uses those directories to its end.
 //   b. A required consumer with no `current`: stop; `work` never runs; the failure names each one.
 //      A `whenCurrent` consumer with none is left out and named in `call.skipped`.
-//   c. One new connection per call, on an empty in-memory main database. Each file is attached
-//      read-only under the consumer's name:  ATTACH 'file:<directory>/consumer.db?mode=ro' AS "boxxy_work"
-//      A read-only attach keeps the snapshot it took when it attached, and v1 has no change feed
-//      to say when to attach again, so no connection is kept between calls.
-//   d. Two TEMP views on the connection:
+//   c. One new connection per call, on an empty in-memory main database opened with Turso's
+//      `attach` feature. Each file is attached read-only under the consumer's name, its path
+//      percent-encoded (a `?`, `#` or quote in a folder name otherwise attaches the wrong file):
+//        ATTACH 'file:<encoded directory>/consumer.db?mode=ro' AS "boxxy_work"
+//      Turso 0.8.3 refuses to attach a file the host holds open with its multi-process WAL, unless
+//      this process holds a handle of its own. So the reader keeps one read-only multi-process WAL
+//      handle per current file, opened at its first call and closed once a swap retires the file
+//      and its last call ends. Through that handle an attach sees the host's newest commit.
+//   d. The two shared views are common table expressions, which a Kysely plugin puts in front of
+//      every select the builder makes. Turso refuses a TEMP view over attached files, and a bare
+//      `entity` reads only the first attached file's view; a common table expression wins over it.
 //        entity          `union all` of "<consumer>".entity, for each attached consumer with entity views
 //        link_effective  `union all` of "<consumer>".link, for each attached consumer with link types
-//      With none, the view is one SELECT of typed NULLs with WHERE 0. A table name with no schema
-//      finds the consumer's table, because table names are unique in a deployment.
-//   e. One transaction around `work`: one snapshot of each file. Two files are never read at one
-//      instant: the host commits each consumer's batch in its own file.
+//      With none, the expression has the same columns and `limit 0`. A query in raw SQL gets no
+//      views. A table name with no schema finds the consumer's table, because table names are
+//      unique in a deployment.
+//   e. One transaction around `work`, begun and ended by hand: after a refused write Turso ends
+//      the transaction itself, and a second rollback would hide the first error. Each file keeps
+//      the snapshot of its first read in the call, so two files are never read at one instant.
 //   f. The connection closes with the call.
 // A version swap in the middle of a call: the call ends on the version it resolved in step a; the
 // host keeps the old directory. The next call reads the new version. No event is needed.
-// Fallback when Turso refuses a TEMP view over attached files (not checked): the adapter builds
-// the two unions as Kysely common table expressions per query.
 
 // ── 6. get_entity and neighbourhood ────────────────────────────────────────────────────────────
 //
 // get_entity: the kind is in the ID; the entity kind
 // index gives the owning consumer and table; attach that one file; read the `entity` view, then
 // the full row with raw SQL whose names come from the declaration, never from the input.
+//   - text that is no entity ID: BAD_REQUEST
 //   - a kind with no entity view (such as `telemetry:session`): NOT_FOUND
 //   - the owner has no current version: SERVICE_UNAVAILABLE
 //
@@ -338,7 +349,7 @@ type UnionToIntersection<Union> = (Union extends unknown ? (value: Union) => voi
 //
 // Packages, all pinned to one exact version (`@orpc/mcp` pins its siblings exactly):
 //   @orpc/contract, @orpc/server, @orpc/client, @orpc/openapi, @orpc/mcp   2.0.0-beta.50 (the `beta` tag)
-//   @modelcontextprotocol/server                                           2.x (the v1 SDK package does not fit)
+//   @modelcontextprotocol/server                                           2.4.0 (the v1 SDK package does not fit)
 //   zod                                                                    4.2 or later, no `@orpc/zod` converter
 //
 // At start (`serveAPI`):

@@ -36,11 +36,19 @@ Keeping all three in one file is what makes a batch atomic without a transaction
 
 ## Reading files
 
-A read-only attach keeps the snapshot it took when it attached, so it misses every later commit. The
-API therefore opens one direct read-only connection per consumer file, and that connection sees each
-commit on its next query. A query across files attaches them read-only, and the API re-attaches a
-file when the [change feed](./change-feed.md) reports a change to it. Each consumer's `entity` view
-lives in its own file, and a `union all` across the attached views serves cross-source queries.
+Each API call opens one connection on an empty in-memory database, and attaches read-only the
+current file of each consumer it reads. The call resolves each consumer's `current` link at its
+start, so a version swap during the call changes nothing for it, and the next call reads the new
+file.
+
+Turso refuses to attach a file that the host holds open with its multi-process write-ahead log,
+unless the reading process holds a handle of its own. The API therefore keeps one read-only handle
+on each current file, and through that handle each attach sees the host's newest commit. The API
+closes the handle once a swap retires the file and the last call on it ends.
+
+Each consumer's `entity` view lives in its own file. Turso refuses a TEMP view over attached files,
+so each query gets the `union all` across the attached `entity` views as a common table expression.
+The `link_effective` view is built the same way.
 
 ## Queries
 
