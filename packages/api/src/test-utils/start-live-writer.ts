@@ -1,4 +1,3 @@
-// oxlint-disable zgeoff/seed-only -- stands in for the Rust host, which holds the file open as it writes
 interface LiveWriter {
   // runs one statement and resolves once it is committed
   run: (statement: string) => Promise<void>;
@@ -61,15 +60,13 @@ export async function startLiveWriter(path: string): Promise<LiveWriter> {
 
   return {
     run: async (statement) => {
-      child.stdin.write(`${JSON.stringify(statement)}\n`);
-
+      await child.stdin.write(`${JSON.stringify(statement)}\n`);
       await child.stdin.flush();
 
       await readLine();
     },
     stop: async () => {
-      child.stdin.write('\n');
-
+      await child.stdin.write('\n');
       await child.stdin.end();
 
       await child.exited;

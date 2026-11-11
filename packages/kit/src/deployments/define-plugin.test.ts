@@ -120,7 +120,7 @@ test('it types a call of each query of a plug-in by its name', () => {
 test('it types no call for a plug-in with no queries whose query type is the widest one', () => {
   const plugin: Plugin = definePlugin({ name: 'lighthouse' });
 
-  expectTypeOf<PluginClient<typeof plugin>>().toEqualTypeOf<Record<never, never>>();
+  expectTypeOf<keyof PluginClient<typeof plugin>>().toEqualTypeOf<never>();
 });
 
 interface TakingsInput {
