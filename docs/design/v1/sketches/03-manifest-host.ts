@@ -249,6 +249,7 @@ export type BoxxyWorkFact =
 // schema; it runs no zod in the module.
 //   zod schema                               the glue's type            the decoder
 //   string, number, boolean                  the same                   a `typeof` check
+//   a string format, such as a UUID          `string`                   a `typeof` check, not the format
 //   a literal, an enum                       the literal union          a type guard over the values
 //   a brand (no transform)                   the type under the brand   as that type
 //   object                                   an object type, nested     field by field, to any depth

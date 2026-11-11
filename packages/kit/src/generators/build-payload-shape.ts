@@ -14,8 +14,9 @@ export type PayloadShape =
   | { kind: 'unknown' };
 
 export function buildPayloadShape(schema: z.core.$ZodType): PayloadShape {
+  // A string format, such as `z.uuid()`, is no ZodString in zod 4, but shares the core class.
   return match(schema)
-    .with(P.instanceOf(z.ZodString), () => ({ kind: 'string' as const }))
+    .with(P.instanceOf(z.core.$ZodString), () => ({ kind: 'string' as const }))
     .with(P.instanceOf(z.ZodNumber), () => ({ kind: 'number' as const }))
     .with(P.instanceOf(z.ZodBoolean), () => ({ kind: 'boolean' as const }))
     .with(P.instanceOf(z.ZodLiteral), (literal) => buildLiteralShape([...literal.def.values]))

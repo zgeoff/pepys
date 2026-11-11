@@ -200,6 +200,9 @@ function setupTest() {
 
 test.each([
   { row: 'a string', schema: z.string(), type: 'string' },
+  { row: 'a UUID', schema: z.uuid(), type: 'string' },
+  { row: 'an ISO time', schema: z.iso.datetime(), type: 'string' },
+  { row: 'a URL', schema: z.url(), type: 'string' },
   { row: 'a number', schema: z.int(), type: 'number' },
   { row: 'a boolean', schema: z.boolean(), type: 'boolean' },
   { row: 'a literal', schema: z.literal(['draft', 3]), type: "'draft' | 3" },
