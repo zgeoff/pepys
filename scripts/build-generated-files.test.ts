@@ -21,7 +21,7 @@ test('it builds the same files on each call', () => {
   expect(buildGeneratedFiles()).toStrictEqual(buildGeneratedFiles());
 });
 
-test('it builds the files of the github pull request consumer', () => {
+test('it builds the files of the four github consumers', () => {
   const generated = buildGeneratedFiles();
 
   invariant(generated.ok);
@@ -30,5 +30,11 @@ test('it builds the files of the github pull request consumer', () => {
     'packages/schema/src/generated/kysely-db.ts',
     'packages/source-github/src/generated/github-pull-request-boundary.ts',
     'packages/source-github/src/generated/github-pull-request.sql',
+    'packages/source-github/src/generated/github-release-boundary.ts',
+    'packages/source-github/src/generated/github-release.sql',
+    'packages/source-github/src/generated/github-ref-boundary.ts',
+    'packages/source-github/src/generated/github-ref.sql',
+    'packages/source-github/src/generated/github-deploy-boundary.ts',
+    'packages/source-github/src/generated/github-deploy.sql',
   ]);
 });

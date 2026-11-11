@@ -102,12 +102,6 @@ request consumer with the kit's generator compiled, and so did a scope glue that
 rule. That build found that scriptc refuses an ID brand whose tag is a type parameter, so the glue
 brands every ID with a fixed tag and adds the kind as a second tag.
 
-## Gaps inside the sketches
-
-- The [runtime](./pepys/runtime.md#network) doc's public rule matches the path `/webhook/github`,
-  and the GitHub source's route is `/webhook`. The public rule must match the exact path of the
-  route.
-
 ## Not designed
 
 - The tables of the issue and review families.
@@ -120,9 +114,10 @@ brands every ID with a fixed tag and adds the kind as a second tag.
 - An agent's own session ID never equals the atc session ID of another session.
 - One fact ID belongs to one stream.
 - The body that GitHub's deliveries API returns parses to the same JSON value as the body it sent.
-  The recovery pull is not in this repo yet.
+- GitHub lists an App's webhook deliveries newest first, and gives each delivery's body as a JSON
+  object in `request.payload`. The tests run the pulls against a mock of the API, and no test calls
+  the live API.
 - The GitHub App's token may read a pull request and a release.
-- An `observation:` fact ID passes the envelope check for a resync fact.
 
 ## Not checked
 

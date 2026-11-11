@@ -51,7 +51,7 @@ function collectPushedCommits(payload: unknown, ref: string, defaultBranch: unkn
     return [findField(payload, 'head_commit')];
   }
 
-  if (ref === `refs/heads/${String(defaultBranch)}`) {
+  if (typeof defaultBranch === 'string' && ref === `refs/heads/${defaultBranch}`) {
     return toList(findField(payload, 'commits'));
   }
 

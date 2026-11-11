@@ -60,8 +60,9 @@ minimumReleaseAgeExcludes = [
 ]
 
 [test]
-# registers jest-extended matchers for `bun test`
-preload = ["@zgeoff/bun-test-extended"]
+# registers jest-extended matchers for `bun test`, and the mock network that answers every remote
+# API a test reaches
+preload = ["@zgeoff/bun-test-extended", "./scripts/test-preload/reset-mock-network.ts"]
 # spikes test themselves, and the e2e lane needs the stack that `test:e2e` starts; rig's unit run
 # passes ignore patterns of its own, which replace this list, so its config lists both folders too
 pathIgnorePatterns = ["research/**", "e2e/**"]

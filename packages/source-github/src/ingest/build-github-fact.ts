@@ -4,10 +4,18 @@ import { toTagged } from '@zgeoff/std';
 import { buildBodyHash } from '../utils/build-body-hash.ts';
 import { githubEventRules } from './github-event-rules.ts';
 
-// One delivery body of one webhook event as a fact. The ID is `webhook:github:h-<hash>` of the
-// canonical body: GitHub signs the body and not the delivery ID header, so only the body decides it.
-// The receive path and the recovery pull both build facts here, so one delivery has one ID on both.
-export function buildGithubFact(event: string, body: unknown): PendingFact | 'ignored' | 'invalid' {
+// `delivery`: a webhook body, from the receive path or the recovery pull. `observation`: an object
+// that the resync pull read from the API, in the shape of a webhook body.
+export type GithubFactOrigin = 'delivery' | 'observation';
+
+// One body of one webhook event as a fact, with an ID from the hash of the canonical body: GitHub
+// signs the body and not the delivery ID header, so only the body decides it. One delivery has one
+// ID on the receive path and on the recovery pull, and two reads of one state are one observation.
+export function buildGithubFact(
+  event: string,
+  body: unknown,
+  origin: GithubFactOrigin,
+): PendingFact | 'ignored' | 'invalid' {
   const rule = Object.hasOwn(githubEventRules, event) ? githubEventRules[event] : undefined;
 
   if (rule === undefined) {
@@ -21,7 +29,10 @@ export function buildGithubFact(event: string, body: unknown): PendingFact | 'ig
   }
 
   const envelope = parseFactEnvelope({
-    id: `webhook:github:h-${buildBodyHash(body)}`,
+    id:
+      origin === 'delivery'
+        ? `webhook:github:h-${buildBodyHash(body)}`
+        : `observation:${buildBodyHash(body)}`,
     type: fields.type,
     v: 1,
     api: rule.family.api,

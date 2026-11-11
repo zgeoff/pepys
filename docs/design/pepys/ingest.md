@@ -28,8 +28,8 @@ infrastructure repository. The receiver checks each webhook signature before it 
 rejects an unsigned or badly signed request with no further work.
 
 GitHub does not retry a failed delivery on its own. A sweep lists the App's recent deliveries, finds
-the ones that failed or never reached pepys, and asks GitHub to redeliver them. GitHub lets an App
-redeliver only the deliveries of the past 3 days, so the sweep runs more often than every 3 days.
+the ones that failed or never reached pepys, and reads each one's body from GitHub's delivery log.
+GitHub keeps only the deliveries of the past 3 days, so the sweep runs more often than every 3 days.
 After an outage longer than 3 days, ingest polls the affected objects once and writes observations.
 The [source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
 probes it.

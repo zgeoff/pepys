@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { applyFact } from './github-ref.ts';
 
 function setupTest() {
-  return { apply: (fact: unknown) => JSON.parse(applyFact(JSON.stringify(fact))) };
+  return { apply: (fact: unknown): unknown => JSON.parse(applyFact(JSON.stringify(fact))) };
 }
 
 test('it upserts one commit row per commit of a push to the default branch', () => {

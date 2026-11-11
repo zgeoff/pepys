@@ -8,10 +8,10 @@
         "consumers": [
           {
             "name": "github_pull_request",
-            "module": "a25e6b685249d115d765f543ff3ed84fea7b8a52dfff3fa04a23a7bdf4897b02",
-            "path": "github_pull_request/a25e6b685249d115d765f543ff3ed84fea7b8a52dfff3fa04a23a7bdf4897b02.wasm",
+            "module": "6898a97f1d34f1bb912cf8d137376c27b5548565af9f60e338c7cdfcfad3c3cc",
+            "path": "github_pull_request/6898a97f1d34f1bb912cf8d137376c27b5548565af9f60e338c7cdfcfad3c3cc.wasm",
             "pins": {},
-            "version": "8ccc9611c23dc9a1aa81ef14ad89d259672c713f92d498fcfec75900451cd291",
+            "version": "b533bfb21df70fa506382ebda24a2860cb32ca5df57c1327a5b942ef0fcfae4e",
             "manifest": {
               "name": "github_pull_request",
               "input": {
@@ -96,10 +96,221 @@
                   },
                   "primaryKey": ["id"],
                   "indexes": [["repository_id"]]
+                },
+                "github_release_bump": {
+                  "columns": {
+                    "pull_request_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "release_repository": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "release_tag": {
+                      "kind": "text",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["pull_request_id", "release_repository", "release_tag"],
+                  "indexes": [["release_repository", "release_tag"]]
                 }
               },
               "links": [],
-              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
+              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE TABLE \"github_release_bump\" (\n  \"pull_request_id\" TEXT NOT NULL,\n  \"release_repository\" TEXT NOT NULL,\n  \"release_tag\" TEXT NOT NULL,\n  PRIMARY KEY (\"pull_request_id\", \"release_repository\", \"release_tag\")\n);\n\nCREATE INDEX \"github_release_bump_release_repository_release_tag_idx\" ON \"github_release_bump\" (\"release_repository\", \"release_tag\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
+            }
+          },
+          {
+            "name": "github_release",
+            "module": "db69d90600cf69351ee7905b3e322e620236666d769a59349d53c4fc262c881b",
+            "path": "github_release/db69d90600cf69351ee7905b3e322e620236666d769a59349d53c4fc262c881b.wasm",
+            "pins": {},
+            "version": "30e75b9d8b925630b115225e0f43dba136b17f0ff0287ac14850f98f99d1379a",
+            "manifest": {
+              "name": "github_release",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.github.release"]
+              },
+              "exports": {
+                "init": "github_release_init",
+                "apply": "github_release_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "github_release",
+                  "length": "readGithubReleaseLength",
+                  "into": "readGithubReleaseInto"
+                }
+              ],
+              "tables": {
+                "github_release": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "repository_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "repository_full_name": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "tag_name": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "target_commitish": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "name": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "url": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "is_draft": {
+                      "kind": "boolean",
+                      "nullable": false
+                    },
+                    "is_prerelease": {
+                      "kind": "boolean",
+                      "nullable": false
+                    },
+                    "created_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "published_at": {
+                      "kind": "timestamp",
+                      "nullable": true
+                    },
+                    "updated_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "deleted_at": {
+                      "kind": "timestamp",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["repository_id"], ["repository_full_name", "tag_name"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"github_release\" (\n  \"id\" TEXT NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"repository_full_name\" TEXT NOT NULL,\n  \"tag_name\" TEXT NOT NULL,\n  \"target_commitish\" TEXT NOT NULL,\n  \"name\" TEXT NOT NULL,\n  \"url\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_prerelease\" INTEGER NOT NULL,\n  \"created_at\" TEXT NOT NULL,\n  \"published_at\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  \"deleted_at\" TEXT,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_release_repository_id_idx\" ON \"github_release\" (\"repository_id\");\n\nCREATE INDEX \"github_release_repository_full_name_tag_name_idx\" ON \"github_release\" (\"repository_full_name\", \"tag_name\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:release' AS \"kind\",\n  \"name\" AS \"title\",\n  \"url\" AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_release\";\n"
+            }
+          },
+          {
+            "name": "github_ref",
+            "module": "5061a9e3d17544a8cdae4c96a324343e930cf8c0fdeffc118091ae86474da4c0",
+            "path": "github_ref/5061a9e3d17544a8cdae4c96a324343e930cf8c0fdeffc118091ae86474da4c0.wasm",
+            "pins": {},
+            "version": "3e38fef998ff484a41c13a5db4440ac605c9a0f98b36b8a60c285a20a02da9ef",
+            "manifest": {
+              "name": "github_ref",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.github.ref"]
+              },
+              "exports": {
+                "init": "github_ref_init",
+                "apply": "github_ref_apply_fact"
+              },
+              "imports": [],
+              "tables": {
+                "github_commit": {
+                  "columns": {
+                    "repository_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "sha": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "committed_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["repository_id", "sha"],
+                  "indexes": []
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"github_commit\" (\n  \"repository_id\" TEXT NOT NULL,\n  \"sha\" TEXT NOT NULL,\n  \"committed_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"repository_id\", \"sha\")\n);\n"
+            }
+          },
+          {
+            "name": "github_deploy",
+            "module": "37d2c9701694153eebce58387f0a770019c119fc88a80d556c137d87c6a181ed",
+            "path": "github_deploy/37d2c9701694153eebce58387f0a770019c119fc88a80d556c137d87c6a181ed.wasm",
+            "pins": {},
+            "version": "7a7a12ff4163ed0a7af378a8550684b10590d91580347c44044988c7093aba41",
+            "manifest": {
+              "name": "github_deploy",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.github.ref", "facts.github.deployment"]
+              },
+              "exports": {
+                "init": "github_deploy_init",
+                "apply": "github_deploy_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "github_deploy",
+                  "length": "readGithubDeployLength",
+                  "into": "readGithubDeployInto"
+                }
+              ],
+              "tables": {
+                "github_deploy": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "repository_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "environment": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "target": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "sha": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "signal": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "deployed_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["repository_id", "environment"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"github_deploy\" (\n  \"id\" TEXT NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"environment\" TEXT NOT NULL,\n  \"target\" TEXT,\n  \"sha\" TEXT NOT NULL,\n  \"signal\" TEXT NOT NULL,\n  \"deployed_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_deploy_repository_id_environment_idx\" ON \"github_deploy\" (\"repository_id\", \"environment\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:deploy' AS \"kind\",\n  \"sha\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"deployed_at\" AS \"updated_at\"\nFROM \"github_deploy\";\n"
             }
           }
         ]

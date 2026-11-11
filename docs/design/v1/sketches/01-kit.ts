@@ -288,7 +288,7 @@ export type HarbourClient = DeploymentClient<typeof deployment>;
 // The deployment repo's infrastructure code reads the route table from the same definition, and
 // makes a public rule for exactly the routes marked `public`:
 const routes = listReceiveRoutes(deployment);
-// [ { source: 'github',    route: '/webhook',           check: 'hmac-sha256', reach: 'public'  },
+// [ { source: 'github',    route: '/webhook/github',    check: 'hmac-sha256', reach: 'public'  },
 //   { source: 'telemetry', route: '/v1/logs',           check: 'token',       reach: 'private' },
 //   { source: 'boxxy',     route: '/boxxy/facts',       check: 'hmac-sha256', reach: 'private' } ]
 

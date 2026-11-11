@@ -17,7 +17,7 @@ export function readGithubDelivery(delivery: Delivery): Received {
     return { kind: 'refused', status: 400, reason: 'the body is not JSON' };
   }
 
-  const fact = buildGithubFact(event, body.value);
+  const fact = buildGithubFact(event, body.value, 'delivery');
 
   if (fact === 'ignored') {
     return { kind: 'ignored' };

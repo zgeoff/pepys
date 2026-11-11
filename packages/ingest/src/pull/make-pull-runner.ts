@@ -48,10 +48,11 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
     }
 
     const marks = pathName === 'resync' ? dependencies.resyncMarks.list(source.name) : [];
+    const env: Record<string, string> = {};
 
-    const env = Object.fromEntries(
-      (path.env ?? []).map((name) => [name, dependencies.secrets[name] ?? '']),
-    );
+    for (const name of path.env ?? []) {
+      env[name] = dependencies.secrets[name] ?? '';
+    }
 
     const pulled = await path.pull(cursor, { env, marks });
 

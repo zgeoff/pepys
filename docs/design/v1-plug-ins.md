@@ -87,9 +87,23 @@ finds none.
 Sketch: [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts), places 4 and 5, types B,
 flow parts 3 to 5.
 
-The source has one webhook route, checked by GitHub's HMAC signature. GitHub calls from the public
-internet, so this route is the one public route of v1. A recovery pull asks GitHub for failed
-deliveries every hour. A resync pull runs every minute and makes no call when nothing is marked.
+The source has one webhook route, `/webhook/github`, checked by GitHub's HMAC signature. GitHub
+calls from the public internet, so this route is the one public route of v1. A recovery pull reads
+the failed deliveries every hour. A resync pull runs every minute and makes no call when nothing is
+marked. Both pulls call the API as the GitHub App, so ingest needs three settings and exits at start
+without any of them:
+
+| Setting                        | Value                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| `PEPYS_GITHUB_WEBHOOK_SECRET`  | the webhook secret of the App                                              |
+| `PEPYS_GITHUB_APP_ID`          | the App ID or the Client ID, which GitHub takes as the JWT issuer          |
+| `PEPYS_GITHUB_APP_PRIVATE_KEY` | the App's private key in PEM, with line breaks or with `\n` in their place |
+
+**The recovery pull.** The pull lists the App's webhook deliveries, newest first, back to the
+highest delivery ID of its last run. For each delivery that got no 2xx answer, it reads the body
+from GitHub's delivery log and builds the fact as the webhook route does, so a delivery that did
+arrive is a copy. The cursor is held in memory, so the first run after a start reads the 3 days that
+GitHub keeps.
 
 | Webhook event                         | Family                | Built in v1                                  |
 | ------------------------------------- | --------------------- | -------------------------------------------- |
@@ -133,11 +147,22 @@ an object in two cases:
 
 For each marked pull request or release, the resync pull reads the object from the GitHub API and
 writes one fact, of type `github.<family>.resynced`, with the object's own update time and an
-`observation:` ID that is a hash of its payload. The fact arrives after the deliveries, so it wins a
-tie and sets the row to GitHub's current state. Two resyncs of one unchanged state are one fact. A
-release that GitHub no longer has gives a `deleted` fact. A replay cannot set a row through the
-resync: the fact holds what the API returns at that time, so a replay can cause one API read and
-nothing more.
+`observation:` ID that is a hash of its payload. The payload has the shape of a webhook body, and a
+release's payload carries the repository's ID and full name, which the release API leaves out. The
+fact arrives after the deliveries, so it wins a tie and sets the row to GitHub's current state. Two
+reads that get the same answer are one fact. A replay cannot set a row through the resync: the fact
+holds what the API returns at that time, so a replay can cause one API read and nothing more.
+
+The webhook route keeps each fact's API path beside its mark, and the pull reads that path. A
+release that the API answers 404 for gives a `deleted` fact, timed when the pull saw it, with an ID
+from the release ID alone. The pull skips three kinds of mark, and ingest removes them with the
+rest:
+
+- a mark of another family, or with no API path;
+- a pull request that the API answers 404 for, because GitHub deletes no pull request;
+- a mark in a repository where the App has no installation.
+
+Any other failed call stops the run with no fact stored, and every mark stays for the next run.
 
 The ingest process keeps the marks in memory, for each source that has a resync pull, and the pull
 of that source runs in the same process and reads them there. The pull removes a mark only after the

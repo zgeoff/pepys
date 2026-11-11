@@ -22,6 +22,7 @@ test('it reads a pull request delivery as one fact with an ID from the canonical
     '{"action":"opened","pull_request":{"id":77,"updated_at":"2026-10-02T10:30:00Z","url":"https://api.github.com/repos/acme/harbour/pulls/3"},"sender":{"id":4401}}';
 
   const hash = createHash('sha256').update(canonical).digest('hex');
+  const payload: unknown = JSON.parse(text);
   const received = ctx.read({ 'x-github-event': 'pull_request', 'x-github-delivery': 'd-7' }, text);
   const actual: unknown = received;
 
@@ -41,7 +42,7 @@ test('it reads a pull request delivery as one fact with an ID from the canonical
             entity: 'github:pull_request:77',
             actor: 'github:user:4401',
             at: '2026-10-02T10:30:00Z',
-            payload: JSON.parse(text),
+            payload,
           },
         },
       ],

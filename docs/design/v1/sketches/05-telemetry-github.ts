@@ -8,7 +8,7 @@
 import { defineConsumer, defineFactFamily, definePlugin, defineQuery, defineSource, defineTable } from '@pepys/kit';
 import type { ConsumerDeclaration, DeliveryCheck, FactFamily, OutgoingFact, ReceivePath, SourceDefinition, StoreTables } from './01-kit.ts';
 import type { SharedViews } from './04-store-api.ts';
-import type { Kysely, SelectQueryBuilder } from 'kysely';
+import type { Kysely, RawBuilder } from 'kysely';
 import { z } from 'zod';
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
@@ -267,7 +267,7 @@ const githubSource = defineSource({
   families: [pullRequestFamily, releaseFamily, refFamily, deploymentFamily, workflowRunFamily, issueFamily, pullRequestReviewFamily],
   live: {
     kind: 'receive',
-    route: '/webhook',
+    route: '/webhook/github',
     check: { kind: 'hmac-sha256', header: 'x-hub-signature-256', secretEnv: 'PEPYS_GITHUB_WEBHOOK_SECRET' },
     // GitHub calls from the public internet. This is the one public route of v1.
     reach: 'public',
@@ -446,8 +446,13 @@ const pullRequestDeliveryQuery = defineQuery({
     }),
   ),
   reads: githubDeliveryConsumers,
-  handler: async (call) =>
-    selectPullRequestDelivery(call.db, { environment: call.input.environment, target: call.input.target }).where('pull_request.id', 'in', call.input.pullRequests).execute(),
+  // An empty list answers [] with no statement.
+  handler: async (call) => {
+    const [first, ...rest] = call.input.pullRequests;
+    if (first === undefined) return [];
+    const result = await selectPullRequestDelivery({ pullRequests: [first, ...rest], environment: call.input.environment, target: call.input.target }).execute(call.db);
+    return parsePullRequestDeliveries(result.rows);
+  },
 });
 
 // One plug-in for every deployment. A deployment that uses another tag pattern sets
@@ -485,12 +490,18 @@ import type { boxxyWorkConsumer } from './01-kit.ts';
 
 declare const stageTimeCall: { db: Kysely<StoreTables<readonly [typeof boxxyWorkConsumer, ...typeof githubDeliveryConsumers]> & SharedViews>; input: { item: string; environment: string } };
 
-// one row per pull request of the item; each row is a PullRequestDeliveryRow
-const deliveries = await selectPullRequestDelivery(stageTimeCall.db, { environment: stageTimeCall.input.environment })
-  .innerJoin('link_effective as produced', (join) => join.onRef('produced.to_id', '=', 'pull_request.id').on('produced.type', '=', 'produced'))
+// The pull requests of the item first, through boxxy's `produced` link; then one
+// PullRequestDelivery per pull request from the module.
+const produced = await stageTimeCall.db
+  .selectFrom('link_effective as produced')
   .innerJoin('boxxy_attempt as attempt', 'attempt.id', 'produced.from_id')
+  .where('produced.type', '=', 'produced')
   .where('attempt.item_id', '=', stageTimeCall.input.item)
+  .select('produced.to_id as pullRequest')
   .execute();
+const [first, ...rest] = produced.map((row) => row.pullRequest);
+const result = first === undefined ? undefined : await selectPullRequestDelivery({ pullRequests: [first, ...rest], environment: stageTimeCall.input.environment }).execute(stageTimeCall.db);
+const deliveries = result === undefined ? [] : parsePullRequestDeliveries(result.rows);
 // merge = `mergedAt`; release = `release.at`; deploy = `deploy.at`. An item with two pull requests
 // takes the earliest of each. The module's own contract does not change: `options.environment`
 // is required, and it returns the three times per pull request, not the seven steps.
@@ -660,20 +671,22 @@ declare const pullMarkedObjects: NonNullable<SourceDefinition['resync']>['pull']
 
 // packages/source-github/src/queries/select-pull-request-delivery.ts — the stage-times query
 // module. The one place that holds the tie rules. A plain typed module: a query of any plug-in
-// whose `reads` holds githubDeliveryConsumers can call it, then filter or join the builder.
-export interface PullRequestDeliveryRow {
+// whose `reads` holds githubDeliveryConsumers runs the statement on its `db` and parses the rows.
+// The statement is raw SQL: the tie's correlated subqueries do not type in Kysely's builder.
+export interface PullRequestDelivery {
   pullRequest: string;
   mergedAt: string | null;
   release: { id: string; tag: string; at: string } | null;
   deploy: { id: string; at: string; signal: DeploySignal } | null;
 }
 
-type DeliveryTables = StoreTables<typeof githubDeliveryConsumers>;
+export declare function selectPullRequestDelivery(options: {
+  pullRequests: readonly [string, ...string[]];
+  environment: string;
+  target?: string;
+}): RawBuilder<unknown>;
 
-export declare function selectPullRequestDelivery<Tables extends DeliveryTables>(
-  db: Kysely<Tables & SharedViews>,
-  options: { environment: string; target?: string },
-): SelectQueryBuilder<Tables & SharedViews & { pull_request: { id: string } }, 'pull_request', PullRequestDeliveryRow>;
+export declare function parsePullRequestDeliveries(rows: unknown): PullRequestDelivery[];
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 // Flow
@@ -799,7 +812,7 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //     `x-github-event`, so it is a copy, and every consumer drops it.
 //   - The recovery pull hashes the same canonical form, so one delivery has one ID on both
 //     paths. assumed: the body that GitHub's deliveries API returns parses to the same JSON
-//     value as the body it sent. The pull path is not in the pepys repository yet.
+//     value as the body it sent.
 //   - The delivery ID is still required and goes to ingest's log line with the fact ID. It is
 //     in no fact and decides nothing.
 //   - The cost: two deliveries with the same body are one fact. They say the same thing, with
@@ -815,11 +828,12 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //   The `resync` pull takes the marks. For each marked pull request or release it reads the
 //   object from the GitHub API with the App's token and writes ONE fact: type
 //   `github.<family>.resynced`, the same entity, `at` = the object's `updated_at`, the payload
-//   in the shape of a webhook body (`{ action: 'resynced', <object> }`), ID
+//   in the shape of a webhook body (`{ action: 'resynced', <object> }`, and for a release the
+//   `repository` with its ID and full name, which the release API leaves out), ID
 //   `observation:<sha256 of the canonical payload>`. It arrives after the deliveries, so by the
 //   tie rule (part 4) it wins a tie and sets the row to GitHub's current state. Two resyncs
-//   of one unchanged state are one fact. A release that GitHub no longer has gives
-//   `github.release.deleted`. Each family's `types` gains `github.<family>.resynced`.
+//   of one unchanged state are one fact. A release that GitHub no longer has (404) gives
+//   `github.release.deleted`, timed when the pull saw the 404. Each family's `types` gains `github.<family>.resynced`.
 //   A replay cannot use this to set a row: the resync fact holds what GitHub's API says at
 //   that time, never what the replayed body says. A replay can only cause one API read.
 //   Limits: the marks and `lastBodies` are in ingest's memory. A restart between the first A
@@ -828,7 +842,7 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //   host drops it with no mark. The next delivery for the object, or a resync, mends the row.
 //   assumed: the App's token may read a pull request and a release; `observation:` IDs pass
 //   the envelope check (they do in the repo: parse-fact-envelope.ts).
-//   Test (packages/source-github/src/ingest/resync.test.ts): three deliveries for one release
+//   Test (packages/source-github/src/ingest/resync/pull-marked-objects.test.ts): three deliveries for one release
 //   in one second: A (draft), B (published), then A again with the body of the first A. After
 //   B: the release is marked. After the second A: 200, no new fact, still marked. The resync
 //   pull, with the API stub answering A: one `github.release.resynced` fact, and the row is a
@@ -836,7 +850,8 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //   B: the API stub answers B, and the row stays published.
 //   - The ID form passes the envelope check as it is: `^webhook:[a-z][a-z0-9_]*:.+$`.
 //   pull_request         type github.pull_request.<action>; at pull_request.updated_at
-//   release              type github.release.<action>; at release.published_at, else created_at
+//   release              type github.release.<action>; at release.updated_at, else published_at,
+//                        else created_at
 //   push                 kept when `ref` is the default branch or starts with `refs/tags/`;
 //                        type github.ref.pushed; at the push time, else head_commit.timestamp
 //   deployment           type github.deployment.created

@@ -22,7 +22,7 @@ function setupTest() {
 
   return {
     rows,
-    apply: (fact: unknown) => JSON.parse(applyFact(JSON.stringify(fact))),
+    apply: (fact: unknown): unknown => JSON.parse(applyFact(JSON.stringify(fact))),
   };
 }
 

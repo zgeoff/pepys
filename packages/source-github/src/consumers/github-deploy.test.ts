@@ -20,7 +20,7 @@ function setupTest() {
     Reflect.deleteProperty(globalThis, 'readGithubDeployInto');
   });
 
-  return { rows, apply: (fact: unknown) => JSON.parse(applyFact(JSON.stringify(fact))) };
+  return { rows, apply: (fact: unknown): unknown => JSON.parse(applyFact(JSON.stringify(fact))) };
 }
 
 test('it upserts a tag deploy for a tag of the default pattern', () => {

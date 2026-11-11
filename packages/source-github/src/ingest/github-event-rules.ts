@@ -10,7 +10,7 @@ import { workflowRunFamily } from '../families/workflow-run-family.ts';
 
 // What a rule reads from one delivery body. `locator` is the API path the resync pull reads the
 // entity at.
-export interface GithubFactFields {
+interface GithubFactFields {
   type: string;
   entity: string;
   actor: string | undefined;

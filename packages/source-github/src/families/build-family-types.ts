@@ -6,5 +6,11 @@ export function buildFamilyTypes(
   actions: readonly string[],
   schema: z.ZodType,
 ): Readonly<Record<string, z.ZodType>> {
-  return Object.fromEntries(actions.map((action) => [`github.${family}.${action}`, schema]));
+  const types: Record<string, z.ZodType> = {};
+
+  for (const action of actions) {
+    types[`github.${family}.${action}`] = schema;
+  }
+
+  return types;
 }

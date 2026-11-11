@@ -81,8 +81,9 @@ test('it stores a signed pull request webhook on the GitHub route under a body h
   });
 
   const response = await ctx.send('pull_request', 'd-7', body);
+  const answerBody: unknown = await response.json();
 
-  const answer = { status: response.status, body: await response.json() };
+  const answer = { status: response.status, body: answerBody };
 
   const ids = await ctx.readIDs('facts.github.pull_request');
 
