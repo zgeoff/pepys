@@ -77,7 +77,13 @@ export function createIngest(options: IngestOptions): Ingest {
     handleRequest: async (request) => {
       const handler = handlers.get(new URL(request.url).pathname);
 
-      return handler === undefined ? buildFailureAnswer(404, 'not found') : await handler(request);
+      if (handler === undefined) {
+        return buildFailureAnswer(404, 'not found');
+      }
+
+      const answer = await handler(request);
+
+      return answer;
     },
     resyncMarks: resync.marks,
   };
