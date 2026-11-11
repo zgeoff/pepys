@@ -875,7 +875,8 @@ mod tests {
         let mut second: ListedConsumer = serde_json::from_str(
             &serde_json::to_string(&first)
                 .expect("JSON")
-                .replace("github_pull_request", "ledger_line"),
+                .replace("github_pull_request", "ledger_line")
+                .replace("github_release_bump", "ledger_line_bump"),
         )
         .expect("a second consumer");
         let second_bytes = build_text_module(

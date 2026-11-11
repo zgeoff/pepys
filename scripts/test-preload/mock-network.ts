@@ -1,7 +1,7 @@
 import { FetchInterceptor } from '@mswjs/interceptors/fetch/web';
-import { githubAPIHandlers } from '@pepys/source-github/github-api-handlers';
 import { HttpNetworkFrame, InterceptorSource, defineNetwork } from 'msw/experimental';
 import invariant from 'tiny-invariant';
+import { githubAPIHandlers } from '../../packages/source-github/src/test-utils/github-api-handlers.ts';
 
 const loopbackHosts = new Set(['127.0.0.1', '[::1]', 'localhost']);
 

@@ -14,10 +14,7 @@
     "!src/**/test-utils"
   ],
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./github-api-handlers": "./src/test-utils/github-api-handlers.ts"
-  },
+  "exports": "./src/index.ts",
   "publishConfig": {
     "access": "public"
   },
