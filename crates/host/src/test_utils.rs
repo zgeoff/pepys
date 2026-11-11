@@ -12,6 +12,7 @@ use crate::consumer::{
     BuildManifest, ColumnKind, ConsumerInput, ConsumerManifest, Exports, LinkType, Read, TableInfo,
     read_build_manifest_text,
 };
+use crate::database::Store;
 use crate::error::HostError;
 use crate::module_runner::RowSource;
 use crate::scope::{FactSource, ScopeRunner};
@@ -182,6 +183,58 @@ fn build_table_sql(name: &str, info: &TableInfo) -> String {
         columns.join(", "),
         info.primary_key.join(", ")
     )
+}
+
+/// `value` with every number as a float, so that the stored `1.0` of a REAL column or a
+/// confidence equals the `1` of a case file.
+#[must_use]
+pub fn to_float_numbers(value: Value) -> Value {
+    match value {
+        Value::Number(number) => number
+            .as_f64()
+            .and_then(serde_json::Number::from_f64)
+            .map_or(Value::Null, Value::Number),
+        Value::Array(items) => Value::Array(items.into_iter().map(to_float_numbers).collect()),
+        Value::Object(fields) => Value::Object(
+            fields
+                .into_iter()
+                .map(|(name, field)| (name, to_float_numbers(field)))
+                .collect(),
+        ),
+        other @ (Value::Null | Value::Bool(_) | Value::String(_)) => other,
+    }
+}
+
+/// Every row of the file's `link` table as JSON, sorted by type, `from` and `to`.
+///
+/// # Panics
+/// When the query fails.
+#[allow(clippy::expect_used)]
+pub async fn read_link_rows(store: &Store) -> Value {
+    let mut rows = store
+        .connection
+        .query(
+            "SELECT type, from_id, to_id, scope, origin, confidence, evidence FROM link \
+             ORDER BY type, from_id, to_id",
+            (),
+        )
+        .await
+        .expect("a query");
+    let mut links = Vec::new();
+
+    while let Some(row) = rows.next().await.expect("a row") {
+        links.push(json!({
+            "type": row.get::<String>(0).expect("a type"),
+            "from_id": row.get::<String>(1).expect("a from"),
+            "to_id": row.get::<String>(2).expect("a to"),
+            "scope": row.get::<Option<String>>(3).expect("a scope"),
+            "origin": row.get::<String>(4).expect("an origin"),
+            "confidence": row.get::<f64>(5).expect("a confidence"),
+            "evidence": row.get::<String>(6).expect("an evidence"),
+        }));
+    }
+
+    Value::Array(links)
 }
 
 /// The wire form of one `link` operation of the type `link_type`.

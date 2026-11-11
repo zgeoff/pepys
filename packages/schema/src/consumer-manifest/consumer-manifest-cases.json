@@ -312,6 +312,107 @@
               "links": [],
               "schema": "CREATE TABLE \"github_deploy\" (\n  \"id\" TEXT NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"environment\" TEXT NOT NULL,\n  \"target\" TEXT,\n  \"sha\" TEXT NOT NULL,\n  \"signal\" TEXT NOT NULL,\n  \"deployed_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_deploy_repository_id_environment_idx\" ON \"github_deploy\" (\"repository_id\", \"environment\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:deploy' AS \"kind\",\n  \"sha\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"deployed_at\" AS \"updated_at\"\nFROM \"github_deploy\";\n"
             }
+          },
+          {
+            "name": "ledger_account",
+            "module": "0b49326796795c2edd16ee3914e3a8291220891908f03e3f6246a0d2ca86ba79",
+            "path": "ledger_account/0b49326796795c2edd16ee3914e3a8291220891908f03e3f6246a0d2ca86ba79.wasm",
+            "pins": {},
+            "version": "5fc963ba7bcf33da678f7d8020f185693bad5619703d029afa24a03a041d56b7",
+            "manifest": {
+              "name": "ledger_account",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "ledger:account",
+                "streams": ["facts.ledger.account"]
+              },
+              "exports": {
+                "init": "ledger_account_init",
+                "apply": "ledger_account_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "ledger_account": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "name": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "balance": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "is_closed": {
+                      "kind": "boolean",
+                      "nullable": false
+                    },
+                    "opened_at": {
+                      "kind": "timestamp",
+                      "nullable": true
+                    },
+                    "updated_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": []
+                },
+                "ledger_entry": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "account_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "rate": {
+                      "kind": "real",
+                      "nullable": false
+                    },
+                    "memo": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "details": {
+                      "kind": "json",
+                      "nullable": false
+                    },
+                    "posted_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["account_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "entry_of",
+                  "from": ["ledger:entry"],
+                  "to": ["ledger:account"],
+                  "hub": false
+                }
+              ],
+              "schema": "CREATE TABLE \"ledger_account\" (\n  \"id\" TEXT NOT NULL,\n  \"name\" TEXT,\n  \"balance\" INTEGER NOT NULL,\n  \"is_closed\" INTEGER NOT NULL,\n  \"opened_at\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE TABLE \"ledger_entry\" (\n  \"id\" TEXT NOT NULL,\n  \"account_id\" TEXT NOT NULL,\n  \"amount\" INTEGER NOT NULL,\n  \"rate\" REAL NOT NULL,\n  \"memo\" TEXT NOT NULL,\n  \"details\" TEXT NOT NULL,\n  \"posted_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"ledger_entry_account_id_idx\" ON \"ledger_entry\" (\"account_id\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'ledger:account' AS \"kind\",\n  \"name\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"ledger_account\"\nUNION ALL\nSELECT\n  \"id\" AS \"id\",\n  'ledger:entry' AS \"kind\",\n  \"memo\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"posted_at\" AS \"updated_at\"\nFROM \"ledger_entry\";\n"
+            }
           }
         ]
       },

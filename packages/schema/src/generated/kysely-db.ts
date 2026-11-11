@@ -56,10 +56,31 @@ export interface GithubDeployRow {
   deployed_at: string;
 }
 
+export interface LedgerAccountRow {
+  id: string;
+  name: string | null;
+  balance: number;
+  is_closed: 0 | 1;
+  opened_at: string | null;
+  updated_at: string;
+}
+
+export interface LedgerEntryRow {
+  id: string;
+  account_id: string;
+  amount: number;
+  rate: number;
+  memo: string;
+  details: unknown;
+  posted_at: string;
+}
+
 export interface DB {
   github_pull_request: GithubPullRequestRow;
   github_release_bump: GithubReleaseBumpRow;
   github_release: GithubReleaseRow;
   github_commit: GithubCommitRow;
   github_deploy: GithubDeployRow;
+  ledger_account: LedgerAccountRow;
+  ledger_entry: LedgerEntryRow;
 }

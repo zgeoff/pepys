@@ -1,0 +1,98 @@
+{
+  "records": [
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-1\",\"type\":\"ledger.account.opened\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:a\",\"at\":\"2026-11-01T09:00:00Z\",\"payload\":{\"name\":\"Alpha\"}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-2\",\"type\":\"ledger.entry.posted\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:a\",\"at\":\"2026-11-01T09:30:00.5Z\",\"payload\":{\"entry\":\"e-1\",\"amount\":5,\"rate\":2,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"}}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-3\",\"type\":\"ledger.account.opened\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:b\",\"at\":\"2026-11-01T09:00:00Z\",\"payload\":{\"name\":\"Beta\"}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-5\",\"type\":\"ledger.account.renamed\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:a\",\"at\":\"2026-11-01T10:00:00Z\",\"payload\":{\"name\":\"Alpha trust\"}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-4\",\"type\":\"ledger.account.renamed\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:a\",\"at\":\"2026-11-01T10:00:00Z\",\"payload\":{\"name\":\"Alpha fund\"}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-2\",\"type\":\"ledger.entry.posted\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:a\",\"at\":\"2026-11-01T09:30:00.5Z\",\"payload\":{\"entry\":\"e-1\",\"amount\":5,\"rate\":2,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"}}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-6\",\"type\":\"ledger.entry.posted\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:b\",\"at\":\"2026-11-01T09:30:00.25Z\",\"payload\":{\"entry\":\"e-2\",\"amount\":7,\"rate\":1.25,\"memo\":\"Sail\",\"details\":{}}}"
+    },
+    {
+      "stream": "facts.ledger.account",
+      "body": "{\"id\":\"event:ledger:evt-7\",\"type\":\"ledger.account.closed\",\"v\":1,\"api\":\"ledger/1\",\"entity\":\"ledger:account:b\",\"at\":\"2026-11-01T11:00:00.123Z\",\"payload\":{}}"
+    }
+  ],
+  "rows": {
+    "ledger_account": [
+      {
+        "id": "ledger:account:a",
+        "name": "Alpha trust",
+        "balance": 5,
+        "is_closed": false,
+        "opened_at": "2026-11-01T09:00:00Z",
+        "updated_at": "2026-11-01T10:00:00Z"
+      },
+      {
+        "id": "ledger:account:b",
+        "name": "Beta",
+        "balance": 7,
+        "is_closed": true,
+        "opened_at": "2026-11-01T09:00:00Z",
+        "updated_at": "2026-11-01T11:00:00.123Z"
+      }
+    ],
+    "ledger_entry": [
+      {
+        "id": "ledger:entry:e-1",
+        "account_id": "ledger:account:a",
+        "amount": 5,
+        "rate": 2,
+        "memo": "Rope",
+        "details": {
+          "till": "north"
+        },
+        "posted_at": "2026-11-01T09:30:00.5Z"
+      },
+      {
+        "id": "ledger:entry:e-2",
+        "account_id": "ledger:account:b",
+        "amount": 7,
+        "rate": 1.25,
+        "memo": "Sail",
+        "details": {},
+        "posted_at": "2026-11-01T09:30:00.25Z"
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "entry_of",
+      "from_id": "ledger:entry:e-1",
+      "to_id": "ledger:account:a",
+      "scope": "ledger:account:a",
+      "origin": "ledger_account",
+      "confidence": 1,
+      "evidence": "event:ledger:evt-2"
+    },
+    {
+      "type": "entry_of",
+      "from_id": "ledger:entry:e-2",
+      "to_id": "ledger:account:b",
+      "scope": "ledger:account:b",
+      "origin": "ledger_account",
+      "confidence": 1,
+      "evidence": "event:ledger:evt-6"
+    }
+  ]
+}

@@ -423,7 +423,7 @@ mod tests {
     use super::*;
     use crate::database::{Store, open_store, prepare_scope_tables, prepare_store};
     use crate::rows::load_all_rows;
-    use crate::test_utils::stub_scope_manifest;
+    use crate::test_utils::{read_link_rows, stub_scope_manifest, to_float_numbers};
 
     const CASES: &str =
         include_str!("../../../packages/testing/src/scope-replace/scope-replace-cases.json");
@@ -566,52 +566,6 @@ mod tests {
         json!({"changes": changes})
     }
 
-    async fn read_links(store: &Store) -> Value {
-        let mut rows = store
-            .connection
-            .query(
-                "SELECT type, from_id, to_id, scope, origin, confidence, evidence FROM link \
-                 ORDER BY type, from_id, to_id",
-                (),
-            )
-            .await
-            .expect("a query");
-        let mut links = Vec::new();
-
-        while let Some(row) = rows.next().await.expect("a row") {
-            links.push(json!({
-                "type": row.get::<String>(0).expect("a type"),
-                "from_id": row.get::<String>(1).expect("a from"),
-                "to_id": row.get::<String>(2).expect("a to"),
-                "scope": row.get::<Option<String>>(3).expect("a scope"),
-                "origin": row.get::<String>(4).expect("an origin"),
-                "confidence": row.get::<f64>(5).expect("a confidence"),
-                "evidence": row.get::<String>(6).expect("an evidence"),
-            }));
-        }
-
-        Value::Array(links)
-    }
-
-    // Every number as a float, so that the stored `1.0` of a REAL column or a confidence equals
-    // the case file's `1`.
-    fn to_float_numbers(value: Value) -> Value {
-        match value {
-            Value::Number(number) => number
-                .as_f64()
-                .and_then(serde_json::Number::from_f64)
-                .map_or(Value::Null, Value::Number),
-            Value::Array(items) => Value::Array(items.into_iter().map(to_float_numbers).collect()),
-            Value::Object(fields) => Value::Object(
-                fields
-                    .into_iter()
-                    .map(|(name, field)| (name, to_float_numbers(field)))
-                    .collect(),
-            ),
-            other @ (Value::Null | Value::Bool(_) | Value::String(_)) => other,
-        }
-    }
-
     async fn run_case(case: &Case) -> Value {
         let directory = tempfile::tempdir().expect("a directory");
         let manifest = stub_scope_manifest();
@@ -656,7 +610,7 @@ mod tests {
         to_float_numbers(json!({
             "outcomes": outcomes,
             "rows": rows,
-            "links": read_links(&store).await,
+            "links": read_link_rows(&store).await,
         }))
     }
 

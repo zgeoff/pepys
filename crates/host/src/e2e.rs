@@ -100,3 +100,99 @@ mod blob_store_garage {
 
     crate::blob_store::fixtures::for_each_blob_store_fixture!(garage_tests);
 }
+
+mod scope_journey {
+    use std::path::Path;
+
+    use serde_json::{Value, json};
+
+    use super::{create_s2_log, read_variable};
+    use crate::commands::{HostConfig, up};
+    use crate::consumer::read_build_manifest;
+    use crate::database::open_store;
+    use crate::fact_log::s2::S2Settings;
+    use crate::fact_log::{AppendOutcome, FactLog};
+    use crate::rows::load_all_rows;
+    use crate::test_utils::{read_link_rows, to_float_numbers};
+
+    const JOURNEY: &str =
+        include_str!("../../../packages/testing/src/test-utils/ledger/ledger-journey.json");
+    const BASIN: &str = "scope-ledger-journey";
+    const STREAM: &str = "facts.ledger.account";
+
+    // The ledger module that `bun run consumers:build` compiled from the stub deployment, through
+    // the host's `up` on s2-lite. A Bun test pins the journey file to the test store, so the host
+    // and the test store give the same rows and links for the same facts.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_stores_the_rows_and_links_of_the_ledger_journey_that_the_test_store_gives() {
+        let consumers =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../build/consumers/consumers.json");
+
+        assert!(
+            consumers.exists(),
+            "build the consumers first: bun run test:e2e:prepare"
+        );
+
+        let journey: Value = serde_json::from_str(JOURNEY).expect("the journey");
+        let bodies: Vec<String> = journey["records"]
+            .as_array()
+            .expect("the records")
+            .iter()
+            .map(|record| record["body"].as_str().expect("a body").to_owned())
+            .collect();
+        let log = create_s2_log(BASIN, &[STREAM.to_owned()]).await;
+
+        assert_eq!(
+            log.append_batch(STREAM, &bodies, 0)
+                .await
+                .expect("an append"),
+            AppendOutcome::Acknowledged {
+                first_offset: 0,
+                count: bodies.len() as u64,
+            }
+        );
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let config = HostConfig {
+            s2: S2Settings {
+                endpoint: read_variable("PEPYS_S2_ENDPOINT"),
+                access_token: read_variable("PEPYS_S2_ACCESS_TOKEN"),
+                basin: BASIN.to_owned(),
+            },
+            store_dir: directory.path().join("store"),
+            consumers,
+        };
+
+        up(&config, Some("ledger_account"), None)
+            .await
+            .expect("an up");
+
+        let manifest = read_build_manifest(&config.consumers)
+            .expect("consumers.json")
+            .consumers
+            .into_iter()
+            .find(|listed| listed.name == "ledger_account")
+            .expect("the ledger consumer")
+            .manifest;
+        let store = open_store(&config.store_dir.join("ledger_account/current/consumer.db"))
+            .await
+            .expect("the store");
+        let mut rows = serde_json::Map::new();
+
+        for (table, info) in &manifest.tables {
+            let stored = load_all_rows(&store.connection, table, info)
+                .await
+                .expect("the rows");
+
+            rows.insert(
+                table.clone(),
+                Value::Array(stored.into_iter().map(Value::Object).collect()),
+            );
+        }
+
+        assert_eq!(
+            to_float_numbers(json!({"rows": rows, "links": read_link_rows(&store).await})),
+            to_float_numbers(json!({"rows": journey["rows"], "links": journey["links"]}))
+        );
+    }
+}
