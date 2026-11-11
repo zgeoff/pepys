@@ -1,4 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>zgeoff/tools"]
+  "extends": ["github>zgeoff/tools"],
+  "packageRules": [
+    {
+      "description": "scriptc compiles every consumer, so a bump changes each module's bytes and its version hash, and scriptc 0.4.8 links the WASI path_open import that pepys build refuses. A person moves the scriptc pin, with the consumer build and the e2e lane run on the new version",
+      "matchPackageNames": ["scriptc", "@scriptc/**"],
+      "enabled": false
+    }
+  ]
 }
