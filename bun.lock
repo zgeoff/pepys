@@ -170,6 +170,21 @@
         "tiny-invariant": "catalog:",
       },
     },
+    "packages/testing": {
+      "name": "@pepys/testing",
+      "dependencies": {
+        "@pepys/kit": "workspace:*",
+        "@pepys/kysely-turso": "workspace:*",
+        "@tursodatabase/database": "catalog:",
+        "kysely": "catalog:",
+        "tiny-invariant": "catalog:",
+        "ts-pattern": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/std": "catalog:",
+      },
+    },
     "research/source-retention": {
       "name": "@pepys/spike-source-retention",
       "version": "0.0.0",
@@ -538,6 +553,8 @@
     "@pepys/source-github": ["@pepys/source-github@workspace:packages/source-github"],
 
     "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
+
+    "@pepys/testing": ["@pepys/testing@workspace:packages/testing"],
 
     "@protobuf-ts/runtime": ["@protobuf-ts/runtime@2.11.1", "", {}, "sha512-KuDaT1IfHkugM2pyz+FwiY80ejWrkH1pAtOBOZFuR6SXEFTsnb/jiQWQ1rCIrcKx2BtyxnxW6BWwsVSA/Ie+WQ=="],
 

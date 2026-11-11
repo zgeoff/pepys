@@ -3,6 +3,7 @@
   "ignorePatterns": [
     "bun.lock",
     "packages/*/src/generated/**",
+    "packages/*/src/test-utils/*/generated/**",
     "crates/*/src/generated.rs",
     "docs/design/**/sketches/**"
   ],

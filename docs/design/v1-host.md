@@ -71,6 +71,37 @@ differs, with the scope as its owner, and deletes each row and link that the sco
 return. A row or a link that another scope owns stops the batch. A copy of a fact in the log changes
 nothing: the index holds one row for it, the module returns the same result, and the diff is empty.
 
+### The scope replace case file
+
+[`scope-replace-cases.json`](../../packages/testing/src/scope-replace/scope-replace-cases.json)
+holds the scope replace as data. The test store's TypeScript replace runs every case in
+`bun run test`, and the Rust host must run the same file, so the two replaces stay equal. The file
+holds a stub scope consumer, with its tables in the manifest's form, and a list of cases. Each case
+gives the links stored before it, then batches. A batch lists the module output text of each scope,
+in order, and either the change entries it gives or the kind of its refusal. The case ends with
+every row of each table in key order, and every link sorted by type, from and to.
+
+Each batch runs its scopes in order, in one transaction. These rules hold:
+
+- **Refusals.** A refusal rolls back the whole batch, the scopes before it included. The kinds are
+  `bad-operation` (output that is no JSON list, an operation with two verbs, or a delete or an
+  unlink from a scope consumer), `not-owned`, `bad-row` (a column left out or unknown, a null where
+  the column is not nullable, a value of the wrong kind), `bad-link`, `duplicate-row`,
+  `duplicate-link` and `scope-conflict`.
+- **Keys.** A row key or a link key twice in one scope result is refused. A returned link that is
+  stored with no scope is a scope conflict.
+- **Numbers.** An integer column refuses a number written with a fraction or an exponent, even
+  `5.0`. A REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value. A
+  JSON column compares as a value, whatever the order of its keys.
+- **Change entries.** A written row gives
+  `{ type: <table>, key, value, headers: { operation }, old_value }`, with `insert` or `update` and
+  the old row on an update. The key is the JSON text of the list of the key's values. A deleted row
+  gives the key, the old row and `delete`. A link gives the type `link`, the key as the JSON text of
+  `[type, from, to]`, and the value `{ type, from, to, confidence, evidence }`. A deleted link has
+  no old value.
+- **Order.** The entries of one scope come as rows written, links written, rows deleted and links
+  deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.
+
 **The link check** takes the manifest alone. The link's type must be one that the consumer declares,
 each end must be an entity ID of a kind that the type allows, the confidence must be from 0 to 1,
 and the evidence must not be empty. The host looks no row up, so a link to an entity that has not

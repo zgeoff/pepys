@@ -46,6 +46,10 @@
     "packages/kysely-turso": {
       "entry": ["src/**/*.test.ts"],
       "bun": false
+    },
+    "packages/testing": {
+      "entry": ["src/**/*.test.ts", "src/test-utils/*/consumers/*.ts"],
+      "bun": false
     }
   },
   "ignoreWorkspaces": ["research/**"],

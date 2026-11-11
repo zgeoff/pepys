@@ -254,8 +254,8 @@ test('it writes one session row and one link for a session that two facts name',
   ]);
 });
 
-// A row of `telemetry_model_request` that a test seeds has the columns of file 5:
-//   await store.seed(telemetryModelRequestConsumer, 'telemetry_model_request', [{ id: 'telemetry:model_request:claude_code.api_request:req_01',
+// A row of `telemetry_model_request` that a test writes has the columns of file 5:
+//   await store.writeRows(telemetryModelRequestConsumer, 'telemetry_model_request', [{ id: 'telemetry:model_request:claude_code.api_request:req_01',
 //     session_id: 'telemetry:session:s-9', agent_session: 'c-1', product: 'claude_code', model: 'model-large', input_tokens: 12,
 //     cache_read_tokens: 900, cache_creation_tokens: 30, output_tokens: 210, cost_usd: 0.4, cost_basis: 'reported', duration_ms: 4100,
 //     agent: null, at: '2026-11-11T02:20:00Z' }]);
@@ -787,27 +787,56 @@ export declare function checkDeployment(deployment: Deployment): Result<CheckedD
 // by fact ID before a consumer sees it, and repeats the host's link check and replace-a-scope rule
 // in TypeScript. It does not prove: the scriptc compile, that the module equals the TypeScript
 // run, the Rust host, one file per consumer, the route. `pepys build` and the pepys e2e lane do.
-// `apply` calls the same parseFactEnvelope as the route, so a fact ID that the parser
-// refuses fails here too. It still skips the route itself; the route test in file 2 covers that.
+// `apply` runs the kit's fact batch read (`readFactBatch`, the read inside `receiveFactBatch`) and
+// the same parseFactEnvelope as the route, so a fact ID that the parser refuses fails here too. It
+// still skips the route itself; the route test in file 2 covers that. A refusal throws an
+// ApplyError whose `failure.kind` is the host's refusal, such as `bad-link` or `scope-conflict`,
+// and the batch writes nothing. Each apply is one batch in one transaction.
 export interface TestStore extends AsyncDisposable {
-  seed: <Consumer extends ConsumerDeclaration, Table extends keyof Consumer['tables'] & string>(
+  // rows as they are, with no scope, for a test of a query
+  writeRows: <Consumer extends ConsumerDeclaration, Table extends keyof Consumer['tables'] & string>(
     consumer: Consumer,
     table: Table,
     rows: readonly TableRow<Consumer['tables'][Table]>[],
   ) => Promise<void>;
   // Builds the envelopes as `receiveFactBatch` does (`event:` IDs) and runs each consumer whose
   // input names the fact's stream. A source whose fact IDs are not `event:` IDs (GitHub: a hash
-  // of the body) cannot use it; its consumers test on
-  // operations, and its queries on `seed`.
-  apply: <Source extends SourceDefinition>(source: Source, facts: readonly OutgoingFact<Source>[]) => Promise<void>;
+  // of the body) cannot use it; its consumers test on operations, and its queries on `writeRows`.
+  // With `sender`, the store writes `origin { issuer, subject }` into each payload, as a source's
+  // read does for a proven sender, so a fact may leave its `origin` out.
+  apply: <Source extends SourceDefinition>(source: Source, facts: readonly AppliedFact<Source>[], options?: { sender?: { issuer: string; subject: string } }) => Promise<void>;
   query: <InputSchema extends z.ZodType, OutputSchema extends z.ZodType>(query: QueryDefinition<string, InputSchema, OutputSchema>, input: z.input<InputSchema>) => Promise<z.output<OutputSchema>>;
   readLinks: () => Promise<readonly import('./04-store-api.ts').LinkRow[]>;
+  // every row of one table in key order: booleans as booleans, JSON columns parsed
   readRows: (table: string) => Promise<readonly Readonly<Record<string, unknown>>[]>;
   // the memory adapter of the StoreReader port, for a test of a core query
-  reader: StoreReader;
+  reader: import('./04-store-api.ts').MemoryStoreReader;
 }
 
+// OutgoingFact<Source>, with `origin` in the payload made optional
+declare type AppliedFact<Source extends SourceDefinition> = OutgoingFact<Source>;
+
 export declare function createTestStore(options: { plugins: readonly Plugin[] }): Promise<TestStore>;
+
+// One arrival order cannot show a missing tie-break of time. This applies the facts to a new store
+// in the given order and to another in the reverse order, each fact as its own batch and then all of
+// them again as one batch, and compares every table and every link of the two stores.
+export declare function applyInBothOrders<Source extends SourceDefinition>(check: {
+  plugins: readonly Plugin[];
+  source: Source;
+  facts: readonly AppliedFact<Source>[];
+}): Promise<{ given: StoreSnapshot; reversed: StoreSnapshot; isSame: boolean }>;
+
+declare interface StoreSnapshot {
+  rows: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+  links: readonly import('./04-store-api.ts').LinkRow[];
+}
+
+// The scope replace case file, packages/testing/src/scope-replace/scope-replace-cases.json, holds
+// the host's scope replace as data: a stub scope consumer in the manifest's table form, then cases
+// of stored links, batches of module outputs per scope, and the change entries, rows and links each
+// batch leaves. The TypeScript replace runs it in `bun test`; the Rust host runs the same file.
+// [v1-host.md](../../v1-host.md#the-scope-replace-case-file) gives its rules.
 
 // packages/cli — `pepys` is the Bun CLI; the Rust host binary is `pepys-host`.
 //

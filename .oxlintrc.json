@@ -19,7 +19,10 @@
     },
     {
       // the consumer build finds this file by the consumer's name and calls fixed export names
-      "files": ["packages/source-*/src/consumers/*.ts"],
+      "files": [
+        "packages/source-*/src/consumers/*.ts",
+        "packages/*/src/test-utils/*/consumers/*.ts"
+      ],
       "rules": {
         "zgeoff/file-named-for-export": "off"
       }
@@ -113,5 +116,10 @@
     }
   ],
   // generated files are written by the schema generators, so a lint fix would be overwritten
-  "ignorePatterns": [".claude/**", "docs/design/**", "packages/*/src/generated/**"]
+  "ignorePatterns": [
+    ".claude/**",
+    "docs/design/**",
+    "packages/*/src/generated/**",
+    "packages/*/src/test-utils/*/generated/**"
+  ]
 }

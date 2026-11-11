@@ -21,6 +21,7 @@ export { listReceiveRoutes } from './deployments/list-receive-routes.ts';
 export { parseEntityID } from './entity-ids/parse-entity-id.ts';
 export { parseFactEnvelope } from './facts/parse-fact-envelope.ts';
 export { parseStreamName } from './facts/parse-stream-name.ts';
+export { readFactBatch } from './sources/read-fact-batch.ts';
 export { receiveFactBatch } from './sources/receive-fact-batch.ts';
 export type { TableRow } from './tables/table-row.ts';
 export type * from './consumers/types.ts';

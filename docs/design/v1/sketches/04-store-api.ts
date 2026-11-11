@@ -126,13 +126,16 @@ export interface AttachedCall {
 // (one consumer, by name) and the per-consumer `open` map go: a call owns its connection.
 export declare function createStoreReader(options: { storeDirectory: string; openConnection: () => Promise<unknown> }): StoreReader;
 
-// Adapter 2 — packages/testing/src/create-memory-store-reader.ts (new). No files and no attach.
-// `markDown` gives a test the `no-current-version` path.
+// Adapter 2 — packages/testing/src/memory-store-reader/create-memory-store-reader.ts (new). No
+// files and no attach: it reads the test store's one database, so the shared views show every
+// consumer's rows. Each call runs in a transaction that rolls back, so a handler keeps no write.
+// `markDown` gives a test the `no-current-version` path. A test reaches it as the `reader` of the
+// test store; the package exports the type and no constructor.
 export interface MemoryStoreReader extends StoreReader {
   markDown: (consumer: string) => void;
 }
 
-export declare function createMemoryStoreReader(deployment: CheckedDeployment): Promise<MemoryStoreReader>;
+export declare function createMemoryStoreReader(database: unknown, deployment: CheckedDeployment): MemoryStoreReader;
 
 // ── 2. MODULE: link types as TypeScript sees them — packages/kit/src/links/ ────────────────────
 

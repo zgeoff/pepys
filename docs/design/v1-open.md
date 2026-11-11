@@ -55,18 +55,14 @@ The sketch does not match the real host in 9 places. The first 6 change what the
 9. The row read answers `-1` for no row. The scope read returns bytes and never answers `-1`, so its
    adapter is a few lines.
 
-The sketch leaves these meanings open, and the run picked one for each:
+The [scope replace case file](./v1-host.md#the-scope-replace-case-file) fixes the meanings the run
+picked for duplicate keys, a link stored with no scope, change entries, integer columns and a
+refused link. Two differ from the run: the key of a link's change entry is JSON text, where the run
+held a list, and the key of a row's entry is the JSON text of the key's values, where the repo's
+entry holds the bare ID. The sketch leaves these meanings open, and the run picked one for each:
 
-- A row key or a link key twice in one scope result is refused.
-- A link that a scope returns, and that is stored with no scope, is a scope conflict.
-- The change entry of a link has the type `link`, the key `[type, from, to]`, the value and the old
-  value. A deleted link has no old value.
-- The key of a row's change entry is the JSON list of the key's values. The repo's entry holds the
-  bare ID.
-- A JSON number in an integer column must be an integer, so `1.0` is refused.
 - A stream with no offset yet is not in the horizon.
 - The scope read returns the stored bodies joined as text, with no parse.
-- A refused link stops the whole batch, and every other scope of the batch with it.
 - The link check runs on all links of one scope before that scope's writes. The sketch puts the
   check before any write of the batch. With two dirty scopes the first scope's rows are written and
   rolled back, and the result is the same.
@@ -105,8 +101,8 @@ The entry file needed 5 rewrites:
    takes a re-exported type but refuses a re-exported function. The message union needs two or more
    members.
 5. A result that depended on the order of two facts with one time. The fix keeps the smaller fact ID
-   on an equal time. A consumer author must break every tie of time by fact ID, and the test store
-   cannot find a missing tie-break unless a test feeds both orders.
+   on an equal time. A consumer author must break every tie of time by fact ID. One arrival order
+   cannot show a missing tie-break, so a test calls `applyInBothOrders` from `@pepys/testing`.
 
 A pull request ID above the 32-bit range came through as the right text, sent as text and sent as a
 JSON number. The run did not check the two queries, a read of another scope, a scope above 60 facts,
@@ -121,12 +117,11 @@ The proven sender did not reach every place in the sketches:
 
 - Neither telemetry table declares the two origin columns, and both consumers write them.
 - The telemetry test in [05-telemetry-github.ts](./v1/sketches/05-telemetry-github.ts) applies facts
-  with no origin, and the consumer reads the origin of every fact.
+  with no origin, and the consumer reads the origin of every fact. The test store's `apply` takes a
+  `sender` option and writes the origin into each payload, so the test must pass one.
 
 More gaps:
 
-- Nothing holds the scope replace in TypeScript and in Rust together. Case files hold the manifest
-  parse and the link check.
 - The [runtime](./pepys/runtime.md#network) doc's public rule matches the path `/webhook/github`,
   and the GitHub source's route is `/webhook`. The public rule must match the exact path of the
   route.

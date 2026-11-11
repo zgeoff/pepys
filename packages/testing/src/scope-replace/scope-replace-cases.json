@@ -1,0 +1,1360 @@
+{
+  "consumer": {
+    "name": "ledger_account",
+    "input": {
+      "mode": "scope",
+      "scopeKind": "ledger:account",
+      "streams": ["facts.ledger.account"]
+    },
+    "tables": {
+      "ledger_account": {
+        "columns": {
+          "id": {
+            "kind": "entityID",
+            "nullable": false
+          },
+          "name": {
+            "kind": "text",
+            "nullable": true
+          },
+          "balance": {
+            "kind": "integer",
+            "nullable": false
+          },
+          "is_closed": {
+            "kind": "boolean",
+            "nullable": false
+          },
+          "opened_at": {
+            "kind": "timestamp",
+            "nullable": true
+          },
+          "updated_at": {
+            "kind": "timestamp",
+            "nullable": false
+          }
+        },
+        "primaryKey": ["id"],
+        "indexes": []
+      },
+      "ledger_entry": {
+        "columns": {
+          "id": {
+            "kind": "entityID",
+            "nullable": false
+          },
+          "account_id": {
+            "kind": "entityID",
+            "nullable": false
+          },
+          "amount": {
+            "kind": "integer",
+            "nullable": false
+          },
+          "rate": {
+            "kind": "real",
+            "nullable": false
+          },
+          "memo": {
+            "kind": "text",
+            "nullable": false
+          },
+          "details": {
+            "kind": "json",
+            "nullable": false
+          },
+          "posted_at": {
+            "kind": "timestamp",
+            "nullable": false
+          }
+        },
+        "primaryKey": ["id"],
+        "indexes": [["account_id"]]
+      }
+    },
+    "links": [
+      {
+        "name": "entry_of",
+        "from": ["ledger:entry"],
+        "to": ["ledger:account"],
+        "hub": false
+      }
+    ]
+  },
+  "cases": [
+    {
+      "title": "a first result writes each row and link, with an insert entry for each",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e1"
+        }
+      ]
+    },
+    {
+      "title": "the same result again changes nothing and gives no change entry",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": []
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e1"
+        }
+      ]
+    },
+    {
+      "title": "a changed row is an update that holds the old value",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha fund\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha fund",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "old_value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "update"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha fund",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a row and a link that the scope no longer returns are deleted, and a deleted link has no old value",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "old_value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "delete"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "headers": {
+                "operation": "delete"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "the change entries of a scope come as rows written, links written, rows deleted, links deleted, each in key order",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e2\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e2\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e2\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e2\"]",
+              "value": {
+                "id": "ledger:entry:e2",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e2\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e2",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e2"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e3\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e3\"}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e3\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":0.5,\"evidence\":\"event:ledger:e1\"}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":10,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 10,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "old_value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "update"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e3\"]",
+              "value": {
+                "id": "ledger:entry:e3",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 0.5,
+                "evidence": "event:ledger:e1"
+              },
+              "old_value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "update"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e3\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e3",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e3"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e2\"]",
+              "old_value": {
+                "id": "ledger:entry:e2",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "delete"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e2\",\"ledger:account:a\"]",
+              "headers": {
+                "operation": "delete"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha",
+            "balance": 10,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          },
+          {
+            "id": "ledger:entry:e3",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 0.5,
+          "evidence": "event:ledger:e1"
+        },
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e3",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e3"
+        }
+      ]
+    },
+    {
+      "title": "a real column and a confidence compare as floats, so 2 and 2.0 are one value",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":2,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 2,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":2.0,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1.0,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": []
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 2,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e1"
+        }
+      ]
+    },
+    {
+      "title": "a JSON column compares as a value, whatever the order of its keys",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\",\"desk\":\"7\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north",
+                  "desk": "7"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"desk\":\"7\",\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": []
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north",
+              "desk": "7"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": []
+    },
+    {
+      "title": "two scopes of one batch give their change entries in the order of the scopes",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            },
+            {
+              "scope": "ledger:account:b",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:b\",\"name\":\"Beta\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:a\"]",
+              "value": {
+                "id": "ledger:account:a",
+                "name": "Alpha",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_account",
+              "key": "[\"ledger:account:b\"]",
+              "value": {
+                "id": "ledger:account:b",
+                "name": "Beta",
+                "balance": 5,
+                "is_closed": false,
+                "opened_at": "2026-11-01T09:00:00.000Z",
+                "updated_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [
+          {
+            "id": "ledger:account:a",
+            "name": "Alpha",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          },
+          {
+            "id": "ledger:account:b",
+            "name": "Beta",
+            "balance": 5,
+            "is_closed": false,
+            "opened_at": "2026-11-01T09:00:00.000Z",
+            "updated_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a row that another scope owns is a scope conflict",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:e1\"]",
+              "value": {
+                "id": "ledger:entry:e1",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:b",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:b\",\"name\":\"Beta\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "refused": "scope-conflict"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:e1",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "links": []
+    },
+    {
+      "title": "a link that another scope owns is a scope conflict",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "link",
+              "key": "[\"entry_of\",\"ledger:entry:e1\",\"ledger:account:a\"]",
+              "value": {
+                "type": "entry_of",
+                "from": "ledger:entry:e1",
+                "to": "ledger:account:a",
+                "confidence": 1,
+                "evidence": "event:ledger:e1"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        },
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:b",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:b\",\"name\":\"Beta\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "scope-conflict"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": "ledger:account:a",
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e1"
+        }
+      ]
+    },
+    {
+      "title": "a link that is stored with no scope is a scope conflict",
+      "stored": {
+        "links": [
+          {
+            "type": "entry_of",
+            "from_id": "ledger:entry:e1",
+            "to_id": "ledger:account:a",
+            "scope": null,
+            "origin": "ledger_account",
+            "confidence": 1,
+            "evidence": "event:ledger:e1"
+          }
+        ]
+      },
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:e1\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "scope-conflict"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": [
+        {
+          "type": "entry_of",
+          "from_id": "ledger:entry:e1",
+          "to_id": "ledger:account:a",
+          "scope": null,
+          "origin": "ledger_account",
+          "confidence": 1,
+          "evidence": "event:ledger:e1"
+        }
+      ]
+    },
+    {
+      "title": "a row key twice in one scope result is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":6,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "refused": "duplicate-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a link key twice in one scope result is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":0.5,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "duplicate-link"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a refused link stops the whole batch, and the scopes before it write nothing",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            },
+            {
+              "scope": "ledger:account:b",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:b\",\"name\":\"Beta\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:entry:e2\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "bad-link"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "an integer column refuses a number written with a fraction, even 5.0",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5.0,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "refused": "bad-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a row with a column left out is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "refused": "bad-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a row with a key that is no column is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\",\"colour\":\"red\"}}}]"
+            }
+          ],
+          "refused": "bad-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a row with null in a column that is not nullable is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":null}}}]"
+            }
+          ],
+          "refused": "bad-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a boolean column refuses a number",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":0,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "refused": "bad-row"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a delete in a scope result is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"delete\":{\"ledger_account\":{\"id\":\"ledger:account:a\"}}}]"
+            }
+          ],
+          "refused": "bad-operation"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "an unlink in a scope result is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"unlink\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\"}}]"
+            }
+          ],
+          "refused": "bad-operation"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "an operation with two verbs is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}},\"link\":{\"type\":\"entry_of\",\"from\":\"ledger:entry:e1\",\"to\":\"ledger:account:a\",\"confidence\":1,\"evidence\":\"event:ledger:e1\"}}]"
+            }
+          ],
+          "refused": "bad-operation"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "a result that is no list is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "{\"upsert\":{\"ledger_account\":{\"id\":\"ledger:account:a\",\"name\":\"Alpha\",\"balance\":5,\"is_closed\":false,\"opened_at\":\"2026-11-01T09:00:00.000Z\",\"updated_at\":\"2026-11-01T09:00:00.000Z\"}}}"
+            }
+          ],
+          "refused": "bad-operation"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    },
+    {
+      "title": "an upsert to a table that the consumer does not own is refused",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"harbour_berth\":{\"id\":\"harbour:berth:1\"}}}]"
+            }
+          ],
+          "refused": "not-owned"
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": []
+      },
+      "links": []
+    }
+  ]
+}
