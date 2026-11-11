@@ -1,7 +1,7 @@
 {
   "name": "@pepys/cli",
   "version": "0.0.0",
-  "description": "The pepys command line: pepys build checks a deployment or a plug-in and writes the glue of each consumer",
+  "description": "The pepys command line: pepys build checks a deployment or a plug-in, writes the glue of each consumer, and compiles each consumer with scriptc",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,7 +23,10 @@
   },
   "dependencies": {
     "@pepys/kit": "workspace:*",
+    "@pepys/schema": "workspace:*",
+    "@scriptc/runtime-wasm32-wasi": "catalog:",
     "@zgeoff/std": "catalog:",
+    "scriptc": "catalog:",
     "ts-pattern": "catalog:"
   },
   "devDependencies": {

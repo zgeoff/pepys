@@ -40,6 +40,7 @@ jobs:
         packages/kit/src/fact-envelope-cases.json
         packages/kit/src/links/link-check-cases.json
         packages/testing/src/scope-replace/scope-replace-cases.json
+        packages/schema/src/consumer-manifest/consumer-manifest-cases.json
         Cargo.toml
         Cargo.lock
         rust-toolchain.toml

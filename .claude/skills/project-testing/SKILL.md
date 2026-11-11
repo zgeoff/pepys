@@ -47,6 +47,7 @@ metadata:
 | nothing outside the test process, a Turso database file, or a fake network | the file or module beside the code it tests                                                                 | `bun run test`, `cargo nextest run`       |
 | s2-lite or Garage, from Bun                                                | a `<name>.test.ts` file in the root `e2e/` folder                                                           | `bun run test:e2e`                        |
 | s2-lite or Garage, from Rust                                               | a module named `e2e` in the crate, such as [`e2e.rs`](../../../crates/host/src/e2e.rs)                      | `bun run test:e2e:rust`                   |
+| zig and wasm-tools, to run `pepys build --out` and compile consumers       | a `<name>.test.ts` file in the root `e2e/` folder                                                           | `bun run test:e2e`                        |
 | hosted models                                                              | a module named `model_api` in the crate whose code calls the model                                          | `cargo nextest run --profile model-api`   |
 | the live GitHub or Gmail API                                               | a module named `github_api` or `gmail_api`, as in [Tests that call a live API](#tests-that-call-a-live-api) | its nextest profile, such as `github-api` |
 
@@ -76,10 +77,26 @@ metadata:
   the Rust test of the envelope both read the file, so `bun run test` and `cargo nextest run` each
   run every case.
 
+## The consumers.json case file
+
+`pepys build --out <directory>` writes `consumers.json` beside the compiled modules. Each case in
+[`consumer-manifest-cases.json`](../../../packages/schema/src/consumer-manifest/consumer-manifest-cases.json)
+holds one such file and whether the manifest schema accepts it. The Bun test of the schema runs
+every case.
+
+- Add a case for each new rule of the schema, with a `file` that breaks only that rule.
+- Refresh the case "accepts the stub deployment" after you change a consumer of
+  [`stub-deployment.ts`](../../../scripts/stub-deployment.ts), or the code in
+  [`packages/cli/src/build/`](../../../packages/cli/src/build) that writes a consumer's glue:
+  1. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, as in the next section.
+  2. Run `bun run consumers:build`.
+  3. Replace the case's `file` with the `consumers.json` that step 2 writes in `build/consumers/`.
+
 ## Bun tests in the root e2e/ folder
 
-These tests run the GitHub pull request path from [Departures](#departures), and the `@pepys/ingest`
-fact log and blob store adapters on s2-lite and Garage.
+These tests run the GitHub pull request path from [Departures](#departures), the `@pepys/ingest`
+fact log and blob store adapters on s2-lite and Garage, and `pepys build` with consumers to compile.
+Only the `e2e` job in `pr.yml` installs zig and wasm-tools.
 
 - Read the addresses of the Docker services in each test's `setupTest()`, from the `PEPYS_`
   variables in [`build-stack-env.ts`](../../../stack/build-stack-env.ts), which `start-stack.ts`

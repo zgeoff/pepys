@@ -18,7 +18,7 @@
       }
     },
     {
-      // the consumer build finds this file by the consumer's name and calls fixed export names
+      // an entry file exports the fixed names that scriptc and the host call: init, update, applyFact
       "files": [
         "packages/source-*/src/consumers/*.ts",
         "packages/*/src/test-utils/*/consumers/*.ts"

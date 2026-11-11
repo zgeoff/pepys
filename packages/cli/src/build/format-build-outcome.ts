@@ -7,6 +7,8 @@ export interface FormattedOutcome {
   text: string;
 }
 
+const toolVariables = { zig: 'PEPYS_ZIG_BIN', 'wasm-tools': 'PEPYS_WASM_TOOLS_BIN' } as const;
+
 export function formatBuildOutcome(outcome: BuildOutcome): FormattedOutcome {
   return match(outcome)
     .with({ kind: 'built' }, (built) => ({
@@ -14,6 +16,33 @@ export function formatBuildOutcome(outcome: BuildOutcome): FormattedOutcome {
       text: [
         `wrote ${built.written.length} glue files, ${built.unchanged.length} unchanged`,
         ...built.written.map((path) => `  ${path}`),
+        '',
+      ].join('\n'),
+    }))
+    .with({ kind: 'compiled' }, (compiled) => ({
+      exitCode: 0 as const,
+      text: [
+        `wrote ${compiled.written.length} glue files, ${compiled.unchanged.length} unchanged`,
+        ...compiled.written.map((path) => `  ${path}`),
+        `compiled ${compiled.modules.length} consumers`,
+        ...compiled.modules.map((built) => `  ${built.name}: ${built.path}`),
+        `wrote ${compiled.manifest}`,
+        '',
+      ].join('\n'),
+    }))
+    .with({ kind: 'missing-tool' }, (missing) => ({
+      exitCode: 1 as const,
+      text: `the glue is written; compiling needs ${missing.tool}, from ${toolVariables[missing.tool]} or PATH\n`,
+    }))
+    .with({ kind: 'compile-failed' }, (failed) => ({
+      exitCode: 1 as const,
+      text: `${failed.consumer} did not compile:\n${failed.reason}\n`,
+    }))
+    .with({ kind: 'refused-manifest' }, (refused) => ({
+      exitCode: 1 as const,
+      text: [
+        'the host would refuse this consumers.json, so the build wrote none:',
+        ...refused.issues.map((issue) => `  ${issue}`),
         '',
       ].join('\n'),
     }))

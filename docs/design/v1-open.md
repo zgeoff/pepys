@@ -170,9 +170,6 @@ GitHub:
 
 The build and the host:
 
-- That scriptc compiles a consumer from a copied `src` folder, and that an entry file imports only
-  files under its own `src`.
-- That scriptc compiles a `switch` with a `never` default, and a type import from the product list.
 - A crash of s2-lite in the middle of a batch write.
 - That a JSON column compares equal after a round trip through SQLite. The scope replace writes
   nothing when nothing differs, and the host run settled the comparison for numbers only.

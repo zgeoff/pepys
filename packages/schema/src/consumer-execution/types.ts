@@ -1,7 +1,6 @@
 import type {
   BlobHash,
   EntityID,
-  EntityKind,
   FactEnvelope,
   FactID,
   ScopeID,
@@ -55,29 +54,9 @@ export type ScopeOperation<Row, Registry extends LinkRegistry> =
 
 export type ConsumerOutcome<Operation> = { applied: readonly Operation[] } | { rejected: string };
 
-export interface ConsumerManifest {
-  name: string;
-  mode:
-    | { kind: 'fact'; stream: string }
-    | { kind: 'scope'; scopeKind: EntityKind; sources: Readonly<Record<string, string>> };
-  tables: Readonly<
-    Record<string, { primaryKey: readonly string[]; indexes: readonly (readonly string[])[] }>
-  >;
-  links: readonly string[];
-  schema: string;
-}
-
 export type Halt =
   | { kind: 'rejected-fact'; offset: StreamOffset; fact: FactID; reason: string }
   | { kind: 'rejected-scope'; scope: ScopeID; reason: string }
   | { kind: 'refused-operation'; at: StreamOffset | ScopeID; reason: string };
 
 export type Pins = Readonly<Record<string, VersionHash>>;
-
-export interface ConsumerVersion {
-  name: string;
-  module: VersionHash;
-  pins: Pins;
-  version: VersionHash;
-  manifest: ConsumerManifest;
-}

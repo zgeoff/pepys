@@ -3,6 +3,8 @@ import type { CheckedDeployment, DeploymentFailure, Plugin, Result } from '@pepy
 import type { BuildTarget } from './pick-build-target.ts';
 
 export interface CheckedTarget {
+  // the name of the deployment, or null for a plug-in built alone
+  deployment: string | null;
   checked: CheckedDeployment;
   plugins: readonly Plugin[];
 }
@@ -22,7 +24,14 @@ export function checkBuildTarget(
     const checked = checkDeployment(target.deployment);
 
     return checked.ok
-      ? { ok: true, value: { checked: checked.value, plugins: target.deployment.plugins } }
+      ? {
+          ok: true,
+          value: {
+            deployment: target.deployment.name,
+            checked: checked.value,
+            plugins: target.deployment.plugins,
+          },
+        }
       : checked;
   }
 
@@ -30,7 +39,7 @@ export function checkBuildTarget(
   const checked = checkDeployment({ name: plugin.name, plugins: [plugin] });
 
   if (checked.ok) {
-    return { ok: true, value: { checked: checked.value, plugins: [plugin] } };
+    return { ok: true, value: { deployment: null, checked: checked.value, plugins: [plugin] } };
   }
 
   const failures = checked.failure.filter((failure) => !needsOtherPlugins.has(failure.kind));
@@ -51,6 +60,7 @@ export function checkBuildTarget(
     ? {
         ok: true,
         value: {
+          deployment: null,
           checked: {
             ...settings.value,
             sources: plugin.sources,

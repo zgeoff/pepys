@@ -15,7 +15,6 @@
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
         "@s2-dev/streamstore": "catalog:",
-        "@scriptc/runtime-wasm32-wasi": "catalog:",
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
         "@types/bun": "catalog:",
@@ -33,7 +32,6 @@
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
-        "scriptc": "catalog:",
         "tiny-invariant": "catalog:",
         "tombi": "catalog:",
         "tslib": "catalog:",
@@ -74,7 +72,10 @@
       },
       "dependencies": {
         "@pepys/kit": "workspace:*",
+        "@pepys/schema": "workspace:*",
+        "@scriptc/runtime-wasm32-wasi": "catalog:",
         "@zgeoff/std": "catalog:",
+        "scriptc": "catalog:",
         "ts-pattern": "catalog:",
       },
       "devDependencies": {
@@ -150,10 +151,12 @@
     },
     "packages/schema": {
       "name": "@pepys/schema",
+      "version": "0.0.0",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
         "ts-pattern": "catalog:",
+        "zod": "catalog:",
       },
     },
     "packages/source-github": {

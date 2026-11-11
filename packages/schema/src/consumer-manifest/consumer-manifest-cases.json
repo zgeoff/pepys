@@ -1,0 +1,3262 @@
+{
+  "cases": [
+    {
+      "title": "accepts the stub deployment",
+      "file": {
+        "kit": 1,
+        "deployment": "stub",
+        "consumers": [
+          {
+            "name": "github_pull_request",
+            "module": "a25e6b685249d115d765f543ff3ed84fea7b8a52dfff3fa04a23a7bdf4897b02",
+            "path": "github_pull_request/a25e6b685249d115d765f543ff3ed84fea7b8a52dfff3fa04a23a7bdf4897b02.wasm",
+            "pins": {},
+            "version": "8ccc9611c23dc9a1aa81ef14ad89d259672c713f92d498fcfec75900451cd291",
+            "manifest": {
+              "name": "github_pull_request",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.github.pull_request"]
+              },
+              "exports": {
+                "init": "github_pull_request_init",
+                "apply": "github_pull_request_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "github_pull_request",
+                  "length": "readGithubPullRequestLength",
+                  "into": "readGithubPullRequestInto"
+                }
+              ],
+              "tables": {
+                "github_pull_request": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "number": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "repository_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "title": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "state": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "is_draft": {
+                      "kind": "boolean",
+                      "nullable": false
+                    },
+                    "is_merged": {
+                      "kind": "boolean",
+                      "nullable": false
+                    },
+                    "author_id": {
+                      "kind": "entityID",
+                      "nullable": true
+                    },
+                    "url": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "merge_commit_sha": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "created_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "updated_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "closed_at": {
+                      "kind": "timestamp",
+                      "nullable": true
+                    },
+                    "merged_at": {
+                      "kind": "timestamp",
+                      "nullable": true
+                    },
+                    "payload": {
+                      "kind": "json",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["repository_id"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a fact consumer with a row read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a scope consumer with two link types",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a fact consumer and a scope consumer in one file",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          },
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a plug-in built alone, with no deployment",
+      "file": {
+        "kit": 1,
+        "deployment": null,
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a file with no consumer",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": []
+      },
+      "isValid": true
+    },
+    {
+      "title": "accepts a fact consumer with no read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": true
+    },
+    {
+      "title": "refuses kit 2",
+      "file": {
+        "kit": 2,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field at the top",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ],
+        "linkTypes": []
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in an entry",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            },
+            "built": "2026-11-01"
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in a manifest",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n",
+              "reads": []
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in a table",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]],
+                  "unique": []
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in a column",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true,
+                      "default": ""
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in a read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto",
+                  "stream": "facts.harbour.tide"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in a link type",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false,
+                  "weight": 1
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown field in the input",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"],
+                "scopeKind": "harbour:berth"
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a missing schema",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": []
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a missing deployment field",
+      "file": {
+        "kit": 1,
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown input mode",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "batch",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown column kind",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "blob",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an unknown read kind",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "scan",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an empty stream list",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": []
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a stream name that is not a fact stream",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a scope kind with no source",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a scope consumer with a row read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "berth_booking",
+                  "length": "readBerthBookingLength",
+                  "into": "readBerthBookingInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a scope consumer with no read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a scope consumer with two reads",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                },
+                {
+                  "kind": "scope_facts",
+                  "length": "readOtherLength",
+                  "into": "readOtherInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a fact consumer with a scope read",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a row read of a table that the consumer does not own",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "berth_booking",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a consumer listed twice",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          },
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a table in two consumers",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          },
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a table named entity, which the host reserves",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "entity",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "entity": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a table named link, which the host reserves",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "link",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "link": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a link type declared twice",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                },
+                {
+                  "name": "moored_at",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a link type with no from kind",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "berth_plan",
+            "module": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "path": "berth_plan/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wasm",
+            "pins": {},
+            "version": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "manifest": {
+              "name": "berth_plan",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "harbour:berth",
+                "streams": ["facts.harbour.berth", "facts.harbour.ship"]
+              },
+              "exports": {
+                "init": "berth_plan_init",
+                "apply": "berth_plan_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "berth_booking": {
+                  "columns": {
+                    "berth_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "ship_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "booked_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    },
+                    "detail": {
+                      "kind": "json",
+                      "nullable": true
+                    }
+                  },
+                  "primaryKey": ["berth_id", "ship_id"],
+                  "indexes": [["ship_id"]]
+                }
+              },
+              "links": [
+                {
+                  "name": "moored_at",
+                  "from": [],
+                  "to": ["harbour:berth"],
+                  "hub": false
+                },
+                {
+                  "name": "owned_by",
+                  "from": ["harbour:ship"],
+                  "to": ["harbour:owner"],
+                  "hub": true
+                }
+              ],
+              "schema": "CREATE TABLE \"berth_booking\" (\n  \"berth_id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an empty export symbol",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an export symbol used twice",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_init"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an import symbol used twice",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingLength"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an empty primary key",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": [],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a primary key column that the table lacks",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["tide_id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an index column that the table lacks",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["height"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a module hash that is not 64 hex digits",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a version hash in capitals",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a pin that is not a hash",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {
+              "tide_model": "latest"
+            },
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a module path that leaves the folder",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "../tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an absolute module path",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "/srv/tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses an entry whose name differs from its manifest",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_history",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
+      "title": "refuses a nullable flag left out",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text"
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    }
+  ]
+}

@@ -1,11 +1,26 @@
 {
   "name": "@pepys/schema",
-  "private": true,
+  "version": "0.0.0",
+  "description": "The pepys consumer manifest: the types and the strict schema of consumers.json, with its shared case file",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/pepys.git",
+    "directory": "packages/schema"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts"
+  ],
   "type": "module",
   "exports": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@pepys/kit": "workspace:*",
     "@zgeoff/std": "catalog:",
-    "ts-pattern": "catalog:"
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
   }
 }

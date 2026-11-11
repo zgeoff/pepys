@@ -1,9 +1,8 @@
 import { join, relative } from 'node:path';
-import { collectGlueFiles } from '@pepys/cli';
-import { checkDeployment } from '@pepys/kit';
+import { checkBuildTarget, collectGlueFiles } from '@pepys/cli';
 import type { DeploymentFailure } from '@pepys/kit';
 import { generateKyselyTypes, generateRustTypes } from '@pepys/schema';
-import { consumerSources } from './consumer-sources.ts';
+import { stubDeployment } from './stub-deployment.ts';
 
 export interface GeneratedFile {
   path: string;
@@ -17,20 +16,17 @@ export type GeneratedFiles =
 const root = join(import.meta.dir, '..');
 
 export function buildGeneratedFiles(): GeneratedFiles {
-  const check = checkDeployment({
-    name: 'pepys',
-    plugins: consumerSources.map((source) => source.plugin),
-  });
+  const target = checkBuildTarget({ kind: 'deployment', deployment: stubDeployment });
 
-  if (!check.ok) {
-    return { ok: false, failures: check.failure };
+  if (!target.ok) {
+    return { ok: false, failures: target.failure };
   }
 
-  const consumers = check.value.consumers;
+  const consumers = target.value.checked.consumers;
 
   // the glue files come from the same code as `pepys build`
   const sourceFiles = collectGlueFiles({
-    target: { checked: check.value, plugins: consumerSources.map((source) => source.plugin) },
+    target: target.value,
     packageRoot: join(root, 'packages'),
   }).map((file) => ({ path: relative(root, file.path), content: file.content }));
 

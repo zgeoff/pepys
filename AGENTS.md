@@ -49,9 +49,9 @@ docs/
 
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
   A package depends on it as `catalog:`.
-- A package is private and named `@pepys/<folder>`, except `@pepys/cli`, which is public: it has a
-  `bin` entry and `publishConfig.access` of `public`, and it imports `@pepys/kit` and no other
-  private workspace package.
+- A package is private and named `@pepys/<folder>`, except `@pepys/cli` and `@pepys/schema`, which
+  are public: each has `publishConfig.access` of `public`, and imports `@pepys/kit`, `@pepys/schema`
+  and no other workspace package. `@pepys/cli` also has a `bin` entry.
 - A package exports `./src/index.ts`. Internal packages have no build step.
 - A spike under `research/` is the exception to the catalog rule: it pins its own exact versions,
   because it records what it ran against.
@@ -85,9 +85,10 @@ docs/
 - `bun run schema:generate` writes the generated files, and `bun run schema:check` exits 1 on a
   stale one. Both write each consumer's boundary file and SQL schema, its glue, with the code of
   `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`. That command needs no Docker.
-- `bun run consumers:build` compiles each consumer with scriptc to
-  `build/consumers/<name>/<hash>.wasm`. It needs zig 0.16.0 and wasm-tools 1.262.0, the version CI
-  pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
+- `bun run consumers:build` runs `pepys build scripts/stub-deployment.ts --out build/consumers`. It
+  compiles each consumer of the repo's stub deployment with scriptc to
+  `build/consumers/<name>/<hash>.wasm`, and writes `build/consumers/consumers.json`. It needs zig
+  0.16.0 and wasm-tools 1.262.0, the version CI pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
 - `bun run test:e2e` runs the e2e lane: the GitHub pull request path end to end against Garage and
   s2-lite in Docker, a signed webhook through ingest and the host to a Turso file, then the API. It
   needs Docker, the host built at `target/debug/pepys` and the consumers built, so run

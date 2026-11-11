@@ -1,4 +1,6 @@
+export { consumerBuildManifestSchema } from './consumer-manifest/consumer-build-manifest-schema.ts';
 export type * from './consumer-execution/types.ts';
+export type * from './consumer-manifest/types.ts';
 export { generateKyselyTypes } from './generators/generate-kysely-types.ts';
 export { generateRustTypes } from './generators/generate-rust-types.ts';
 export type { DB } from './generated/kysely-db.ts';

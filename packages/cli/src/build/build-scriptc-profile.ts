@@ -1,16 +1,27 @@
 import type { ConsumerDeclaration } from '@pepys/kit';
 import { toPascalCase } from '@pepys/kit/generators';
+import { buildModuleSymbols } from './build-module-symbols.ts';
 import { consumerFences } from './consumer-fences.ts';
 
-interface ConsumerProfileParameters {
+interface ScriptcProfileParameters {
   consumer: ConsumerDeclaration;
+
+  // scriptc reads the entry relative to the folder of the profile file
   entry: string;
 }
 
-export function buildConsumerProfile(parameters: ConsumerProfileParameters): object {
+// The scriptc library profile of one consumer: the entry, the symbols of its exports and of the
+// host functions it imports, and the determinism fences.
+export function buildScriptcProfile(parameters: ScriptcProfileParameters): object {
   const name = parameters.consumer.name;
   const prefix = `${name}_`;
   const pascalName = toPascalCase(name);
+  const symbols = buildModuleSymbols(parameters.consumer);
+
+  const callbacks = symbols.imports.flatMap((read) => [
+    { name: read.length, params: ['string'], returns: 'f64' },
+    { name: read.into, params: ['string', 'bytes'], returns: 'void' },
+  ]);
 
   return {
     profile_format: 1,
@@ -19,18 +30,17 @@ export function buildConsumerProfile(parameters: ConsumerProfileParameters): obj
     emission: 'llvm',
     abi: {
       prefix,
-      init_symbol: `${prefix}init`,
+      init_symbol: symbols.exports.init,
       sink_register_symbol: `${prefix}sink`,
-      callback_register_symbol: `${prefix}callback`,
+
+      // scriptc refuses a register symbol with no callbacks to register (SC4001)
+      ...(callbacks.length === 0 ? {} : { callback_register_symbol: `${prefix}callback` }),
     },
-    callbacks: parameters.consumer.reads.flatMap((table) => [
-      { name: `read${toPascalCase(table)}Length`, params: ['string'], returns: 'f64' },
-      { name: `read${toPascalCase(table)}Into`, params: ['string', 'bytes'], returns: 'void' },
-    ]),
+    callbacks,
     exports: [
       {
-        export: 'applyFact',
-        symbol: `${prefix}apply_fact`,
+        export: symbols.entryExport,
+        symbol: symbols.exports.apply,
         params: ['string'],
         returns: 'string',
       },

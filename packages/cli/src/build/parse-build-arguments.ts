@@ -4,9 +4,10 @@ import type { Result } from '@pepys/kit';
 export interface BuildArguments {
   file: string;
   isCheck: boolean;
+  out: string | undefined;
 }
 
-export const usage = 'usage: pepys build <file> [--check]';
+export const usage = 'usage: pepys build <file> [--out <directory>] [--check]';
 
 export function parseBuildArguments(args: readonly string[]): Result<BuildArguments, string> {
   const [command, ...rest] = args;
@@ -19,7 +20,7 @@ export function parseBuildArguments(args: readonly string[]): Result<BuildArgume
     const parsed = parseArgs({
       args: rest,
       allowPositionals: true,
-      options: { check: { type: 'boolean' } },
+      options: { check: { type: 'boolean' }, out: { type: 'string' } },
     });
 
     const [file, ...extra] = parsed.positionals;
@@ -28,7 +29,14 @@ export function parseBuildArguments(args: readonly string[]): Result<BuildArgume
       return { ok: false, failure: usage };
     }
 
-    return { ok: true, value: { file, isCheck: parsed.values.check === true } };
+    const isCheck = parsed.values.check === true;
+
+    // --check writes nothing, so it takes no folder to write to
+    if (isCheck && parsed.values.out !== undefined) {
+      return { ok: false, failure: `--check takes no --out\n${usage}` };
+    }
+
+    return { ok: true, value: { file, isCheck, out: parsed.values.out } };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
 

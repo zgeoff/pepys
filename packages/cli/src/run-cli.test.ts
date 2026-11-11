@@ -52,7 +52,7 @@ test('it exits 1 with the usage on no arguments', async () => {
 
   expect(result).toStrictEqual({
     stdout: '',
-    stderr: 'usage: pepys build <file> [--check]\n',
+    stderr: 'usage: pepys build <file> [--out <directory>] [--check]\n',
     exitCode: 1,
   });
 });

@@ -4,11 +4,12 @@
 
 import { afterAll, beforeAll } from 'bun:test';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Webhooks } from '@octokit/webhooks';
 import { createStoreReader, openConsumerDatabase, readOffsets } from '@pepys/api';
+import { consumerBuildManifestSchema } from '@pepys/schema';
 import { S2 } from '@s2-dev/streamstore';
 import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 import { buildStackEnv } from '../stack/build-stack-env.ts';
@@ -50,26 +51,26 @@ beforeAll(
 
 afterAll(() => cleanup.disposeAsync());
 
+// the module that consumers.json lists, which the last `bun run consumers:build` wrote
 async function readModule(): Promise<string> {
-  const directory = join(root, 'build/consumers', consumerName);
+  const directory = join(root, 'build/consumers');
+  const manifestPath = join(directory, 'consumers.json');
 
-  if (!existsSync(host) || !existsSync(directory)) {
+  if (!existsSync(host) || !existsSync(manifestPath)) {
     throw new Error('build the host and the consumers first: bun run test:e2e:prepare');
   }
 
-  const names = await readdir(directory);
+  const text: unknown = await Bun.file(manifestPath).json();
 
-  const modified = names
-    .filter((name) => name.endsWith('.wasm'))
-    .map((name) => ({ name, time: Bun.file(join(directory, name)).lastModified }));
+  const listed = consumerBuildManifestSchema
+    .parse(text)
+    .consumers.find((consumer) => consumer.name === consumerName);
 
-  const [newest] = modified.toSorted((first, second) => second.time - first.time);
-
-  if (newest === undefined) {
-    throw new Error(`no built module for ${consumerName}: bun run test:e2e:prepare`);
+  if (listed === undefined) {
+    throw new Error(`consumers.json lists no ${consumerName}: bun run test:e2e:prepare`);
   }
 
-  return join(directory, newest.name);
+  return join(directory, listed.path);
 }
 
 // withStack removes the compose project when its callback returns, so the callback holds the stack

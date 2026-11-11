@@ -14,8 +14,14 @@ async function setupTest() {
 
   await Bun.write(join(root, 'package.json'), '{ "name": "stub-plugin", "type": "module" }');
 
+  // no machine running this test needs zig or wasm-tools
+  const tools = { scriptc: join(root, 'no-scriptc'), zig: undefined, wasmTools: undefined };
+
   return {
     root,
+    runGlueBuild: (file: string, isCheck: boolean) =>
+      runBuild({ file, isCheck, out: undefined, tools }),
+    runModuleBuild: (file: string, out: string) => runBuild({ file, isCheck: false, out, tools }),
     writePluginFile: (file: string, extraColumns: readonly string[]) =>
       Bun.write(join(root, 'src', file), buildStubPluginSource(extraColumns)),
     readGlue: (name: string) => Bun.file(join(root, 'src/generated', name)).text(),
@@ -32,7 +38,7 @@ test('it writes the glue of each consumer of a plug-in', async () => {
 
   await ctx.writePluginFile('plugin.ts', ['title']);
 
-  const outcome = await runBuild({ file: join(ctx.root, 'src/plugin.ts'), isCheck: false });
+  const outcome = await ctx.runGlueBuild(join(ctx.root, 'src/plugin.ts'), false);
   const sql = await ctx.readGlue('stub-tickets.sql');
   const boundary = await ctx.readGlue('stub-tickets-boundary.ts');
 
@@ -57,10 +63,10 @@ test('it changes no file on a second run', async () => {
 
   const file = join(ctx.root, 'src/plugin.ts');
 
-  await runBuild({ file, isCheck: false });
+  await ctx.runGlueBuild(file, false);
 
   const modifiedMs = await ctx.readModifiedMs('stub-tickets.sql');
-  const second = await runBuild({ file, isCheck: false });
+  const second = await ctx.runGlueBuild(file, false);
   const secondModifiedMs = await ctx.readModifiedMs('stub-tickets.sql');
 
   expect(second).toMatchObject({ kind: 'built', written: [] });
@@ -74,9 +80,9 @@ test('it reports fresh glue under --check', async () => {
 
   const file = join(ctx.root, 'src/plugin.ts');
 
-  await runBuild({ file, isCheck: false });
+  await ctx.runGlueBuild(file, false);
 
-  const outcome = await runBuild({ file, isCheck: true });
+  const outcome = await ctx.runGlueBuild(file, true);
 
   expect(outcome).toStrictEqual({ kind: 'fresh', count: 2 });
 });
@@ -86,7 +92,7 @@ test('it reports every glue file as stale under --check before a first build', a
 
   await ctx.writePluginFile('plugin.ts', ['title']);
 
-  const outcome = await runBuild({ file: join(ctx.root, 'src/plugin.ts'), isCheck: true });
+  const outcome = await ctx.runGlueBuild(join(ctx.root, 'src/plugin.ts'), true);
   const isWritten = await Bun.file(join(ctx.root, 'src/generated/stub-tickets.sql')).exists();
 
   expect(outcome).toMatchObject({ kind: 'stale', stale: expect.toBeArrayOfSize(2) });
@@ -97,13 +103,12 @@ test('it reports stale glue under --check after a table gains a column', async (
   const ctx = await setupTest();
 
   await ctx.writePluginFile('plugin.ts', ['title']);
-
-  await runBuild({ file: join(ctx.root, 'src/plugin.ts'), isCheck: false });
+  await ctx.runGlueBuild(join(ctx.root, 'src/plugin.ts'), false);
 
   // the same consumer with one more column, in a second file so the module cache does not hide it
   await ctx.writePluginFile('plugin-more.ts', ['title', 'state']);
 
-  const outcome = await runBuild({ file: join(ctx.root, 'src/plugin-more.ts'), isCheck: true });
+  const outcome = await ctx.runGlueBuild(join(ctx.root, 'src/plugin-more.ts'), true);
 
   expect(outcome).toStrictEqual({
     kind: 'stale',
@@ -114,12 +119,28 @@ test('it reports stale glue under --check after a table gains a column', async (
   });
 });
 
+test('it writes the glue and then names zig when a module build has no zig', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writePluginFile('plugin.ts', ['title']);
+
+  const outcome = await ctx.runModuleBuild(
+    join(ctx.root, 'src/plugin.ts'),
+    join(ctx.root, 'build'),
+  );
+
+  const isGlueWritten = await Bun.file(join(ctx.root, 'src/generated/stub-tickets.sql')).exists();
+
+  expect(outcome).toStrictEqual({ kind: 'missing-tool', tool: 'zig' });
+  expect(isGlueWritten).toBeTrue();
+});
+
 test('it refuses a file that exports no Deployment and no Plugin', async () => {
   const ctx = await setupTest();
 
   await Bun.write(join(ctx.root, 'src/empty.ts'), 'export const value = 1;\n');
 
-  const outcome = await runBuild({ file: join(ctx.root, 'src/empty.ts'), isCheck: false });
+  const outcome = await ctx.runGlueBuild(join(ctx.root, 'src/empty.ts'), false);
 
   expect(outcome).toStrictEqual({ kind: 'no-target', reason: 'no-target' });
 });

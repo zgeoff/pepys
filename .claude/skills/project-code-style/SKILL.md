@@ -47,8 +47,9 @@ packages/example/src/
   `defineConsumer` declaration, then run `bun run schema:generate`.
 - Put each consumer of a source in `src/consumers/<consumer-file>.ts` of the source's package,
   `packages/source-<source>/`, with its test beside it as `<consumer-file>.test.ts`. This is the one
-  exception to a folder per feature: [`build-consumers.ts`](../../../scripts/build-consumers.ts)
-  finds a consumer only at that path.
+  exception to a folder per feature. Point the declaration's `entry` at the consumer file, with a
+  URL relative to the declaration file. In the consumer file, import only other files under the
+  package's `src/`. `pepys build` compiles a copy of `src/`, and the copy holds nothing else.
 - Derive `<consumer-file>` from the name in the consumer's `defineConsumer` declaration, with each
   `_` changed to `-`, so `github_pull_request` becomes `github-pull-request`.
   [`github-pull-request-consumer.ts`](../../../packages/source-github/src/github-pull-request-consumer.ts)
