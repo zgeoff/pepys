@@ -151,11 +151,12 @@ test('it shows an empty preview diff for the module that is already current', as
 test('it swaps nothing when up runs again with the same consumers.json', async () => {
   const ctx = setupTest();
 
-  const output = await ctx.runHost(['up']);
+  // one consumer, because the debug host compiles each module for seconds on a CI runner
+  const output = await ctx.runHost(['up', 'github_pull_request']);
 
   expect(output).toStrictEqual({
     exitCode: 0,
-    stdout: expect.stringContaining('no swap'),
+    stdout: expect.stringMatching(/^github_pull_request [0-9a-f]{64}: no swap/u),
   });
 });
 
