@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
+import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 function setupTest() {
@@ -22,11 +23,18 @@ function setupTest() {
       return { exitCode, stderr };
     },
     readKitVersion: async () => {
-      const manifest: { version: string } = await Bun.file(
+      const manifest: unknown = await Bun.file(
         join(import.meta.dir, '..', '..', 'packages', 'kit', 'package.json'),
       ).json();
 
-      return manifest.version;
+      const version: unknown =
+        typeof manifest === 'object' && manifest !== null
+          ? Reflect.get(manifest, 'version')
+          : undefined;
+
+      invariant(typeof version === 'string', 'the kit has a version');
+
+      return version;
     },
   };
 }

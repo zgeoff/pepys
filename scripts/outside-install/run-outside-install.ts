@@ -77,12 +77,13 @@ async function readSource(
   }
 
   if (packDirectory !== undefined && packDirectory !== '') {
-    const tarballs = publicPackages.map((pkg) => [
-      pkg.name,
-      join(packDirectory, buildTarballName(pkg)),
-    ]);
+    const tarballs: Record<string, string> = {};
 
-    return { kind: 'tarballs', tarballs: Object.fromEntries(tarballs) };
+    for (const pkg of publicPackages) {
+      tarballs[pkg.name] = join(packDirectory, buildTarballName(pkg));
+    }
+
+    return { kind: 'tarballs', tarballs };
   }
 
   const destination = join(folder, 'tarballs');
