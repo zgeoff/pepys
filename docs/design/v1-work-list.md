@@ -134,6 +134,11 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 - **Outcome:** the host runs a scope consumer: it indexes facts once per fact ID, calls the module
   per dirty scope with a bounded read, and replaces the scope by a diff.
 - **Sketch:** 03, parts D, E, F3, F4 and F6.
+- **Reference code:** the branch `spike/v1-host-scope` holds trial code for the scope batch, the
+  scope replace, rows from a manifest, the fact index and the link check, with 9 tests that run a
+  compiled module. Read it, and do not merge it: it fails clippy, and
+  [Open for the builder](./v1-open.md#the-host) lists where it departs from the sketch. Slices 9 and
+  10 can read its rows and links code too.
 - **Needs first:** slice 10.
 - **Check:** with a canned runner: a fact twice changes no row, no link and no change log row; a row
   that another scope owns stops the batch; a failure in the second of two dirty scopes rolls the

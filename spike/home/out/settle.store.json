@@ -1,0 +1,119 @@
+{
+  "boxxy_attempt": [
+    {
+      "atc_session": null,
+      "claimed_at": "2026-11-11T02:00:00.000Z",
+      "closed_out_at": null,
+      "ended_at": "2026-11-11T03:30:00.000Z",
+      "failure": "item-closed",
+      "id": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c1",
+      "item_id": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "mode": "attended",
+      "number": 1,
+      "outcome": "lost",
+      "phase": "design",
+      "pool": "build",
+      "recipe_hash": "sha256:1f0e",
+      "round": 1,
+      "rules_version": "rules-12",
+      "sleeps": [
+        {
+          "from": "2026-11-11T03:00:00.000Z",
+          "to": "2026-11-11T03:30:00.000Z"
+        }
+      ],
+      "started_at": null,
+      "state": "failed",
+      "updated_at": "2026-11-11T03:30:00.000Z"
+    },
+    {
+      "atc_session": null,
+      "claimed_at": "2026-11-11T04:00:00.000Z",
+      "closed_out_at": null,
+      "ended_at": "2026-11-11T04:25:00.000Z",
+      "failure": "timed-out",
+      "id": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c2",
+      "item_id": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "mode": "agent",
+      "number": 2,
+      "outcome": "lost",
+      "phase": "build",
+      "pool": "build",
+      "recipe_hash": "sha256:1f0e",
+      "round": 1,
+      "rules_version": "rules-12",
+      "sleeps": [],
+      "started_at": null,
+      "state": "failed",
+      "updated_at": "2026-11-11T04:25:00.000Z"
+    },
+    {
+      "atc_session": null,
+      "claimed_at": "2026-11-11T05:00:00.000Z",
+      "closed_out_at": null,
+      "ended_at": "2026-11-11T05:10:00.000Z",
+      "failure": "closeout-unsettleable",
+      "id": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c3",
+      "item_id": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "mode": "agent",
+      "number": 3,
+      "outcome": "unsettleable",
+      "phase": "review",
+      "pool": "build",
+      "recipe_hash": "sha256:1f0e",
+      "round": 1,
+      "rules_version": "rules-12",
+      "sleeps": [],
+      "started_at": null,
+      "state": "failed",
+      "updated_at": "2026-11-11T05:10:00.000Z"
+    }
+  ],
+  "boxxy_attempt_session": [],
+  "boxxy_item": [
+    {
+      "close_reason": null,
+      "closed_at": null,
+      "design_mode": null,
+      "filed_at": "2026-11-11T02:00:00.000Z",
+      "id": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "kind": "feature",
+      "repo": "shoal/charts",
+      "title": "Chart the shoals",
+      "updated_at": "2026-11-11T02:00:00.000Z"
+    }
+  ],
+  "entity_view_rows": 4,
+  "link_owners": [
+    ["boxxy:item:0193a1b2-0000-7000-8000-000000000001", "boxxy_work"],
+    ["boxxy:item:0193a1b2-0000-7000-8000-000000000001", "boxxy_work"],
+    ["boxxy:item:0193a1b2-0000-7000-8000-000000000001", "boxxy_work"]
+  ],
+  "links": [
+    {
+      "confidence": 1.0,
+      "evidence": "event:boxxy:0193a1b2-0000-7000-9000-000000000002",
+      "from": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c1",
+      "to": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "type": "attempt_of"
+    },
+    {
+      "confidence": 1.0,
+      "evidence": "event:boxxy:0193a1b2-0000-7000-9000-000000000005",
+      "from": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c2",
+      "to": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "type": "attempt_of"
+    },
+    {
+      "confidence": 1.0,
+      "evidence": "event:boxxy:0193a1b2-0000-7000-9000-000000000007",
+      "from": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000c3",
+      "to": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "type": "attempt_of"
+    }
+  ],
+  "scope_row": [
+    ["boxxy_attempt", "boxxy:item:0193a1b2-0000-7000-8000-000000000001", 3],
+    ["boxxy_item", "boxxy:item:0193a1b2-0000-7000-8000-000000000001", 1]
+  ]
+}

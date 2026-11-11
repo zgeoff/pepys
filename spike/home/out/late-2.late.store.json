@@ -1,0 +1,60 @@
+{
+  "boxxy_attempt": [
+    {
+      "atc_session": "s-triage",
+      "claimed_at": "2026-11-11T02:01:00.000Z",
+      "closed_out_at": null,
+      "ended_at": null,
+      "failure": null,
+      "id": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000a1",
+      "item_id": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "mode": "agent",
+      "number": 1,
+      "outcome": null,
+      "phase": "triage",
+      "pool": "build",
+      "recipe_hash": "sha256:1f0e",
+      "round": 1,
+      "rules_version": "rules-12",
+      "sleeps": [],
+      "started_at": "2026-11-11T02:01:05.000Z",
+      "state": "live",
+      "updated_at": "2026-11-11T02:01:05.000Z"
+    }
+  ],
+  "boxxy_attempt_session": [
+    {
+      "attempt_id": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000a1",
+      "bound_at": "2026-11-11T02:01:05.000Z",
+      "key": "atc",
+      "product": null,
+      "session_id": "telemetry:session:s-triage"
+    }
+  ],
+  "boxxy_item": [],
+  "entity_view_rows": 1,
+  "link_owners": [
+    ["boxxy:item:0193a1b2-0000-7000-8000-000000000001", "boxxy_work"],
+    ["boxxy:item:0193a1b2-0000-7000-8000-000000000001", "boxxy_work"]
+  ],
+  "links": [
+    {
+      "confidence": 1.0,
+      "evidence": "event:boxxy:0193a1b2-0000-7000-9000-000000000002",
+      "from": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000a1",
+      "to": "boxxy:item:0193a1b2-0000-7000-8000-000000000001",
+      "type": "attempt_of"
+    },
+    {
+      "confidence": 1.0,
+      "evidence": "event:boxxy:0193a1b2-0000-7000-9000-000000000001",
+      "from": "boxxy:attempt:0193a1b2-0000-7000-8000-0000000000a1",
+      "to": "telemetry:session:s-triage",
+      "type": "ran_in"
+    }
+  ],
+  "scope_row": [
+    ["boxxy_attempt", "boxxy:item:0193a1b2-0000-7000-8000-000000000001", 1],
+    ["boxxy_attempt_session", "boxxy:item:0193a1b2-0000-7000-8000-000000000001", 1]
+  ]
+}

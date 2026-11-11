@@ -2,10 +2,11 @@
 
 This doc lists what the builder of [pepys v1](./v1.md) must settle. No sketch was compiled or
 type-checked. Two trial runs tested the riskiest parts: one ran a real compiled module through the
-real Rust host, and one compiled the real `boxxy_work` entry file with scriptc. Neither run's code
-is in this repo, so this doc states what each one built and found. The other sections list the gaps
-inside the sketches, and every item that the sketches mark as assumed, not checked or not designed.
-Fix the sketch's rule in the code where a finding here contradicts it.
+real Rust host, and one compiled the real `boxxy_work` entry file with scriptc. The host run's code
+is on the branch `spike/v1-host-scope`, as reference code: read it, and do not merge it. The scriptc
+run's code is not in this repo. This doc states what each run built and found. The other sections
+list the gaps inside the sketches, and every item that the sketches mark as assumed, not checked or
+not designed. Fix the sketch's rule in the code where a finding here contradicts it.
 
 ## The host
 
