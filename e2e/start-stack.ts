@@ -118,9 +118,13 @@ async function runSlice(options: SliceOptions): Promise<void> {
     ...process.env,
     PEPYS_INGEST_PORT: String(ingestPort),
     PEPYS_GITHUB_WEBHOOK_SECRET: webhookSecret,
+
+    // The first pull runs a minute after start, and with no marks it calls no API.
+    PEPYS_GITHUB_APP_ID: '1',
+    PEPYS_GITHUB_APP_PRIVATE_KEY: 'unused',
   });
 
-  const webhookURL = `http://127.0.0.1:${ingestPort}/webhook`;
+  const webhookURL = `http://127.0.0.1:${ingestPort}/webhook/github`;
 
   await waitForIngest(webhookURL, options.stack.stop);
   await runHost(['up']);

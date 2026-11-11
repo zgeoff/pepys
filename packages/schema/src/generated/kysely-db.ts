@@ -18,6 +18,48 @@ export interface GithubPullRequestRow {
   payload: unknown;
 }
 
+export interface GithubReleaseBumpRow {
+  pull_request_id: string;
+  release_repository: string;
+  release_tag: string;
+}
+
+export interface GithubReleaseRow {
+  id: string;
+  repository_id: string;
+  repository_full_name: string;
+  tag_name: string;
+  target_commitish: string;
+  name: string;
+  url: string;
+  is_draft: 0 | 1;
+  is_prerelease: 0 | 1;
+  created_at: string;
+  published_at: string | null;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface GithubCommitRow {
+  repository_id: string;
+  sha: string;
+  committed_at: string;
+}
+
+export interface GithubDeployRow {
+  id: string;
+  repository_id: string;
+  environment: string;
+  target: string | null;
+  sha: string;
+  signal: string;
+  deployed_at: string;
+}
+
 export interface DB {
   github_pull_request: GithubPullRequestRow;
+  github_release_bump: GithubReleaseBumpRow;
+  github_release: GithubReleaseRow;
+  github_commit: GithubCommitRow;
+  github_deploy: GithubDeployRow;
 }

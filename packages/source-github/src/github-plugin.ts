@@ -1,26 +1,15 @@
-import { definePlugin, defineSource } from '@pepys/kit';
-import { githubPullRequestConsumer } from './github-pull-request-consumer.ts';
-import { readPullRequestDelivery } from './ingest/read-pull-request-delivery.ts';
-import { pullRequestFamily } from './pull-request-family.ts';
+import { definePlugin } from '@pepys/kit';
+import { githubSettings } from './github-settings.ts';
+import { githubSource } from './github-source.ts';
+import { githubDeliveryConsumers } from './queries/github-delivery-consumers.ts';
+import { pullRequestDeliveryQuery } from './queries/pull-request-delivery-query.ts';
 
+// One plug-in for every deployment. A deployment that uses another tag pattern sets
+// `settings.github.deployTagPattern` in its deployment file.
 export const githubPlugin = definePlugin({
   name: 'github',
-  sources: [
-    defineSource({
-      name: 'github',
-      families: [pullRequestFamily],
-      live: {
-        kind: 'receive',
-        route: '/webhook',
-        check: {
-          kind: 'hmac-sha256',
-          header: 'x-hub-signature-256',
-          secretEnv: 'PEPYS_GITHUB_WEBHOOK_SECRET',
-        },
-        reach: 'public',
-        read: readPullRequestDelivery,
-      },
-    }),
-  ],
-  consumers: [githubPullRequestConsumer],
+  settings: githubSettings,
+  sources: [githubSource],
+  consumers: [...githubDeliveryConsumers],
+  queries: [pullRequestDeliveryQuery],
 });

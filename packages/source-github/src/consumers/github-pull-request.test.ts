@@ -376,3 +376,181 @@ test('it returns no operations for a pull request without a base repository', ()
 
   expect(JSON.parse(applyFact(factJSON))).toStrictEqual([]);
 });
+
+test('it upserts one bump row per release URL in the body of a bot pull request', () => {
+  setupTest();
+
+  const pullRequest = {
+    id: 88,
+    number: 14,
+    title: 'Bump the kit',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/14',
+    user: { id: 9001, type: 'Bot' },
+    base: { repo: { id: 902 } },
+    body: [
+      'Bumps [kit](https://github.com/acme/kit) from 1.1.0 to 1.2.0.',
+      '- [Release notes](https://github.com/acme/kit/releases/tag/kit%2Fv1.2.0)',
+      '- See https://github.com/acme/tide/releases/tag/v3.0.0 and',
+      '  [again](https://github.com/acme/kit/releases/tag/kit%2Fv1.2.0).',
+    ].join('\n'),
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-01T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:88',
+          number: 14,
+          repository_id: 'github:repo:902',
+          title: 'Bump the kit',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: 'github:user:9001',
+          url: 'https://github.example/acme/harbour/pull/14',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_release_bump: {
+          pull_request_id: 'github:pull_request:88',
+          release_repository: 'acme/kit',
+          release_tag: 'kit/v1.2.0',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_release_bump: {
+          pull_request_id: 'github:pull_request:88',
+          release_repository: 'acme/tide',
+          release_tag: 'v3.0.0',
+        },
+      },
+    },
+  ]);
+});
+
+test('it writes no bump row for a release URL in the body of a person', () => {
+  setupTest();
+
+  const pullRequest = {
+    id: 89,
+    number: 15,
+    title: 'Note the release',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/15',
+    user: { id: 4401, type: 'User' },
+    base: { repo: { id: 902 } },
+    body: 'See https://github.com/acme/kit/releases/tag/v1.2.0',
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-01T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+  const operations: unknown = JSON.parse(applyFact(factJSON));
+
+  expect(operations).toStrictEqual([
+    { upsert: { github_pull_request: expect.objectContaining({ id: 'github:pull_request:89' }) } },
+  ]);
+});
+
+test('it replaces the bump rows of the stored body with those of a newer body', () => {
+  const ctx = setupTest();
+
+  const storedPullRequest = {
+    id: 88,
+    user: { id: 9001, type: 'Bot' },
+    body: 'https://github.com/acme/kit/releases/tag/v1.2.0 https://github.com/acme/tide/releases/tag/v3.0.0',
+  };
+
+  ctx.rows.set(
+    'github:pull_request:88',
+    JSON.stringify({
+      id: 'github:pull_request:88',
+      number: 14,
+      repository_id: 'github:repo:902',
+      title: 'Bump the kit',
+      state: 'open',
+      is_draft: false,
+      is_merged: false,
+      author_id: 'github:user:9001',
+      url: 'https://github.example/acme/harbour/pull/14',
+      merge_commit_sha: null,
+      created_at: '2026-10-01T09:00:00Z',
+      updated_at: '2026-10-01T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: storedPullRequest,
+    }),
+  );
+
+  const pullRequest = {
+    id: 88,
+    number: 14,
+    title: 'Bump the kit',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/14',
+    user: { id: 9001, type: 'Bot' },
+    base: { repo: { id: 902 } },
+    body: 'https://github.com/acme/tide/releases/tag/v3.0.0 https://github.com/acme/kit/releases/tag/v1.3.0',
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-01T10:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:88',
+          number: 14,
+          repository_id: 'github:repo:902',
+          title: 'Bump the kit',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: 'github:user:9001',
+          url: 'https://github.example/acme/harbour/pull/14',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T10:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      delete: {
+        github_release_bump: {
+          pull_request_id: 'github:pull_request:88',
+          release_repository: 'acme/kit',
+          release_tag: 'v1.2.0',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_release_bump: {
+          pull_request_id: 'github:pull_request:88',
+          release_repository: 'acme/kit',
+          release_tag: 'v1.3.0',
+        },
+      },
+    },
+  ]);
+});

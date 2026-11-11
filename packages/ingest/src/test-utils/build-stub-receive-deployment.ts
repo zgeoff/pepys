@@ -12,6 +12,7 @@ import type {
   Delivery,
   EntityID,
   FactID,
+  PendingFact,
   Received,
   SourceDefinition,
   StreamName,
@@ -80,7 +81,15 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
       kind: 'pull',
       name: 'resync',
       intervalMs: null,
-      pull: () => Promise.resolve({ kind: 'rejected', reason: 'the stub pulls nothing' }),
+
+      // one `noted` fact per marked till
+      pull: (_cursor, context) =>
+        Promise.resolve({
+          kind: 'batch',
+          batch: { facts: context.marks.map((mark) => buildResyncedTill(mark.entity)) },
+          cursor: 'resynced',
+          isDone: true,
+        }),
     },
   });
 
@@ -132,6 +141,22 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
     deployment: deployment.value,
     ledgerSource,
     streams: { till: tillStream, lamp: lampStream, stray: strayStream, strayMark: strayMarkStream },
+  };
+}
+
+function buildResyncedTill(entity: EntityID): PendingFact {
+  return {
+    stream: tillStream,
+    blobs: [],
+    fact: {
+      id: toTagged<FactID>(`event:ledger:resynced-${entity}`),
+      type: 'ledger.till.noted',
+      v: 1,
+      api: 'ledger/1',
+      entity,
+      at: '2026-10-01T10:00:00Z',
+      payload: { note: 'resynced' },
+    },
   };
 }
 

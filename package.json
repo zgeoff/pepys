@@ -8,6 +8,8 @@
     ],
     "catalog": {
       "@commitlint/cli": "21.2.4",
+      "@msw/data": "1.1.8",
+      "@mswjs/interceptors": "0.45.11",
       "@octokit/webhooks": "14.2.0",
       "@modelcontextprotocol/server": "2.4.0",
       "@orpc/client": "2.0.0-beta.50",
@@ -36,6 +38,7 @@
       "knip": "6.44.1",
       "kysely": "0.29.8",
       "lefthook": "2.2.2",
+      "msw": "3.0.3",
       "openapi-types": "12.1.3",
       "oxfmt": "0.75.0",
       "oxlint": "1.90.0",
@@ -86,6 +89,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
+    "@mswjs/interceptors": "catalog:",
     "@octokit/webhooks": "catalog:",
     "@orpc/client": "catalog:",
     "@pepys/api": "workspace:*",
@@ -109,6 +113,7 @@
     "@zgeoff/rig": "catalog:",
     "knip": "catalog:",
     "lefthook": "catalog:",
+    "msw": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

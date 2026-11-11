@@ -1,6 +1,8 @@
 import type { CheckedDeployment, SenderProof } from '@pepys/kit';
 import type { FactLog } from '../fact-log/fact-log.ts';
 import { makeBatchAppender } from '../fact-log/make-batch-appender.ts';
+import { makePullRunner } from '../pull/make-pull-runner.ts';
+import type { PullRunner } from '../pull/make-pull-runner.ts';
 import { buildFailureAnswer } from './answers/build-failure-answer.ts';
 import { makeIgnoredRouteHandler, makeReceiveHandler } from './make-receive-handler.ts';
 import { createRecentBodies } from './recent-bodies/create-recent-bodies.ts';
@@ -11,7 +13,8 @@ import type { StreamTurns } from './write-batch.ts';
 export interface IngestOptions {
   deployment: CheckedDeployment;
 
-  // one value per `check.secretEnv` of the deployment; a missing or empty one refuses every delivery
+  // One value per `check.secretEnv` and per name in a pull path's `env`. A missing or empty secret
+  // refuses every delivery.
   secrets: Readonly<Record<string, string>>;
   log: FactLog;
   senderProof: SenderProof;
@@ -25,6 +28,9 @@ export interface Ingest {
 
   // what a source's resync pull reads
   resyncMarks: ResyncMarks;
+
+  // one run of a pull path of the deployment, with its batch stored
+  runPull: PullRunner;
 }
 
 const recentBodyCapacity = 10_000;
@@ -86,5 +92,12 @@ export function createIngest(options: IngestOptions): Ingest {
       return answer;
     },
     resyncMarks: resync.marks,
+    runPull: makePullRunner({
+      deployment: options.deployment,
+      secrets: options.secrets,
+      append,
+      turns,
+      resyncMarks: resync.marks,
+    }),
   };
 }

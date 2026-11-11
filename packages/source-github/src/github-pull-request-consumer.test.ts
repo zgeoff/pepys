@@ -9,8 +9,11 @@ test('it declares a consumer that passes the deployment check', () => {
   expect(checked.ok).toBe(true);
 });
 
-test('it owns the pull request table and tails the pull request stream', () => {
-  expect(Object.keys(githubPullRequestConsumer.tables)).toStrictEqual(['github_pull_request']);
+test('it owns the pull request and release bump tables and tails the pull request stream', () => {
+  expect(Object.keys(githubPullRequestConsumer.tables)).toStrictEqual([
+    'github_pull_request',
+    'github_release_bump',
+  ]);
 
   expect(githubPullRequestConsumer.input).toStrictEqual({
     mode: 'fact',

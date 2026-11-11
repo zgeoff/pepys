@@ -137,7 +137,11 @@ export function makeReceiveHandler(
 
     dependencies.marks?.noteStored(
       digest,
-      facts.map((pending) => ({ entity: pending.fact.entity, at: pending.fact.at })),
+      facts.map((pending) => ({
+        entity: pending.fact.entity,
+        at: pending.fact.at,
+        locator: pending.locator,
+      })),
     );
 
     return buildSuccessAnswer(path, 'stored', facts.length);

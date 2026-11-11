@@ -3,11 +3,13 @@ import type { EntityID } from '@pepys/kit';
 export interface LastBody {
   digest: string;
   at: string;
+  locator: string | undefined;
 }
 
-interface StoredFactTime {
+export interface StoredFactTime {
   entity: EntityID;
   at: string;
+  locator: string | undefined;
 }
 
 // A new body ties with the last body stored for an entity when both have the same time and differ.

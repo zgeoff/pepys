@@ -1,5 +1,5 @@
 import { defineConsumer, defineTable } from '@pepys/kit';
-import { pullRequestFamily } from './pull-request-family.ts';
+import { pullRequestFamily } from './families/pull-request-family.ts';
 
 export const githubPullRequestConsumer = defineConsumer({
   name: 'github_pull_request',
@@ -26,6 +26,18 @@ export const githubPullRequestConsumer = defineConsumer({
       },
       primaryKey: ['id'],
       indexes: [{ columns: ['repository_id'] }],
+    }),
+
+    // One row per release that a bot's pull request names in its body, by the release URL. The rows
+    // follow the pull request row: a fact that loses writes none, and one that wins replaces them.
+    github_release_bump: defineTable({
+      columns: {
+        pull_request_id: { kind: 'entityID' },
+        release_repository: { kind: 'text' },
+        release_tag: { kind: 'text' },
+      },
+      primaryKey: ['pull_request_id', 'release_repository', 'release_tag'],
+      indexes: [{ columns: ['release_repository', 'release_tag'] }],
     }),
   },
   entityViews: [

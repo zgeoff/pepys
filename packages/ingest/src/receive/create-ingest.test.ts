@@ -776,9 +776,13 @@ test.each([
   {
     row: 'a return to an earlier body',
     events: ['first', 'second', 'first'],
-    marks: ['ledger:till:7'],
+    marks: [{ entity: 'ledger:till:7', locator: undefined }],
   },
-  { row: 'two bodies with one time', events: ['first', 'same-time'], marks: ['ledger:till:7'] },
+  {
+    row: 'two bodies with one time',
+    events: ['first', 'same-time'],
+    marks: [{ entity: 'ledger:till:7', locator: undefined }],
+  },
   { row: 'a body sent twice in a row', events: ['first', 'first'], marks: [] },
   { row: 'bodies with new times', events: ['first', 'second'], marks: [] },
 ])('it marks the entity for the resync pull after $row', async (row) => {
@@ -802,7 +806,7 @@ test.each([
     await ctx.ingest.handleRequest(ctx.buildLedgerRequest({ facts: [fact] }));
   }
 
-  const marks: readonly string[] = ctx.ingest.resyncMarks.list('ledger');
+  const marks: unknown = ctx.ingest.resyncMarks.list('ledger');
 
   expect(marks).toStrictEqual(row.marks);
 });
@@ -825,6 +829,43 @@ test('it keeps no marks for a source with no resync pull', async () => {
   const marks = ctx.ingest.resyncMarks.list('beacon');
 
   expect(marks).toStrictEqual([]);
+});
+
+test('it stores the facts of a resync pull and then removes the marks it was given', async () => {
+  const ctx = setupTest();
+  const log = createMemoryFactLog([ctx.streams.till]);
+  const ingest = ctx.createIngestOver({ log });
+
+  for (const event of ['first', 'tied']) {
+    const fact = {
+      type: 'ledger.till.opened',
+      event,
+      entity: 'ledger:till:7',
+      at: '2026-10-01T08:00:00Z',
+      payload: { float: 1 },
+    };
+
+    await ingest.handleRequest(ctx.buildLedgerRequest({ facts: [fact] }));
+  }
+
+  const run = await ingest.runPull('ledger', 'resync', null);
+  const ids = await ctx.readIDs(ctx.streams.till, log);
+
+  const marks = ingest.resyncMarks.list('ledger');
+
+  expect({ run, ids, marks }).toStrictEqual({
+    run: { kind: 'stored', stored: 1, cursor: 'resynced', isDone: true },
+    ids: ['event:ledger:first', 'event:ledger:tied', 'event:ledger:resynced-ledger:till:7'],
+    marks: [],
+  });
+});
+
+test('it refuses to run a pull that the source does not have', async () => {
+  const ctx = setupTest();
+
+  const run = await ctx.ingest.runPull('beacon', 'resync', null);
+
+  expect(run).toStrictEqual({ kind: 'refused', reason: 'the source beacon has no resync pull' });
 });
 
 test('it removes a mark once the resync pull removes it', async () => {

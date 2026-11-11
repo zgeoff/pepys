@@ -21,6 +21,15 @@ CREATE TABLE "github_pull_request" (
 
 CREATE INDEX "github_pull_request_repository_id_idx" ON "github_pull_request" ("repository_id");
 
+CREATE TABLE "github_release_bump" (
+  "pull_request_id" TEXT NOT NULL,
+  "release_repository" TEXT NOT NULL,
+  "release_tag" TEXT NOT NULL,
+  PRIMARY KEY ("pull_request_id", "release_repository", "release_tag")
+);
+
+CREATE INDEX "github_release_bump_release_repository_release_tag_idx" ON "github_release_bump" ("release_repository", "release_tag");
+
 CREATE VIEW "entity" AS
 SELECT
   "id" AS "id",

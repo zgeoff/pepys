@@ -23,9 +23,13 @@
     "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@zgeoff/std": "catalog:",
+    "kysely": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@msw/data": "catalog:",
+    "@pepys/testing": "workspace:*",
+    "msw": "catalog:",
     "tiny-invariant": "catalog:"
   }
 }

@@ -27,6 +27,10 @@ function isGithubPullRequestID(text: string): text is GithubPullRequestID {
   return text.length > 'github:pull_request:'.length && text.startsWith('github:pull_request:');
 }
 
+export const settings = {
+  "deployTagPattern": "deployed/<environment>"
+} as const;
+
 export interface GithubPullRequestModel {
   input: string;
 }
@@ -52,7 +56,7 @@ export interface GithubPullRequestPayloadPullRequest {
 }
 
 export type GithubPullRequestFact =
-  | { id: string; type: 'github.pull_request.assigned' | 'github.pull_request.auto_merge_disabled' | 'github.pull_request.auto_merge_enabled' | 'github.pull_request.closed' | 'github.pull_request.converted_to_draft' | 'github.pull_request.demilestoned' | 'github.pull_request.dequeued' | 'github.pull_request.edited' | 'github.pull_request.enqueued' | 'github.pull_request.labeled' | 'github.pull_request.locked' | 'github.pull_request.milestoned' | 'github.pull_request.opened' | 'github.pull_request.ready_for_review' | 'github.pull_request.reopened' | 'github.pull_request.review_request_removed' | 'github.pull_request.review_requested' | 'github.pull_request.synchronize' | 'github.pull_request.unassigned' | 'github.pull_request.unlabeled' | 'github.pull_request.unlocked'; entity: string; at: string; payload: GithubPullRequestPayload };
+  | { id: string; type: 'github.pull_request.assigned' | 'github.pull_request.auto_merge_disabled' | 'github.pull_request.auto_merge_enabled' | 'github.pull_request.closed' | 'github.pull_request.converted_to_draft' | 'github.pull_request.demilestoned' | 'github.pull_request.dequeued' | 'github.pull_request.edited' | 'github.pull_request.enqueued' | 'github.pull_request.labeled' | 'github.pull_request.locked' | 'github.pull_request.milestoned' | 'github.pull_request.opened' | 'github.pull_request.ready_for_review' | 'github.pull_request.reopened' | 'github.pull_request.resynced' | 'github.pull_request.review_request_removed' | 'github.pull_request.review_requested' | 'github.pull_request.synchronize' | 'github.pull_request.unassigned' | 'github.pull_request.unlabeled' | 'github.pull_request.unlocked'; entity: string; at: string; payload: GithubPullRequestPayload };
 
 export function parseGithubPullRequestFact(factJSON: string): GithubPullRequestFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -75,7 +79,7 @@ function decodeGithubPullRequestFact(value: unknown): GithubPullRequestFact | un
     return undefined;
   }
 
-  if (type === 'github.pull_request.assigned' || type === 'github.pull_request.auto_merge_disabled' || type === 'github.pull_request.auto_merge_enabled' || type === 'github.pull_request.closed' || type === 'github.pull_request.converted_to_draft' || type === 'github.pull_request.demilestoned' || type === 'github.pull_request.dequeued' || type === 'github.pull_request.edited' || type === 'github.pull_request.enqueued' || type === 'github.pull_request.labeled' || type === 'github.pull_request.locked' || type === 'github.pull_request.milestoned' || type === 'github.pull_request.opened' || type === 'github.pull_request.ready_for_review' || type === 'github.pull_request.reopened' || type === 'github.pull_request.review_request_removed' || type === 'github.pull_request.review_requested' || type === 'github.pull_request.synchronize' || type === 'github.pull_request.unassigned' || type === 'github.pull_request.unlabeled' || type === 'github.pull_request.unlocked') {
+  if (type === 'github.pull_request.assigned' || type === 'github.pull_request.auto_merge_disabled' || type === 'github.pull_request.auto_merge_enabled' || type === 'github.pull_request.closed' || type === 'github.pull_request.converted_to_draft' || type === 'github.pull_request.demilestoned' || type === 'github.pull_request.dequeued' || type === 'github.pull_request.edited' || type === 'github.pull_request.enqueued' || type === 'github.pull_request.labeled' || type === 'github.pull_request.locked' || type === 'github.pull_request.milestoned' || type === 'github.pull_request.opened' || type === 'github.pull_request.ready_for_review' || type === 'github.pull_request.reopened' || type === 'github.pull_request.resynced' || type === 'github.pull_request.review_request_removed' || type === 'github.pull_request.review_requested' || type === 'github.pull_request.synchronize' || type === 'github.pull_request.unassigned' || type === 'github.pull_request.unlabeled' || type === 'github.pull_request.unlocked') {
     const decoded = decodeGithubPullRequestPayload(payload);
 
     if (decoded === undefined) {
@@ -156,13 +160,27 @@ export interface GithubPullRequestRow {
   payload: unknown;
 }
 
+export interface GithubReleaseBumpRow {
+  pull_request_id: EntityID;
+  release_repository: string;
+  release_tag: string;
+}
+
 export interface GithubPullRequestKey {
   id: GithubPullRequestID;
 }
 
+export interface GithubReleaseBumpKey {
+  pull_request_id: EntityID;
+  release_repository: string;
+  release_tag: string;
+}
+
 export type GithubPullRequestOperation =
   | { upsert: { github_pull_request: GithubPullRequestRow } }
-  | { delete: { github_pull_request: GithubPullRequestKey } };
+  | { delete: { github_pull_request: GithubPullRequestKey } }
+  | { upsert: { github_release_bump: GithubReleaseBumpRow } }
+  | { delete: { github_release_bump: GithubReleaseBumpKey } };
 
 declare function readGithubPullRequestLength(key: string): number;
 declare function readGithubPullRequestInto(key: string, row: Uint8Array): void;

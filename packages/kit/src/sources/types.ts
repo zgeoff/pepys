@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { BlobHash, StreamName } from '../ids/types.ts';
+import type { BlobHash, EntityID, StreamName } from '../ids/types.ts';
 import type { EntityKind } from '../link-types/types.ts';
 import type { DeclaredStreamName, FactEnvelope } from '../types.ts';
 
@@ -122,6 +122,18 @@ export interface PullPath {
 
 export interface PullContext {
   env: Readonly<Record<string, string>>;
+
+  // For a `resync` pull, the source's marked entities when the pull starts; empty for any other
+  // pull. Ingest removes each of these marks once the batch the pull returns is stored, so a pull
+  // that cannot read every marked entity answers `unavailable` and every mark stays.
+  marks: readonly ResyncMark[];
+}
+
+// An entity whose row may be behind the source, with the locator of the last fact ingest stored
+// for it, if that fact had one.
+export interface ResyncMark {
+  entity: EntityID;
+  locator: string | undefined;
 }
 
 export type Pulled =
@@ -151,4 +163,8 @@ export interface PendingFact {
   stream: StreamName;
   fact: FactEnvelope<unknown>;
   blobs: readonly { hash: BlobHash; bytes: Uint8Array }[];
+
+  // What a source's resync pull needs to read the entity again, such as an API path. Ingest keeps
+  // it beside the entity's mark, and stores it in no fact.
+  locator?: string | undefined;
 }

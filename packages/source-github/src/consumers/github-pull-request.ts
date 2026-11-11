@@ -10,7 +10,9 @@ import type {
   GithubPullRequestModel,
   GithubPullRequestOperation,
   GithubPullRequestRow,
+  GithubReleaseBumpRow,
 } from '../generated/github-pull-request-boundary.ts';
+import { findField } from '../utils/find-field.ts';
 
 export type {
   GithubPullRequestMessage,
@@ -46,7 +48,100 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
     return [];
   }
 
-  return [{ upsert: { github_pull_request: row } }];
+  // The bump rows of the replaced body come from the stored payload, so a late fact of an older
+  // body cannot bring back a bump that a newer body dropped.
+  const given = collectReleaseBumps(row.id, row.payload);
+  const replaced = stored === undefined ? [] : collectReleaseBumps(row.id, stored.payload);
+
+  const givenKeys = new Set(given.map((bump) => JSON.stringify(bump)));
+  const replacedKeys = new Set(replaced.map((bump) => JSON.stringify(bump)));
+
+  const removed: GithubPullRequestOperation[] = replaced
+    .filter((bump) => !givenKeys.has(JSON.stringify(bump)))
+    .map((bump) => ({ delete: { github_release_bump: bump } }));
+
+  const added: GithubPullRequestOperation[] = given
+    .filter((bump) => !replacedKeys.has(JSON.stringify(bump)))
+    .map((bump) => ({ upsert: { github_release_bump: bump } }));
+
+  return [{ upsert: { github_pull_request: row } }, ...removed, ...added];
+}
+
+const releaseURLStart = 'https://github.com/';
+const releaseURLEnds = [' ', '\n', '\r', '\t', ')', ']', '>', '"', "'", '`', '#', '?'];
+
+// One row per `https://github.com/<owner>/<name>/releases/tag/<tag>` URL in the body of a pull
+// request whose author is a bot, each once, with the tag percent-decoded.
+function collectReleaseBumps(
+  pullRequestID: GithubReleaseBumpRow['pull_request_id'],
+  pullRequest: unknown,
+): GithubReleaseBumpRow[] {
+  const body = findField(pullRequest, 'body');
+
+  if (findField(pullRequest, 'user', 'type') !== 'Bot' || typeof body !== 'string') {
+    return [];
+  }
+
+  const bumps: GithubReleaseBumpRow[] = [];
+  const seen: string[] = [];
+
+  for (const part of body.split(releaseURLStart).slice(1)) {
+    const bump = parseReleaseURLPath(part);
+
+    if (bump === undefined || seen.includes(`${bump.repository}\n${bump.tag}`)) {
+      continue;
+    }
+
+    seen.push(`${bump.repository}\n${bump.tag}`);
+
+    bumps.push({
+      pull_request_id: pullRequestID,
+      release_repository: bump.repository,
+      release_tag: bump.tag,
+    });
+  }
+
+  return bumps;
+}
+
+// `<owner>/<name>/releases/tag/<tag>`, up to the first character that ends a URL in text.
+function parseReleaseURLPath(text: string): { repository: string; tag: string } | undefined {
+  let end = text.length;
+
+  for (const mark of releaseURLEnds) {
+    const at = text.indexOf(mark);
+
+    if (at !== -1 && at < end) {
+      end = at;
+    }
+  }
+
+  const parts = text.slice(0, end).split('/');
+  const [owner, name, releases, tagWord, tag] = parts;
+
+  if (parts.length !== 5 || releases !== 'releases' || tagWord !== 'tag') {
+    return undefined;
+  }
+
+  if (owner === undefined || name === undefined || tag === undefined) {
+    return undefined;
+  }
+
+  if (owner === '' || name === '' || tag === '') {
+    return undefined;
+  }
+
+  const decoded = decodeTag(tag);
+
+  return decoded === undefined ? undefined : { repository: `${owner}/${name}`, tag: decoded };
+}
+
+function decodeTag(tag: string): string | undefined {
+  try {
+    return decodeURIComponent(tag);
+  } catch {
+    return undefined;
+  }
 }
 
 // Two updates can share one second. A repeat of the stored row changes nothing, and a different

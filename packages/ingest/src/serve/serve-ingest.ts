@@ -6,6 +6,7 @@ import { readIngestConfig } from '../config/read-ingest-config.ts';
 import { createS2FactLog } from '../fact-log/s2/create-s2-fact-log.ts';
 import { createIngest } from '../receive/create-ingest.ts';
 import { noSenderProof } from '../sender-proof/none/no-sender-proof.ts';
+import { startPullTimers } from './start-pull-timers.ts';
 
 interface ServeIngestOptions {
   deployment: Deployment;
@@ -47,6 +48,8 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
     console.log(`route ${route.route}`, JSON.stringify(route));
   }
 
+  const stopPulls = startPullTimers(sources, ingest.runPull);
+
   const server = Bun.serve({
     hostname: config.value.host,
     port: config.value.port,
@@ -56,7 +59,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
   console.log(`ingest listening on ${server.hostname}:${server.port}`);
 
   const shutdown = makeShutdownHandler({
-    stop: () => server.stop(),
+    stop: () => {
+      stopPulls();
+
+      return server.stop();
+    },
     logError: (message, error) => {
       console.error(message, error);
     },
@@ -70,10 +77,14 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
   }
 }
 
+// every receive path's secret, and every name a pull path's `env` lists
 function collectSecretNames(sources: readonly SourceDefinition[]): string[] {
-  const names = sources.flatMap((source) =>
-    source.live?.kind === 'receive' ? [source.live.check.secretEnv] : [],
-  );
+  const names = sources.flatMap((source) => [
+    ...(source.live?.kind === 'receive' ? [source.live.check.secretEnv] : []),
+    ...[source.live, source.recovery, source.backfill, source.resync].flatMap((path) =>
+      path?.kind === 'pull' ? (path.env ?? []) : [],
+    ),
+  ]);
 
   return [...new Set(names)];
 }
