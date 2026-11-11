@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeAll } from 'bun:test';
 import { resetGithubAPI } from '../../packages/source-github/src/test-utils/github-api-handlers.ts';
 import { mockNetwork } from './mock-network.ts';
 
-beforeAll(async () => {
-  await mockNetwork.enable();
+beforeAll(() => {
+  mockNetwork.enable();
 });
 
 afterEach(() => {
@@ -12,6 +12,6 @@ afterEach(() => {
   resetGithubAPI();
 });
 
-afterAll(async () => {
-  await mockNetwork.disable();
+afterAll(() => {
+  mockNetwork.disable();
 });

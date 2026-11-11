@@ -35,9 +35,7 @@ async function setupTest() {
     secrets: {
       PEPYS_GITHUB_WEBHOOK_SECRET: 'harbour-webhook-secret',
       PEPYS_GITHUB_APP_ID: '4242',
-      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey
-        .export({ type: 'pkcs1', format: 'pem' })
-        .toString(),
+      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: 'pkcs1', format: 'pem' }),
     },
     log,
     senderProof: noSenderProof,

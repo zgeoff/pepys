@@ -9,9 +9,7 @@ function setupTest() {
   const context = {
     env: {
       PEPYS_GITHUB_APP_ID: '4242',
-      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey
-        .export({ type: 'pkcs1', format: 'pem' })
-        .toString(),
+      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: 'pkcs1', format: 'pem' }),
     },
     marks: [],
   };
