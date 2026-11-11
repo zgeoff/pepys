@@ -2,8 +2,18 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/**/*.ts", "stack/**/*.test.ts", "e2e/**/*.test.ts", "rig.config.ts"],
+      "entry": [
+        "scripts/**/*.ts",
+        "stack/**/*.test.ts",
+        "e2e/**/*.test.ts",
+        "e2e/deployment/serve-*.ts",
+        "rig.config.ts"
+      ],
       "project": ["scripts/**/*.ts", "stack/**/*.ts", "e2e/**/*.ts"]
+    },
+    "e2e/logbook-plugin": {
+      "entry": ["src/consumers/*.ts", "src/generated/**/*.ts"],
+      "bun": false
     },
     "packages/*": {
       "entry": ["src/**/*.test.ts", "src/generated/**/*.ts"],

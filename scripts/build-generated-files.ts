@@ -2,6 +2,7 @@ import { join, relative } from 'node:path';
 import { checkBuildTarget, collectGlueFiles } from '@pepys/cli';
 import type { DeploymentFailure } from '@pepys/kit';
 import { generateKyselyTypes } from '@pepys/schema';
+import { e2eDeployment } from '../e2e/deployment/e2e-deployment.ts';
 import { stubDeployment } from './stub-deployment.ts';
 
 export interface GeneratedFile {
@@ -22,13 +23,21 @@ export function buildGeneratedFiles(): GeneratedFiles {
     return { ok: false, failures: target.failure };
   }
 
+  // The e2e deployment holds the stub's plug-ins and more, so only the glue of its consumers under
+  // `e2e/` comes from it.
+  const laneTarget = checkBuildTarget({ kind: 'deployment', deployment: e2eDeployment });
+
+  if (!laneTarget.ok) {
+    return { ok: false, failures: laneTarget.failure };
+  }
+
   const consumers = target.value.checked.consumers;
 
   // the glue files come from the same code as `pepys build`
-  const sourceFiles = collectGlueFiles({
-    target: target.value,
-    packageRoot: join(root, 'packages'),
-  }).map((file) => ({ path: relative(root, file.path), content: file.content }));
+  const glue = [
+    ...collectGlueFiles({ target: target.value, packageRoot: join(root, 'packages') }),
+    ...collectGlueFiles({ target: laneTarget.value, packageRoot: join(root, 'e2e') }),
+  ];
 
   return {
     ok: true,
@@ -37,7 +46,7 @@ export function buildGeneratedFiles(): GeneratedFiles {
         path: 'packages/schema/src/generated/kysely-db.ts',
         content: withHeader('//', generateKyselyTypes(consumers)),
       },
-      ...sourceFiles,
+      ...glue.map((file) => ({ path: relative(root, file.path), content: file.content })),
     ],
   };
 }

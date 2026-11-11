@@ -4,7 +4,8 @@
   "workspaces": {
     "packages": [
       "packages/*",
-      "research/*"
+      "research/*",
+      "e2e/logbook-plugin"
     ],
     "catalog": {
       "@commitlint/cli": "21.2.4",
@@ -61,7 +62,7 @@
     "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
     "check": "zgeoff-check",
     "check:outside-install": "bun scripts/outside-install/run-outside-install.ts",
-    "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers",
+    "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers && pepys build e2e/deployment/e2e-deployment.ts --out build/e2e-consumers",
     "deadcode": "bash scripts/run-knip.sh",
     "format": "oxfmt . && format-codemod --quiet . && tombi format",
     "format:check": "oxfmt --check . && format-codemod --check --quiet . && tombi format --check",
@@ -102,6 +103,7 @@
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@pepys/source-github": "workspace:*",
+    "@pepys/source-telemetry": "workspace:*",
     "@s2-dev/streamstore": "catalog:",
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",
@@ -118,6 +120,7 @@
     "@zgeoff/std": "catalog:",
     "knip": "catalog:",
     "lefthook": "catalog:",
+    "logbook-plugin": "workspace:*",
     "msw": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",

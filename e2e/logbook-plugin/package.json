@@ -1,0 +1,11 @@
+{
+  "name": "logbook-plugin",
+  "private": true,
+  "description": "A plug-in from outside the pepys packages, for the e2e lane: it imports the kit as a published plug-in does",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@pepys/kit": "workspace:*",
+    "zod": "catalog:"
+  }
+}

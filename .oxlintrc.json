@@ -21,7 +21,8 @@
       // an entry file exports the fixed names that scriptc and the host call: init, update, applyFact
       "files": [
         "packages/source-*/src/consumers/*.ts",
-        "packages/*/src/test-utils/*/consumers/*.ts"
+        "packages/*/src/test-utils/*/consumers/*.ts",
+        "e2e/*/src/consumers/*.ts"
       ],
       "rules": {
         "zgeoff/file-named-for-export": "off"
@@ -120,6 +121,7 @@
     ".claude/**",
     "docs/design/**",
     "packages/*/src/generated/**",
-    "packages/*/src/test-utils/*/generated/**"
+    "packages/*/src/test-utils/*/generated/**",
+    "e2e/*/src/generated/**"
   ]
 }

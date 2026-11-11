@@ -21,7 +21,7 @@ test('it builds the same files on each call', () => {
   expect(buildGeneratedFiles()).toStrictEqual(buildGeneratedFiles());
 });
 
-test('it builds the files of the four github consumers and the ledger scope consumer', () => {
+test('it builds the files of the github, ledger and logbook consumers', () => {
   const generated = buildGeneratedFiles();
 
   invariant(generated.ok);
@@ -38,5 +38,7 @@ test('it builds the files of the four github consumers and the ledger scope cons
     'packages/source-github/src/generated/github-deploy.sql',
     'packages/testing/src/test-utils/ledger/generated/ledger-account-boundary.ts',
     'packages/testing/src/test-utils/ledger/generated/ledger-account.sql',
+    'e2e/logbook-plugin/src/generated/logbook-voyage-boundary.ts',
+    'e2e/logbook-plugin/src/generated/logbook-voyage.sql',
   ]);
 });
