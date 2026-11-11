@@ -23,9 +23,9 @@ test("it writes Codex's estimate for a turn, with the model the record names", (
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([
+  expect(output).toStrictEqual([
     {
       upsert: {
         telemetry_turn_cost: {
@@ -65,9 +65,9 @@ test('it writes a null model for a turn whose record names none', () => {
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([
+  expect(output).toStrictEqual([
     {
       upsert: {
         telemetry_turn_cost: {
@@ -113,7 +113,7 @@ test.each([
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([]);
+  expect(output).toStrictEqual([]);
 });

@@ -39,7 +39,7 @@ export async function readImpIdentityTrust<Document>(
     try {
       trust.set(name, options.loadIssuers(documents.value));
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = error instanceof Error ? error.message : 'the verifier gave no reason';
 
       return { ok: false, failure: `${name}: the trust documents are invalid: ${reason}` };
     }
@@ -73,7 +73,7 @@ async function readFolderDocuments(folder: string): Promise<Result<unknown[], st
 
     return { ok: true, value: documents };
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = error instanceof Error ? error.message : 'no reason given';
 
     return { ok: false, failure: `the trust documents cannot be read: ${reason}` };
   }

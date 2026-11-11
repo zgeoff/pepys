@@ -19,6 +19,6 @@ function toSortedValue(value: unknown): unknown {
   return Object.fromEntries(
     Object.keys(value)
       .toSorted()
-      .map((key) => [key, toSortedValue(value[key])]),
+      .map((key) => [key, toSortedValue(value[key])] as const),
   );
 }

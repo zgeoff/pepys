@@ -26,9 +26,9 @@ test('it writes a Claude Code request with the counts written as text and no rep
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([
+  expect(output).toStrictEqual([
     {
       upsert: {
         telemetry_model_request: {
@@ -79,9 +79,9 @@ test('it reads a cost written as decimal text as the reported cost', () => {
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([
+  expect(output).toStrictEqual([
     {
       upsert: {
         telemetry_model_request: {
@@ -133,9 +133,9 @@ test('it never counts a cached token as input for Codex', () => {
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([
+  expect(output).toStrictEqual([
     {
       upsert: {
         telemetry_model_request: {
@@ -212,9 +212,9 @@ test.each([
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([]);
+  expect(output).toStrictEqual([]);
 });
 
 test('it writes no row for a fact with no origin', () => {
@@ -240,7 +240,7 @@ test('it writes no row for a fact with no origin', () => {
     },
   };
 
-  const output = applyFact(JSON.stringify(fact));
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
 
-  expect(JSON.parse(output)).toStrictEqual([]);
+  expect(output).toStrictEqual([]);
 });
