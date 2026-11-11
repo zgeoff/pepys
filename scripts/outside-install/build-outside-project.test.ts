@@ -52,7 +52,7 @@ test('it installs each package from npm at one version with no override', () => 
   });
 });
 
-test('it lets the first-party packages past the release-age gate', () => {
+test('it isolates the install and lets the first-party packages past the release-age gate', () => {
   const files = buildOutsideProject({
     packages: [
       {
@@ -67,7 +67,7 @@ test('it lets the first-party packages past the release-age gate', () => {
   });
 
   expect(files['bunfig.toml']).toBe(
-    '[install]\nminimumReleaseAge = 604800\nminimumReleaseAgeExcludes = [\n  "@pepys/lantern",\n  "@zgeoff/std",\n]\n',
+    '[install]\nlinker = "isolated"\nminimumReleaseAge = 604800\nminimumReleaseAgeExcludes = [\n  "@pepys/lantern",\n  "@zgeoff/std",\n]\n',
   );
 });
 

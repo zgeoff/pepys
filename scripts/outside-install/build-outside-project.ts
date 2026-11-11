@@ -193,8 +193,9 @@ function getPin(catalog: Readonly<Record<string, string>>, name: string): string
   return pin;
 }
 
-// The repo's release-age gate, so the outside install takes no third-party version younger than the
-// repo takes. The first-party packages pass the gate, as in the repo.
+// The repo's isolated linker, so a package resolves only what it declares, and its release-age gate,
+// so the outside install takes no third-party version younger than the repo takes. The first-party
+// packages pass the gate, as in the repo.
 function formatBunfig(packages: readonly PublicPackage[]): string {
   const excludes = [...packages.map((pkg) => pkg.name), '@zgeoff/std'].map(
     (name) => `  "${name}",`,
@@ -202,6 +203,7 @@ function formatBunfig(packages: readonly PublicPackage[]): string {
 
   return [
     '[install]',
+    'linker = "isolated"',
     'minimumReleaseAge = 604800',
     'minimumReleaseAgeExcludes = [',
     ...excludes,

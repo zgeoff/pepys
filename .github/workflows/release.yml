@@ -15,15 +15,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # a publish cut off halfway leaves the release half on npm
+    # a publish cut off halfway leaves the release half on npm, so a second
+    # run of one tag waits for the first
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
-    env:
-      PEPYS_PACK_DIR: ${{ runner.temp }}/pepys-packages
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -33,20 +32,30 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
-      # npm from Node 24 publishes: bun publish has no trusted publishing
+      # npm from Node 24 publishes: bun publish has no trusted publishing, and
+      # npm needs 11.5.1 or later for it
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
       - name: Install
         run: bun install --frozen-lockfile
       - name: Check the tag against each package version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: bun run --silent ci:check-release-tag
+      # the runner context is not available in a job's env, so each step sets the folder
       - name: Pack the packages
+        env:
+          PEPYS_PACK_DIR: ${{ runner.temp }}/pepys-packages
         run: bun run --silent ci:pack-packages
       - name: Install the tarballs outside the repo
+        env:
+          PEPYS_PACK_DIR: ${{ runner.temp }}/pepys-packages
         run: bun run --silent check:outside-install
       - name: Publish to npm
+        env:
+          PEPYS_PACK_DIR: ${{ runner.temp }}/pepys-packages
         run: bun run --silent ci:publish-packages

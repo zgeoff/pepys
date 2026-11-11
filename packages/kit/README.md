@@ -21,9 +21,13 @@ signs and sends a fact batch. The package ships its TypeScript source and runs o
 ## Install
 
 ```sh
-bun add @pepys/kit zod
+bun add @pepys/kit
+bun add zod@"$(npm view @pepys/kit dependencies.zod)"
 bun add -d @types/bun typescript
 ```
+
+Install the zod version that the kit pins, as the second line does: a schema from another zod
+version fails the type check of a `define*` call.
 
 Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it with
 [`@pepys/cli`](../cli/README.md).
