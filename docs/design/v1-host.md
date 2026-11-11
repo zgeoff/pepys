@@ -144,8 +144,9 @@ change log row. Any error rolls the batch back and stops the consumer's task.
 5. The host writes the offset, and one change log row when a row or a link changed.
 
 Steps 1 to 5 are one transaction. Any error rolls back every row, link, `scope_row` owner, fact
-index row, offset and change log row of the batch, and stops the consumer's task. A scope consumer's
-file also holds `scope_row`, the scope that owns each row, and an index of `link` by scope.
+index row, offset and change log row of the batch, and stops the consumer's task. `scope_row` holds
+the scope that owns each row. The index costs space: each scope consumer version holds its own copy
+of its streams' facts, and a new version indexes them again as it replays.
 
 **The checks of a scope result** run in this order, as in the test store: the parse; a delete or an
 unlink; every link; each row and its key, in operation order; each link key; then the owners of the
@@ -215,9 +216,8 @@ the consumer's own tables: another scope of the same consumer holds the row or t
 
 ### The ledger journey
 
-The stub deployment holds a scope consumer, `ledger_account`, from the test plug-in in
-`packages/testing/src/test-utils/ledger/`, so `bun run consumers:build` compiles it beside the
-GitHub consumer. The file
+The stub deployment holds `ledger_account`, the scope consumer of the test plug-in in
+`packages/testing/src/test-utils/ledger/`, and `bun run consumers:build` compiles it.
 [`ledger-journey.json`](../../packages/testing/src/test-utils/ledger/ledger-journey.json) holds the
 log records of one journey and the rows and links it gives. A Bun test pins the file to the test
 store. The Rust e2e lane appends the records to s2-lite, runs `up` with the compiled module on a
