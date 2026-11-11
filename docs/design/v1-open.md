@@ -100,15 +100,20 @@ The entry file needed 5 rewrites:
    `never`. A helper function that merges the two values compiles.
 3. An unused type import.
 4. No model contract. scriptc attests only a library that exports a model type, a message type,
-   `init` and `update` ([consumers](./pepys/consumers.md#compiler)), so the kit's entry file shape
-   must hold them.
+   `init` and `update` ([consumers](./pepys/consumers.md#compiler)). The glue writes the two types
+   and the two functions, and the entry file declares `init` and `update` that call them: scriptc
+   takes a re-exported type but refuses a re-exported function. The message union needs two or more
+   members.
 5. A result that depended on the order of two facts with one time. The fix keeps the smaller fact ID
    on an equal time. A consumer author must break every tie of time by fact ID, and the test store
    cannot find a missing tie-break unless a test feeds both orders.
 
 A pull request ID above the 32-bit range came through as the right text, sent as text and sent as a
 JSON number. The run did not check the two queries, a read of another scope, a scope above 60 facts,
-or the kit's own glue generator: the run's generator was its own.
+or the kit's own glue generator: the run's generator was its own. A later build of the GitHub pull
+request consumer with the kit's generator compiled, and so did a scope glue that covers every typing
+rule. That build found that scriptc refuses an ID brand whose tag is a type parameter, so the glue
+brands every ID with a fixed tag and adds the kind as a second tag.
 
 ## Gaps inside the sketches
 

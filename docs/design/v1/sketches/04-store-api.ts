@@ -152,15 +152,18 @@ export declare function buildLinkRegistry(linkTypes: readonly LinkTypeDeclaratio
 export type LinkProblem =
   | { kind: 'not-declared'; type: string; consumer: string }
   | { kind: 'not-an-entity-id'; end: 'from' | 'to'; id: string }
-  | { kind: 'wrong-kind'; end: 'from' | 'to'; id: string; allowed: readonly EntityKind[] }
-  | { kind: 'bad-confidence'; confidence: number }
+  | { kind: 'wrong-kind'; end: 'from' | 'to'; id: string; allowed: readonly string[] }
+  | { kind: 'bad-confidence'; confidence: number } // outside 0 to 1, NaN included
   | { kind: 'no-evidence' };
 
-// packages/kit/src/links/find-link-problem.ts (new, pure). The test store calls it. The host's
-// check_link is its Rust twin. packages/kit/src/links/link-check-cases.json, a list of
-// { name, consumer: { name, links }, link, problem: <kind> | null }, runs against both.
+// packages/kit/src/links/find-link-problem.ts (pure). The test store calls it. The host's
+// check_link is its Rust twin. It reports the first problem in this order: the type, the `from`
+// end, the `to` end, the confidence, the evidence. packages/kit/src/links/link-check-cases.json
+// holds one `consumer: { name, links }` and a list of cases { title, link, problem: <kind> | null },
+// and runs against both. The kinds are plain strings, so the JSON fits without a cast.
+// buildLinkRegistry is added with its first caller, `neighbourhood`.
 export declare function findLinkProblem(
-  consumer: { name: string; links: readonly LinkTypeDeclaration[] },
+  consumer: { name: string; links: readonly { name: string; from: readonly string[]; to: readonly string[] }[] },
   link: { type: string; from: string; to: string; confidence: number; evidence: string },
 ): LinkProblem | undefined;
 

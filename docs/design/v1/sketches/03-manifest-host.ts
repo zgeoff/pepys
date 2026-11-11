@@ -213,15 +213,33 @@ export interface WireLink {
 declare function readScopeFactsLength(scope: string): number; // the symbols of the manifest's `scope_facts` read
 declare function readScopeFactsInto(scope: string, facts: Uint8Array): void;
 
+// Two tags, because scriptc refuses a brand whose tag is a type parameter (SC2009): `EntityID`
+// carries a fixed tag, and each kind adds a second one with the kind as a literal.
 declare const idTag: unique symbol;
-type KindedID<Kind extends string> = string & { readonly [idTag]: Kind };
+declare const kindTag: unique symbol;
+export type EntityID = string & { readonly [idTag]: 'EntityID' };
+type KindedID<Kind extends string> = EntityID & { readonly [kindTag]: Kind };
 export type BoxxyItemID = KindedID<'boxxy:item'>;
 export type BoxxyAttemptID = KindedID<'boxxy:attempt'>;
 export type GithubPullRequestID = KindedID<'github:pull_request'>;
 
+// Per kind: to<Kind>ID builds the ID from the source's own ID and throws on an empty one;
+// parse<Kind>ID answers undefined for text of another kind.
+export declare function toGithubPullRequestID(id: string): GithubPullRequestID;
+export declare function parseGithubPullRequestID(text: string): GithubPullRequestID | undefined;
+
+// The scriptc model contract. scriptc takes the two types through the entry file's
+// `export type { … } from` but refuses re-exported functions, so the entry file declares `init`
+// and `update` and calls these.
+export interface BoxxyWorkModel { input: string }
+export type BoxxyWorkMessage = { kind: 'apply'; input: string } | { kind: 'reset' };
+export declare function initBoxxyWorkModel(): BoxxyWorkModel;
+export declare function updateBoxxyWorkModel(model: BoxxyWorkModel, message: BoxxyWorkMessage): BoxxyWorkModel;
+
 // One member per fact type of the families on the consumer's streams (27 for boxxy; 3 shown).
 // The names and fields are the fact catalog's, in the boxxy repo
-// (docs/design/boxxy/sketches/v1/core/04-facts.ts).
+// (docs/design/boxxy/sketches/v1/core/04-facts.ts). Each member also holds `entity: string`,
+// left out here. Fact types whose payload schema is one object share a member and a payload type.
 export type BoxxyWorkFact =
   | { id: string; type: 'boxxy.item.filed'; at: string; payload: { kind: string; repo: string; title: string; fields: { designMode?: string }; acceptance: { text: string; evidence: string[] }[]; foundInAttempt: string | null } }
   | { id: string; type: 'boxxy.attempt.session_bound'; at: string; payload: { attempt: string; atcSession: string; agentSession: string; product: string; source: 'worker' | 'hook'; seenAt: number } }
@@ -235,7 +253,7 @@ export type BoxxyWorkFact =
 //   a brand (no transform)                   the type under the brand   as that type
 //   object                                   an object type, nested     field by field, to any depth
 //   array                                    `Member[]`                 an index loop over the list
-//   optional field                           `field?: Type`             absent is kept absent
+//   optional field, or one with a default    `field?: Type`             absent is kept absent
 //   nullable                                 `Type | null`              null is kept
 //   anything else: a record, a union of      `unknown`                  the value is passed through
 //   object shapes, a transform, a lazy                                  as parsed, with no check
@@ -288,6 +306,11 @@ export function linkProduced(link: { from: BoxxyAttemptID; to: GithubPullRequest
 }
 
 declare function decodeBoxxyWorkFact(value: unknown): BoxxyWorkFact | undefined;
+
+// A fact consumer gets `parse<Consumer>Fact(factJSON)` in place of `readScopeFacts`, a delete
+// per table and an unlink per link type. Each table in the declaration's `reads`, and no other,
+// gets `read<Table>Row(key)` over the host's `read<Table>Length` and `read<Table>Into`; a length
+// of -1 means no row, and a row that does not decode, such as an ID of another kind, reads as none.
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 // D. The Rust host's types and signatures (crates/host/src)

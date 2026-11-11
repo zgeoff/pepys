@@ -75,9 +75,16 @@ packages/example/src/
 
 - Brand every TypeScript ID with type-fest `Tagged`, and build one with `toTagged` from
   `@zgeoff/std`. A bare `string` never stands for an ID.
-- In a consumer, import `EntityID` from `src/generated/<consumer-file>-boundary.ts`, and build one
-  with a type guard in the consumer file, as `github-pull-request.ts` does. scriptc, which compiles
-  consumers to WebAssembly, refuses a type-fest import, even a type-only one.
+- In a consumer, import the ID types from `src/generated/<consumer-file>-boundary.ts`. scriptc,
+  which compiles consumers to WebAssembly, refuses a type-fest import, even a type-only one.
+  - Look in the boundary file for a `to<SourceKind>ID` function, where `<SourceKind>` is the kind in
+    PascalCase, such as `toGithubPullRequestID` for `github:pull_request`. The generator writes one
+    for each kind of the consumer's `entityViews` and of the `from` and `to` of its `links`. Pass it
+    the last part of the ID, and it returns the whole branded ID: `toGithubPullRequestID('9001')`
+    gives `github:pull_request:9001`.
+  - For a kind with no such function, build the boundary file's `EntityID` with a type guard in the
+    consumer file, as `github-pull-request.ts` does. The guard only checks that the text is not
+    empty, so build the whole `<source>:<kind>:<id>` string yourself.
 - Write an entity ID as `<source>:<kind>:<id>`, such as `github:pull_request:1874433021`, and brand
   the whole string. The source is a source's lowercase name, such as `github` or `gmail`, or
   `deployment` for an ID from the owner's own configuration. The last part is the ID the source

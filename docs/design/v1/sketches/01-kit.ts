@@ -164,14 +164,31 @@ if (!sent.ok) {
 // The scriptc entry file. It imports the generated glue only (file 3, part C shows the glue).
 // Two branches of the real file; the whole is in the boxxy repo's sketch of the package.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-import { linkProduced, linkRanIn, readScopeFacts, toBoxxyAttemptID, toBoxxyItemID, toGithubPullRequestID, toTelemetrySessionID } from '../generated/boxxy-work-boundary.ts';
-import type { BoxxyWorkOperation } from '../generated/boxxy-work-boundary.ts';
+import { initBoxxyWorkModel, linkProduced, linkRanIn, parseBoxxyItemID, readScopeFacts, toBoxxyAttemptID, toGithubPullRequestID, toTelemetrySessionID, updateBoxxyWorkModel } from '../generated/boxxy-work-boundary.ts';
+import type { BoxxyWorkMessage, BoxxyWorkModel, BoxxyWorkOperation } from '../generated/boxxy-work-boundary.ts';
+
+// The scriptc model contract. scriptc refuses a re-exported function, so the entry file declares
+// `init` and `update` itself; the types pass through.
+export type { BoxxyWorkMessage, BoxxyWorkModel } from '../generated/boxxy-work-boundary.ts';
+
+export function init(): BoxxyWorkModel {
+  return initBoxxyWorkModel();
+}
+
+export function update(model: BoxxyWorkModel, message: BoxxyWorkMessage): BoxxyWorkModel {
+  return updateBoxxyWorkModel(model, message);
+}
 
 // The host calls this export with one item's ID each time a fact for that item arrives. The result
 // is the whole set of rows and links the scope owns: what it leaves out, the host removes.
+// `to<Kind>ID` builds an ID from the source's own ID; `parse<Kind>ID` checks a whole entity ID.
 export function applyScope(scope: string): string {
-  const item = toBoxxyItemID(scope);
+  const item = parseBoxxyItemID(scope);
   const operations: BoxxyWorkOperation[] = [];
+
+  if (item === undefined) {
+    return JSON.stringify(operations);
+  }
 
   // every fact of this item, one per fact ID, sorted by source time, then stream, then sequence
   for (const fact of readScopeFacts(item)) {
@@ -561,7 +578,11 @@ export type OutgoingFact<Source extends SourceDefinition> = {
 export type SendFailure = { kind: 'refused'; status: number; reason: string } | { kind: 'retry'; reason: string };
 
 // Signs as the `check` of the source's live path says. It refuses, before any request, a list
-// longer than the path's `factLimit`.
+// longer than the path's `factLimit` (status 413). It throws at creation for a source with no
+// receive path or an empty secret. A timeout (30 s), no connection, or a 2xx body that is not
+// ingest's answer is `retry`. A redirect is not followed: a 3xx is `refused`.
+// The one HMAC and token check, `isDeliveryAuthentic` in @pepys/kit, is the one ingest imports;
+// it compares in constant time and refuses every delivery when the secret is empty.
 export declare function createFactBatchSender<Source extends SourceDefinition>(options: {
   source: Source;
   url: string;
