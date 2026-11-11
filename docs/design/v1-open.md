@@ -147,15 +147,6 @@ The build and the host:
 - That a JSON column compares equal after a round trip through SQLite. The scope replace writes
   nothing when nothing differs, and the host run settled the comparison for numbers only.
 
-The store and the API:
-
-- That the store reader reads the files the Rust host writes. The integration test in
-  `packages/api/integration/store-files.test.ts` runs on files that `createConsumerVersion` writes
-  in the host's layout. Once the host builds and runs a plug-in's consumers, give the test files
-  that `pepys up` and `pepys run` wrote for a plug-in like the stub harbour plug-in, two consumers
-  with an entity view each and links from one to the other, and keep its assertions. Its setup keeps
-  `createStoreReader` and `createApp` as they are.
-
 ## Known limits
 
 - **A telemetry record under another sender's session is stored.** The readers drop it
