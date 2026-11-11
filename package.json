@@ -83,6 +83,9 @@
     "ci:check-release-tag": "bun scripts/release/check-release-tag.ts",
     "ci:pack-packages": "bun scripts/release/write-package-tarballs.ts",
     "ci:publish-packages": "bun scripts/release/publish-packages.ts",
+    "ci:write-host-asset": "bun scripts/release/write-host-asset.ts",
+    "ci:check-host-asset": "bun scripts/release/check-host-asset.ts",
+    "ci:publish-host-release": "bun scripts/release/publish-host-release.ts",
     "test:related": "rig related",
     "typecheck": "tsrs -p tsconfig.json --noEmit && bun run --if-present --filter './research/*' typecheck",
     "check:docs": "chex prose length links readmes skill"

@@ -1,5 +1,7 @@
-# A tag v<version> releases every public @pepys/* package at that version.
-# npm's trusted publisher for each package names this file, so keep its name.
+# A tag v<version> releases every public @pepys/* package at that version, and
+# makes the GitHub release of the tag with the pepys-host binary and its
+# SHA256SUMS. npm's trusted publisher for each package names this file, so
+# keep its name.
 name: release
 
 on:
@@ -10,9 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  # Each later job of the release, such as the pepys-host binary with its
-  # SHA256SUMS, goes beside this one and needs nothing from it.
+  # The two jobs need nothing from each other.
   publish:
+    name: release to npm
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # a publish cut off halfway leaves the release half on npm, so a second
@@ -59,3 +61,57 @@ jobs:
         env:
           PEPYS_PACK_DIR: ${{ runner.temp }}/pepys-packages
         run: bun run --silent ci:publish-packages
+
+  release-host:
+    # the binary links the glibc of the runner that builds it, so the oldest
+    # supported ubuntu image gives the oldest glibc a deploy may run, 2.35
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    # a release cut off during its upload is left as a draft, so a second run
+    # of one tag waits for the first and then removes that draft
+    concurrency:
+      group: release-host-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rustup reads the channel and components from rust-toolchain.toml
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Check the tag against each package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bun run --silent ci:check-release-tag
+      - name: Build the host
+        run: cargo build --release --locked -p pepys-host --bin pepys
+      - name: Write the asset and SHA256SUMS
+        env:
+          PEPYS_HOST_BINARY: target/release/pepys
+          PEPYS_HOST_DIST_DIR: ${{ runner.temp }}/pepys-host
+        run: bun run --silent ci:write-host-asset
+      - name: Check the asset
+        env:
+          PEPYS_HOST_BINARY: target/release/pepys
+          PEPYS_HOST_DIST_DIR: ${{ runner.temp }}/pepys-host
+        run: bun run --silent ci:check-host-asset
+      # the same check a deploy runs on the files it downloads
+      - name: Check SHA256SUMS with sha256sum
+        working-directory: ${{ runner.temp }}/pepys-host
+        run: sha256sum -c SHA256SUMS
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PEPYS_HOST_DIST_DIR: ${{ runner.temp }}/pepys-host
+        run: bun run --silent ci:publish-host-release

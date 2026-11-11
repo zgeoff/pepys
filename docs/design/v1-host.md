@@ -198,3 +198,28 @@ the consumer's own tables: another scope of the same consumer holds the row or t
   link gives only the type, the key and `headers: { operation: 'delete' }`.
 - **Order.** The entries of one scope come as rows written, links written, rows deleted and links
   deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.
+
+## The released binary
+
+The `release-host` job of [`release.yml`](../../.github/workflows/release.yml) makes the GitHub
+release of each tag `v<version>`, with two files:
+
+| File                   | Holds                                                                   |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `pepys-host-linux-x64` | the host, built in release mode for linux x64 with the pinned toolchain |
+| `SHA256SUMS`           | one line in the `sha256sum` format, for the binary by its bare name     |
+
+A deploy pins `PEPYS_RELEASE=v<version>`, downloads both files of that release into one folder, runs
+`sha256sum -c SHA256SUMS` there, and then makes the binary executable.
+
+- **glibc.** The binary links the glibc of the runner that builds it, ubuntu-22.04 with glibc 2.35.
+  Run it on an image with glibc 2.35 or later and `libgcc_s.so.1`, such as `ubuntu:22.04`,
+  `ubuntu:24.04` or `debian:bookworm`. It never runs on musl, such as Alpine, or on
+  `debian:bullseye`, which has glibc 2.31. The job fails when the binary needs a glibc symbol newer
+  than 2.35.
+- **A second run of one tag** never changes a published release. When the tag has one, the job
+  downloads its two files and passes only when they agree. When they disagree, the job fails, and
+  the owner deletes the release and runs the job again.
+- **A run cut off during its upload** leaves a draft, because the job uploads both files to a draft
+  and publishes it last. No deploy can download a draft, and the next run deletes it and makes the
+  release again.

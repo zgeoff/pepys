@@ -66,7 +66,9 @@ docs/
   `package.json` in one pull request, with `bun.lock` written by the pinned bun. Then push the tag
   `v<version>` on `main`: [`release.yml`](.github/workflows/release.yml) checks the tag against each
   version, packs each package once, installs the tarballs outside the repo, and publishes them to
-  npm with provenance.
+  npm with provenance. Its `release-host` job builds the host binary and makes the GitHub release of
+  the tag with the binary and its `SHA256SUMS`. The rules a deploy of that binary relies on are in
+  [The released binary](docs/design/v1-host.md#the-released-binary).
 - `bun run check:outside-install` installs every public package into an empty folder outside the
   repo, type-checks a stub plug-in there, and runs a query test on the test store. It packs the
   packages first, or with `PEPYS_OUTSIDE_VERSION` set it installs that version from npm.
