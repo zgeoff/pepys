@@ -11,6 +11,8 @@ export function toSQLValue(column: ColumnDeclaration, value: unknown): string | 
     .with('boolean', () => (value === true ? 1 : 0))
     .with('json', () => JSON.stringify(value))
     .with('integer', 'real', () => Number(value))
-    .with('text', 'entityID', 'timestamp', () => String(value))
+    .with('text', 'entityID', 'timestamp', () =>
+      typeof value === 'string' ? value : JSON.stringify(value),
+    )
     .exhaustive();
 }

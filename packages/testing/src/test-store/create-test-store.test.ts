@@ -116,7 +116,7 @@ test('it refuses a batch with a fact ID that the envelope parser refuses, and st
     },
   ]);
 
-  await expect(applied).rejects.toMatchObject({
+  expect(applied).rejects.toMatchObject({
     failure: { kind: 'refused-facts', reason: expect.stringContaining('not a fact ID') },
   });
 
@@ -156,7 +156,7 @@ test('it refuses a link of a kind that the link type does not allow, as the host
     },
   ]);
 
-  await expect(applied).rejects.toMatchObject({
+  expect(applied).rejects.toMatchObject({
     failure: {
       kind: 'bad-link',
       problem: {
@@ -382,10 +382,10 @@ test('it keeps nothing that a query handler changes', async () => {
   ]);
 });
 
-test('it refuses a deployment that the kit check refuses', async () => {
+test('it refuses a deployment that the kit check refuses', () => {
   const twice = definePlugin({ name: 'ledger', consumers: [ledgerAccountConsumer] });
 
-  await expect(createTestStore({ plugins: [ledgerPlugin, twice] })).rejects.toThrow(
+  expect(createTestStore({ plugins: [ledgerPlugin, twice] })).rejects.toThrow(
     /the deployment is invalid/u,
   );
 });

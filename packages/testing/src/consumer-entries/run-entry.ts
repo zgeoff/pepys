@@ -17,7 +17,7 @@ export async function runEntry(
 
   const entry: unknown = await import(consumer.entry.href);
 
-  const call =
+  const call: unknown =
     typeof entry === 'object' && entry !== null && exportName in entry
       ? Reflect.get(entry, exportName)
       : undefined;

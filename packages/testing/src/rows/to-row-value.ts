@@ -9,7 +9,7 @@ export function toRowValue(column: ColumnDeclaration, stored: unknown): unknown 
 
   return match(column.kind)
     .with('boolean', () => stored === 1)
-    .with('json', (): unknown => JSON.parse(String(stored)))
+    .with('json', (): unknown => (typeof stored === 'string' ? JSON.parse(stored) : stored))
     .with('integer', 'real', 'text', 'entityID', 'timestamp', () => stored)
     .exhaustive();
 }
