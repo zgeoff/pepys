@@ -31,12 +31,14 @@ bun install
 bun run test
 ```
 
-Bun 1.4.3 is the pinned version (`.bun-version`).
+Bun 1.4.4 is the pinned version (`.bun-version`).
 
 ## Checks
 
 - `bun run typecheck` and `bun run lint` are the local checks.
 - `bun run lint:full`, `bun run deadcode`, `bun run audit`, and `bun run check` run in CI.
+  `bun run check` runs the shared chex checks: the branch's commit messages and local paths, the
+  workflow lint, the test timeouts and the dependency gates.
 - `bun run format` writes the formatting, and `bun run format:check` verifies it.
 
 ## Layout

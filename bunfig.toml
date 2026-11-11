@@ -37,7 +37,6 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/agent-hooks",
   "@zgeoff/bun-test-extended",
   "@zgeoff/chex",
-  "@zgeoff/checks",
   "@zgeoff/commitlint-config",
   "@zgeoff/diet",
   "@zgeoff/format-codemod",

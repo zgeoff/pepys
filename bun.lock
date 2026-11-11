@@ -22,7 +22,6 @@
         "@types/bun": "catalog:",
         "@zgeoff/agent-hooks": "catalog:",
         "@zgeoff/bun-test-extended": "catalog:",
-        "@zgeoff/checks": "catalog:",
         "@zgeoff/chex": "catalog:",
         "@zgeoff/commitlint-config": "catalog:",
         "@zgeoff/diet": "catalog:",
@@ -257,7 +256,6 @@
     "@types/bun": "1.4.4",
     "@zgeoff/agent-hooks": "0.2.11",
     "@zgeoff/bun-test-extended": "0.2.3",
-    "@zgeoff/checks": "0.2.4",
     "@zgeoff/chex": "0.3.2",
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/diet": "0.2.2",
@@ -781,8 +779,6 @@
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.3", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-4ZNPft3LunVKp+s2esoJXSe64EaEywsu3z6Cg5/s/MJcdygmrQeAyfECioePCo5RuAIcaPfgF3lhYsPKcmVJ4w=="],
 
-    "@zgeoff/checks": ["@zgeoff/checks@0.2.4", "", { "dependencies": { "@zgeoff/commitlint-config": "0.1.0", "gunshi": "1.0.0-rc.1", "ts-pattern": "5.9.0" }, "bin": { "zgeoff-check": "dist/cli.js" } }, "sha512-zvDWsfrmU2bbYE7nMU9AdMCKfJ5OR7esuPKmSsXzvAZdzborPqLLxeQvXNIzMOz4DsyMaOzyoL3XXko/aC+3pw=="],
-
     "@zgeoff/chex": ["@zgeoff/chex@0.3.2", "", { "dependencies": { "@zgeoff/std": "0.4.3", "oxc-parser": "0.157.0", "ts-pattern": "5.9.2" }, "bin": { "chex": "src/cli.ts" } }, "sha512-4+UOEjqqXTSCqKbEiwu0m16Vurfk2pnKfdvNLQ7+DiAgM+9iRLLGDkIAmCgZflyP45FQMGHMwBr1SrFbZBRihg=="],
 
     "@zgeoff/commitlint-config": ["@zgeoff/commitlint-config@0.1.0", "", { "peerDependencies": { "@commitlint/cli": ">=21.0.0" } }, "sha512-HEx06TxSmccoaQDNH8Honuv/pxp6I4GU8XpBvWGnibPLf3EKTskc9gJVdKMy43dox4t2i288vTC/mWHmWufUkg=="],
@@ -1172,8 +1168,6 @@
     "@orpc/standard-server-fetch/@orpc/shared": ["@orpc/shared@1.16.2", "", { "dependencies": { "radash": "^12.1.1", "type-fest": "^5.4.4" }, "peerDependencies": { "@opentelemetry/api": ">=1.9.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-j9EX9FvUcnR4tz5ooheC1R7guNg04UePb0Ws7/3GYEJBCX+8OmXKXiNaytTeUbs1zYZbZqyZrE2/FewBeYu7BA=="],
 
     "@orpc/standard-server-peer/@orpc/shared": ["@orpc/shared@1.16.2", "", { "dependencies": { "radash": "^12.1.1", "type-fest": "^5.4.4" }, "peerDependencies": { "@opentelemetry/api": ">=1.9.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-j9EX9FvUcnR4tz5ooheC1R7guNg04UePb0Ws7/3GYEJBCX+8OmXKXiNaytTeUbs1zYZbZqyZrE2/FewBeYu7BA=="],
-
-    "@zgeoff/checks/ts-pattern": ["ts-pattern@5.9.0", "", {}, "sha512-6s5V71mX8qBUmlgbrfL33xDUwO0fq48rxAu2LBE11WBeGdpCPOsXksQbZJHvHwhrd3QjUusd3mAOM5Gg0mFBLg=="],
 
     "@zgeoff/format-codemod/oxc-parser": ["oxc-parser@0.155.0", "", { "dependencies": { "@oxc-project/types": "^0.155.0" }, "optionalDependencies": { "@oxc-parser/binding-android-arm-eabi": "0.155.0", "@oxc-parser/binding-android-arm64": "0.155.0", "@oxc-parser/binding-darwin-arm64": "0.155.0", "@oxc-parser/binding-darwin-x64": "0.155.0", "@oxc-parser/binding-freebsd-x64": "0.155.0", "@oxc-parser/binding-linux-arm-gnueabihf": "0.155.0", "@oxc-parser/binding-linux-arm-musleabihf": "0.155.0", "@oxc-parser/binding-linux-arm64-gnu": "0.155.0", "@oxc-parser/binding-linux-arm64-musl": "0.155.0", "@oxc-parser/binding-linux-ppc64-gnu": "0.155.0", "@oxc-parser/binding-linux-riscv64-gnu": "0.155.0", "@oxc-parser/binding-linux-riscv64-musl": "0.155.0", "@oxc-parser/binding-linux-s390x-gnu": "0.155.0", "@oxc-parser/binding-linux-x64-gnu": "0.155.0", "@oxc-parser/binding-linux-x64-musl": "0.155.0", "@oxc-parser/binding-openharmony-arm64": "0.155.0", "@oxc-parser/binding-win32-arm64-msvc": "0.155.0", "@oxc-parser/binding-win32-ia32-msvc": "0.155.0", "@oxc-parser/binding-win32-x64-msvc": "0.155.0" } }, "sha512-C/ReSf1JUFukK/zvk6jhcNibSssvas5+ktIzK7fbKVd3CedWe59C3QwHEOrEZj/4Rt9+xg0Jeis/Jv1F/KM1mw=="],
 
