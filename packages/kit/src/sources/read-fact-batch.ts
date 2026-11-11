@@ -1,4 +1,4 @@
-import { toTagged } from '@zgeoff/std';
+import { isRecord, toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 import { buildEventFactID } from '../facts/build-event-fact-id.ts';
 import type { EntityID, StreamName } from '../ids/types.ts';
@@ -9,6 +9,7 @@ import type {
   FactFamily,
   PendingFact,
   Received,
+  Sender,
   SourceContext,
 } from './types.ts';
 
@@ -47,7 +48,7 @@ export function readFactBatch(delivery: Delivery, source: SourceContext): Receiv
   const facts: PendingFact[] = [];
 
   for (const [index, fact] of body.data.facts.entries()) {
-    const built = buildPendingFact(fact, source);
+    const built = buildPendingFact(fact, source, delivery.sender);
 
     if (!built.ok) {
       return { kind: 'refused', status: 422, reason: `fact ${index}: ${built.failure}` };
@@ -71,7 +72,11 @@ function parseJSON(text: string): Result<unknown, null> {
 
 type BatchFact = FactBatchBody['facts'][number];
 
-function buildPendingFact(fact: BatchFact, source: SourceContext): Result<PendingFact, string> {
+function buildPendingFact(
+  fact: BatchFact,
+  source: SourceContext,
+  sender: Sender | undefined,
+): Result<PendingFact, string> {
   const family = findFamily(source.families, fact.type);
 
   if (family === undefined) {
@@ -82,7 +87,13 @@ function buildPendingFact(fact: BatchFact, source: SourceContext): Result<Pendin
     return { ok: false, failure: `the entity is not of the kind ${family.entityKind}` };
   }
 
-  const payload = family.types[fact.type]?.safeParse(fact.payload);
+  const sent = buildSentPayload(fact.payload, sender);
+
+  if (!sent.ok) {
+    return sent;
+  }
+
+  const payload = family.types[fact.type]?.safeParse(sent.value);
 
   if (payload?.success !== true) {
     return { ok: false, failure: `the payload does not fit the type ${fact.type}` };
@@ -102,7 +113,7 @@ function buildPendingFact(fact: BatchFact, source: SourceContext): Result<Pendin
         at: fact.at,
 
         // the payload as sent: a schema may strip or reshape, and the log keeps what arrived
-        payload: fact.payload,
+        payload: sent.value,
       },
       blobs: [],
     },
@@ -111,4 +122,24 @@ function buildPendingFact(fact: BatchFact, source: SourceContext): Result<Pendin
 
 function findFamily(families: readonly FactFamily[], type: string): FactFamily | undefined {
   return families.find((family) => Object.hasOwn(family.types, type));
+}
+
+// On a path with a proven sender, the stored `origin` is that sender, whatever the body holds: the
+// route's secret proves the batch, and only the proof says which sender wrote it.
+function buildSentPayload(payload: unknown, sender: Sender | undefined): Result<unknown, string> {
+  if (sender === undefined) {
+    return { ok: true, value: payload };
+  }
+
+  if (!isRecord(payload)) {
+    return {
+      ok: false,
+      failure: 'the payload is not an object, so it cannot hold the proven sender',
+    };
+  }
+
+  return {
+    ok: true,
+    value: { ...payload, origin: { issuer: sender.issuer, subject: sender.subject } },
+  };
 }

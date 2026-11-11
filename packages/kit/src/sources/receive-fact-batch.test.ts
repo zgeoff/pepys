@@ -27,6 +27,8 @@ function setupTest() {
 
       return path.read(delivery, { name: 'ledger', families: [tillFamily] });
     },
+    readDelivery: (delivery: Delivery) =>
+      path.read(delivery, { name: 'ledger', families: [tillFamily] }),
   };
 }
 
@@ -100,6 +102,85 @@ test('it builds each fact with an event fact ID on its family stream', () => {
         },
       ],
     },
+  });
+});
+
+test('it stores the proven sender as the origin in place of an origin the body gives', () => {
+  const ctx = setupTest();
+
+  const body = JSON.stringify({
+    v: 1,
+    facts: [
+      {
+        type: 'ledger.till.opened',
+        event: 'evt-0003',
+        entity: 'ledger:till:4',
+        at: '2026-10-24T01:02:03Z',
+        payload: {
+          float: 50,
+          origin: { issuer: 'https://forged.example', subject: 'till-two' },
+        },
+      },
+    ],
+  });
+
+  const actual: unknown = ctx.readDelivery({
+    headers: new Headers(),
+    body: new TextEncoder().encode(body),
+    sender: { issuer: 'https://id.example', subject: 'till-one', name: 'front till' },
+  });
+
+  expect(actual).toStrictEqual({
+    kind: 'batch',
+    batch: {
+      facts: [
+        {
+          stream: 'facts.ledger.till',
+          fact: {
+            id: 'event:ledger:evt-0003',
+            type: 'ledger.till.opened',
+            v: 1,
+            api: 'ledger/1',
+            entity: 'ledger:till:4',
+            at: '2026-10-24T01:02:03Z',
+            payload: {
+              float: 50,
+              origin: { issuer: 'https://id.example', subject: 'till-one' },
+            },
+          },
+          blobs: [],
+        },
+      ],
+    },
+  });
+});
+
+test('it refuses a payload that cannot hold the origin of a proven sender with 422', () => {
+  const ctx = setupTest();
+
+  const body = JSON.stringify({
+    v: 1,
+    facts: [
+      {
+        type: 'ledger.till.opened',
+        event: 'evt-0004',
+        entity: 'ledger:till:4',
+        at: '2026-10-24T01:02:03Z',
+        payload: [50],
+      },
+    ],
+  });
+
+  const actual: unknown = ctx.readDelivery({
+    headers: new Headers(),
+    body: new TextEncoder().encode(body),
+    sender: { issuer: 'https://id.example', subject: 'till-one', name: 'front till' },
+  });
+
+  expect(actual).toStrictEqual({
+    kind: 'refused',
+    status: 422,
+    reason: 'fact 0: the payload is not an object, so it cannot hold the proven sender',
   });
 });
 
