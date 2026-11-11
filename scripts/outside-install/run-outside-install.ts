@@ -71,13 +71,15 @@ async function readReleaseAgeExcludes(repoRoot: string): Promise<string[]> {
 
   const bunfig: unknown = Bun.TOML.parse(bunfigText);
   const install = isRecord(bunfig) ? bunfig['install'] : undefined;
-  const excludes = isRecord(install) ? install['minimumReleaseAgeExcludes'] : undefined;
+  const excludes: unknown = isRecord(install) ? install['minimumReleaseAgeExcludes'] : undefined;
 
   if (!Array.isArray(excludes)) {
     throw new TypeError('the root bunfig.toml has no install.minimumReleaseAgeExcludes');
   }
 
-  return excludes.filter((name): name is string => typeof name === 'string');
+  const listed: readonly unknown[] = excludes;
+
+  return listed.filter((name) => typeof name === 'string');
 }
 
 async function readSource(
