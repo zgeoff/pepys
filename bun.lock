@@ -133,6 +133,12 @@
     "research/source-retention": {
       "name": "@pepys/spike-source-retention",
       "version": "0.0.0",
+      "dependencies": {
+        "zod": "4.6.7",
+      },
+      "devDependencies": {
+        "@types/bun": "1.4.4",
+      },
     },
   },
   "trustedDependencies": [

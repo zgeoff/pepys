@@ -11,14 +11,35 @@ history ID stay valid?
 
 ## Answer
 
-- The spike has not run, so it holds no verdict and no numbers.
+- The spike is partial: it read the documentation on 2026-11-04. The Gmail probe stored a history ID
+  that day and has measured no expiry, and the GitHub probe waits on a GitHub App credential.
+- GitHub documents 3 days: "You can redeliver webhook deliveries that occurred in the past 3 days."
+- GitHub never redelivers a failed delivery on its own, so the sweep must run more often than every
+  3 days.
+- Gmail documents no fixed limit: "A historyId is typically valid for at least a week, but in some
+  rare circumstances may be valid for only a few hours."
+- An expired Gmail history ID returns HTTP 404, and the documented response is a full sync.
 
-The ingest design holds no recommendation from this spike until it runs.
+Resync GitHub from observations after an outage longer than 3 days, and resync Gmail on any 404,
+whatever the outage length.
+
+## Run it
+
+```bash
+PEPYS_GITHUB_CLIENT_ID=<client_id> PEPYS_GITHUB_APP_PRIVATE_KEY_PATH=<pem_path> \
+  bun run --filter ./research/source-retention github
+bun --env-file=<env_file> research/source-retention/run-gmail-probe.ts
+```
+
+The credentials, the daily schedule for the Gmail probe and the versions are in
+[Setup](results.md#setup).
 
 ## Results
 
-[results.md](results.md) holds the method and the check the spike must pass.
+[results.md](results.md) holds the quoted documentation, the method and the check the probes must
+pass.
 
 ## Untested
 
-Every step of the method, until the spike runs: [Untested](results.md#untested).
+The GitHub probe, the redelivery of an old delivery, and a history ID kept past a week:
+[Untested](results.md#untested).
