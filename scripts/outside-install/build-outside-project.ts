@@ -169,6 +169,10 @@ function formatManifest(input: OutsideProjectInput): string {
       typescript: getPin(catalog, 'typescript'),
     },
 
+    // scriptc, which `@pepys/cli` depends on, puts its native compiler in place in a postinstall
+    // script, and bun runs no dependency's script that the project does not trust
+    trustedDependencies: ['scriptc'],
+
     // a packed package names each `@pepys/*` dependency by version, which npm lacks until it is
     // published, so each one resolves to its tarball
     ...(source.kind === 'tarballs' ? { overrides: pepys } : {}),

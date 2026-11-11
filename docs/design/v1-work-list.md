@@ -204,7 +204,9 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 - **Sketch:** 01, the package list above part A.
 - **Needs first:** slice 15.
 - **Check:** a deployment in an empty folder installs the packages, builds its consumers, and starts
-  the released binary with `run --up`.
+  the released binary with `run --up`. `bun run test:e2e:outside` runs it, with
+  `PEPYS_OUTSIDE_VERSION=<version>` and `PEPYS_OUTSIDE_HOST_TAG=v<version>` set for the release. The
+  `e2e` job runs it on packed tarballs and the host it builds.
 
 ## 17. Deploy through the cloud repo
 

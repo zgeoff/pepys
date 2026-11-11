@@ -126,6 +126,14 @@ docs/
 - `bun run test:e2e:rust` runs the Rust e2e lane, the fact log and blob store fixtures on s2-lite
   and Garage, in a stack of its own, and the compiled ledger scope consumer through `pepys up`. It
   needs Docker, `cargo-nextest` and the consumers built. The `e2e` job runs it after the Bun lane.
+  It then runs `bun run test:e2e:outside`.
+- `bun run test:e2e:outside` checks a deployment outside the repo. In an empty folder it installs
+  every public package as `check:outside-install` does, runs `pepys build` on a stub deployment, and
+  starts a host with `run --up` on s2-lite until each consumer is current. It needs Docker and the
+  two tool variables. The host is `target/debug/pepys` by default, the binary at
+  `PEPYS_OUTSIDE_HOST`, or, with `PEPYS_OUTSIDE_HOST_TAG=v<version>`, the release's
+  `pepys-host-linux-x64`, which the check downloads and checks against the release's `SHA256SUMS`.
+  To check a release, set `PEPYS_OUTSIDE_VERSION=<version>` and `PEPYS_OUTSIDE_HOST_TAG=v<version>`.
 - `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`
   and MCP at `/mcp`. It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which
   defaults to 127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081.

@@ -28,6 +28,7 @@ test('it installs each package from its tarball and overrides the version that n
       zod: '4.6.7',
     },
     devDependencies: { '@types/bun': '1.4.4', typescript: '7.0.2' },
+    trustedDependencies: ['scriptc'],
     overrides: { '@pepys/lantern': 'file:/packs/pepys-lantern-2.1.0.tgz' },
   });
 });
@@ -55,6 +56,7 @@ test('it installs each package from npm at one version with no override', () => 
     type: 'module',
     dependencies: { '@pepys/lantern': '2.1.0', '@zgeoff/std': '0.4.3', zod: '4.6.7' },
     devDependencies: { '@types/bun': '1.4.4', typescript: '7.0.2' },
+    trustedDependencies: ['scriptc'],
   });
 });
 
