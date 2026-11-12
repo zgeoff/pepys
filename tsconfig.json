@@ -5,9 +5,9 @@
   },
   "include": [
     "packages/*/src/**/*.ts",
+    "packages/*/e2e/**/*.ts",
     "scripts/**/*.ts",
     "stack/**/*.ts",
-    "e2e/**/*.ts",
     "rig.config.ts"
   ]
 }

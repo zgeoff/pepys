@@ -52,13 +52,13 @@ docs/
 
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
   A package depends on it as `catalog:`.
-- A package is named `@pepys/<folder>`. The one exception is `e2e/logbook-plugin`, the e2e lane's
-  private plug-in, which takes the name an outside plug-in would. A package that a plug-in or a
-  deployment imports is public on npm: `api`, `cli`, `contract`, `ingest`, `kit`, `kysely-turso`,
-  `schema`, `source-github`, `source-telemetry` and `testing`. A public package has no `private`, a
-  `version`, a `license`, `repository` with its `directory`, a `files` list that leaves out tests
-  and `test-utils`, `publishConfig.access` of `public`, and a README. Every other package is
-  private.
+- A package is named `@pepys/<folder>`. The one exception is
+  `packages/cli/e2e/fixtures/logbook-plugin`, the e2e lane's private plug-in, which takes the name
+  an outside plug-in would. A package that a plug-in or a deployment imports is public on npm:
+  `api`, `cli`, `contract`, `ingest`, `kit`, `kysely-turso`, `schema`, `source-github`,
+  `source-telemetry` and `testing`. A public package has no `private`, a `version`, a `license`,
+  `repository` with its `directory`, a `files` list that leaves out tests and `test-utils`,
+  `publishConfig.access` of `public`, and a README. Every other package is private.
 - A public package imports no private workspace package, and depends on each package it imports in
   shipped code, not as a dev dependency. Its `files` list leaves out each test helper outside
   `test-utils`, such as the ingest fixture runners.
@@ -117,17 +117,22 @@ docs/
 - `bun run consumers:build` runs `pepys build` on two deployments. It compiles each consumer of the
   repo's stub deployment, `scripts/stub-deployment.ts`, to `build/consumers/<name>/<hash>.wasm` and
   writes `build/consumers/consumers.json`. It writes the same for the e2e deployment,
-  `e2e/deployment/e2e-deployment.ts`, under `build/e2e-consumers/`. It needs zig 0.16.0 and
-  wasm-tools 1.262.0, the version CI pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
-- `bun run test:e2e` runs the e2e lane against Garage and s2-lite in Docker. The lane runs ingest,
-  the host and the API of the e2e deployment: the GitHub and telemetry plug-ins, and the logbook
-  plug-in in `e2e/logbook-plugin/`, which imports the kit by package name as an outside plug-in
-  does. A signed webhook, a signed fact batch and an OTLP logs export with an identity token go in
-  through ingest, and the tests read the rows through the API. The deployment also holds the ledger
-  scope consumer of the stub deployment, on records the setup appends to s2-lite. The lane needs
-  Docker, the host built at `target/debug/pepys` and the consumers built, so run
-  `bun run test:e2e:prepare` first, with the same two variables set. The `e2e` job in `pr.yml` runs
-  the lane on every pull request.
+  `packages/cli/e2e/fixtures/e2e-deployment.ts`, under `build/e2e-consumers/`. It needs zig 0.16.0
+  and wasm-tools 1.262.0, the version CI pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
+- `bun run test:e2e` runs the e2e tests of `packages/cli/e2e/` and `packages/ingest/e2e/` against
+  Garage and s2-lite in Docker. The preload, `packages/cli/e2e/start-stack.ts`, starts the e2e
+  deployment with `pepys start`, which runs ingest, the host and the API: the GitHub and telemetry
+  plug-ins, and the logbook plug-in in `packages/cli/e2e/fixtures/logbook-plugin/`, which imports
+  the kit by package name as an outside plug-in does. A signed webhook, a signed fact batch and an
+  OTLP logs export with an identity token go in through ingest, and the tests read the rows through
+  the API. The deployment also holds the ledger scope consumer of the stub deployment, on records
+  the setup appends to s2-lite. The lane needs Docker, the host built at `target/debug/pepys` and
+  the consumers built, so run `bun run test:e2e:prepare` first, with the same two variables set. The
+  `e2e` job in `pr.yml` runs the lane on every pull request.
+- `pepys start <deployment-file>` runs a whole deployment: ingest and the API in its own process,
+  and the host, at the path in `PEPYS_HOST_BIN`, as a child with `run --up`. Each part reads the
+  variables it reads on its own. On SIGINT or SIGTERM, or when a part ends, it stops the others, and
+  exits 0 after a signal with every part stopped cleanly, and 1 otherwise.
 - The host, `target/debug/pepys`, runs `up [<consumer>]`, `run [--up]` and `preview <consumer>` from
   the `consumers.json` at `PEPYS_CONSUMERS`, such as `build/consumers/consumers.json`, with the
   store at `PEPYS_STORE_DIR` and the S2 log at the `PEPYS_S2_` variables.

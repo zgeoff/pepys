@@ -4,7 +4,7 @@ import invariant from 'tiny-invariant';
 import {
   readBlobStoreFixtures,
   runBlobStoreFixture,
-} from '../packages/ingest/src/blob-store/run-blob-store-fixture.ts';
+} from '../src/blob-store/run-blob-store-fixture.ts';
 
 function setupTest() {
   const endpoint = process.env['PEPYS_GARAGE_ENDPOINT'];
@@ -19,7 +19,7 @@ function setupTest() {
       bucket !== undefined &&
       accessKeyID !== undefined &&
       secretAccessKey !== undefined,
-    'start-stack sets the Garage address',
+    'the e2e preload sets the Garage address',
   );
 
   return {

@@ -9,7 +9,7 @@ function setupTest() {
 
   invariant(
     runStderrPath !== undefined,
-    'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
+    'run the e2e lane with bun run test:e2e, which preloads packages/cli/e2e/start-stack.ts',
   );
 
   return {

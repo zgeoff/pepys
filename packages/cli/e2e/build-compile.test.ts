@@ -15,7 +15,7 @@ async function setupTest() {
   stack.defer(() => rm(root, { recursive: true, force: true }));
 
   const kitURL = import.meta.resolve('@pepys/kit');
-  const zodPath = Bun.resolveSync('zod', join(import.meta.dir, '../packages/kit'));
+  const zodPath = Bun.resolveSync('zod', join(import.meta.dir, '../../kit'));
 
   await mkdir(join(root, 'dep/src/consumers'), { recursive: true });
   await mkdir(join(root, 'app'), { recursive: true });
@@ -34,7 +34,7 @@ async function setupTest() {
       const child = Bun.spawn(
         [
           'bun',
-          join(import.meta.dir, '../packages/cli/src/bin.ts'),
+          join(import.meta.dir, '../src/bin.ts'),
           'build',
           join(root, file),
           '--out',

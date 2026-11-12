@@ -2,7 +2,7 @@ import { join, relative } from 'node:path';
 import { checkBuildTarget, collectGlueFiles } from '@pepys/cli';
 import type { DeploymentFailure } from '@pepys/kit';
 import { generateKyselyTypes } from '@pepys/schema';
-import { e2eDeployment } from '../e2e/deployment/e2e-deployment.ts';
+import { e2eDeployment } from '../packages/cli/e2e/fixtures/e2e-deployment.ts';
 import { stubDeployment } from './stub-deployment.ts';
 
 export interface GeneratedFile {

@@ -1,5 +1,5 @@
-// `test:e2e` preloads this setup. It starts the e2e deployment and sends each fact once for the whole
-// lane, so each test's 15 s limit covers its own act and not the container start. Test files may
+// `test:e2e` preloads this setup. It starts the e2e deployment with `pepys start` and sends each fact
+// once for the whole lane, so each test's 15 s limit covers its own act and not the container start. Test files may
 // not hold beforeAll, and the tests read what it started through the environment.
 
 import { afterAll, beforeAll } from 'bun:test';
@@ -20,22 +20,27 @@ import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
 import { waitFor } from '@zgeoff/testing/helpers';
 import { logbookSource, logbookVoyageConsumer } from 'logbook-plugin';
-import { createIdentityIssuer } from '../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
-import type { IdentityIssuer } from '../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
-import ledgerJourney from '../packages/testing/src/ledger/ledger-journey.json' with { type: 'json' };
-import { ledgerAccountConsumer } from '../packages/testing/src/ledger/ledger-plugin.ts';
-import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
-import { buildStackEnv } from '../stack/build-stack-env.ts';
-import { withStack } from '../stack/with-stack.ts';
-import type { RunningStack } from '../stack/with-stack.ts';
+import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
+import { buildStackEnv } from '../../../stack/build-stack-env.ts';
+import { withStack } from '../../../stack/with-stack.ts';
+import type { RunningStack } from '../../../stack/with-stack.ts';
+import { createIdentityIssuer } from '../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
+import type { IdentityIssuer } from '../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
+import ledgerJourney from '../../testing/src/ledger/ledger-journey.json' with { type: 'json' };
+import { ledgerAccountConsumer } from '../../testing/src/ledger/ledger-plugin.ts';
+import { buildGithubDelivery } from '../src/test-utils/build-github-delivery.ts';
+import type { GithubDelivery } from '../src/test-utils/build-github-delivery.ts';
+import { readFreePort } from '../src/test-utils/read-free-port.ts';
 
-const root = join(import.meta.dir, '..');
+const root = join(import.meta.dir, '../../..');
 const webhookSecret = 'github-pr-webhook-secret';
 const logbookSecret = 'logbook-e2e-secret';
 const telemetryToken = 'telemetry-e2e-token';
 const identityAudience = 'pepys-ingest-e2e';
 const host = join(root, 'target/debug/pepys');
 const consumersPath = join(root, 'build/e2e-consumers/consumers.json');
+const cliPath = join(root, 'packages/cli/src/bin.ts');
+const deploymentPath = join(import.meta.dir, 'fixtures/e2e-deployment.ts');
 
 // Each consumer a test reads, with the stream it reads. The run stops once each has applied the
 // tail of its stream.
@@ -66,6 +71,7 @@ beforeAll(
       ...buildStackEnv(stack),
       PEPYS_STORE_DIR: storeDirectory,
       PEPYS_CONSUMERS: consumersPath,
+      PEPYS_HOST_BIN: host,
     });
 
     const trustDirectory = await mkdtemp(join(tmpdir(), 'pepys-e2e-trust-'));
@@ -78,12 +84,11 @@ beforeAll(
 
     const runStderrPath = join(runDirectory, 'stderr.txt');
 
-    const ingestURL = await runSlice({ stack, storeDirectory, trustDirectory, runStderrPath });
+    const urls = await runDeployment({ stack, storeDirectory, trustDirectory, runStderrPath });
 
-    process.env['PEPYS_E2E_INGEST_URL'] = ingestURL;
+    process.env['PEPYS_E2E_INGEST_URL'] = urls.ingestURL;
     process.env['PEPYS_E2E_RUN_STDERR'] = runStderrPath;
-
-    process.env['PEPYS_E2E_API_URL'] = await startAPI(stack.stop);
+    process.env['PEPYS_E2E_API_URL'] = urls.apiURL;
   },
 
   // a fresh runner pulls the Garage and s2-lite images before the stack starts
@@ -153,10 +158,13 @@ interface SliceOptions {
   runStderrPath: string;
 }
 
-// Starts ingest, sends every fact, and runs the host until it has applied them. It returns the
-// address of ingest, which keeps running for the tests.
-async function runSlice(options: SliceOptions): Promise<string> {
+// Starts the deployment with `pepys start`, sends every fact, and waits until the host has applied
+// them. It returns the addresses of ingest and the API, which keep running for the tests.
+async function runDeployment(
+  options: SliceOptions,
+): Promise<{ ingestURL: string; apiURL: string }> {
   const ingestPort = readFreePort();
+  const apiPort = readFreePort();
 
   const issuer = await createIdentityIssuer('harbour-broker');
 
@@ -166,9 +174,20 @@ async function runSlice(options: SliceOptions): Promise<string> {
     JSON.stringify(issuer.document),
   );
 
-  runChild(['bun', 'e2e/deployment/serve-ingest.ts'], {
+  // `run --up` replays the ledger journey at start, so the stream holds it before the start
+  await writeLedgerJourney(options.stack);
+
+  const hostErrors: HostErrors = { text: '' };
+
+  // cleanup runs in reverse, so this waits for the end of stderr after the process group stops
+  let reading: Promise<void> = Promise.resolve();
+
+  cleanup.defer(() => reading);
+
+  const start = runChild(['bun', cliPath, 'start', deploymentPath], {
     ...process.env,
     PEPYS_INGEST_PORT: String(ingestPort),
+    PEPYS_API_PORT: String(apiPort),
     PEPYS_GITHUB_WEBHOOK_SECRET: webhookSecret,
 
     // The first pull runs a minute after start, and with no marks it calls no API.
@@ -183,28 +202,29 @@ async function runSlice(options: SliceOptions): Promise<string> {
     LEDGER_SECRET: 'ledger-e2e-secret',
   });
 
+  reading = readHostErrors(start.stderr, hostErrors);
+
   const ingestURL = `http://127.0.0.1:${ingestPort}`;
+  const apiURL = `http://127.0.0.1:${apiPort}/rpc`;
   const webhookURL = `${ingestURL}/webhook/github`;
 
-  await waitForIngest(webhookURL, options.stack.stop);
-  await writeLedgerJourney(options.stack);
-  await runHost(['up']);
+  await waitForIngest(webhookURL, options.stack.stop, start);
 
-  const opened = buildDelivery({
+  const opened = buildGithubDelivery({
     deliveryID: 'github-pr-delivery-1',
     action: 'opened',
     title: 'Add the harbour map',
     updatedAt: '2026-10-01T09:00:00Z',
   });
 
-  const synchronized = buildDelivery({
+  const synchronized = buildGithubDelivery({
     deliveryID: 'github-pr-delivery-2',
     action: 'synchronize',
     title: 'Add the harbour map and tides',
     updatedAt: '2026-10-01T10:00:00Z',
   });
 
-  const outOfOrder = buildDelivery({
+  const outOfOrder = buildGithubDelivery({
     deliveryID: 'github-pr-delivery-3',
     action: 'edited',
     title: 'An older title',
@@ -220,9 +240,18 @@ async function runSlice(options: SliceOptions): Promise<string> {
 
   const tails = await readTails(options.stack);
 
-  await runUntilCaughtUp(options.storeDirectory, tails, options.stack.stop, options.runStderrPath);
+  await waitUntilCaughtUp({
+    storeDirectory: options.storeDirectory,
+    tails,
+    stop: options.stack.stop,
+    start,
+    hostErrors,
+    runStderrPath: options.runStderrPath,
+  });
 
-  return ingestURL;
+  await waitForAPI(apiURL, options.stack.stop, start);
+
+  return { ingestURL, apiURL };
 }
 
 // The ledger journey holds stored envelopes, repeats included, which no fact batch sends as they are,
@@ -257,13 +286,17 @@ async function writeLedgerJourney(stack: RunningStack): Promise<void> {
   }
 }
 
-// each child leads its own process group, so cleanup also stops anything the child forked
-function runChild(command: string[], env: Record<string, string | undefined>): Bun.Subprocess {
+// The child leads its own process group, so cleanup also stops the host that it spawned. Its stderr
+// is piped, because the host prints each error of `run` there and the lane keeps those lines.
+function runChild(
+  command: string[],
+  env: Record<string, string | undefined>,
+): Bun.Subprocess<'ignore', 'inherit', 'pipe'> {
   const child = Bun.spawn(command, {
     cwd: root,
     env,
     stdout: 'inherit',
-    stderr: 'inherit',
+    stderr: 'pipe',
     detached: true,
   });
 
@@ -272,55 +305,7 @@ function runChild(command: string[], env: Record<string, string | undefined>): B
   return child;
 }
 
-async function runHost(args: string[]): Promise<void> {
-  const child = runChild([host, ...args], process.env);
-
-  const exitCode = await child.exited;
-
-  if (exitCode !== 0) {
-    throw new Error(`pepys ${args.join(' ')} exited with ${exitCode}`);
-  }
-}
-
-interface Delivery {
-  deliveryID: string;
-  body: string;
-}
-
-interface DeliveryParameters {
-  deliveryID: string;
-  action: string;
-  title: string;
-  updatedAt: string;
-}
-
-function buildDelivery(parameters: DeliveryParameters): Delivery {
-  const body = JSON.stringify({
-    action: parameters.action,
-    number: 12,
-    pull_request: {
-      id: 1_874_433_021,
-      number: 12,
-      title: parameters.title,
-      state: 'open',
-      draft: false,
-      merged: false,
-      merge_commit_sha: null,
-      html_url: 'https://github.example/acme/harbour/pull/12',
-      user: { id: 4401 },
-      base: { repo: { id: 902 } },
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: parameters.updatedAt,
-      closed_at: null,
-      merged_at: null,
-    },
-    sender: { id: 4401 },
-  });
-
-  return { deliveryID: parameters.deliveryID, body };
-}
-
-async function writeDelivery(url: string, delivery: Delivery): Promise<void> {
+async function writeDelivery(url: string, delivery: GithubDelivery): Promise<void> {
   const signature = await new Webhooks({ secret: webhookSecret }).sign(delivery.body);
 
   const response = await fetch(url, {
@@ -437,12 +422,14 @@ async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
 
 const startDeadlineMs = 30_000;
 
-async function waitForIngest(url: string, stop: AbortSignal): Promise<void> {
+async function waitForIngest(url: string, stop: AbortSignal, start: Bun.Subprocess): Promise<void> {
   await waitFor(
     async () => {
       if (stop.aborted) {
         return;
       }
+
+      throwIfStartEnded(start);
 
       const response = await fetch(url, { method: 'POST' });
 
@@ -474,55 +461,53 @@ async function readTails(stack: RunningStack): Promise<Map<string, number>> {
   return tails;
 }
 
-async function runUntilCaughtUp(
-  storeDirectory: string,
-  tails: ReadonlyMap<string, number>,
-  stop: AbortSignal,
-  runStderrPath: string,
-): Promise<void> {
-  const run = Bun.spawn([host, 'run'], {
-    cwd: root,
-    env: process.env,
-    stdout: 'inherit',
-    stderr: 'pipe',
-    detached: true,
-  });
+interface CaughtUpOptions {
+  storeDirectory: string;
+  tails: ReadonlyMap<string, number>;
+  stop: AbortSignal;
+  start: Bun.Subprocess;
+  hostErrors: HostErrors;
+  runStderrPath: string;
+}
 
-  cleanup.defer(() => stopProcessGroup(run));
+function throwIfStartEnded(start: Bun.Subprocess): void {
+  if (start.exitCode !== null) {
+    throw new Error(`pepys start exited with ${start.exitCode}`);
+  }
+}
 
-  const hostErrors: HostErrors = { text: '' };
-  const reading = readHostErrors(run.stderr, hostErrors);
-  const store = createStoreReader({ storeDirectory });
+// The host keeps running for the tests, so this keeps the errors it has printed by the time every
+// consumer has caught up.
+async function waitUntilCaughtUp(options: CaughtUpOptions): Promise<void> {
+  const store = createStoreReader({ storeDirectory: options.storeDirectory });
 
   // a stopped task never catches up, so the wait ends at the first error, which a test reports
   const failure = await waitFor(
     async () => {
-      if (stop.aborted || hasHostError(hostErrors.text)) {
+      if (options.stop.aborted || hasHostError(options.hostErrors.text)) {
         return;
       }
 
-      const lagging = await readLaggingConsumers(store, tails);
+      throwIfStartEnded(options.start);
+
+      const lagging = await readLaggingConsumers(store, options.tails);
 
       if (lagging.length > 0) {
         throw new Error(`still behind: ${lagging.join(', ')}`);
       }
     },
-    { intervalMs: 200, timeoutMs: 60_000, label: 'pepys run to catch up' },
+    { intervalMs: 200, timeoutMs: 60_000, label: 'pepys start to catch up' },
   ).then(
     () => null,
     (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
   );
 
   await store.close();
+  await Bun.write(options.runStderrPath, options.hostErrors.text);
 
-  await stopProcessGroup(run);
-  await reading;
+  options.stop.throwIfAborted();
 
-  await Bun.write(runStderrPath, hostErrors.text);
-
-  stop.throwIfAborted();
-
-  if (failure !== null && !hasHostError(hostErrors.text)) {
+  if (failure !== null && !hasHostError(options.hostErrors.text)) {
     throw failure;
   }
 }
@@ -577,16 +562,7 @@ function hasHostError(text: string): boolean {
   return text.split('\n').some((line) => line.startsWith('pepys: '));
 }
 
-async function startAPI(stop: AbortSignal): Promise<string> {
-  const apiPort = readFreePort();
-
-  runChild(['bun', 'e2e/deployment/serve-api.ts'], {
-    ...process.env,
-    PEPYS_API_PORT: String(apiPort),
-  });
-
-  const rpcURL = `http://127.0.0.1:${apiPort}/rpc`;
-
+async function waitForAPI(rpcURL: string, stop: AbortSignal, start: Bun.Subprocess): Promise<void> {
   // any answer shows the API listens; a refused connection rejects and is tried again
   await waitFor(
     async () => {
@@ -594,21 +570,12 @@ async function startAPI(stop: AbortSignal): Promise<string> {
         return;
       }
 
+      throwIfStartEnded(start);
+
       await fetch(rpcURL);
     },
     { intervalMs: 100, timeoutMs: startDeadlineMs, label: 'the API' },
   );
 
   stop.throwIfAborted();
-
-  return rpcURL;
-}
-
-function readFreePort(): number {
-  const listener = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data: () => {} } });
-  const port = listener.port;
-
-  listener.stop(true);
-
-  return port;
 }

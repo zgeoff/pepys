@@ -10,7 +10,7 @@ import { githubPlugin, githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
+import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 
 function setupTest() {
   const deployment = defineDeployment({ name: 'github', plugins: [githubPlugin] });
@@ -26,10 +26,10 @@ function setupTest() {
       s2Basin !== undefined &&
       storeDirectory !== undefined &&
       apiURL !== undefined,
-    'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
+    'run the e2e lane with bun run test:e2e, which preloads packages/cli/e2e/start-stack.ts',
   );
 
-  const host = join(import.meta.dir, '../target/debug/pepys');
+  const host = join(import.meta.dir, '../../../target/debug/pepys');
   const store = createStoreReader({ storeDirectory });
 
   onTestFinished(() => store.close());
