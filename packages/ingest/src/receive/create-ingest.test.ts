@@ -437,39 +437,64 @@ test.each([
     mode: 'foreign-stream',
     token: 'stray-key',
     status: 422,
+    logged: [],
   },
   {
     row: 'a fact with a blob, which ingest has no store for',
     mode: 'blob',
     token: 'stray-key',
     status: 500,
+    logged: [
+      {
+        level: 'error',
+        message: 'the source stray read a fact with a blob, and ingest has no blob store',
+      },
+    ],
   },
-  { row: 'a read that throws', mode: 'throw', token: 'stray-key', status: 500 },
+  {
+    row: 'a read that throws',
+    mode: 'throw',
+    token: 'stray-key',
+    status: 500,
+    logged: [
+      {
+        level: 'error',
+        message: 'the read of the source stray threw',
+        detail: { name: 'Error', message: 'the stray reader fails', stack: expect.any(String) },
+      },
+    ],
+  },
   {
     row: 'a wrong token, before the read that would throw runs',
     mode: 'throw',
     token: 'stray-lock',
     status: 401,
+    logged: [],
   },
-])('it answers $status and appends nothing to $row', async (row) => {
-  const ctx = setupTest();
+])(
+  'it answers $status to $row, appends nothing, and logs each fault of the source',
+  async (row) => {
+    const ctx = setupTest();
 
-  const request = new Request('http://ingest.test/stray/notes', {
-    method: 'POST',
-    headers: { authorization: row.token, 'x-stray-mode': row.mode },
-    body: '{}',
-  });
+    const request = new Request('http://ingest.test/stray/notes', {
+      method: 'POST',
+      headers: { authorization: row.token, 'x-stray-mode': row.mode },
+      body: '{}',
+    });
 
-  const response = await ctx.ingest.handleRequest(request);
-  const answer = await ctx.readAnswer(response);
-  const tillIDs = await ctx.readIDs(ctx.streams.till);
-  const strayIDs = await ctx.readIDs(ctx.streams.stray);
+    const response = await ctx.ingest.handleRequest(request);
+    const answer = await ctx.readAnswer(response);
+    const tillIDs = await ctx.readIDs(ctx.streams.till);
+    const strayIDs = await ctx.readIDs(ctx.streams.stray);
 
-  expect({ answer, ids: [...tillIDs, ...strayIDs] }).toStrictEqual({
-    answer: { status: row.status, body: { error: expect.any(String) } },
-    ids: [],
-  });
-});
+    expect({ answer, ids: [...tillIDs, ...strayIDs] }).toStrictEqual({
+      answer: { status: row.status, body: { error: expect.any(String) } },
+      ids: [],
+    });
+
+    expect(ctx.readLogged()).toStrictEqual([...row.logged]);
+  },
+);
 
 test('it refuses every delivery on a route whose secret is empty, one signed with the empty secret included', async () => {
   const ctx = setupTest();
@@ -566,7 +591,7 @@ test('it answers 500 when the log refuses one stream of two, and the other strea
   });
 });
 
-test('it answers 500 when an append throws', async () => {
+test('it answers 500 when an append throws, and logs the error', async () => {
   const ctx = setupTest();
 
   const log = {
@@ -592,6 +617,18 @@ test('it answers 500 when an append throws', async () => {
   const answer = await ctx.readAnswer(response);
 
   expect(answer).toStrictEqual({ status: 500, body: { error: 'the log refused the batch' } });
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'an append to facts.ledger.till threw',
+      detail: {
+        name: 'Error',
+        message: 'the access token is not valid',
+        stack: expect.any(String),
+      },
+    },
+  ]);
 });
 
 test('it stores a delivery that got 503 when it is sent again, and never drops it as a repeat', async () => {
@@ -623,7 +660,7 @@ test('it stores a delivery that got 503 when it is sent again, and never drops i
   });
 });
 
-test('it answers 500 when the log refuses for a reason no retry mends', async () => {
+test('it answers 500 when the log refuses for a reason no retry mends, and logs the refusal', async () => {
   const ctx = setupTest();
   const ingest = ctx.createIngestOver({ log: createMemoryFactLog([]) });
 
@@ -643,6 +680,14 @@ test('it answers 500 when the log refuses for a reason no retry mends', async ()
   const answer = await ctx.readAnswer(response);
 
   expect(answer).toStrictEqual({ status: 500, body: { error: 'the log refused the batch' } });
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'an append to facts.ledger.till failed',
+      detail: { kind: 'refused', reason: 'unknown-stream' },
+    },
+  ]);
 });
 
 test('it answers 503 with retry-after when no append is acknowledged after its tries', async () => {

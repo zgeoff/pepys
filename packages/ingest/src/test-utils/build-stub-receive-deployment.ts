@@ -10,6 +10,7 @@ import type {
   BlobHash,
   CheckedDeployment,
   Delivery,
+  Deployment,
   EntityID,
   FactID,
   PendingFact,
@@ -22,6 +23,8 @@ import invariant from 'tiny-invariant';
 import { z } from 'zod';
 
 export interface StubReceiveDeployment {
+  // the deployment before the check, as `serveIngest` takes it
+  definition: Deployment;
   deployment: CheckedDeployment;
   ledgerSource: SourceDefinition;
   streams: { till: StreamName; lamp: StreamName; stray: StreamName; strayMark: StreamName };
@@ -124,20 +127,21 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
     },
   });
 
-  const deployment = checkDeployment(
-    defineDeployment({
-      name: 'harbour',
-      plugins: [
-        definePlugin({ name: 'ledger', sources: [ledgerSource] }),
-        definePlugin({ name: 'beacon', sources: [beaconSource] }),
-        definePlugin({ name: 'stray', sources: [straySource] }),
-      ],
-    }),
-  );
+  const definition = defineDeployment({
+    name: 'harbour',
+    plugins: [
+      definePlugin({ name: 'ledger', sources: [ledgerSource] }),
+      definePlugin({ name: 'beacon', sources: [beaconSource] }),
+      definePlugin({ name: 'stray', sources: [straySource] }),
+    ],
+  });
+
+  const deployment = checkDeployment(definition);
 
   invariant(deployment.ok, 'the stub deployment passes the check');
 
   return {
+    definition,
     deployment: deployment.value,
     ledgerSource,
     streams: { till: tillStream, lamp: lampStream, stray: strayStream, strayMark: strayMarkStream },

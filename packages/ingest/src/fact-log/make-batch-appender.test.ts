@@ -189,6 +189,37 @@ test('it appends after a tail read that failed', async () => {
   ]);
 });
 
+test('it stores the run once, and logs the error, when the read that settles a lost reply fails', async () => {
+  const ctx = setupTest();
+  const read = mock(ctx.log.read).mockRejectedValueOnce(new Error('connection reset'));
+
+  ctx.log.loseNextReply();
+
+  const stored = await makeBatchAppender({
+    log: { ...ctx.log, read },
+    logger: ctx.logger,
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(ctx.stream, [buildTestFact('event:test:1')]);
+
+  const ids = await ctx.readIDs();
+
+  expect(stored).toStrictEqual({
+    ok: true,
+    value: { firstOffset: toTagged<StreamOffset>(0), count: 1 },
+  });
+
+  expect(ids).toStrictEqual(['event:test:1']);
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'a read that settles an append failed',
+      detail: { name: 'Error', message: 'connection reset', stack: expect.any(String) },
+    },
+  ]);
+});
+
 test('it reports not-stored once the attempts are used up on unknown outcomes', async () => {
   const ctx = setupTest();
   const log = buildStubFactLog({ kind: 'unknown' });
