@@ -23,7 +23,13 @@ async function setupTest() {
 
   invariant(checked.ok, 'the harbour deployment is valid');
 
-  const app = createApp(buildQueryContext(store.reader, checked.value));
+  const logged: { message: string; error: unknown }[] = [];
+
+  const app = createApp(buildQueryContext(store.reader, checked.value), {
+    logError: (message, error) => {
+      logged.push({ message, error });
+    },
+  });
 
   // the HTTP status of each /rpc answer, which the client's error does not carry
   const statuses: number[] = [];
@@ -49,6 +55,7 @@ async function setupTest() {
     store,
     client,
     statuses,
+    logged,
     callMCP: (method: string, params: Readonly<Record<string, unknown>>) =>
       readMCPAnswer((request) => app.handle(request), method, params),
   };
@@ -152,6 +159,34 @@ test('it answers 503 for a plug-in query whose consumer has no current version',
   expect(ctx.statuses).toStrictEqual([503]);
 });
 
+test('it logs nothing for a call on an entity no row holds', async () => {
+  const ctx = await setupTest();
+
+  await ctx.client.get_entity({ id: 'harbour:vessel:404' }).catch(() => null);
+
+  expect(ctx.logged).toStrictEqual([]);
+});
+
+test('it logs nothing for an MCP tool call whose arguments fail the input schema', async () => {
+  const ctx = await setupTest();
+  const answer = await ctx.callMCP('tools/call', { name: 'get_entity', arguments: {} });
+
+  expect({ answer, logged: ctx.logged }).toStrictEqual({
+    answer: { jsonrpc: '2.0', id: 1, result: expect.objectContaining({ isError: true }) },
+    logged: [],
+  });
+});
+
+test('it logs nothing for a plug-in query whose consumer has no current version', async () => {
+  const ctx = await setupTest();
+
+  ctx.store.reader.markDown('harbour_voyage');
+
+  await ctx.client.harbour_voyage_count({ vessel: 'harbour:vessel:7' }).catch(() => null);
+
+  expect(ctx.logged).toStrictEqual([]);
+});
+
 test('it lists the core procedures and every plug-in query as MCP tools, each with its description', async () => {
   const ctx = await setupTest();
   const listed = await ctx.callMCP('tools/list', {});
@@ -225,6 +260,46 @@ test('it answers an MCP tool call that fails with an error result', async () => 
     id: 1,
     result: expect.objectContaining({ isError: true }),
   });
+});
+
+test('it logs a plug-in query whose answer fails its own output schema', async () => {
+  const query = defineQuery({
+    name: 'harbour_tide',
+    description: 'Gives the tide in whole metres.',
+    input: z.object({}),
+    output: z.object({ metres: z.number().int() }),
+    reads: [],
+    handler: () => Promise.resolve({ metres: 2.5 }),
+  });
+
+  const plugin = definePlugin({ name: 'tide', queries: [query] });
+  const checked = checkDeployment(defineDeployment({ name: 'tide', plugins: [plugin] }));
+
+  invariant(checked.ok, 'the tide deployment is valid');
+
+  const store = await createTestStore({ plugins: [plugin] });
+
+  onTestFinished(() => store[Symbol.asyncDispose]());
+
+  const logged: { message: string; error: unknown }[] = [];
+
+  const app = createApp(buildQueryContext(store.reader, checked.value), {
+    logError: (message, error) => {
+      logged.push({ message, error });
+    },
+  });
+
+  await readMCPAnswer((request) => app.handle(request), 'tools/call', {
+    name: 'harbour_tide',
+    arguments: {},
+  });
+
+  expect(logged).toStrictEqual([
+    {
+      message: 'the /mcp call of harbour_tide failed',
+      error: expect.objectContaining({ message: 'Output validation failed' }),
+    },
+  ]);
 });
 
 test('#createRouter refuses a plug-in query with a zod transform', () => {

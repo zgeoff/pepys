@@ -29,7 +29,12 @@ export function serveAPI(options: ServeAPIOptions): void {
   }
 
   const store = createStoreReader({ storeDirectory: config.value.storeDirectory });
-  const app = createApp(buildQueryContext(store, checked.value));
+
+  const app = createApp(buildQueryContext(store, checked.value), {
+    logError: (message, error) => {
+      console.error(message, error);
+    },
+  });
 
   app.listen({ hostname: config.value.host, port: config.value.port });
   console.log(`api listening on ${config.value.host}:${app.server?.port}`);
