@@ -75,9 +75,15 @@ parts:
   runs. The product's own session attribute is `session.id` for Claude Code and `conversation.id`
   for Codex.
 - Ingest's clock never sets a fact's time.
-- The key in the ID is the event's own key where the product defines one, such as a request ID.
-  Otherwise the key is `h-` and a SHA-256 of the product's own session ID, the event name, the
-  record's time, its body and its sorted attributes.
+- The key in the ID is the first of these that the record holds:
+  1. the event's own key, where the product defines one: the `request_id` of a Claude Code request,
+     error or refusal, the `tool_use_id` of a Claude Code tool result, and the `turn.id` of a Codex
+     turn cost;
+  2. for Claude Code, `s-<session.id>:<event.sequence>`, for a listed or an unlisted event;
+  3. `h-` and a SHA-256 of the product's own session ID, the event name, the record's time, its body
+     and its sorted attributes.
+- The event name is part of the ID, so a Claude Code `api_request` and the `api_error` that shares
+  its request ID make two facts.
 - The hash leaves out the resource and the observed time, because a collector that forwards a record
   may set both again.
 
@@ -140,6 +146,10 @@ outside this plug-in, such as from the facts of the tool that starts the session
   because the ID leaves the resource out. When the rewrite changed `atc.session.id`, the two copies
   name two sessions. Each consumer keeps the first copy it reads from the log and drops the second
   as a repeat, so the row stays under the first copy's session.
+- A Claude Code event with no key of its own is keyed by its session and `event.sequence`. Nobody
+  has checked whether the sequence starts again when a session resumes under the same `session.id`.
+  If it does, a later event gets the ID of an earlier one, and the host drops it as a repeat with no
+  error.
 - The model request's `agent` column is always null: `read` recognises no attribute from either
   product as the subagent of a request.
 - The log keeps every record of a known product, tool and hook events included, though only model

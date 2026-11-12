@@ -96,7 +96,91 @@ test('it stores an event the product does not list as unlisted, keyed by a hash'
   ]);
 });
 
-test('it keys a listed event by a hash when the record has no event key', () => {
+test.each([
+  {
+    row: 'a tool result, by its tool use ID',
+    record: {
+      'event.name': 'claude_code.tool_result',
+      'event.sequence': 12,
+      tool_use_id: 'toolu_04',
+      tool_name: 'Bash',
+    },
+    fact: ['telemetry.claude_code.tool_result', 'claude_code.tool_result:toolu_04'],
+  },
+  {
+    row: 'a user prompt, by its session and sequence',
+    record: { 'event.name': 'claude_code.user_prompt', 'event.sequence': 3, prompt_length: '18' },
+    fact: ['telemetry.claude_code.user_prompt', 'claude_code.user_prompt:s-c-1:3'],
+  },
+  {
+    row: 'a tool decision, by its session and sequence',
+    record: { 'event.name': 'claude_code.tool_decision', 'event.sequence': 11, tool_name: 'Bash' },
+    fact: ['telemetry.claude_code.tool_decision', 'claude_code.tool_decision:s-c-1:11'],
+  },
+  {
+    row: 'an unlisted event, by its session and sequence',
+    record: { 'event.name': 'claude_code.hook_registered', 'event.sequence': 0 },
+    fact: ['telemetry.claude_code.unlisted', 'claude_code.hook_registered:s-c-1:0'],
+  },
+  {
+    row: 'a request with no request ID, by its session and sequence',
+    record: { 'event.name': 'claude_code.api_request', 'event.sequence': 5, model: 'opus' },
+    fact: ['telemetry.claude_code.api_request', 'claude_code.api_request:s-c-1:5'],
+  },
+])('it keys $row', (row) => {
+  const ctx = setupTest();
+
+  const body = buildLogsExport('claude_code', {}, [
+    { 'session.id': 'c-1', 'event.timestamp': '2026-11-11T02:20:00Z', ...row.record },
+  ]);
+
+  expect(ctx.read(body).facts.map((fact) => [fact.type, fact.event])).toStrictEqual([
+    [...row.fact],
+  ]);
+});
+
+test('it keeps one fact ID for a record delivered twice', () => {
+  const ctx = setupTest();
+
+  const record = {
+    'event.name': 'claude_code.user_prompt',
+    'session.id': 'c-1',
+    'event.sequence': 3,
+    'event.timestamp': '2026-11-11T02:20:00Z',
+  };
+
+  const body = buildLogsExport('claude_code', { 'atc.session.id': 's-9' }, [record, record]);
+
+  expect(new Set(ctx.read(body).facts.map((fact) => fact.event)).size).toBe(1);
+});
+
+test('it keeps both a request and its error when they share a request ID', () => {
+  const ctx = setupTest();
+
+  const body = buildLogsExport('claude_code', {}, [
+    {
+      'event.name': 'claude_code.api_request',
+      'session.id': 'c-1',
+      'event.sequence': 7,
+      'event.timestamp': '2026-11-11T02:20:00Z',
+      request_id: 'req_05',
+    },
+    {
+      'event.name': 'claude_code.api_error',
+      'session.id': 'c-1',
+      'event.sequence': 8,
+      'event.timestamp': '2026-11-11T02:20:01Z',
+      request_id: 'req_05',
+    },
+  ]);
+
+  expect(ctx.read(body).facts.map((fact) => fact.event)).toStrictEqual([
+    'claude_code.api_request:req_05',
+    'claude_code.api_error:req_05',
+  ]);
+});
+
+test('it keys a listed event by a hash when the record has no event key and no sequence', () => {
   const ctx = setupTest();
 
   const body = buildLogsExport('claude_code', {}, [

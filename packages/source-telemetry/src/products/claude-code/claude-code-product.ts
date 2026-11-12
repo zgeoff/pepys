@@ -10,14 +10,17 @@ export const claudeCodeProduct = defineTelemetryProduct({
   readEvent: findClaudeCodeEvent,
   agentSessionAttribute: 'session.id',
   timeAttribute: 'event.timestamp',
+  sequenceAttribute: 'event.sequence',
+
+  // An event with no key of its own is keyed by its session and sequence. `api_request` and
+  // `api_error` can share a request ID; the event name in the fact ID keeps the two apart.
   events: {
-    // `api_request` and `api_error` can share a request ID; the event name is in the fact ID
     api_request: { key: findRequestKey },
     api_error: { key: findRequestKey },
     api_refusal: { key: (record) => findAttributeText(record, 'request_id') },
     user_prompt: {},
     assistant_response: {},
-    tool_result: {},
+    tool_result: { key: (record) => findAttributeText(record, 'tool_use_id') },
     tool_decision: {},
   },
 });

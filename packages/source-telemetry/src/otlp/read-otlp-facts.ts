@@ -108,7 +108,10 @@ function buildFact(
 
   const isListed = Object.hasOwn(product.events, event);
   const eventName = `${product.name}.${event}`;
-  const key = isListed ? product.events[event]?.key?.(record) : undefined;
+
+  const key =
+    (isListed ? product.events[event]?.key?.(record) : undefined) ??
+    findSequenceKey(record, product.sequenceAttribute, agentSession);
 
   return {
     type: `telemetry.${product.name}.${isListed ? event : 'unlisted'}`,
@@ -192,6 +195,23 @@ function toNanoseconds(value: unknown): bigint | undefined {
   }
 
   return typeof value === 'string' && /^\d+$/u.test(value) ? BigInt(value) : undefined;
+}
+
+// The product's own session ID and the event's number in it, such as `s-c-1:42`; the `s-` keeps
+// the key apart from a hash key.
+function findSequenceKey(
+  record: LogRecord,
+  sequenceAttribute: string | null,
+  agentSession: string | undefined,
+): string | undefined {
+  const sequence = sequenceAttribute === null ? undefined : record.attributes[sequenceAttribute];
+  const text = toText(sequence);
+
+  if (agentSession === undefined || text === undefined || !/^\d+$/u.test(text)) {
+    return undefined;
+  }
+
+  return `s-${agentSession}:${text}`;
 }
 
 // What the product wrote: its own session ID, the event name, the time, the body, and the

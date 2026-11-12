@@ -9,6 +9,7 @@ export const codexProduct = defineTelemetryProduct({
   readEvent: findCodexEvent,
   agentSessionAttribute: 'conversation.id',
   timeAttribute: 'event.timestamp',
+  sequenceAttribute: null,
 
   // Any other `codex.*` event is stored as `telemetry.codex.unlisted`. With no `key`, the fact ID
   // holds a hash of what Codex wrote.

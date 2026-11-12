@@ -14,6 +14,9 @@ export interface TelemetryProduct<Name extends string = string, Event extends st
   // the attribute that holds the time the product wrote; `timeUnixNano` when it is absent
   readonly timeAttribute: string;
 
+  // the attribute that numbers the events of one agent session; null when the product writes none
+  readonly sequenceAttribute: string | null;
+
   // the events with a fact type of their own; `key` gives the event's own key for the fact ID
   readonly events: Readonly<
     Record<Event, { readonly key?: ((record: LogRecord) => string | undefined) | undefined }>
