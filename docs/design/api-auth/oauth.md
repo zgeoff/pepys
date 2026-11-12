@@ -188,7 +188,8 @@ and its resource default. When an authorization request names no resource, pepys
   client and grant, and no security event carries a client address.
 - better-auth's telemetry stays off whatever the environment says.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
-  progress and keeps every grant.
+  progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant
+  made before the restart.
 
 ## Decisions
 
