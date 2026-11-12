@@ -1,6 +1,6 @@
 # The OAuth server
 
-- **Status:** draft
+- **Status:** agreed
 
 The API's public listener runs an OAuth 2.1 authorization server for the owner's MCP clients. pepys
 copies the server from atc, the owner's agent control tower, whose gateway serves MCP behind the

@@ -1,6 +1,6 @@
 # Auth for the API
 
-- **Status:** draft
+- **Status:** agreed
 
 The API runs three listeners, and each one takes one kind of credential:
 
