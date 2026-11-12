@@ -78,7 +78,7 @@ interface ServeAPIOptions {
 | `clients`                                                    | lists the clients                                         |
 | `clients remove <client_id>`                                 | removes a client with every grant and token it holds      |
 | `passkeys enroll`                                            | prints a one-time token that the owner types on `/enroll` |
-| `passkeys enroll --reset`                                    | removes every passkey, then prints a token                |
+| `passkeys enroll --reset`                                    | ends every passkey and sign-in, then prints a token       |
 | `passkeys`                                                   | lists the passkeys                                        |
 | `passkeys remove <passkey_id>`                               | removes one passkey                                       |
 | `grants`                                                     | lists the live grants                                     |
@@ -95,7 +95,7 @@ PEPYS_API_PUBLIC_URL     <public_origin>, an https origin with no path;
 PEPYS_API_PUBLIC_HOST    the public listener's bind address; default 127.0.0.1
 PEPYS_API_PUBLIC_PORT    the public listener's port; default 8082
 PEPYS_AUTH_DIR           the folder that holds auth.db; needed when PEPYS_API_PUBLIC_URL is set
-PEPYS_API_SERVICE_TOKENS the service tokens, as JSON below; needed when PEPYS_API_HOST is not loopback
+PEPYS_API_SERVICE_TOKENS the service tokens, as JSON below; always needed
 ```
 
 ```ts
@@ -167,7 +167,6 @@ included.
 const caller = await readCaller(request, listener);
 // → { kind: 'grant', clientID: '9f3k2m…', clientName: 'Claude Code', grantID: 'g_51…', scopes: ['read'] }
 //   or { kind: 'service', name: 'boxxy', scopes: ['read'] }
-//   or { kind: 'loopback', scopes: ['read'] }
 //   or { kind: 'refused', reason: 'malformed' | 'invalid_token' } → HTTP 401 with the challenge
 
 type Listener = 'public' | 'cluster';
@@ -176,9 +175,9 @@ type Listener = 'public' | 'cluster';
 - On `public`, only an opaque access token that `auth.db` holds, unexpired, unrevoked and bound to
   the resource `<public_origin>/mcp`, gives a `grant` caller. The IDs are better-auth's own.
 - On `cluster`, only a `pepyss_` token from the service tokens gives a `service` caller.
-- On a `cluster` listener bound to loopback with no service tokens set, every request gives a
-  `loopback` caller. Tests and local runs use this case. Loopback means `127.0.0.0/8`, `::1` or
-  `localhost`. With service tokens set, a loopback listener needs a token too.
+- The cluster listener needs a service token on every query, whatever address it binds, loopback
+  included. Tests and local runs set `PEPYS_API_SERVICE_TOKENS` and send a token, so no process in
+  the pod reads the store without one.
 - Every procedure needs the scope `read`, so the API answers a caller without it with HTTP 403 and
   `WWW-Authenticate: Bearer error="insufficient_scope", scope="read"`. A procedure declares its own
   scope once a second scope exists.
@@ -191,8 +190,7 @@ type Listener = 'public' | 'cluster';
 
 ### Fail closed at start
 
-- When `PEPYS_API_HOST` is not a loopback address and `PEPYS_API_SERVICE_TOKENS` is unset, the API
-  exits 1. Only a loopback cluster listener serves with no token.
+- When `PEPYS_API_SERVICE_TOKENS` is unset, the API exits 1, whatever `PEPYS_API_HOST` binds.
 - When `PEPYS_API_PUBLIC_URL` is set and is not an `https` origin with no path, the API exits 1.
 - When `PEPYS_API_PUBLIC_URL` is set and `PEPYS_AUTH_DIR` is unset, the API exits 1.
 - When `PEPYS_API_SERVICE_TOKENS` does not parse, a client has no scope, a token is shorter than 32
@@ -222,14 +220,18 @@ the MCP spec asks for.
 - An authorization code lasts 10 minutes and works once. A second exchange revokes what the first
   made.
 - An access token is opaque, lasts 1 hour, and is checked against `auth.db` on every request.
-- A refresh token lasts 30 days and rotates on each use. A spent refresh token used again revokes
-  every grant of its client.
-- The API runs the token requests of one client one at a time, behind an in-memory lock keyed by the
-  client ID, because better-auth's rotation is not atomic. The lock holds because the API runs as
-  one replica.
+- A refresh token lasts 30 days and rotates on each use.
+- A refresh runs as one `auth.db` transaction that consumes the old refresh token by compare and
+  swap: it marks the token used only when the token is still unused and its grant still exists, and
+  issues the new pair in the same transaction. When the swap changes no row, the refresh fails and
+  issues nothing. better-auth's own rotation is not atomic, so pepys runs this step in its own code.
+  No in-memory lock takes part, so the rule holds across processes.
+- A refresh that presents a consumed refresh token revokes that token's grant, in the same
+  transaction.
 - The server and an admin command open `auth.db` in WAL mode with a busy timeout. When
   `grants revoke` or `clients remove` races a refresh of the same client, every token of that client
   fails once the command has returned. A test runs the two at once.
+- The API runs only in the StatefulSet pod that owns `auth.db`'s volume, never in a Deployment.
 - `auth.db` stores a hash of each token, code and enrolment token, never the value.
 - The API compares service tokens by their SHA-256 digests in constant time, and keeps only the
   digests in memory.
@@ -244,6 +246,14 @@ the MCP spec asks for.
 - Each authorization needs a fresh passkey sign-in for that one request. One sign-in approves one
   authorization.
 - An enrolment token lasts 10 minutes and enrols one passkey.
+- `auth.db` holds an owner generation number. Each passkey ceremony, enrolment, owner session and
+  pending approval records the generation it began under, and the API refuses to complete one whose
+  generation is not the current one.
+- `passkeys enroll --reset` runs as one transaction: it deletes every passkey, every unused
+  enrolment token and every owner session, raises the generation, and stores the new enrolment
+  token's hash. A ceremony or approval begun before the reset then fails, and an older enrolment
+  token adds no passkey. Grants and their tokens survive the reset.
+- `passkeys remove` deletes every owner session and raises the generation in the same transaction.
 - The consent page lists the scopes the client asked for, with `read` ticked.
 
 ### Requests
@@ -309,8 +319,7 @@ the MCP spec asks for.
 
 The repo that holds the deployment makes these changes in its Pulumi program and manifests. The
 boxxy server sends its token, and the API's Secret holds it, before the deployment moves to the
-release that requires tokens: that release exits 1 on a cluster listener bound beyond loopback with
-no tokens.
+release that requires tokens: that release exits 1 with no tokens set.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel. Add one rule for the browser paths,
    behind a Cloudflare Access application that admits only the owner, and one for the client paths.
@@ -318,7 +327,8 @@ no tokens.
    unchanged. The public-route registry entry names the pepys API's OAuth server as the route's auth
    layer.
 2. Set `PEPYS_API_PUBLIC_URL`, bind both listeners on `0.0.0.0`, and mount a volume that outlives
-   its claim at `PEPYS_AUTH_DIR` in the API's container. The host's container never mounts it.
+   its claim at `PEPYS_AUTH_DIR` in the API's container of the host's StatefulSet pod. The host's
+   container never mounts it.
 3. Add NetworkPolicy rules: the shared tunnel's cloudflared reaches the public port alone, and the
    boxxy server reaches the cluster port alone.
 4. Add a 1Password item for the boxxy server's API token. The API's Secret builds
@@ -329,7 +339,7 @@ no tokens.
 
 ## Decisions
 
-- **The API checks a token on every query beyond loopback.** This changes the network that
+- **The API checks a token on every query, on both listeners.** This changes the network that
   [Auth](./pepys/auth.md#network) describes: the API serves a public route, the passkey's relying
   party is `<public_host>`, a token is bound to `<public_origin>/mcp`, and `passkeys enroll` prints
   a token.
