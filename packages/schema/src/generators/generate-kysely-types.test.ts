@@ -70,15 +70,17 @@ test('it generates a row interface per table and a DB interface keyed by table n
   };
 
   expect(generateKyselyTypes([tracker, report])).toMatchInlineSnapshot(`
-    "export interface TicketRow {
-      id: string;
+    "import type { EntityID } from '@pepys/kit';
+
+    export interface TicketRow {
+      id: EntityID;
       title: string;
       type: string;
       weight: number | null;
       done: 0 | 1;
       notes: unknown;
       opened_at: string;
-      owner_id: string | null;
+      owner_id: EntityID | null;
       points: number | null;
     }
 
@@ -90,7 +92,7 @@ test('it generates a row interface per table and a DB interface keyed by table n
 
     export interface ReportLineRow {
       report_id: string;
-      ticket_id: string;
+      ticket_id: EntityID;
     }
 
     export interface DB {
@@ -140,4 +142,36 @@ test('it generates the same source for the same declarations', () => {
   });
 
   expect(generateKyselyTypes([tracker])).toStrictEqual(generateKyselyTypes([tracker]));
+});
+
+test('it imports no entity ID type when no column holds one', () => {
+  const tally: ConsumerDeclaration = {
+    name: 'tally',
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.tickets.ticket'] },
+    tables: {
+      tally: defineTable({
+        columns: { day: { kind: 'text' }, count: { kind: 'integer' } },
+        primaryKey: ['day'],
+        indexes: [],
+      }),
+    },
+    entityViews: [],
+    reads: [],
+    links: [],
+  };
+
+  expect(generateKyselyTypes([tally])).toBe(
+    [
+      'export interface TallyRow {',
+      '  day: string;',
+      '  count: number;',
+      '}',
+      '',
+      'export interface DB {',
+      '  tally: TallyRow;',
+      '}',
+      '',
+    ].join('\n'),
+  );
 });

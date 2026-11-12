@@ -8,8 +8,14 @@ export function generateKyselyTypes(consumers: readonly ConsumerDeclaration[]): 
 
   // SQLite has no boolean type, so the driver reads a boolean column back as 0 or 1
   const rows = tables.map((entry) =>
-    formatTypeScriptRow(entry.name, entry.table, { entityID: 'string', boolean: '0 | 1' }),
+    formatTypeScriptRow(entry.name, entry.table, { entityID: 'EntityID', boolean: '0 | 1' }),
   );
+
+  const hasEntityID = tables.some((entry) =>
+    Object.values(entry.table.columns).some((column) => column.kind === 'entityID'),
+  );
+
+  const imports = hasEntityID ? ["import type { EntityID } from '@pepys/kit';"] : [];
 
   const database = [
     'export interface DB {',
@@ -17,5 +23,5 @@ export function generateKyselyTypes(consumers: readonly ConsumerDeclaration[]): 
     '}',
   ].join('\n');
 
-  return `${[...rows, database].join('\n\n')}\n`;
+  return `${[...imports, ...rows, database].join('\n\n')}\n`;
 }
