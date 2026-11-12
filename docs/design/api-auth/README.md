@@ -215,7 +215,8 @@ interface SecurityEvent {
   twice. A file with no caller, and a caller with no credential, pass: they admit no service token.
 - When `PEPYS_API_TAILNET_SOURCES` does not parse, holds a loopback address, or holds a range wider
   than `/10` for IPv4 or `/48` for IPv6, the API exits 1.
-- When `PEPYS_API_PUBLIC_URL` is set and is not an `https` origin with no path, the API exits 1.
+- When `PEPYS_API_PUBLIC_URL` is set and is not an origin with no path, the API exits 1. The origin
+  is `https`, or `http` on a loopback host for a local run.
 - When `PEPYS_API_PUBLIC_URL` is set and `PEPYS_AUTH_DIR` is unset, the API exits 1.
 - When `PEPYS_API_TAILNET_SOURCES` is set and `PEPYS_API_TAILNET_HOST` is unset, the API exits 1.
 - When two listeners that run name the same port number, the API exits 1.

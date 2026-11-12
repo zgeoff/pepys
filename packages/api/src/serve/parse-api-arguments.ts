@@ -11,7 +11,7 @@ export type APICommand =
   | { readonly kind: 'clients'; readonly action: ClientsAction }
   | { readonly kind: 'grants'; readonly revoke: string | null };
 
-export const usage = [
+const usage = [
   'usage: <entry>                                   serve the API',
   '       <entry> passkeys [list]                   list the enrolled passkeys',
   '       <entry> passkeys enroll [--reset]         print a one-time token that enrolls a passkey',
