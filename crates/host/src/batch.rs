@@ -151,10 +151,7 @@ pub async fn write_offset_and_changes(
 // batch's transaction, so a redelivery never runs again and cannot reverse a later update. A body
 // with no ID cannot repeat, so it always runs.
 async fn claim_fact(connection: &Connection, body: &str) -> Result<bool, HostError> {
-    let Some(id) = serde_json::from_str::<Value>(body)
-        .ok()
-        .and_then(|fact| fact.get("id").and_then(Value::as_str).map(str::to_owned))
-    else {
+    let Some(id) = find_fact_id(body) else {
         return Ok(true);
     };
 
@@ -166,6 +163,13 @@ async fn claim_fact(connection: &Connection, body: &str) -> Result<bool, HostErr
         .await?;
 
     Ok(inserted > 0)
+}
+
+/// The text `id` of a fact body, or none when the body is no JSON object with one.
+fn find_fact_id(body: &str) -> Option<String> {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|fact| fact.get("id").and_then(Value::as_str).map(str::to_owned))
 }
 
 /// Applies one operation and returns its change entry, or none when the store did not change.
@@ -1161,6 +1165,33 @@ mod tests {
                 [0, 0, 0, 0],
                 None
             )
+        );
+    }
+
+    #[test]
+    fn it_finds_the_fact_id_only_in_a_json_object_with_a_text_id() {
+        let cases = [
+            "{\"id\":\"delivery-1\"}",
+            "{\"id\":7}",
+            "{\"entity\":\"github:pull_request:1\"}",
+            "[\"delivery-1\"]",
+            "a",
+        ];
+
+        let found: Vec<(&str, Option<String>)> = cases
+            .into_iter()
+            .map(|body| (body, find_fact_id(body)))
+            .collect();
+
+        assert_eq!(
+            found,
+            vec![
+                ("{\"id\":\"delivery-1\"}", Some("delivery-1".to_owned())),
+                ("{\"id\":7}", None),
+                ("{\"entity\":\"github:pull_request:1\"}", None),
+                ("[\"delivery-1\"]", None),
+                ("a", None),
+            ]
         );
     }
 
