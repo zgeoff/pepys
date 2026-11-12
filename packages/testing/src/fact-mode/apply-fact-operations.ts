@@ -6,6 +6,7 @@ import { removeLink } from '../links/remove-link.ts';
 import { writeLink } from '../links/write-link.ts';
 import type { Operation } from '../operations/types.ts';
 import { buildRowKey } from '../rows/build-row-key.ts';
+import { findKeyProblem } from '../rows/find-key-problem.ts';
 import { findRowProblem } from '../rows/find-row-problem.ts';
 import { removeRow } from '../rows/remove-row.ts';
 import { writeRow } from '../rows/write-row.ts';
@@ -28,12 +29,13 @@ export async function applyFactOperations(
       }
     }
 
-    if (operation.verb === 'upsert') {
-      const reason = findRowProblem(
-        getTable(consumer, operation.table),
-        operation.row,
-        operation.inexact,
-      );
+    if (operation.verb === 'upsert' || operation.verb === 'delete') {
+      const table = getTable(consumer, operation.table);
+
+      const reason =
+        operation.verb === 'upsert'
+          ? findRowProblem(table, operation.row, operation.inexact)
+          : findKeyProblem(table, operation.key, operation.inexact);
 
       if (reason !== undefined) {
         throw new ApplyError({

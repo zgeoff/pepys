@@ -269,6 +269,110 @@ test('it skips a fact whose ID a fact-mode consumer applied before', async () =>
   ]);
 });
 
+test('it removes the row whose key a fact-mode consumer deletes', async () => {
+  const ctx = await setupTest();
+
+  const entry = await ctx.writeEntry(
+    'delete-note',
+    `export function applyFact(factJSON: string): string {
+  return JSON.stringify([{ delete: { notebook_note: { id: 'notebook:note:reef' } } }]);
+}
+`,
+  );
+
+  const plugin = definePlugin({
+    name: 'notebook',
+    sources: [notebookSource],
+    consumers: [{ ...notebookNoteConsumer, entry }],
+  });
+
+  await using store = await createTestStore({ plugins: [plugin] });
+
+  await store.writeRows(notebookNoteConsumer, 'notebook_note', [
+    {
+      id: toTagged<EntityID>('notebook:note:reef'),
+      text: 'Mark the reef',
+      count: 4,
+      issuer: 'https://issuer.example',
+    },
+  ]);
+
+  await store.apply(notebookSource, [
+    {
+      type: 'notebook.note.written',
+      event: 'n-1',
+      entity: 'notebook:note:reef',
+      at: '2026-11-01T09:00:00.000Z',
+      payload: {
+        text: 'Drop the reef',
+        origin: { issuer: 'https://issuer.example', subject: 'w' },
+      },
+    },
+  ]);
+
+  const notes = await store.readRows('notebook_note');
+
+  expect(notes).toStrictEqual([]);
+});
+
+test.each([
+  {
+    row: 'a column outside the key',
+    key: "{ id: 'notebook:note:reef', text: 'Mark the reef' }",
+    reason: 'text is not a key column',
+  },
+  { row: 'no key column', key: '{}', reason: 'the key column id is absent' },
+  { row: 'a key value of the wrong kind', key: '{ id: 7 }', reason: 'the column id holds 7' },
+])('it refuses a delete with $row and removes nothing, as the host does', async (row) => {
+  const ctx = await setupTest();
+
+  const entry = await ctx.writeEntry(
+    'bad-delete',
+    `export function applyFact(factJSON: string): string {
+  return JSON.stringify([{ delete: { notebook_note: ${row.key} } }]);
+}
+`,
+  );
+
+  const plugin = definePlugin({
+    name: 'notebook',
+    sources: [notebookSource],
+    consumers: [{ ...notebookNoteConsumer, entry }],
+  });
+
+  await using store = await createTestStore({ plugins: [plugin] });
+
+  const kept = {
+    id: toTagged<EntityID>('notebook:note:reef'),
+    text: 'Mark the reef',
+    count: 4,
+    issuer: 'https://issuer.example',
+  };
+
+  await store.writeRows(notebookNoteConsumer, 'notebook_note', [kept]);
+
+  const applied = store.apply(notebookSource, [
+    {
+      type: 'notebook.note.written',
+      event: 'n-1',
+      entity: 'notebook:note:reef',
+      at: '2026-11-01T09:00:00.000Z',
+      payload: {
+        text: 'Drop the reef',
+        origin: { issuer: 'https://issuer.example', subject: 'w' },
+      },
+    },
+  ]);
+
+  expect(applied).rejects.toMatchObject({
+    failure: { kind: 'bad-row', table: 'notebook_note', reason: row.reason },
+  });
+
+  const notes = await store.readRows('notebook_note');
+
+  expect(notes).toStrictEqual([kept]);
+});
+
 test('it answers a query from rows written for the test', async () => {
   await using store = await createTestStore({ plugins: [notebookPlugin] });
 
