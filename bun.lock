@@ -257,7 +257,7 @@
     "@types/bun": "1.4.4",
     "@zgeoff/agent-hooks": "0.2.11",
     "@zgeoff/bun-test-extended": "0.2.3",
-    "@zgeoff/chex": "0.3.3",
+    "@zgeoff/chex": "0.3.5",
     "@zgeoff/commitlint-config": "0.1.0",
     "@zgeoff/diet": "0.2.2",
     "@zgeoff/format-codemod": "0.3.5",
@@ -780,7 +780,7 @@
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.3", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-4ZNPft3LunVKp+s2esoJXSe64EaEywsu3z6Cg5/s/MJcdygmrQeAyfECioePCo5RuAIcaPfgF3lhYsPKcmVJ4w=="],
 
-    "@zgeoff/chex": ["@zgeoff/chex@0.3.3", "", { "dependencies": { "@zgeoff/std": "0.4.3", "oxc-parser": "0.157.0", "ts-pattern": "5.9.2" }, "bin": { "chex": "src/cli.ts" } }, "sha512-64LdICnNoFYBWxGIAJePCMC9S9zZsfrfY+FDRfofbl13Bn/WDLDtcBoe/haaSyI7pl1bKN3LSLs091AtCyXjXg=="],
+    "@zgeoff/chex": ["@zgeoff/chex@0.3.5", "", { "dependencies": { "@zgeoff/std": "0.4.3", "oxc-parser": "0.157.0", "ts-pattern": "5.9.2" }, "bin": { "chex": "src/cli.ts" } }, "sha512-CAPsp5R43KBirFe2QDGGXzxKfRwD1cLDNc4NXTkjgRaCOleYxgFQgEDOFuduhvYKAhym0lUXvScjGxtOGM3CuA=="],
 
     "@zgeoff/commitlint-config": ["@zgeoff/commitlint-config@0.1.0", "", { "peerDependencies": { "@commitlint/cli": ">=21.0.0" } }, "sha512-HEx06TxSmccoaQDNH8Honuv/pxp6I4GU8XpBvWGnibPLf3EKTskc9gJVdKMy43dox4t2i288vTC/mWHmWufUkg=="],
 
