@@ -62,11 +62,14 @@ docs/
 - A public package imports no private workspace package, and depends on each package it imports in
   shipped code, not as a dev dependency. Its `files` list leaves out each test helper outside
   `test-utils`, such as the ingest fixture runners.
-- A package exports `./src/index.ts`, and has no build step. A public package ships its TypeScript
-  source for Bun: scriptc compiles a consumer from source, and `pepys build` copies a dependency's
-  `src`. A plug-in's compiler checks that source with the plug-in's own options, so shipped code
-  type-checks with the options in the [kit's README](packages/kit/README.md#configuration), and
-  needs every type it uses from a dependency, never a peer.
+- A package exports `./src/index.ts`, and has no build step. When the tests of another workspace
+  import a test helper of the package, the package also exports
+  `"./test-utils/*": "./src/test-utils/*.ts"`, and its `files` list still leaves the helpers out. A
+  public package ships its TypeScript source for Bun: scriptc compiles a consumer from source, and
+  `pepys build` copies a dependency's `src`. A plug-in's compiler checks that source with the
+  plug-in's own options, so shipped code type-checks with the options in the
+  [kit's README](packages/kit/README.md#configuration), and needs every type it uses from a
+  dependency, never a peer.
 - Every public package carries one version. To release, set that version in each public
   `package.json` in one pull request, with `bun.lock` written by the pinned bun. Then push the tag
   `v<version>` on `main`: [`release.yml`](.github/workflows/release.yml) checks the tag against each
