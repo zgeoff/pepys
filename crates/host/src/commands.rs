@@ -599,16 +599,15 @@ async fn up_version(
     // The host trusts the version as a name, so it refuses two manifests under one.
     if has_version_file(&directory) {
         match read_version(&directory) {
-            Ok(found) if found != *version => {
-                return Err(HostError::VersionClash {
-                    consumer: consumer.to_owned(),
-                    version: name.to_owned(),
-                });
+            Ok(found) => check_same_version(&found, version)?,
+            Err(error) => {
+                // An unfinished build starts again below, whatever its version file holds.
+                let state = config.host_state().await?.state(consumer, name).await?;
+
+                if !is_unfinished(state) {
+                    return Err(error);
+                }
             }
-            Ok(_) => {}
-            // An unfinished build starts again below, whatever its version file holds.
-            Err(_) if is_unfinished(config.host_state().await?.state(consumer, name).await?) => {}
-            Err(error) => return Err(error),
         }
     }
 
@@ -629,19 +628,12 @@ async fn up_version(
 
     let state = config.host_state().await?;
 
-    match state.state(consumer, name).await? {
-        Some(VersionState::Previous) => {}
-        Some(VersionState::Removed) => {
-            return Err(HostError::Config(format!("version {name} was removed")));
+    if pick_build_start(name, state.state(consumer, name).await?)? == BuildStart::Again {
+        if directory.exists() {
+            std::fs::remove_dir_all(&directory)?;
         }
-        Some(VersionState::Building | VersionState::Previewed | VersionState::Current) | None => {
-            // A build that never finished starts again from the first record.
-            if directory.exists() {
-                std::fs::remove_dir_all(&directory)?;
-            }
 
-            state.register(consumer, name).await?;
-        }
+        state.register(consumer, name).await?;
     }
 
     std::fs::create_dir_all(&directory)?;
@@ -658,7 +650,7 @@ async fn up_version(
     let state = config.host_state().await?;
     let current = reconcile_current(&consumer_dir, &state, consumer).await?;
 
-    if current.as_deref() == Some(name) {
+    if is_current_version(current.as_deref(), name) {
         return Ok(no_swap_report(consumer, name));
     }
 
@@ -673,6 +665,18 @@ async fn up_version(
     Ok(format!("{consumer} {name}: swapped\n"))
 }
 
+/// Refuses a version file that holds another manifest under the version's name.
+fn check_same_version(found: &ConsumerVersion, version: &ConsumerVersion) -> Result<(), HostError> {
+    if found == version {
+        return Ok(());
+    }
+
+    Err(HostError::VersionClash {
+        consumer: version.name.clone(),
+        version: version.version.clone(),
+    })
+}
+
 /// Whether a version in `state` is a build that never finished, which `up` builds again from the
 /// first record.
 fn is_unfinished(state: Option<VersionState>) -> bool {
@@ -680,6 +684,33 @@ fn is_unfinished(state: Option<VersionState>) -> bool {
         state,
         None | Some(VersionState::Building | VersionState::Previewed)
     )
+}
+
+/// How `up` starts the build of a version folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuildStart {
+    /// A kept previous version: its folder is built on.
+    Kept,
+    /// A build that never finished, or a new one: it starts again from the first record.
+    Again,
+}
+
+/// How `up` starts the build of the version `name` in `state`. A removed version is refused.
+fn pick_build_start(name: &str, state: Option<VersionState>) -> Result<BuildStart, HostError> {
+    match state {
+        Some(VersionState::Previous) => Ok(BuildStart::Kept),
+        Some(VersionState::Removed) => {
+            Err(HostError::Config(format!("version {name} was removed")))
+        }
+        Some(VersionState::Building | VersionState::Previewed | VersionState::Current) | None => {
+            Ok(BuildStart::Again)
+        }
+    }
+}
+
+/// Whether `version` is the `current` version that `host.db` records.
+fn is_current_version(current: Option<&str>, version: &str) -> bool {
+    current == Some(version)
 }
 
 fn no_swap_report(consumer: &str, version: &str) -> String {
@@ -697,7 +728,7 @@ async fn keep_current(
     let state = config.host_state().await?;
     let current = reconcile_current(&consumer_dir, &state, &version.name).await?;
 
-    if current.as_deref() != Some(version.version.as_str()) {
+    if !is_current_version(current.as_deref(), &version.version) {
         return Ok(None);
     }
 
@@ -1551,6 +1582,131 @@ mod tests {
                 ("no open version", true),
                 ("another open version", true),
                 ("the current version open", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_refuses_a_version_file_only_when_it_holds_another_manifest() {
+        let (listed, _) = build_listed(&version_hash('a'), "[]");
+        let version = listed.to_version();
+        let mut other = version.clone();
+
+        other.manifest.schema.push('\n');
+
+        let cases = [
+            ("the same manifest", &version),
+            ("another manifest", &other),
+        ];
+
+        let checked: Vec<(&str, Result<(), String>)> = cases
+            .into_iter()
+            .map(|(case, found)| {
+                (
+                    case,
+                    check_same_version(found, &version).map_err(|error| error.to_string()),
+                )
+            })
+            .collect();
+
+        assert_eq!(
+            checked,
+            vec![
+                ("the same manifest", Ok(())),
+                (
+                    "another manifest",
+                    Err(format!(
+                        "github_pull_request already holds a version {} built from another \
+                         manifest; the host refuses two manifests under one version",
+                        version_hash('a')
+                    ))
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_counts_a_version_as_unfinished_only_before_it_was_ever_current() {
+        let cases = [
+            ("not recorded", None),
+            ("building", Some(VersionState::Building)),
+            ("previewed", Some(VersionState::Previewed)),
+            ("current", Some(VersionState::Current)),
+            ("previous", Some(VersionState::Previous)),
+            ("removed", Some(VersionState::Removed)),
+        ];
+
+        let unfinished: Vec<(&str, bool)> = cases
+            .into_iter()
+            .map(|(case, state)| (case, is_unfinished(state)))
+            .collect();
+
+        assert_eq!(
+            unfinished,
+            vec![
+                ("not recorded", true),
+                ("building", true),
+                ("previewed", true),
+                ("current", false),
+                ("previous", false),
+                ("removed", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_picks_how_a_build_starts_from_the_recorded_state() {
+        let cases = [
+            ("not recorded", None),
+            ("building", Some(VersionState::Building)),
+            ("previewed", Some(VersionState::Previewed)),
+            ("current", Some(VersionState::Current)),
+            ("previous", Some(VersionState::Previous)),
+            ("removed", Some(VersionState::Removed)),
+        ];
+
+        let picked: Vec<(&str, Result<BuildStart, String>)> = cases
+            .into_iter()
+            .map(|(case, state)| {
+                (
+                    case,
+                    pick_build_start("abc123", state).map_err(|error| error.to_string()),
+                )
+            })
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                ("not recorded", Ok(BuildStart::Again)),
+                ("building", Ok(BuildStart::Again)),
+                ("previewed", Ok(BuildStart::Again)),
+                ("current", Ok(BuildStart::Again)),
+                ("previous", Ok(BuildStart::Kept)),
+                ("removed", Err("version abc123 was removed".to_owned())),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_counts_a_version_as_current_only_when_host_db_records_it() {
+        let cases = [
+            ("no current version", None),
+            ("another current version", Some("old123")),
+            ("this version current", Some("new456")),
+        ];
+
+        let current: Vec<(&str, bool)> = cases
+            .into_iter()
+            .map(|(case, recorded)| (case, is_current_version(recorded, "new456")))
+            .collect();
+
+        assert_eq!(
+            current,
+            vec![
+                ("no current version", false),
+                ("another current version", false),
+                ("this version current", true),
             ]
         );
     }
