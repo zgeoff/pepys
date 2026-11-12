@@ -78,9 +78,10 @@ An OTLP exporter expects the `empty` form.
 
 ## The answers
 
-Ingest tries each append up to 5 times when the log gives no acknowledgement. It waits 200 ms before
-the second try, and 200 ms longer before each try after that: 400, 600, then 800 ms. The answer then
-depends on what the log holds:
+Ingest tries each append up to 5 times when the log gives no acknowledgement. Each wait between two
+tries is one fixed step longer than the wait before it, and
+[`pick-retry-step.ts`](../../../packages/ingest/src/fact-log/pick-retry-step.ts) sets the step. The
+answer then depends on what the log holds:
 
 | Case                                               | The log holds                                                             | Status | `retry-after` |
 | -------------------------------------------------- | ------------------------------------------------------------------------- | ------ | ------------- |

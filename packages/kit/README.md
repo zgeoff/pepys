@@ -12,13 +12,13 @@
   </p>
 </div>
 
-Declare a pepys plug-in or deployment as plain data.
+Declare a pepys plug-in or deployment with the kit's `define*` functions.
 
-A plug-in brings one or more sources of data to pepys, such as GitHub. Each source declares the
-facts it sends and the paths that bring them into
-[ingest](../../docs/architecture/ingest/ingest.md). The plug-in also declares the consumers that
-turn those facts into table rows, and the queries that read the rows. A deployment lists the
-plug-ins that one pepys install runs. You declare each part with a `define*` function of the kit.
+A plug-in brings one or more sources of data to pepys, such as GitHub. A source sends facts: records
+of what happened, which pepys never changes. Each source declares its facts, and the routes and
+timers through which [ingest](../../docs/architecture/ingest/ingest.md) takes them in. The plug-in
+also declares the consumers that turn facts into table rows, and the queries that read the rows. A
+deployment lists the plug-ins that one pepys install runs.
 [What a plug-in declares](../../docs/architecture/consumers/plug-ins-and-build.md#what-a-plug-in-declares)
 explains each part. The package ships its TypeScript source and runs on Bun.
 
@@ -41,25 +41,32 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 - `@pepys/kit` holds the `define*` functions, the [entity ID checks](#entity-ids), and
   `checkDeployment`, which returns each fault in a deployment, such as two plug-ins that declare the
   same stream of the [fact log](../../docs/architecture/ingest/fact-log.md). `toStreamName` and
-  `toStreamOffset` brand a stream name and a position in a stream with their types.
-- Ingest calls a source's `read` for each delivery and its `pull` on a timer, and passes each one
-  its logger as `log`. `createLogger` builds a logger over any destination, such as an array of
-  lines in a test. [Log lines](../../docs/architecture/ingest/ingest.md#log-lines) gives the format.
-- `@pepys/kit/generators` holds the functions that `pepys build` calls to write a consumer's SQL
-  schema and its boundary file: the TypeScript types of the consumer's rows and operations.
-- `@pepys/kit/send` holds `createFactBatchSender`. It signs a batch of facts with the secret that
-  the source's [delivery check](../../docs/architecture/ingest/ingest.md#a-delivery-step-by-step)
-  names, and posts the batch to the source's ingest route.
+  `toStreamOffset` turn text into the `StreamName` and `StreamOffset` types that the fact log
+  functions take.
+- `@pepys/kit` also holds `createLogger`, which writes one JSON line per call to any destination,
+  such as an array in a test. Ingest gives its own logger, as `log`, to a source's `read` for each
+  request on a route and to its `pull` on each timer.
+  [Log lines](../../docs/architecture/ingest/ingest.md#log-lines) gives the format.
+- `@pepys/kit/send` holds `createFactBatchSender`. Give it the source, the URL of the source's
+  ingest route and the route's secret. It posts each batch of facts with the proof that the route's
+  [delivery check](../../docs/architecture/ingest/ingest.md#a-delivery-step-by-step) asks for: an
+  HMAC-SHA256 signature of the body, or the secret as a bearer token.
+- `@pepys/kit/generators` holds the functions that write a consumer's SQL schema and its boundary
+  file, which holds the TypeScript types of the consumer's rows and operations. `pepys build` calls
+  them, so a plug-in never imports them.
 
 ## Entity IDs
 
 An entity ID is text of the form `<source>:<kind>:<id>`, such as `github:pull_request:9001`, and its
-type is `EntityID`. In code that is not a consumer, such as a query, check text with one of these:
+type is `EntityID`. In a query, or in any code outside a consumer, check text with one of these:
 
 - `isEntityID(text)`: a type guard that narrows the text to `EntityID` when it has that form.
 - `entityIDSchema`: a zod schema that refuses any other text. Use it for each ID field in the input
-  and output of a query. The API also serves each query as an MCP tool, and an MCP client sees such
-  a field as a plain string in the tool's JSON Schema.
+  and output of a query. The API serves each query as an MCP tool too, and the tool's JSON Schema
+  shows such a field to an MCP client as a plain string.
+
+A consumer imports neither. `pepys build` compiles a consumer from a copy of its package's `src/`
+alone, so the consumer builds its IDs with the functions of its own boundary file.
 
 ## Configuration
 
