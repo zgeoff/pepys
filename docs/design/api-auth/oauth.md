@@ -202,10 +202,10 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
   Referrer-Policy: same-origin
   ```
 
-- The public listener sees cloudflared's address, never the caller's network address. Every limit
-  therefore counts per OAuth client and grant: the limit on authorizations started counts per
-  client, and the lock after failed passkey sign-ins counts for the owner. The API leaves the
-  network address out of every security event.
+- The public listener sees cloudflared's address, never the caller's network address, so no limit
+  counts per network address. The limit on authorizations started counts per OAuth client. The lock
+  after failed passkey sign-ins counts across every client, because one owner holds every passkey.
+  The API leaves the network address out of every security event.
 - pepys turns better-auth's telemetry off, whatever the environment sets.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
   progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant
@@ -237,7 +237,8 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 
 - How the public routes mount on Elysia beside better-auth's handler.
 - The wording of every page and error.
-- The rate limit on authorizations started.
+- The rate limit on authorizations started, and the number of failed sign-ins and the time that set
+  the sign-in lock.
 - Whether the bearer check reuses better-auth's MCP helper or reads the token table directly.
 - The better-auth version, within the
   [dependency rule](../../../.claude/skills/ci-design/SKILL.md#dependency-exceptions). `@pepys/api`
