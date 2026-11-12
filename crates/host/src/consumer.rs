@@ -492,13 +492,21 @@ fn check_table(name: &str, table: &TableInfo) -> Result<(), HostError> {
         return Err(bad(&at, &"a key or an index with no column"));
     }
 
-    match table
+    if let Some(column) = table
         .primary_key
         .iter()
         .chain(table.indexes.iter().flatten())
         .find(|column| !table.columns.contains_key(*column))
     {
-        Some(column) => Err(bad(&at, &format!("no column {column}"))),
+        return Err(bad(&at, &format!("no column {column}")));
+    }
+
+    match table
+        .primary_key
+        .iter()
+        .find(|column| table.columns.get(*column).is_some_and(|info| info.nullable))
+    {
+        Some(column) => Err(bad(&at, &format!("the key column {column} is nullable"))),
         None => Ok(()),
     }
 }

@@ -3074,6 +3074,68 @@
       "isValid": false
     },
     {
+      "title": "refuses a nullable primary key column",
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "tide_reading",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "tide_reading": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id", "note"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
       "title": "refuses a primary key column that the table lacks",
       "file": {
         "kit": 1,

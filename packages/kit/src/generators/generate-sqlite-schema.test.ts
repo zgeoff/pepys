@@ -119,6 +119,36 @@ test('it generates a table with a composite primary key and no view', () => {
   `);
 });
 
+test('it generates NOT NULL on a primary key column whatever its nullable flag', () => {
+  const shelf: ConsumerDeclaration = {
+    name: 'archive_shelf',
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.archive.shelf'] },
+    tables: {
+      shelf: defineTable({
+        columns: {
+          code: { kind: 'text', nullable: true },
+          label: { kind: 'text', nullable: true },
+        },
+        primaryKey: ['code'],
+        indexes: [],
+      }),
+    },
+    entityViews: [],
+    reads: [],
+    links: [],
+  };
+
+  expect(generateSqliteSchema(shelf)).toMatchInlineSnapshot(`
+    "CREATE TABLE "shelf" (
+      "code" TEXT NOT NULL,
+      "label" TEXT,
+      PRIMARY KEY ("code")
+    );
+    "
+  `);
+});
+
 test('it generates the same source for the same declaration', () => {
   const tracker = defineConsumer({
     name: 'ticket_tracker',

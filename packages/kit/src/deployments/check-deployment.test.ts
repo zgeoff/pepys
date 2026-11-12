@@ -686,6 +686,30 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
     },
   ],
   [
+    'a nullable primary key column',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: { id: { kind: 'entityID' }, drawer: { kind: 'text', nullable: true } },
+                  primaryKey: ['id', 'drawer'],
+                  indexes: [],
+                },
+              },
+            }),
+          ],
+        }),
+      ],
+    }),
+    { kind: 'nullable-key-column', consumer: 'ledger_till', table: 'till', column: 'drawer' },
+  ],
+  [
     'an index column the table does not declare',
     () => ({
       name: 'harbour',

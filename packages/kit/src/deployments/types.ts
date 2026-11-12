@@ -99,7 +99,10 @@ export type DeploymentFailure =
       table: string;
       column: string;
       usedBy: 'primary-key' | 'index' | 'entity-view';
-    };
+    }
+
+  // a row whose key holds null never matches the host's lookup or delete by key
+  | { kind: 'nullable-key-column'; consumer: string; table: string; column: string };
 
 export interface ReceiveRoute {
   source: string;

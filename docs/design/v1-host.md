@@ -40,7 +40,7 @@ Both parsers refuse a file that breaks one of these rules:
 7. No table is named `link`, `entity`, `offsets`, `change_log`, `applied_facts`, `scope_row` or
    `scope_fact`.
 8. A primary key has a column, and every key and index column is a column of its table. Every column
-   states `nullable`.
+   states `nullable`, and no key column is nullable.
 
 - **One load path.** Every way to load a consumer version ends in one check, so that no caller can
   skip it.

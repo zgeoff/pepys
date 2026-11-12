@@ -181,9 +181,13 @@ function collectTableProblems(name: string, table: ManifestTable): string[] {
     .filter((column) => !Object.hasOwn(table.columns, column))
     .map((column) => `the table ${name} has no column ${column}`);
 
+  const nullableKeys = table.primaryKey
+    .filter((column) => table.columns[column]?.nullable === true)
+    .map((column) => `the key column ${column} of the table ${name} is nullable`);
+
   return reservedTableNames.has(name)
-    ? [`the table name ${name} is reserved for the host`, ...missing]
-    : missing;
+    ? [`the table name ${name} is reserved for the host`, ...missing, ...nullableKeys]
+    : [...missing, ...nullableKeys];
 }
 
 function collectFileProblems(consumers: readonly ListedConsumer[]): string[] {

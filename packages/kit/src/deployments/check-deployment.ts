@@ -380,6 +380,12 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
   for (const [table, declaration] of Object.entries(consumer.tables)) {
     addUnknownColumns(table, declaration.primaryKey, 'primary-key');
 
+    for (const column of declaration.primaryKey) {
+      if (declaration.columns[column]?.nullable === true) {
+        failures.push({ kind: 'nullable-key-column', consumer: consumer.name, table, column });
+      }
+    }
+
     addUnknownColumns(
       table,
       declaration.indexes.flatMap((index) => index.columns),

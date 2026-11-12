@@ -29,10 +29,11 @@ function formatCreateTable(
   columns: Readonly<Record<string, ColumnDeclaration>>,
   primaryKey: readonly string[],
 ): string {
-  const definitions = Object.entries(columns).map(
-    ([columnName, column]) =>
-      `  ${quoteSqlIdentifier(columnName)} ${toSqliteType(column)}${column.nullable === true ? '' : ' NOT NULL'}`,
-  );
+  const definitions = Object.entries(columns).map(([columnName, column]) => {
+    const isNotNull = column.nullable !== true || primaryKey.includes(columnName);
+
+    return `  ${quoteSqlIdentifier(columnName)} ${toSqliteType(column)}${isNotNull ? ' NOT NULL' : ''}`;
+  });
 
   return [
     `CREATE TABLE ${quoteSqlIdentifier(name)} (`,
