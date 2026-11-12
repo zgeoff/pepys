@@ -4,16 +4,17 @@ Date: 2026-11-12
 
 ## Decision
 
-The bucket backup never copies `auth.db`, the API's SQLite file of clients, passkeys and token
-hashes. `auth.db` lives on a volume with the `Retain` reclaim policy, and nothing else holds a copy.
+Nothing backs up `auth.db`, the API's SQLite file of OAuth clients, passkey public keys and token
+hashes. The nightly [bucket backup](../design/pepys/runtime.md#processes) copies pepys's object
+storage buckets to R2, and `auth.db` lives on a Kubernetes volume outside them.
 
 ## Rejected alternatives
 
-| Option                               | Why not                                                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| a copy of `auth.db` with each backup | a copy outside the API's volume is one more place that holds the owner's client list, passkey public keys and token hashes |
+- A copy of `auth.db` with each bucket backup: R2 would then be one more place that holds the client
+  list and the token hashes, and the owner rebuilds both with one enrolment and one sign-in per
+  client.
 
 ## Why
 
-A lost `auth.db` costs one passkey enrolment and one sign-in per client. Every fact stays in the
-log, so no data is lost with it.
+When a disk fault or a deleted volume loses `auth.db`, the owner enrols a new passkey and signs each
+MCP client in again. Every fact pepys holds is in the fact log, so the loss costs no data.

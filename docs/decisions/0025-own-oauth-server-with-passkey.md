@@ -4,27 +4,32 @@ Date: 2026-11-12
 
 ## Decision
 
-The API runs its own OAuth 2.1 authorization server for the owner's MCP clients, on better-auth,
-with code copied from the OAuth server of atc, the owner's agent control tower. The owner is the one
-user, and a passkey is the one credential that signs the owner in. The owner adds each client by
-hand, and each authorization needs a fresh passkey sign-in.
+The API runs its own OAuth 2.1 authorization server, which gives the owner's MCP clients, such as
+Claude Code, their access tokens. The server runs on better-auth, a TypeScript auth library, and
+copies its code from the OAuth server of atc, the owner's agent control tower, which runs on
+better-auth too.
+
+- The owner is the one user, and a passkey is the one credential that signs the owner in.
+- The owner adds each client with the API's `clients add` admin command. A client that the owner
+  never added can't start an authorization.
+- Each authorization needs a fresh passkey sign-in.
 
 ## Rejected alternatives
 
-| Option                                                  | Why not                                                                                       |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| an outside identity provider                            | pepys serves one owner, and a provider adds a second system to trust and to keep up           |
-| a sign-in code approved with an API token, as impz does | pepys has no such token for the owner                                                         |
-| dynamic client registration or client metadata files    | either one lets any client start a sign-in                                                    |
-| a package that atc, impz and pepys share, built first   | the API needs auth before its first source of personal data, and the package can follow later |
+| Option                                                       | Why not                                                                                                   |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| an outside identity provider                                 | the owner then trusts and keeps up a second system for one user                                           |
+| a sign-in code that the owner approves with an API token     | the owner's agent runner, impz, signs in this way, but pepys gives the owner no API token to approve with |
+| dynamic client registration, or client ID metadata documents | any client could then start an authorization and put a consent page in front of the owner                 |
+| an auth package shared with atc before pepys's server        | the API needs auth before it holds any personal data, so the server can't wait for that package           |
 
 ## Why
 
-A passkey works from each of the owner's devices, and nobody can guess a passkey assertion. A server
-copied from atc keeps the rules the two servers share in one known shape, and atc's OAuth doc gives
-the reasons behind them.
+pepys serves one person, so it needs no user accounts and no outside provider. A passkey works from
+each of the owner's devices, and nobody can guess or phish it. atc's server already meets the MCP
+authorization spec on better-auth, so a copy starts from code that works.
 
 ## Consequences
 
-- Losing every passkey locks the owner out until the owner enrols a new one with an admin command in
-  the API's container.
+- When the owner loses every passkey, the owner runs `passkeys enroll --reset` in the API's
+  container, and enrols a new passkey.

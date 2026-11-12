@@ -4,21 +4,26 @@ Date: 2026-11-12
 
 ## Decision
 
-The public route, through the shared Cloudflare tunnel, carries only `/mcp` and the OAuth and
-sign-in paths. `/rpc` is never public. The owner's PC reaches `/rpc` over the owner's tailnet,
-through a NodePort that answers on the server's tailnet address only, with a service token from
-1Password.
+pepys's API serves two kinds of route: MCP at `/mcp`, for agents such as Claude Code, and typed oRPC
+routes under `/rpc`, for scripts.
+
+- The public route carries only `/mcp` and the OAuth and sign-in paths that
+  [the OAuth server](./0025-own-oauth-server-with-passkey.md) needs. It runs through the Cloudflare
+  tunnel that the owner's other servers share.
+- `/rpc` is never public. The owner's PC reaches `/rpc` over the owner's Tailscale network, the
+  tailnet, with a service token that the owner's script reads from 1Password. A Kubernetes NodePort
+  carries the route, and answers on the server's tailnet address only.
 
 ## Rejected alternatives
 
-| Option                                         | Why not                                                                           |
-| ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `/rpc` on the public route with OAuth tokens   | a script on the PC then needs a browser sign-in                                   |
-| `/rpc` on the public route with service tokens | a leaked service token then works from the internet                               |
-| a public route with its own TLS front          | MCP answers each post with JSON and holds no stream open, so the tunnel serves it |
+| Option                                                                    | Why not                                                                                                                                   |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `/rpc` on the public route, with OAuth tokens                             | a script on the PC then needs a browser sign-in                                                                                           |
+| `/rpc` on the public route, with service tokens                           | a leaked service token then works from anywhere on the internet                                                                           |
+| MCP on a public port with its own TLS certificate, in place of the tunnel | MCP answers each request with JSON and holds no long stream open, so the tunnel carries it, and a certificate adds one more thing to keep |
 
 ## Why
 
-atc and impz each expose only MCP to the internet. The owner's PC is already on the tailnet, and
-WireGuard encrypts the tailnet and proves each peer, so `/rpc` needs no public route and no TLS of
-its own.
+The owner's agents run on devices and in places that aren't on the tailnet, so MCP has to be public.
+The scripts that call `/rpc` run on the owner's PC, which is on the tailnet. Tailscale encrypts the
+tailnet and proves each device, so `/rpc` needs no public route and no TLS of its own.
