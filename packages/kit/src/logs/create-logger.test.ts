@@ -4,7 +4,11 @@ import { createLogger } from './create-logger.ts';
 function setupTest() {
   const lines: string[] = [];
 
-  return { lines, logger: createLogger({ write: (line) => lines.push(line) }) };
+  return {
+    lines,
+    logger: createLogger({ write: (line) => lines.push(line) }),
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
+  };
 }
 
 test.each(['error', 'warn'] as const)(
@@ -36,19 +40,18 @@ test('it writes the name, message and cause of an error detail', () => {
     new TypeError('the buoy is offline', { cause: 'no signal' }),
   );
 
-  const [line] = ctx.lines;
-  const parsed: unknown = JSON.parse(line ?? '');
-
-  expect(parsed).toStrictEqual({
-    level: 'error',
-    message: 'an append failed',
-    detail: {
-      name: 'TypeError',
-      message: 'the buoy is offline',
-      stack: expect.stringContaining('TypeError: the buoy is offline'),
-      cause: 'no signal',
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'an append failed',
+      detail: {
+        name: 'TypeError',
+        message: 'the buoy is offline',
+        stack: expect.stringContaining('TypeError: the buoy is offline'),
+        cause: 'no signal',
+      },
     },
-  });
+  ]);
 });
 
 test('it writes a bigint in a detail as its digits', () => {
@@ -69,12 +72,11 @@ test('it writes a detail that refers to itself as text, and does not throw', () 
 
   ctx.logger.error('a loop in the detail', looped);
 
-  const [line] = ctx.lines;
-  const parsed: unknown = JSON.parse(line ?? '');
-
-  expect(parsed).toStrictEqual({
-    level: 'error',
-    message: 'a loop in the detail',
-    detail: expect.stringContaining("pier: 'east'"),
-  });
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'a loop in the detail',
+      detail: expect.stringContaining("pier: 'east'"),
+    },
+  ]);
 });
