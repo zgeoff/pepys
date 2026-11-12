@@ -19,7 +19,6 @@ interface FileKeeper {
   path: string;
   database: Promise<Database>;
   readers: number;
-  isRetired: boolean;
 }
 
 // The Turso adapter of the store reader port. Each call opens one connection on an empty
@@ -42,29 +41,38 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       path: file.path,
       database: connect(file.path, { readonly: true, experimental: ['multiprocess_wal'] }),
       readers: 1,
-      isRetired: false,
     };
 
     keepers.set(file.consumer.name, keeper);
 
     // the host swapped the version: the old file closes once its last call ends
     if (held !== undefined) {
-      held.isRetired = true;
-
       retired.add(held);
     }
 
     return keeper;
   };
 
-  const releaseKeeper = async (keeper: FileKeeper): Promise<void> => {
-    keeper.readers -= 1;
-
-    if (keeper.isRetired && keeper.readers === 0 && retired.delete(keeper)) {
-      const database = await keeper.database;
-
-      await database.close();
+  // A retired file may have had no call open when the host swapped it, so each call that ends
+  // closes every retired file left with no readers, not only the files it held.
+  const releaseKeepers = async (held: readonly FileKeeper[]): Promise<void> => {
+    for (const keeper of held) {
+      keeper.readers -= 1;
     }
+
+    const idle = [...retired].filter((keeper) => keeper.readers === 0);
+
+    for (const keeper of idle) {
+      retired.delete(keeper);
+    }
+
+    await Promise.all(
+      idle.map(async (keeper) => {
+        const database = await keeper.database;
+
+        await database.close();
+      }),
+    );
   };
 
   return {
@@ -126,7 +134,7 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
           await db.destroy();
         }
       } finally {
-        await Promise.all(held.map((keeper) => releaseKeeper(keeper)));
+        await releaseKeepers(held);
       }
     },
     close: async () => {

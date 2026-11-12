@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readlink, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sql } from 'kysely';
@@ -202,6 +202,43 @@ test('it finishes a call on the version it resolved when the current link swings
       rest: 'Tern',
     },
   });
+});
+
+test('it closes the file of a version the host swapped away from between calls', async () => {
+  const ctx = await setupTest();
+
+  const directory = await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+  });
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v2',
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  await ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+    db.selectFrom('harbour_vessel').select('id').execute(),
+  );
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v2');
+
+  await ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+    db.selectFrom('harbour_vessel').select('id').execute(),
+  );
+
+  const retiredDirectory = await realpath(directory);
+  const descriptors = await readdir('/proc/self/fd');
+
+  const targets = await Promise.all(
+    descriptors.map((descriptor) => readlink(join('/proc/self/fd', descriptor)).catch(() => null)),
+  );
+
+  expect(targets.filter((target) => target?.startsWith(retiredDirectory))).toStrictEqual([]);
 });
 
 test('it keeps one snapshot of a file that the host holds open and commits to during the call', async () => {
