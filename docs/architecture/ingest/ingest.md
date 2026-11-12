@@ -155,6 +155,18 @@ failed run keeps every mark for the next one. The marks live in memory, at most 
 with the oldest dropped first, and a restart loses them.
 [The resync pull](../plug-ins/github.md#the-resync-pull) lists when a receive path sets a mark.
 
+## Log lines
+
+Ingest writes each failure and each warning to stderr as one JSON object per line, such as
+`{"level":"error","message":"an append to facts.github.pull_request failed","detail":{"kind":"not-stored","attempts":5}}`.
+The `level` is `error` or `warn`, and a line with no detail leaves `detail` out. An error in
+`detail` keeps its name, message, stack and cause. A line never holds a token or a secret.
+
+A source's `read` and `pull` get the same logger as `log` in their context. A plug-in logs through
+`log`, never through `console`, so its lines reach the same stream in the same shape. `createLogger`
+from `@pepys/kit` builds a logger that writes to any destination with a `write` method, such as an
+array of lines in a test.
+
 ## Settings and start
 
 Ingest runs the kit's [deployment check](../consumers/plug-ins-and-build.md#the-deployment-check)

@@ -40,6 +40,9 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 - `@pepys/kit` holds the `define*` functions, the [entity ID checks](#entity-ids), and
   `checkDeployment`, which returns each fault in a deployment, such as two plug-ins with one stream.
   For the fact log, `toStreamName` types a stream name and `toStreamOffset` types an offset.
+- A source's `read` and `pull` log through `log` in their context, in the
+  [log line format](../../docs/architecture/ingest/ingest.md#log-lines). `createLogger` builds such
+  a logger over any destination, such as an array of lines in a test.
 - `@pepys/kit/generators` builds a consumer's SQL schema, and its boundary file: the TypeScript
   types of the consumer's rows and operations.
 - `@pepys/kit/send` holds `createFactBatchSender`, which signs a batch of facts with the source's
