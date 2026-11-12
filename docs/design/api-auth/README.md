@@ -35,7 +35,7 @@ flowchart LR
   public --> authdb[("auth.db")]
 ```
 
-Three outside systems appear in this design:
+These outside systems appear in this design:
 
 - **atc** is the owner's agent control tower. Its gateway serves MCP on a public route behind its
   own OAuth server, and this design follows that server.
@@ -258,9 +258,9 @@ release that requires tokens: that release exits 1 with no callers file.
   runs on the PC, which is on the tailnet, so the internet reaches only MCP and sign-in, and the
   script needs no browser sign-in.
 - **Each listener takes one kind of credential, and each service caller lists its listeners.** A
-  leaked boxxy token is useless from the tailnet, a leaked owner token is useless from a pod, and
-  neither works on the public route. The tailnet listener checks the client address too, so the PC's
-  token works from the PC alone.
+  leaked boxxy token opens nothing from the tailnet, a leaked owner token opens nothing from a pod,
+  and neither works on the public route. The tailnet listener checks the client address too, so the
+  PC's token works from the PC alone.
 - **The tailnet route is plain HTTP.** WireGuard encrypts the tailnet and proves each peer, as for
   Grafana's NodePort, so TLS adds a certificate to keep and no protection.
 - **Service tokens come from a callers file that the API reloads.** The API shares its pod with the
