@@ -20,7 +20,8 @@ Group the files in a package's `src/` by feature, so a folder never fills with u
 feature is one part the package owns, such as a port with its adapters, a job that enrichment runs,
 or a CLI command. A port is an interface that pepys's own code calls for I/O, such as the blob
 store, and an adapter is one implementation of it. The
-[architecture doc](../../../docs/design/pepys/architecture.md#ports-and-adapters) lists the ports.
+[fact log doc](../../../docs/architecture/ingest/fact-log.md#ports-and-their-fixtures) lists the
+ports.
 
 An invented package, to show the shape:
 
@@ -63,8 +64,8 @@ packages/example/src/
 
 - Write a consumer as a pure function. It takes one input and returns a list of operations, and the
   same input always gives the same list. The
-  [consumers design doc](../../../docs/design/pepys/consumers.md) defines the two input modes, fact
-  and scope, and the operations the host applies to the store.
+  [host doc](../../../docs/architecture/consumers/host.md) describes the two input modes, fact and
+  scope, and the operations the host applies to the store.
 - Never read a clock, a random source, the network or a file in a consumer. Take a time from a field
   of the input.
 - Import the types of the consumer's store rows and operations from
@@ -90,6 +91,7 @@ packages/example/src/
   the whole string. The source is a source's lowercase name, such as `github` or `gmail`, or
   `deployment` for an ID from the owner's own configuration. The last part is the ID the source
   gives the thing.
-- Write each kind that the [entities doc](../../../docs/design/pepys/entities.md) lists in the form
-  that doc gives it, such as the short `msg`. Write a new kind in lowercase full words with `_`
-  between them, such as `review_comment`, and add it to that doc.
+- Write each kind that the
+  [entities and links doc](../../../docs/architecture/queries/entities-and-links.md#entity-ids)
+  lists in the form that doc gives it, such as `pull_request`. Write a new kind in lowercase full
+  words with `_` between them, such as `review_comment`, and add it to that doc.

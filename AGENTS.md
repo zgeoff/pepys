@@ -42,7 +42,10 @@ packages/   the @pepys/* workspace packages, one folder each
 research/   spikes, one Bun package each
 scripts/    the repo tooling
 docs/
-  design/   designs for work that is not built yet
+  architecture/  how the built system works
+  runbooks/      how to deploy and release
+  design/        designs for work that is not built yet
+  decisions/     numbered decision records
 ```
 
 ## Packages
@@ -70,7 +73,8 @@ docs/
   version, packs each package once, installs the tarballs outside the repo, and publishes them to
   npm with provenance. Its `release-host` job builds the host binary and makes the GitHub release of
   the tag with the binary and its `SHA256SUMS`. The rules a deploy of that binary relies on are in
-  [The released binary](docs/design/v1-host.md#the-released-binary).
+  [Fetch the host](docs/runbooks/deploying.md#3-fetch-the-host), and
+  [Releasing](docs/runbooks/releasing.md) covers a run that fails.
 - `bun run check:outside-install` installs every public package into an empty folder outside the
   repo, type-checks a stub plug-in there, and runs a query test on the test store. It packs the
   packages first, or with `PEPYS_OUTSIDE_VERSION` set it installs that version from npm.

@@ -1,26 +1,22 @@
 # Links
 
-A link connects two entities, usually from different sources: a pull request that closes an issue,
-an email that notifies about a review, a fix that changes lines an earlier pull request wrote. Links
-are the part of pepys that no single source has. Each link records its origin, its evidence and its
-confidence, so a person can see why a link exists and remove it. Every link type declares the entity
-kinds it connects, and both the TypeScript types and the host check those kinds.
+The `link` table, the link types a consumer declares, and the host's check of each link are built,
+as [entities and links](../../architecture/queries/entities-and-links.md) describes. This design
+adds what finds links no single source holds: the link extractors, links whose target is a reference
+as the text wrote it, manual links from people and agents, and retractions. A pull request that
+closes an issue, an email that notifies about a review, and a fix that changes lines an earlier pull
+request wrote are each such a link.
 
 ## Link tables
 
-Any consumer can own a link table in its own file. The link table holds the source entity, the
-target, the link type, the origin, an optional scope, a confidence and the evidence. The host fills
-in the origin as the consumer's name. One exception: a manual link takes its origin from the client
-that the manual fact records, so links that one agent asserted stay distinguishable from the
-owner's.
+A manual link takes its origin from the client that the manual fact records, so links that one agent
+asserted stay distinguishable from the owner's.
 
-The `link_effective` view unions every link table across the attached files and drops any link that
-has a retraction, from any origin. Queries read that view, and each query sets its own confidence
-threshold.
+The `link_effective` view drops any link that has a retraction, from any origin. Queries read that
+view, and each query sets its own confidence threshold.
 
-A link's target is a global ID or a reference as the text wrote it. No foreign key ties the two
-ends, so a link to `github:pull_request:1874433021` exists before the pull request arrives, and the
-join fills in when the pull request lands.
+A link's target is a global ID or a reference as the text wrote it, such as `acme/api#412`. The
+alias tables of [entities](./entities.md#tables-and-aliases) resolve a reference to an ID.
 
 ## Two shapes of link
 

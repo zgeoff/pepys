@@ -6,7 +6,8 @@ Date: 2026-10-22 Updated: 2026-11-12
 
 The API writes its queries with Kysely, through a dialect for the Turso TypeScript bindings that
 reuses Kysely's SQLite pieces. The Kysely types are generated from the consumer declarations. The
-[API design](../design/pepys/api.md#the-contract) describes how each query is served.
+[API architecture doc](../architecture/queries/api.md#the-router) describes how each query is
+served.
 
 ## Rejected alternatives
 

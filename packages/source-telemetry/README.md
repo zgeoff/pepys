@@ -8,7 +8,7 @@
 
   <p>
     <a href="../../docs/README.md">Documentation</a> •
-    <a href="../../docs/design/v1-plug-ins.md">The plug-ins of v1</a>
+    <a href="../../docs/architecture/plug-ins/telemetry.md">The telemetry plug-in</a>
   </p>
 </div>
 

@@ -24,7 +24,8 @@ out. [0025](./0025-own-oauth-server-with-passkey.md) and
 
 Each query is one oRPC procedure, and the API serves it as a typed route and as an MCP tool, and
 tests it once. The owner's scripts and agents then see the same set of queries. Only oRPC v2 has an
-MCP integration, so the API runs oRPC v2 ([oRPC and MCP](../design/pepys/api.md#orpc-and-mcp)).
+MCP integration, so the API runs oRPC v2
+([oRPC and MCP](../architecture/queries/api.md#the-router)).
 
 ## Changes
 

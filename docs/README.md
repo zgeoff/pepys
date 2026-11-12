@@ -9,38 +9,39 @@
   </p>
 </div>
 
+## Architecture
+
+- [Overview](./architecture/overview.md) — the path of a fact, the processes, the data, and the
+  concerns that cut across the system.
+- [Ingest](./architecture/ingest/ingest.md) — the receive routes, the checks, the answers and the
+  pull timers.
+- [The fact log](./architecture/ingest/fact-log.md) — streams, the fact envelope, fact IDs, one
+  append, and the ports with their fixtures.
+- [Plug-ins and the build](./architecture/consumers/plug-ins-and-build.md) — what a plug-in
+  declares, the glue, `pepys build`, `consumers.json` and the test store.
+- [The host](./architecture/consumers/host.md) — versions, fact mode, scope mode, the module
+  boundary and the store files.
+- [Entities and links](./architecture/queries/entities-and-links.md) — entity IDs, the shared
+  `entity` view and the link table.
+- [The API](./architecture/queries/api.md) — the store reader, the core queries and the router.
+- [The GitHub plug-in](./architecture/plug-ins/github.md) — the webhook, the tie rule, the recovery
+  and resync pulls, deploys and the delivery query.
+- [The telemetry plug-in](./architecture/plug-ins/telemetry.md) — the OTLP paths, the sender proof,
+  the consumers and the session query.
+
+## Runbooks
+
+- [Deploying a deployment](./runbooks/deploying.md) — build the consumers, fetch the host, and start
+  the processes.
+- [Releasing](./runbooks/releasing.md) — release a version, and what to do when a run fails.
+
 ## Design
 
-- [pepys design](./design/pepys/README.md) — the principles, the pipeline, and the index of design
-  docs.
-- [pepys v1](./design/v1.md) — what the first version builds: the kit, ingest, the log, the
-  manifest, the host and the store API.
-- [The manifest and the host](./design/v1-host.md) — `consumers.json`, and how the host runs a
-  module in fact mode and in scope mode.
-- [The plug-ins of v1](./design/v1-plug-ins.md) — the telemetry and GitHub plug-ins.
+- [pepys design](./design/pepys/README.md) — the parts of pepys that are not built yet, and the
+  index of their design docs.
 - [Auth for the API](./design/api-auth/README.md) — OAuth on the public `/mcp` route, and service
   tokens on the tailnet and cluster `/rpc` routes.
-- [Open for the builder](./design/v1-open.md) — what two trial runs found, and what no run has
-  checked.
-- [The v1 work list](./design/v1-work-list.md) — the build, as numbered slices in dependency order.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
-- [Architecture](./design/pepys/architecture.md) — ports, strategies, champion and challenger, and
-  buckets.
-- [Storage](./design/pepys/storage.md) — Garage, the buckets, and blobs.
-- [Log](./design/pepys/log.md) — streams, the fact envelope, fact IDs, cursors, events and
-  observations.
-- [Ingest](./design/pepys/ingest.md) — what every source does, and the GitHub and Gmail sources.
-- [Entities](./design/pepys/entities.md) — per-source tables, the shared view, aliases and people.
-- [Consumers](./design/pepys/consumers.md) — WebAssembly consumers, the host contract and input
-  modes.
-- [Host](./design/pepys/host.md) — batches, scheduling, consumer versions, preview and up.
-- [Store](./design/pepys/store.md) — Turso files, attach, and Kysely queries.
-- [Links](./design/pepys/links.md) — link tables, extractors, typed links and retractions.
-- [Enrichment](./design/pepys/enrichment.md) — git, MIME, model judgements and the job model.
-- [Search](./design/pepys/search.md) — LEAF-IR embeddings and hybrid ranking.
-- [API](./design/pepys/api.md) — the query catalog, MCP, auth and agent writes.
-- [Change feed](./design/pepys/change-feed.md) — the change log and the Durable Streams protocol.
-- [History](./design/pepys/history.md) — transitions, past states and the Parquet lake.
 
 ## Decisions
 

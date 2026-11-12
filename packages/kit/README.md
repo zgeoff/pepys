@@ -8,7 +8,7 @@
 
   <p>
     <a href="../../docs/README.md">Documentation</a> •
-    <a href="../../docs/design/v1.md">pepys v1</a>
+    <a href="../../docs/architecture/consumers/plug-ins-and-build.md">Plug-ins and the build</a>
   </p>
 </div>
 

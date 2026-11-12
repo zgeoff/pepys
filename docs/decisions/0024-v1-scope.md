@@ -9,12 +9,12 @@ builds entities and links from them, and answers queries about them over oRPC an
 dispatches work to coding agents and measures what the work costs. The
 [design](../design/pepys/README.md) describes the whole of pepys and defines its terms, such as
 source, consumer and deployment. This record lists the parts of that design that are in v1, and
-[pepys v1](../design/v1.md) describes how v1 builds them.
+[the architecture overview](../architecture/overview.md) describes what is built.
 
-- The core of the [pipeline](../design/pepys/README.md#pipeline) is in v1, and works for any source.
-  [Ingest](../design/pepys/ingest.md) has an interface that each source fills in. The
-  [host](../design/pepys/host.md) runs every consumer that the deployment declares, in both
-  [input modes](../design/pepys/consumers.md#input-modes).
+- The core of the [pipeline](../architecture/overview.md#the-path-of-a-fact) is in v1, and works for
+  any source. [Ingest](../architecture/ingest/ingest.md) has an interface that each source fills in.
+  The [host](../architecture/consumers/host.md) runs every consumer that the deployment declares, in
+  both [input modes](../architecture/consumers/host.md#running-consumers).
 - A plug-in is the unit that a deployment lists. It holds sources, consumers, link types and
   queries, and a package declares one with the kit that pepys publishes.
 - Three plug-ins are in v1. The GitHub plug-in builds pull requests, releases, commits and deploys,
@@ -24,8 +24,8 @@ source, consumer and deployment. This record lists the parts of that design that
   its facts to an ingest route, as GitHub sends a webhook. Each fact records one change to boxxy's
   work, such as an attempt that started.
 - The boxxy plug-in lives in one package in the boxxy repo. The
-  [core packages](../design/pepys/README.md#packages) import nothing from boxxy and hold no boxxy
-  name.
+  [core packages](../architecture/overview.md#concerns-that-cut-across-the-system) import nothing
+  from boxxy and hold no boxxy name.
 - pepys publishes what a plug-in outside this repo builds against. Its packages go to npm, with the
   kit and the testing package first. The `pepys` CLI has one command, which compiles a deployment's
   consumers. Each release carries the host binary, which deploys a consumer version itself. pepys
@@ -38,9 +38,9 @@ source, consumer and deployment. This record lists the parts of that design that
   [link extractors](../design/pepys/links.md#link-extractors), which find links in text, mail
   headers and blame results.
 - The API runs on oRPC v2, pinned to one exact beta version, and serves each query as a typed route
-  and as an MCP tool ([oRPC and MCP](../design/pepys/api.md#orpc-and-mcp)).
-  [The core catalog](../design/pepys/api.md#the-core-catalog) in v1 holds two queries: get entity,
-  and neighbourhood, which walks the links around one entity. The API takes no write in v1.
+  and as an MCP tool ([oRPC and MCP](../architecture/queries/api.md#the-router)).
+  [The core catalog](../architecture/queries/api.md#the-core-queries) in v1 holds two queries: get
+  entity, and neighbourhood, which walks the links around one entity. The API takes no write in v1.
 - The v1 API checks no token. The owner's private network and the cluster's network policies decide
   who reaches the API. Each ingest route checks its delivery, the GitHub webhook is the one route
   that the public internet reaches, and the telemetry route also needs a proven sender. The
@@ -81,4 +81,4 @@ neighbourhood query. Each part of the design that v1 leaves out builds on the sa
 
 boxxy is the first source that this repo does not own. Building boxxy as a plug-in proves that the
 kit is enough for an outside package, and upholds the rule that a core package never imports a
-source package ([packages](../design/pepys/README.md#packages)).
+source package ([packages](../architecture/overview.md#concerns-that-cut-across-the-system)).

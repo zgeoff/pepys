@@ -1,28 +1,18 @@
 # Log
 
-The log is the one place facts enter pepys. It runs on s2-lite, a single-binary server for the S2
-streams API that stores its data in the facts bucket through SlateDB. s2-lite acknowledges an append
-only after the data is durable in the bucket. The log holds one stream per fact family, keeps every
-record forever, and never rewrites a record. s2-lite's default retention is 7 days, so pepys creates
-every stream with infinite retention.
+The built log holds one stream per source fact family, as
+[the fact log](../../architecture/ingest/fact-log.md) describes. This design adds three kinds of
+stream, for poller cursors, for manual assertions and for enrichment results, and the rules a poller
+follows when it records events and observations. Every new stream keeps the built log's rules: one
+stream per fact family, kept forever, with a deterministic ID on every fact.
 
 ## Streams
 
-A fact family is the set of facts that one entity consumer projects, so each stream has exactly one
-entity consumer reading it. Streams are named after what is projected, not after the source's
-webhook event names: `facts.github.pull_request` holds pull request webhooks and pull request
-timeline backfill alike.
-
-| Stream                                                                           | Holds                                               |
-| -------------------------------------------------------------------------------- | --------------------------------------------------- |
-| one per source fact family, such as `facts.gmail.message` or `facts.gmail.label` | source events and observations                      |
-| `facts.cursors`                                                                  | each poller's position in its source                |
-| `facts.manual`                                                                   | links and corrections that people and agents assert |
-| `facts.enrich.*`                                                                 | enrichment results                                  |
-
-S2 orders records within a stream and assigns each a sequence number, which consumers use as their
-offset. The log gives no order between streams, and no consumer needs one: single-event links depend
-on one fact each, and join links recompute from state.
+| Stream           | Holds                                               | Written by |
+| ---------------- | --------------------------------------------------- | ---------- |
+| `facts.cursors`  | each poller's position in its source                | ingest     |
+| `facts.manual`   | links and corrections that people and agents assert | the API    |
+| `facts.enrich.*` | enrichment results                                  | enrichment |
 
 One entity's history is a query over the fact index, not a stream of its own, so consumers tail a
 fixed set of streams.
@@ -30,57 +20,17 @@ fixed set of streams.
 s2-lite has no built-in access control, so a k3s NetworkPolicy lets only its five clients reach it:
 ingest, enrichment and the API append facts, and the host and compaction only read them.
 
-## The fact envelope
-
-Every fact has the same envelope around an untouched source payload:
-
-| Field     | Holds                                                                         |
-| --------- | ----------------------------------------------------------------------------- |
-| `id`      | the deterministic fact ID                                                     |
-| `type`    | the event type, such as `github.pull_request.opened`                          |
-| `v`       | the envelope version                                                          |
-| `api`     | the source API version that produced the payload, such as `github/2022-11-28` |
-| `entity`  | the global ID of the main entity                                              |
-| `actor`   | the global ID of the actor, when the source names one                         |
-| `at`      | the source time                                                               |
-| `cursor`  | the source position, for pollers                                              |
-| `payload` | the raw source object                                                         |
-
-Ingest keeps the payload whole, because some APIs never return old data, and a field trimmed today
-is lost for good. Old facts are never rewritten: when a source changes the shape of its payload, the
-consumer reads `api` and handles each shape it knows, then replays.
-
 ## Fact IDs
 
-A fact's ID derives from its content, so the same fact written twice has the same ID and consumers
-drop the duplicate.
-
-| Fact kind         | ID                                                                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| webhook           | `webhook:<source>:<key>`, where the key comes from the signed body, such as a hash of the body for GitHub                                                          |
-| source event      | `event:<source>:<source event ID>`, such as `event:gmail:<history id>:<message id>:<change>` for Gmail, or the event ID that a sender puts in a signed fact batch  |
-| observation       | a hash of what was observed: the source, the entity and the source update time, or for a resync the whole observed payload and the last body stored for the entity |
-| enrichment result | a hash of the job, the job version and the input hash                                                                                                              |
-| manual assertion  | a hash of the client ID and the request ID the client sends                                                                                                        |
+| Fact kind         | ID                                                          |
+| ----------------- | ----------------------------------------------------------- |
+| source event      | `event:gmail:<history id>:<message id>:<change>` for Gmail  |
+| observation       | a hash of the source, the entity and the source update time |
+| enrichment result | a hash of the job, the job version and the input hash       |
+| manual assertion  | a hash of the client ID and the request ID the client sends |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
 webhooks repeat, and neither needs to prevent it at write time.
-
-s2-lite can store an append whose acknowledgement never arrived, so a writer sets `matchSeqNum` to
-the tail it expects on every append, the first attempt included. A writer resolves an append with an
-unknown outcome by reading the offsets that the append aimed at. When they hold every fact ID of the
-append, in order, the append landed. When they hold nothing, the writer retries with the same
-`matchSeqNum`. Otherwise another writer took the offsets, and the writer retries with `matchSeqNum`
-set to the new tail. A first attempt that lands late then fails its own guard, so exactly one copy
-lands ([S2 on linearizability](https://s2.dev/blog/linearizability)). While an attempt is unsettled,
-the writer reads those offsets again after every later outcome that aimed at them, a tail mismatch
-included, because the mismatch may come from the late attempt itself.
-
-One append takes a list of facts, and all of them land or none does. s2-lite takes at most 1000
-records and 1 MiB per append, where a record meters as its stored body in UTF-8 bytes plus 8. Ingest
-cuts the facts of one stream into runs inside those limits and appends the runs one after the other.
-Both adapters refuse an empty list, a longer list and a larger one as `too-large`, so the memory log
-refuses what s2-lite refuses.
 
 ## Cursors
 

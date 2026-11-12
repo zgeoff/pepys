@@ -1,8 +1,11 @@
 # Ingest
 
-Ingest turns source activity into facts. It is a TypeScript service on Bun, because its work is API
-clients and HTTP handlers. A source is a package that the deployment plugs into ingest. GitHub and
-Gmail are the first two sources, and this doc uses them to show what every source does.
+The built ingest serves receive routes and pull timers, as
+[ingest](../../architecture/ingest/ingest.md) describes, and the GitHub source fills its live and
+recovery paths, as [the GitHub plug-in](../../architecture/plug-ins/github.md) describes. This
+design gives every source a backfill path for history from before pepys started, adds blobs to what
+ingest writes, and adds Gmail as the second source of personal data. GitHub and Gmail show what
+every source does.
 
 ## What every source does
 
@@ -22,24 +25,13 @@ labels. The first two sources fill the three paths as follows.
 
 ## GitHub
 
-The owner installs a GitHub App on their account, and GitHub sends the App's webhooks to pepys. Only
-the webhook path is reachable from the internet; the route to it lives in the owner's cloud
-infrastructure repository. The receiver checks each webhook signature before it writes anything, and
-rejects an unsigned or badly signed request with no further work.
-
-GitHub does not retry a failed delivery on its own. A sweep lists the App's recent deliveries, finds
-the ones that failed or never reached pepys, and reads each one's body from GitHub's delivery log.
-GitHub keeps only the deliveries of the past 3 days, so the sweep runs more often than every 3 days.
-After an outage longer than 3 days, ingest polls the affected objects once and writes observations.
-The [source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
+After an outage longer than GitHub keeps its webhook deliveries, ingest polls the affected objects
+once and writes observations. The
+[source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
 probes it.
 
 Backfill reads the pull request and issue timeline APIs, which return past events with their times.
 Those events go into the same stream as the live events for the same entity.
-
-One webhook delivery becomes one fact in one stream, chosen by the webhook event name. A delivery
-that embeds a copy of another object, such as the pull request inside a review event, does not
-update that object: the copy is context, and only the object's own facts change its state.
 
 Ingest leaves git data to [enrichment](./enrichment.md). The GitHub API caps and truncates large
 diffs and offers no blame, so a local mirror serves both.
@@ -61,6 +53,7 @@ the outage.
 
 ## Writes
 
-Ingest writes in the order the [log](./log.md) requires: blobs, then facts, then the poller's cursor
-record. Every write is safe to repeat, because fact IDs are deterministic and blobs are named by
-their content.
+Ingest writes in the order the [log](./log.md#cursors) requires: blobs, then facts, then the
+poller's cursor record. Every write is safe to repeat, because fact IDs are deterministic and blobs
+are named by their content. Ingest writes a blob before it appends the fact that references it, so a
+fact never points at a missing blob.

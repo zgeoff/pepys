@@ -1,53 +1,20 @@
 # Architecture
 
-Write each pepys contract by the rules in this doc, so that two agents who implement it from its
+Write each new pepys contract by the rules in this doc, so that two agents who implement it from its
 type alone build the same behaviour. A contract is a type or a command signature that one part of
-pepys declares and another part builds against. The [pepys design](./README.md) defines the parts:
-the log, ingest, the host, consumers, the store, enrichment and the API.
+pepys declares and another part builds against. Every call to an outside system goes through a port,
+as [the architecture overview](../../architecture/overview.md#concerns-that-cut-across-the-system)
+describes for the built part. This doc holds the rules that the built part does not use yet.
 
 | Rule                                                | Applies to                                                        |
 | --------------------------------------------------- | ----------------------------------------------------------------- |
-| [ports and adapters](#ports-and-adapters)           | every call from pepys to an outside system, and every API entry   |
 | [strategies](#strategies)                           | a processing step with competing implementations                  |
 | [champion and challenger](#champion-and-challenger) | every new version of a consumer, an enrichment job or the ranking |
 | [buckets](#buckets)                                 | an enrichment challenger only                                     |
 | [provisional contracts](#provisional-contracts)     | a contract that depends on a spike that has not run               |
 
-## Ports and adapters
-
-pepys calls each outside system through a port: a typed contract that declares what pepys needs from
-that system. An adapter implements the port for one system. pepys calls a driven port. A caller
-outside pepys calls a driving port.
-
-| Port                         | Side    | Adapters                                                      |
-| ---------------------------- | ------- | ------------------------------------------------------------- |
-| fact log: append, read, tail | driven  | s2-lite, the Parquet lake for a rebuild, an in-memory log     |
-| blob store                   | driven  | Garage, a local folder                                        |
-| source client                | driven  | the GitHub App, Gmail, recorded fixtures                      |
-| model provider               | driven  | the Jev API, the LEAF-IR embedding model, a fixed-answer fake |
-| queries and manual writes    | driving | oRPC, MCP                                                     |
-
-[Enrichment](./enrichment.md) describes Jev and LEAF-IR. Manual writes are the links, retractions
-and label corrections that people and agents send through the [API](./api.md).
-
-Give a system a port only when it has at least two adapters, and count a test fake as one of them.
-Two systems have one adapter each, so they get no port:
-
-- The [store](./store.md) runs on Turso alone, and tests run against a real Turso file, so it has no
-  fake.
-- The [change feed](./change-feed.md) serves one protocol, Durable Streams.
-
-Make each port report the outcomes that its system can produce. A timed-out append to s2-lite can
-still land, as the
-[s2-lite spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/s2-lite-durability/results.md)
-measured. The fact log port therefore reports each append as acknowledged, rejected or unknown, and
-ingest repeats an unknown append under the same fact ID. A port that reported only success or
-failure would let an adapter turn an unknown append into a lost fact or a doubled one.
-
-The host is written in Rust. Ingest and enrichment are written in TypeScript. The fact log and blob
-store ports therefore have a Rust trait and a TypeScript interface. One set of fixture files, each a
-sequence of calls with the results it expects, drives a conformance test on each side, so a change
-to one definition fails the other side's test.
+The model provider is a port of its own, with the Jev API, the LEAF-IR embedding model and a
+fixed-answer fake as its adapters. [Enrichment](./enrichment.md) describes Jev and LEAF-IR.
 
 ## Strategies
 
