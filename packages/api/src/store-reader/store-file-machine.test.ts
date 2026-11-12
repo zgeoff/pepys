@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
-import { getInitialSnapshot, getNextSnapshot } from 'xstate';
+import { initialTransition, transition } from 'xstate';
 import { storeFileMachine } from './store-file-machine.ts';
 
 test('it starts open with no readers', () => {
-  const snapshot = getInitialSnapshot(storeFileMachine);
+  const [snapshot] = initialTransition(storeFileMachine);
 
   expect({ value: snapshot.value, context: snapshot.context }).toStrictEqual({
     value: 'open',
@@ -28,7 +28,7 @@ test.each([
     context: { readers: row.readers },
   });
 
-  const next = getNextSnapshot(storeFileMachine, snapshot, { type: row.event });
+  const [next] = transition(storeFileMachine, snapshot, { type: row.event });
 
   expect({ value: next.value, context: next.context }).toStrictEqual({
     value: row.to,
