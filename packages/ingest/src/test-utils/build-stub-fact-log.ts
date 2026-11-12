@@ -8,7 +8,6 @@ interface StubFactLog extends FactLog {
   appendBatch: Mock<FactLog['appendBatch']>;
 }
 
-// A log whose every append gives the same outcome, on a stream whose tail stays at 0.
 export function buildStubFactLog(outcome: AppendBatchOutcome): StubFactLog {
   return {
     appendBatch: mock<FactLog['appendBatch']>(() => Promise.resolve(outcome)),

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import type { QueryDefinition } from '../queries/types.ts';
 
-// A query that reads no consumer and answers an empty object, beside the fields a test gives.
 export function buildStubQuery(
   fields: Partial<QueryDefinition> & Pick<QueryDefinition, 'name'>,
 ): QueryDefinition {

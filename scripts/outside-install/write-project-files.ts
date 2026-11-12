@@ -1,7 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-// Writes each file under `project`, by its path relative to the project's folder.
 export async function writeProjectFiles(
   project: string,
   files: Readonly<Record<string, string>>,
