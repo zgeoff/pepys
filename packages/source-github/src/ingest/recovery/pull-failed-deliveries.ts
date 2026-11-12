@@ -24,7 +24,7 @@ export async function pullFailedDeliveries(
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };
   }
 
-  const seenID = cursor === null ? 0 : Number(cursor);
+  const seenID = cursor === null ? 0n : BigInt(cursor);
 
   const listed = await readDeliveriesAfter(seenID, appJWT);
 
@@ -50,13 +50,20 @@ export async function pullFailedDeliveries(
     }
   }
 
-  const highestID = Math.max(seenID, ...listed.items.map((item) => item.id));
+  const highestID = listed.items.reduce(
+    (highest, item) => (item.id > highest ? item.id : highest),
+    seenID,
+  );
 
   return { kind: 'batch', batch: { facts }, cursor: `${highestID}`, isDone: true };
 }
 
+// A delivery ID is above 2^53, so it is read from its digits in the body, never from a number.
 const deliveryItemSchema = z.looseObject({
-  id: z.number().int(),
+  id: z
+    .string()
+    .regex(/^[1-9]\d*$/u)
+    .transform(BigInt),
   status_code: z.number().int(),
   event: z.string(),
 });
@@ -68,14 +75,14 @@ type DeliveryItem = z.infer<typeof deliveryItemSchema>;
 type DeliveryList = { kind: 'listed'; items: DeliveryItem[] } | { kind: 'failed'; status: number };
 
 // GitHub lists the newest delivery first, so the pages stop at the first one already seen.
-async function readDeliveriesAfter(seenID: number, appJWT: string): Promise<DeliveryList> {
+async function readDeliveriesAfter(seenID: bigint, appJWT: string): Promise<DeliveryList> {
   const items: DeliveryItem[] = [];
   let url: string | undefined = '/app/hook/deliveries?per_page=100';
 
   while (url !== undefined) {
     const answer: GithubAnswer = await requestGithubAPI(url, appJWT);
 
-    const page = deliveryListSchema.safeParse(answer.body);
+    const page = deliveryListSchema.safeParse(parseDeliveryList(answer.text));
 
     if (answer.status !== 200 || !page.success) {
       return { kind: 'failed', status: answer.status };
@@ -91,10 +98,29 @@ async function readDeliveriesAfter(seenID: number, appJWT: string): Promise<Deli
   return { kind: 'listed', items };
 }
 
+interface ReviverContext {
+  source?: string;
+}
+
+// `JSON.parse` rounds a number above 2^53, so each `id` keeps the source text the reviver is given.
+function parseDeliveryList(text: string): unknown {
+  try {
+    const list: unknown = JSON.parse(
+      text,
+      (key: string, value: unknown, context?: ReviverContext): unknown =>
+        key === 'id' && typeof value === 'number' ? context?.source : value,
+    );
+
+    return list;
+  } catch {
+    return undefined;
+  }
+}
+
 // oldest first, so the facts reach the log in the order GitHub sent them
-function collectFailedIDs(items: readonly DeliveryItem[]): number[] {
+function collectFailedIDs(items: readonly DeliveryItem[]): bigint[] {
   return items
     .filter((item) => item.status_code < 200 || item.status_code >= 300)
     .map((item) => item.id)
-    .toSorted((left, right) => left - right);
+    .toSorted((left, right) => Number(left - right));
 }

@@ -1,8 +1,10 @@
 import { githubAPIURL } from './github-api-url.ts';
 
-// One answer of the GitHub REST API. `next` is the URL of the next page, from the `link` header.
+// One answer of the GitHub REST API. `text` is the body as sent, for a caller that must read a
+// number above 2^53 exactly. `next` is the URL of the next page, from the `link` header.
 export interface GithubAnswer {
   status: number;
+  text: string;
   body: unknown;
   next: string | undefined;
 }
@@ -19,13 +21,14 @@ export async function requestGithubAPI(
   const response = await sendRequest(url, token, method);
 
   if (response === undefined) {
-    return { status: 0, body: undefined, next: undefined };
+    return { status: 0, text: '', body: undefined, next: undefined };
   }
 
   const text = await response.text();
 
   return {
     status: response.status,
+    text,
     body: parseBody(text),
     next: findNextPage(response.headers.get('link')),
   };

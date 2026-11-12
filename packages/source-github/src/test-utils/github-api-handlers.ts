@@ -33,9 +33,13 @@ export const githubReleases = new Collection({
   }),
 });
 
+// A delivery ID is held as its digits: GitHub's are above 2^53, which a number cannot hold.
 export const githubDeliveries = new Collection({
   schema: z.object({
-    id: integerSchema.default(1),
+    id: z
+      .string()
+      .regex(/^[1-9]\d*$/u)
+      .default('1'),
     guid: z.string().default('0b1c2d3e-0000-4000-8000-000000000001'),
     deliveredAt: z.string().default('2026-10-01T09:00:00Z'),
     statusCode: integerSchema.default(200),
@@ -65,11 +69,15 @@ export const githubAPIHandlers = [
     const url = new URL(info.request.url);
 
     const start = Number(url.searchParams.get('cursor') ?? '0');
-    const newestFirst = githubDeliveries.all().toSorted((left, right) => right.id - left.id);
+
+    const newestFirst = githubDeliveries
+      .all()
+      .toSorted((left, right) => Number(BigInt(right.id) - BigInt(left.id)));
+
     const page = newestFirst.slice(start, start + deliveryPageSize);
     const nextStart = start + deliveryPageSize;
 
-    const headers = new Headers();
+    const headers = new Headers({ 'content-type': 'application/json' });
 
     if (nextStart < newestFirst.length) {
       const next = new URL(url);
@@ -78,29 +86,29 @@ export const githubAPIHandlers = [
       headers.set('link', `<${next.href}>; rel="next"`);
     }
 
-    return HttpResponse.json(
-      page.map((delivery) => toDeliveryItem(delivery)),
-      { headers },
-    );
+    const items = page.map((delivery) => formatDeliveryJSON(delivery, {}));
+
+    return new HttpResponse(`[${items.join(',')}]`, { headers });
   }),
   http.get(`${GITHUB_API_URL}/app/hook/deliveries/:deliveryID`, (info) => {
     if (findAppID(info.request) === undefined) {
       return buildUnauthorized();
     }
 
-    const id = Number(toParam(info.params['deliveryID']));
+    const id = toParam(info.params['deliveryID']);
     const delivery = githubDeliveries.findFirst((query) => query.where({ id }));
 
     if (delivery === undefined) {
       return buildNotFound();
     }
 
-    return HttpResponse.json({
-      ...toDeliveryItem(delivery),
+    const body = formatDeliveryJSON(delivery, {
       url: '',
       request: { headers: { 'X-GitHub-Event': delivery.event }, payload: delivery.payload },
       response: { headers: {}, payload: null },
     });
+
+    return new HttpResponse(body, { headers: { 'content-type': 'application/json' } });
   }),
   http.post(`${GITHUB_API_URL}/app/installations/:installationID/access_tokens`, (info) => {
     if (findAppID(info.request) === undefined) {
@@ -192,18 +200,25 @@ function buildUnauthorized(): Response {
 }
 
 interface StoredDelivery {
-  id: number;
+  id: string;
   guid: string;
   deliveredAt: string;
   statusCode: number;
   event: string;
 }
 
+// GitHub sends the delivery ID as a bare JSON number, and `JSON.stringify` writes no number above
+// 2^53 exactly, so the ID's digits go into the text by hand.
+function formatDeliveryJSON(delivery: StoredDelivery, extra: Record<string, unknown>): string {
+  const fields = JSON.stringify({ ...toDeliveryItem(delivery), ...extra });
+
+  return `{"id":${delivery.id},${fields.slice(1)}`;
+}
+
 function toDeliveryItem(delivery: StoredDelivery) {
   const isOK = delivery.statusCode >= 200 && delivery.statusCode < 300;
 
   return {
-    id: delivery.id,
     guid: delivery.guid,
     delivered_at: delivery.deliveredAt,
     redelivery: false,
