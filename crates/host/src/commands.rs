@@ -566,11 +566,12 @@ async fn up_kept(
     };
     let state = config.host_state().await.map_err(wrap)?;
 
-    if state.state(consumer, kept).await.map_err(wrap)? != Some(VersionState::Previous) {
-        return Err(wrap(HostError::Config(format!(
-            "version {kept} is not a previous version of {consumer}"
-        ))));
-    }
+    check_kept_version(
+        consumer,
+        kept,
+        state.state(consumer, kept).await.map_err(wrap)?,
+    )
+    .map_err(wrap)?;
 
     let directory = config.consumer_dir(consumer).join(kept);
     let version = read_version(&directory).map_err(wrap)?;
@@ -579,6 +580,21 @@ async fn up_kept(
     up_version(config, log, &version, &bytes)
         .await
         .map_err(wrap)
+}
+
+/// Refuses to swap back in a version `kept` whose recorded state is not previous.
+fn check_kept_version(
+    consumer: &str,
+    kept: &str,
+    state: Option<VersionState>,
+) -> Result<(), HostError> {
+    if state == Some(VersionState::Previous) {
+        return Ok(());
+    }
+
+    Err(HostError::Config(format!(
+        "version {kept} is not a previous version of {consumer}"
+    )))
 }
 
 /// Builds the version beside the current one and swaps it in, or reports no swap when it is
@@ -1796,6 +1812,43 @@ mod tests {
                 ("current", Ok(BuildStart::Again)),
                 ("previous", Ok(BuildStart::Kept)),
                 ("removed", Err("version abc123 was removed".to_owned())),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_swaps_back_in_only_a_version_recorded_as_previous() {
+        let cases = [
+            ("not recorded", None),
+            ("building", Some(VersionState::Building)),
+            ("previewed", Some(VersionState::Previewed)),
+            ("current", Some(VersionState::Current)),
+            ("previous", Some(VersionState::Previous)),
+            ("removed", Some(VersionState::Removed)),
+        ];
+
+        let checked: Vec<(&str, Result<(), String>)> = cases
+            .into_iter()
+            .map(|(case, state)| {
+                (
+                    case,
+                    check_kept_version("github_pull_request", "abc123", state)
+                        .map_err(|error| error.to_string()),
+                )
+            })
+            .collect();
+        let refused =
+            || Err("version abc123 is not a previous version of github_pull_request".to_owned());
+
+        assert_eq!(
+            checked,
+            vec![
+                ("not recorded", refused()),
+                ("building", refused()),
+                ("previewed", refused()),
+                ("current", refused()),
+                ("previous", Ok(())),
+                ("removed", refused()),
             ]
         );
     }
