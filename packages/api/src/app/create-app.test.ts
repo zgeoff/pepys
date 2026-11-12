@@ -6,9 +6,12 @@ import { createTestStore } from '@pepys/testing';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
 import type { DeploymentClient } from '../client/deployment-client.ts';
+import { runMCPTokenGrant } from '../oauth/test-utils/run-mcp-token-grant.ts';
+import { setupMCPHTTP } from '../oauth/test-utils/setup-mcp-http.ts';
 import { buildQueryContext } from '../queries/build-query-context.ts';
 import { harbourPlugin, harbourSource } from '../test-utils/harbour/harbour-plugin.ts';
 import { readMCPAnswer } from '../test-utils/read-mcp-answer.ts';
+import { startAuthorizedMCP } from '../test-utils/start-authorized-mcp.ts';
 import { createApp } from './create-app.ts';
 import { createRouter } from './create-router.ts';
 
@@ -24,12 +27,13 @@ async function setupTest() {
   invariant(checked.ok, 'the harbour deployment is valid');
 
   const logged: { message: string; error: unknown }[] = [];
+  const context = buildQueryContext(store.reader, checked.value);
 
-  const app = createApp(buildQueryContext(store.reader, checked.value), {
-    logError: (message, error) => {
-      logged.push({ message, error });
-    },
-  });
+  const logError = (message: string, error: unknown) => {
+    logged.push({ message, error });
+  };
+
+  const app = createApp(context, { logError, oauth: null });
 
   // the HTTP status of each /rpc answer, which the client's error does not carry
   const statuses: number[] = [];
@@ -56,8 +60,14 @@ async function setupTest() {
     client,
     statuses,
     logged,
-    callMCP: (method: string, params: Readonly<Record<string, unknown>>) =>
-      readMCPAnswer((request) => app.handle(request), method, params),
+    answerRequest: (request: Request) => app.handle(request),
+
+    // each call starts the API with its OAuth routes and signs a client in
+    callMCP: async (method: string, params: Readonly<Record<string, unknown>>) => {
+      const mcp = await startAuthorizedMCP(context, logError);
+
+      return readMCPAnswer(mcp.sendRequest, method, params);
+    },
   };
 }
 
@@ -295,13 +305,14 @@ test('it logs a plug-in query whose answer fails its own output schema', async (
 
   const logged: { message: string; error: unknown }[] = [];
 
-  const app = createApp(buildQueryContext(store.reader, checked.value), {
-    logError: (message, error) => {
+  const mcp = await startAuthorizedMCP(
+    buildQueryContext(store.reader, checked.value),
+    (message, error) => {
       logged.push({ message, error });
     },
-  });
+  );
 
-  await readMCPAnswer((request) => app.handle(request), 'tools/call', {
+  await readMCPAnswer(mcp.sendRequest, 'tools/call', {
     name: 'harbour_tide',
     arguments: {},
   });
@@ -327,4 +338,98 @@ test('#createRouter refuses a plug-in query with a zod transform', () => {
   const plugin = definePlugin({ name: 'tide', queries: [query] });
 
   expect(() => createRouter(plugin.queries)).toThrow(/harbour_tide has a zod transform/u);
+});
+
+test('it answers /mcp with 404 when the API serves no OAuth routes', async () => {
+  const ctx = await setupTest();
+
+  const answered = await ctx.answerRequest(
+    new Request('http://pepys.test/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    }),
+  );
+
+  expect(answered.status).toBe(404);
+});
+
+test('it challenges an MCP request with no token for the resource metadata', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+
+  expect({
+    status: answered.status,
+    challenge: answered.headers.get('www-authenticate'),
+  }).toStrictEqual({
+    status: 401,
+    challenge: `Bearer resource_metadata="${server.origin}/.well-known/oauth-protected-resource/mcp"`,
+  });
+});
+
+test('it serves /rpc under a Host header the OAuth routes refuse', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/rpc/get_entity`, {
+    method: 'POST',
+    headers: { host: 'cluster.example.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ json: { id: 'harbour:vessel:404' } }),
+  });
+
+  expect(answered.json()).resolves.toMatchObject({ json: { code: 'NOT_FOUND' } });
+});
+
+test('it refuses /mcp under a Host header it does not serve', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/mcp`, {
+    method: 'POST',
+    headers: { host: 'cluster.example.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+
+  expect(answered.status).toBe(403);
+});
+
+test('it lists the tools at /mcp to a client that enrolled, signed in, consented and took a token', async () => {
+  const server = await setupMCPHTTP();
+
+  const clientID = await server.createClient('harbour assistant', [
+    'https://assistant.example.com/callback',
+  ]);
+
+  const grant = await runMCPTokenGrant(server, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const listed = await readMCPAnswer(
+    (request) =>
+      fetch(`${server.url}/mcp`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${grant.accessToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: request.body,
+      }),
+    'tools/list',
+    {},
+  );
+
+  expect(listed).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: {
+      tools: expect.arrayContaining([expect.objectContaining({ name: 'get_entity' })]),
+    },
+  });
 });

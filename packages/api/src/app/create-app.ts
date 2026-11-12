@@ -3,14 +3,20 @@ import { McpRegistrar } from '@orpc/mcp';
 import { COMMON_ERROR_STATUS_MAP, ORPCError, onError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { Elysia } from 'elysia';
+import { createMCPHTTPApp } from '../oauth/http/create-mcp-http-app.ts';
+import type { MCPHTTPAppOptions } from '../oauth/http/create-mcp-http-app.ts';
 import type { QueryContext } from '../queries/types.ts';
 import { createRouter } from './create-router.ts';
 
 interface AppDependencies {
   logError: (message: string, error: unknown) => void;
+
+  // The OAuth server's routes, which guard /mcp; null serves /rpc alone.
+  oauth: MCPHTTPAppOptions | null;
 }
 
-// The router at /rpc, and each of its procedures as an MCP tool at /mcp.
+// The router at /rpc, and each of its procedures as an MCP tool at /mcp behind
+// the OAuth server's routes.
 export function createApp(context: QueryContext, dependencies: AppDependencies) {
   const router = createRouter(context.deployment.queries);
 
@@ -34,13 +40,15 @@ export function createApp(context: QueryContext, dependencies: AppDependencies) 
     return server;
   });
 
-  return new Elysia()
-    .all('/rpc/*', { parse: 'none' }, async (route) => {
-      const result = await rpc.handle(route.request, { prefix: '/rpc', context });
+  const app = new Elysia().all('/rpc/*', { parse: 'none' }, async (route) => {
+    const result = await rpc.handle(route.request, { prefix: '/rpc', context });
 
-      return result.matched ? result.response : new Response('not found', { status: 404 });
-    })
-    .all('/mcp', { parse: 'none' }, (route) => mcp.fetch(route.request));
+    return result.matched ? result.response : new Response('not found', { status: 404 });
+  });
+
+  return dependencies.oauth === null
+    ? app
+    : app.use(createMCPHTTPApp({ ...dependencies.oauth, mcp, besidePrefix: '/rpc/' }));
 }
 
 interface ProcedureCall {

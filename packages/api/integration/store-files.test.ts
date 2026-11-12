@@ -14,6 +14,7 @@ import { writeCurrentVersion } from '../src/test-utils/create-consumer-version.t
 import { harbourPlugin, harbourVesselConsumer } from '../src/test-utils/harbour/harbour-plugin.ts';
 import { seedHarbourFiles } from '../src/test-utils/harbour/seed-harbour-files.ts';
 import { readMCPAnswer } from '../src/test-utils/read-mcp-answer.ts';
+import { startAuthorizedMCP } from '../src/test-utils/start-authorized-mcp.ts';
 
 async function setupTest() {
   const deployment = defineDeployment({ name: 'harbour', plugins: [harbourPlugin] });
@@ -35,12 +36,13 @@ async function setupTest() {
   invariant(checked.ok, 'the harbour deployment is valid');
 
   const logged: { message: string; error: unknown }[] = [];
+  const context = buildQueryContext(store, checked.value);
 
-  const app = createApp(buildQueryContext(store, checked.value), {
-    logError: (message, error) => {
-      logged.push({ message, error });
-    },
-  });
+  const logError = (message: string, error: unknown) => {
+    logged.push({ message, error });
+  };
+
+  const app = createApp(context, { logError, oauth: null });
 
   const link = new RPCLink({
     url: '/rpc',
@@ -57,9 +59,13 @@ async function setupTest() {
     storeDirectory,
     client,
     logged,
-    listTools: () => readMCPAnswer((request) => app.handle(request), 'tools/list', {}),
-    callMCP: (method: string, params: Readonly<Record<string, unknown>>) =>
-      readMCPAnswer((request) => app.handle(request), method, params),
+
+    // each call starts the API with its OAuth routes and signs a client in
+    callMCP: async (method: string, params: Readonly<Record<string, unknown>>) => {
+      const mcp = await startAuthorizedMCP(context, logError);
+
+      return readMCPAnswer(mcp.sendRequest, method, params);
+    },
   };
 }
 
@@ -198,7 +204,7 @@ test('it runs a plug-in query that joins the tables of two files and reads the e
 
 test('it lists every query of the deployment as an MCP tool with its description', async () => {
   const ctx = await setupTest();
-  const listed = await ctx.listTools();
+  const listed = await ctx.callMCP('tools/list', {});
 
   expect(listed).toStrictEqual({
     jsonrpc: '2.0',
