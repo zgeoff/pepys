@@ -1593,7 +1593,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_builds_again_an_unfinished_version_whose_version_file_a_crash_cut_short() {
+    async fn it_builds_again_an_unfinished_version_whose_version_file_is_corrupt() {
         let ctx = setup_test();
         let (listed, bytes) = build_listed(&version_hash('a'), "[]");
         let file = write_build(&ctx.config, &[(listed.clone(), bytes)]);
@@ -1607,7 +1607,7 @@ mod tests {
             .await
             .expect("a building version");
         std::fs::create_dir_all(&directory).expect("a version folder");
-        std::fs::write(directory.join("version.json"), "{\"name\":").expect("a cut short file");
+        std::fs::write(directory.join("version.json"), "{\"name\":").expect("a corrupt file");
 
         let report = up_listed(&ctx.config, &MemoryLog::seeded(STREAM, &["a"]), &file, None)
             .await
