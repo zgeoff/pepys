@@ -6,7 +6,8 @@ source of a deployment. It answers a sender with success only when the fact log 
 the delivery, and a sender that gets any other answer sends the same delivery again.
 
 Ingest does every step of a delivery itself, with one exception. The source writes the receive
-path's `read` function, a pure function that turns the delivery into a batch of facts.
+path's `read` function, which turns the delivery into a batch of facts with no I/O of its own. It
+writes only to the logger that ingest passes it.
 
 Each source declares its paths as data, in up to four slots. A receive path is a POST route that a
 sender posts to. A pull path is a timer that calls the source's API.
@@ -160,7 +161,11 @@ with the oldest dropped first, and a restart loses them.
 Ingest writes each failure and each warning to stderr as one JSON object per line, such as
 `{"level":"error","message":"an append to facts.github.pull_request failed","detail":{"kind":"not-stored","attempts":5}}`.
 The `level` is `error` or `warn`, and a line with no detail leaves `detail` out. An error in
-`detail` keeps its name, message, stack and cause. A line never holds a token or a secret.
+`detail` keeps its name, message, stack and cause.
+
+Ingest's own lines hold no token and no secret. Ingest logs an error that a source's `read` or
+`pull` throws whole, so a plug-in keeps tokens and secrets out of those errors and out of what it
+passes to `log`.
 
 A source's `read` and `pull` get the same logger as `log` in their context. A plug-in logs through
 `log`, never through `console`, so its lines reach the same stream in the same shape. `createLogger`
