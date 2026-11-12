@@ -4,12 +4,13 @@ use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use turso::Connection;
 
-use crate::consumer::ConsumerManifest;
+use crate::consumer::{ConsumerManifest, TableInfo};
 use crate::database::{Store, with_transaction};
 use crate::error::HostError;
 use crate::fact_log::StoredFact;
 use crate::links::{
-    LinkEnds, build_link_delete_entry, build_link_write_entry, delete_link, load_link, write_link,
+    Link, LinkEnds, build_link_delete_entry, build_link_write_entry, delete_link, load_link,
+    write_link,
 };
 use crate::module_runner::RowSource;
 use crate::operations::{Operation, parse_operations, table_info};
@@ -177,51 +178,76 @@ async fn apply_operation(
         Operation::Upsert { table, key, row } => {
             let info = table_info(manifest, &table)?;
             let old = load_row(connection, &table, info, &key).await?;
+            let change = pick_upsert_change(&table, &key, info, &row, old);
 
-            if old.as_ref().is_some_and(|old| is_same_row(info, old, &row)) {
-                return Ok(None);
+            if change.is_some() {
+                write_row(connection, &table, info, &row).await?;
             }
 
-            write_row(connection, &table, info, &row).await?;
-
-            Ok(Some(build_write_entry(&table, &key, &row, old)))
+            Ok(change)
         }
         Operation::Delete { table, key } => {
             let info = table_info(manifest, &table)?;
-            let Some(old) = load_row(connection, &table, info, &key).await? else {
-                return Ok(None);
-            };
+            let old = load_row(connection, &table, info, &key).await?;
+            let change = pick_delete_change(&table, &key, old.as_ref());
 
-            delete_row(connection, &table, info, &key).await?;
+            if change.is_some() {
+                delete_row(connection, &table, info, &key).await?;
+            }
 
-            Ok(Some(build_row_delete_entry(&table, &key, &old)))
+            Ok(change)
         }
         Operation::Link(link) => {
-            let ends = LinkEnds {
-                link_type: link.link_type.clone(),
-                from: link.from.clone(),
-                to: link.to.clone(),
-            };
-            let old = load_link(connection, &ends).await?;
+            let old = load_link(connection, &link.to_ends()).await?;
+            let change = pick_link_change(&link, old.as_ref());
 
-            if old.as_ref() == Some(&link) {
-                return Ok(None);
+            if change.is_some() {
+                write_link(connection, &manifest.name, None, &link).await?;
             }
 
-            write_link(connection, &manifest.name, None, &link).await?;
-
-            Ok(Some(build_link_write_entry(&link, old.as_ref())))
+            Ok(change)
         }
         Operation::Unlink(ends) => {
-            if load_link(connection, &ends).await?.is_none() {
-                return Ok(None);
+            let is_stored = load_link(connection, &ends).await?.is_some();
+            let change = pick_unlink_change(&ends, is_stored);
+
+            if change.is_some() {
+                delete_link(connection, &ends).await?;
             }
 
-            delete_link(connection, &ends).await?;
-
-            Ok(Some(build_link_delete_entry(&ends)))
+            Ok(change)
         }
     }
+}
+
+/// The change entry of an upsert against the stored row, or none when the stored row is the same.
+fn pick_upsert_change(
+    table: &str,
+    key: &str,
+    info: &TableInfo,
+    row: &Row,
+    old: Option<Row>,
+) -> Option<Value> {
+    if old.as_ref().is_some_and(|old| is_same_row(info, old, row)) {
+        return None;
+    }
+
+    Some(build_write_entry(table, key, row, old))
+}
+
+/// The change entry of a delete, or none when no row is stored under the key.
+fn pick_delete_change(table: &str, key: &str, old: Option<&Row>) -> Option<Value> {
+    old.map(|old| build_row_delete_entry(table, key, old))
+}
+
+/// The change entry of a link against the stored link of its ends, or none when they are equal.
+fn pick_link_change(link: &Link, old: Option<&Link>) -> Option<Value> {
+    (old != Some(link)).then(|| build_link_write_entry(link, old))
+}
+
+/// The change entry of an unlink, or none when no link is stored for its ends.
+fn pick_unlink_change(ends: &LinkEnds, is_stored: bool) -> Option<Value> {
+    is_stored.then(|| build_link_delete_entry(ends))
 }
 
 /// The change entry of a written row: an insert, or an update with the stored row.
@@ -1135,6 +1161,162 @@ mod tests {
                 [0, 0, 0, 0],
                 None
             )
+        );
+    }
+
+    fn pull_request_row(title: &str) -> Row {
+        serde_json::from_value(row_json("github:pull_request:1", title)).expect("a row")
+    }
+
+    fn opened_by(confidence: f64) -> Link {
+        serde_json::from_value(
+            link_json(
+                "opened_by",
+                "github:pull_request:1",
+                "github:user:7",
+                confidence,
+            )["link"]
+                .clone(),
+        )
+        .expect("a link")
+    }
+
+    #[test]
+    fn it_picks_the_change_of_an_upsert_from_the_stored_row() {
+        let manifest = stub_manifest();
+        let info = &manifest.tables["github_pull_request"];
+        let cases = [
+            ("no stored row", None),
+            ("an equal stored row", Some(pull_request_row("First"))),
+            ("a different stored row", Some(pull_request_row("Old"))),
+        ];
+
+        let picked: Vec<(&str, Option<Value>)> = cases
+            .into_iter()
+            .map(|(case, old)| {
+                let row = pull_request_row("First");
+
+                (
+                    case,
+                    pick_upsert_change("github_pull_request", "k", info, &row, old),
+                )
+            })
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                (
+                    "no stored row",
+                    Some(json!({
+                        "type": "github_pull_request", "key": "k",
+                        "value": row_json("github:pull_request:1", "First"),
+                        "headers": {"operation": "insert"}
+                    }))
+                ),
+                ("an equal stored row", None),
+                (
+                    "a different stored row",
+                    Some(json!({
+                        "type": "github_pull_request", "key": "k",
+                        "value": row_json("github:pull_request:1", "First"),
+                        "old_value": row_json("github:pull_request:1", "Old"),
+                        "headers": {"operation": "update"}
+                    }))
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_picks_the_change_of_a_delete_from_the_stored_row() {
+        let stored = pull_request_row("First");
+        let cases = [("no stored row", None), ("a stored row", Some(&stored))];
+
+        let picked: Vec<(&str, Option<Value>)> = cases
+            .into_iter()
+            .map(|(case, old)| (case, pick_delete_change("github_pull_request", "k", old)))
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                ("no stored row", None),
+                (
+                    "a stored row",
+                    Some(json!({
+                        "type": "github_pull_request", "key": "k",
+                        "old_value": row_json("github:pull_request:1", "First"),
+                        "headers": {"operation": "delete"}
+                    }))
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_picks_the_change_of_a_link_from_the_stored_link() {
+        let cases = [
+            ("no stored link", None),
+            ("an equal stored link", Some(opened_by(1.0))),
+            ("a stored link of another confidence", Some(opened_by(0.5))),
+        ];
+
+        let picked: Vec<(&str, Option<Value>)> = cases
+            .into_iter()
+            .map(|(case, old)| (case, pick_link_change(&opened_by(1.0), old.as_ref())))
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                (
+                    "no stored link",
+                    Some(json!({
+                        "type": "link",
+                        "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                        "value": link_json("opened_by", "github:pull_request:1", "github:user:7", 1.0)["link"],
+                        "headers": {"operation": "insert"}
+                    }))
+                ),
+                ("an equal stored link", None),
+                (
+                    "a stored link of another confidence",
+                    Some(json!({
+                        "type": "link",
+                        "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                        "value": link_json("opened_by", "github:pull_request:1", "github:user:7", 1.0)["link"],
+                        "old_value": link_json("opened_by", "github:pull_request:1", "github:user:7", 0.5)["link"],
+                        "headers": {"operation": "update"}
+                    }))
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_picks_the_change_of_an_unlink_from_whether_the_link_is_stored() {
+        let ends = opened_by(1.0).to_ends();
+        let cases = [("no stored link", false), ("a stored link", true)];
+
+        let picked: Vec<(&str, Option<Value>)> = cases
+            .into_iter()
+            .map(|(case, is_stored)| (case, pick_unlink_change(&ends, is_stored)))
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                ("no stored link", None),
+                (
+                    "a stored link",
+                    Some(json!({
+                        "type": "link",
+                        "key": r#"["opened_by","github:pull_request:1","github:user:7"]"#,
+                        "headers": {"operation": "delete"}
+                    }))
+                ),
+            ]
         );
     }
 
