@@ -25,6 +25,8 @@ export { parseStreamName } from './facts/parse-stream-name.ts';
 export { readFactBatch } from './sources/read-fact-batch.ts';
 export { receiveFactBatch } from './sources/receive-fact-batch.ts';
 export type { TableRow } from './tables/table-row.ts';
+export { toStreamName } from './ids/to-stream-name.ts';
+export { toStreamOffset } from './ids/to-stream-offset.ts';
 export type * from './consumers/types.ts';
 export type * from './deployments/types.ts';
 export type * from './ids/types.ts';

@@ -793,7 +793,8 @@ export declare function checkDeployment(deployment: Deployment): Result<CheckedD
 
 // ── H. @pepys/testing, `pepys build`, and the import check ─────────────────────────────────────
 
-// @pepys/testing (new package; packages/testing). It depends on @pepys/kit and @pepys/kysely-turso.
+// @pepys/testing (new package; packages/testing). It depends on @pepys/kit, @pepys/kysely-turso
+// and @pepys/ingest, whose memory fact log `applyFactLog` reads.
 // What it runs: the consumer's TypeScript entry on Bun; one in-memory SQLite database with every
 // table, the host's `link` table and the two views; the query's handler on Kysely. It drops a fact
 // by fact ID before a consumer sees it, and repeats the host's link check and replace-a-scope rule

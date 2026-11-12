@@ -28,6 +28,9 @@ Set the compiler options from the [kit's README](../kit/README.md#configuration)
 ## Features
 
 - `createTestStore`: apply facts or write rows, then run a query, read rows and read links.
+- `applyFactLog`: apply the facts that `createIngest` of `@pepys/ingest` stored in a memory fact log
+  to a test store, in place of the host. A second call applies only the records the log stored after
+  the first.
 - `applyInBothOrders`: apply facts in two orders and compare the stores.
 - The memory adapter of the store reader, for a test of a core query.
 

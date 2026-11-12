@@ -1,3 +1,4 @@
+export { applyFactLog } from './fact-log/apply-fact-log.ts';
 export { applyInBothOrders } from './orders/apply-in-both-orders.ts';
 export type { OrderReport, StoreSnapshot } from './orders/apply-in-both-orders.ts';
 export type { MemoryStoreReader } from './memory-store-reader/create-memory-store-reader.ts';

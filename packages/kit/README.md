@@ -34,7 +34,8 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 
 ## Features
 
-- `@pepys/kit`: the `define*` declarations and the deployment check.
+- `@pepys/kit`: the `define*` declarations and the deployment check. `toStreamName` and
+  `toStreamOffset` give a family's `stream` and a number as the branded types that a fact log takes.
 - `@pepys/kit/generators`: the SQL schema and glue generators.
 - `@pepys/kit/send`: the client that signs and sends a fact batch.
 

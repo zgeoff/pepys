@@ -11,6 +11,8 @@ import { ApplyError } from '../utils/apply-error.ts';
 import { parseAppliedFacts } from './parse-applied-facts.ts';
 import { runConsumers } from './run-consumers.ts';
 import type { AppliedFactIDs } from './run-consumers.ts';
+import { storeHooks } from './store-hooks.ts';
+import type { StoreHooks } from './store-hooks.ts';
 import type { TestStore } from './types.ts';
 
 interface TestStoreOptions {
@@ -48,7 +50,19 @@ export async function createTestStore(options: TestStoreOptions): Promise<TestSt
     return table;
   };
 
-  return {
+  const applyEnvelopes: StoreHooks['applyEnvelopes'] = async (records) => {
+    const next = buildFactIndex(index, records);
+
+    applied = await db
+      .transaction()
+      .execute((transaction) =>
+        runConsumers(transaction, deployment.consumers, { ...next, applied }),
+      );
+
+    index = next.index;
+  };
+
+  const testStore: TestStore = {
     writeRows: async (_consumer, table, rows) => {
       for (const row of rows) {
         await writeRow(db, table, getTable(table), row);
@@ -61,15 +75,7 @@ export async function createTestStore(options: TestStoreOptions): Promise<TestSt
         throw new ApplyError(envelopes.failure);
       }
 
-      const next = buildFactIndex(index, envelopes.value);
-
-      applied = await db
-        .transaction()
-        .execute((transaction) =>
-          runConsumers(transaction, deployment.consumers, { ...next, applied }),
-        );
-
-      index = next.index;
+      await applyEnvelopes(envelopes.value);
     },
     query: async (query, input) => {
       const parsed = query.input.parse(input);
@@ -91,4 +97,8 @@ export async function createTestStore(options: TestStoreOptions): Promise<TestSt
     reader,
     [Symbol.asyncDispose]: () => db.destroy(),
   };
+
+  storeHooks.set(testStore, { applyEnvelopes, nextOffsets: new Map() });
+
+  return testStore;
 }

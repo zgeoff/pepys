@@ -19,6 +19,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@pepys/kysely-turso": "workspace:*",
     "@tursodatabase/database": "catalog:",
