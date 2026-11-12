@@ -62,7 +62,7 @@
     "check": "chex commits local-paths workflows test-timeouts dependency-gates",
     "check:outside-install": "bun scripts/outside-install/run-outside-install.ts",
     "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers && pepys build e2e/deployment/e2e-deployment.ts --out build/e2e-consumers",
-    "deadcode": "bash scripts/run-knip.sh",
+    "deadcode": "bash scripts/run-knip.sh && bash scripts/run-knip.sh --production --strict --include unlisted",
     "format": "oxfmt . && format-codemod --quiet . && tombi format",
     "format:check": "oxfmt --check . && format-codemod --check --quiet . && tombi format --check",
     "lint": "oxlint",

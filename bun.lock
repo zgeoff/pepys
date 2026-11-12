@@ -92,10 +92,10 @@
         "@scriptc/runtime-wasm32-wasi": "catalog:",
         "@zgeoff/std": "catalog:",
         "scriptc": "catalog:",
+        "tiny-invariant": "catalog:",
         "ts-pattern": "catalog:",
       },
       "devDependencies": {
-        "tiny-invariant": "catalog:",
         "zod": "catalog:",
       },
     },
