@@ -723,7 +723,8 @@ pub async fn preview(config: &HostConfig, consumer: &str) -> Result<serde_json::
 }
 
 /// Replays `previewed` to the current version's offsets and returns its row diff against the
-/// current version. With no current version, it replays to the log's tail.
+/// current version, where each row of a table that `previewed` drops shows as removed. With no
+/// current version, it replays to the log's tail.
 async fn compare_with_current(
     config: &HostConfig,
     consumer: &str,
@@ -732,7 +733,8 @@ async fn compare_with_current(
 ) -> Result<serde_json::Value, HostError> {
     // The previewed version stops where the current one stands, so records that only the
     // previewed version has read never show as a change.
-    let (before, stops) = if let Some(current) = read_current_version(config, consumer)? {
+    let current = read_current_version(config, consumer)?;
+    let (before, stops) = if let Some(current) = &current {
         let directory = current_version_dir(&config.consumer_dir(consumer))?;
         let store = open_store(&directory.join(DATABASE_FILE)).await?;
 
@@ -760,6 +762,17 @@ async fn compare_with_current(
         let rows = after.get(table).unwrap_or(&empty);
 
         diffs.push((table.clone(), diff_rows(table, info, current, rows)?));
+    }
+
+    let removed_tables = current
+        .iter()
+        .flat_map(|current| &current.manifest.tables)
+        .filter(|(table, _)| !previewed.manifest.tables.contains_key(*table));
+
+    for (table, info) in removed_tables {
+        let rows = before.get(table).map_or(&[][..], Vec::as_slice);
+
+        diffs.push((table.clone(), diff_rows(table, info, rows, &[])?));
     }
 
     Ok(diff_json(&diffs))
@@ -1254,6 +1267,54 @@ mod tests {
         .expect("a diff");
 
         assert_eq!(diff, json!({}));
+    }
+
+    #[tokio::test]
+    async fn it_previews_each_row_of_a_table_the_new_version_drops_as_removed() {
+        let ctx = setup_test();
+        let (listed, _) = build_listed(&version_hash('a'), "[]");
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let consumer_dir = ctx.config.consumer_dir("github_pull_request");
+        let current_dir = consumer_dir.join(version_hash('a'));
+        let mut current = open_test_version(&current_dir, canned_module()).await;
+        let mut manifest = listed.manifest.clone();
+
+        write_version(&current_dir, &listed.to_version()).expect("a version file");
+        catch_up(&mut current, &log)
+            .await
+            .expect("the current rows");
+        repoint_current(&consumer_dir, &version_hash('a')).expect("a current link");
+        manifest.tables.remove("github_pull_request");
+        manifest.imports.clear();
+        manifest.schema = "CREATE TABLE \"github_release_bump\" (\"pull_request_id\" TEXT NOT \
+                           NULL, \"release_repository\" TEXT NOT NULL, \"release_tag\" TEXT NOT \
+                           NULL, PRIMARY KEY (\"pull_request_id\", \"release_repository\", \
+                           \"release_tag\"));"
+            .to_owned();
+
+        let manifest = Arc::new(manifest);
+        let previewed = Version {
+            store: open_version_store(&consumer_dir.join("preview"), &manifest)
+                .await
+                .expect("a preview store"),
+            runner: Runner::Fact(Box::new(CannedRunner::new(&[("a", Ok("[]".to_owned()))]))),
+            manifest,
+        };
+
+        let diff = compare_with_current(&ctx.config, "github_pull_request", previewed, &log)
+            .await
+            .expect("a diff");
+
+        assert_eq!(
+            diff,
+            json!({
+                "github_pull_request": {
+                    "added": [],
+                    "changed": [],
+                    "removed": [r#"["github:pull_request:1"]"#],
+                },
+            })
+        );
     }
 
     #[tokio::test]
