@@ -14,8 +14,8 @@ export interface StartOptions {
 }
 
 // Returns the exit code. Ingest and the API start first, and the host last, so a part that refuses
-// to start leaves no host running. The stop signals are handled from the first line: one that
-// arrives while a part is starting lets that part finish, then stops every started part.
+// to start leaves no host running. A stop signal during load or startup cancels it at once and
+// stops every part already started.
 export async function runStart(options: StartOptions): Promise<number> {
   const stopRequest = makeStopRequest();
 
@@ -28,6 +28,7 @@ export async function runStart(options: StartOptions): Promise<number> {
 
 interface StopRequest {
   isRequested: () => boolean;
+  requested: Promise<void>;
 
   // runs now if a stop was requested already, and on the next request otherwise
   onRequest: (listener: () => void) => void;
@@ -36,10 +37,13 @@ interface StopRequest {
 
 function makeStopRequest(): StopRequest {
   let isRequested = false;
+  const requested = Promise.withResolvers<void>();
   let listener: (() => void) | null = null;
 
   const onSignal = (): void => {
     isRequested = true;
+
+    requested.resolve();
     listener?.();
   };
 
@@ -48,6 +52,7 @@ function makeStopRequest(): StopRequest {
 
   return {
     isRequested: () => isRequested,
+    requested: requested.promise,
     onRequest: (next) => {
       listener = next;
 
@@ -87,8 +92,13 @@ async function runParts(options: StartOptions, stopRequest: StopRequest): Promis
     return 1;
   }
 
-  const loaded = await loadBuildFile(options.file);
+  const loading = await runUntilStop(loadBuildFile(options.file), stopRequest);
 
+  if (loading.isStopped) {
+    return 0;
+  }
+
+  const loaded = loading.value;
   const deployment = pickStartDeployment(loaded);
 
   if (!deployment.ok) {
@@ -111,9 +121,16 @@ async function runParts(options: StartOptions, stopRequest: StopRequest): Promis
         break;
       }
 
-      const part = await startPart(context);
+      const starting = startPart(context);
 
-      started.push(part);
+      const result = await runUntilStop(starting, stopRequest);
+
+      if (result.isStopped) {
+        void stopLateStarter(starting);
+        break;
+      }
+
+      started.push(result.value);
     }
   } catch (error) {
     process.stderr.write(`pepys start: a part failed to start: ${String(error)}\n`);
@@ -130,6 +147,23 @@ async function runParts(options: StartOptions, stopRequest: StopRequest): Promis
   }
 
   return superviseParts(started, stopRequest);
+}
+
+type StopRace<T> = { isStopped: true } | { isStopped: false; value: T };
+
+// The work keeps going after a stop, so the caller owns what it leaves behind.
+function runUntilStop<T>(work: Promise<T>, stopRequest: StopRequest): Promise<StopRace<T>> {
+  return Promise.race([waitForWork(work), waitForStop<T>(stopRequest)]);
+}
+
+async function waitForWork<T>(work: Promise<T>): Promise<StopRace<T>> {
+  return { isStopped: false, value: await work };
+}
+
+async function waitForStop<T>(stopRequest: StopRequest): Promise<StopRace<T>> {
+  await stopRequest.requested;
+
+  return { isStopped: true };
 }
 
 // Ingest and the API run in this process, so this process owns the stop signals.
@@ -195,6 +229,17 @@ async function describeExit(child: Bun.Subprocess): Promise<string> {
   const code = await child.exited;
 
   return `exited with ${code}`;
+}
+
+// A part that was still starting when the stop came stops as soon as it is up.
+async function stopLateStarter(starting: Promise<StartedPart>): Promise<void> {
+  try {
+    const part = await starting;
+
+    await part.stop();
+  } catch {
+    // the part never came up, so there is nothing to stop
+  }
 }
 
 // Stops every part, whether or not another part's stop fails.
