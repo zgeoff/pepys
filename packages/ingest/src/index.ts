@@ -20,4 +20,3 @@ export { readImpIdentityTrust } from './sender-proof/imp-identity/read-imp-ident
 export type { ImpIdentityTrust } from './sender-proof/imp-identity/types.ts';
 export { noSenderProof } from './sender-proof/none/no-sender-proof.ts';
 export { serveIngest } from './serve/serve-ingest.ts';
-export type * from './source-port/types.ts';
