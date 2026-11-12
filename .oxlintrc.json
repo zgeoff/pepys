@@ -115,6 +115,27 @@
           }
         ]
       }
+    },
+    {
+      // the kit's published files leave its tests out, so a test may import the mock network
+      "files": ["packages/kit/src/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@pepys/spike-*", "**/research/**"],
+                "message": "product code never imports a spike"
+              },
+              {
+                "group": ["@pepys/*", "!@pepys/mock-network"],
+                "message": "the kit is published, so it imports no workspace package"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   // generated files are written by the schema generators, so a lint fix would be overwritten

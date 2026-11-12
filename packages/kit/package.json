@@ -17,8 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./generators": "./src/generators.ts",
-    "./send": "./src/send.ts",
-    "./test-utils/*": "./src/test-utils/*.ts"
+    "./send": "./src/send.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -31,8 +30,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@mswjs/interceptors": "catalog:",
     "@octokit/webhooks": "catalog:",
+    "@pepys/mock-network": "workspace:*",
     "msw": "catalog:",
     "tiny-invariant": "catalog:"
   }

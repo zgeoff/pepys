@@ -53,6 +53,10 @@
       "entry": ["src/**/*.test.ts"],
       "bun": false
     },
+    "packages/mock-network": {
+      "entry": ["src/**/*.test.ts"],
+      "bun": false
+    },
     "packages/kysely-turso": {
       "entry": ["src/**/*.test.ts"],
       "bun": false

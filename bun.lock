@@ -159,8 +159,8 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@mswjs/interceptors": "catalog:",
         "@octokit/webhooks": "catalog:",
+        "@pepys/mock-network": "workspace:*",
         "msw": "catalog:",
         "tiny-invariant": "catalog:",
       },
@@ -171,6 +171,15 @@
       "dependencies": {
         "@tursodatabase/database": "catalog:",
         "kysely": "catalog:",
+        "tiny-invariant": "catalog:",
+      },
+    },
+    "packages/mock-network": {
+      "name": "@pepys/mock-network",
+      "version": "0.0.0",
+      "dependencies": {
+        "@mswjs/interceptors": "catalog:",
+        "msw": "catalog:",
         "tiny-invariant": "catalog:",
       },
     },
@@ -199,6 +208,7 @@
       "devDependencies": {
         "@msw/data": "catalog:",
         "@orpc/client": "catalog:",
+        "@pepys/mock-network": "workspace:*",
         "@pepys/testing": "workspace:*",
         "msw": "catalog:",
         "tiny-invariant": "catalog:",
@@ -700,6 +710,8 @@
     "@pepys/kit": ["@pepys/kit@workspace:packages/kit"],
 
     "@pepys/kysely-turso": ["@pepys/kysely-turso@workspace:packages/kysely-turso"],
+
+    "@pepys/mock-network": ["@pepys/mock-network@workspace:packages/mock-network"],
 
     "@pepys/schema": ["@pepys/schema@workspace:packages/schema"],
 

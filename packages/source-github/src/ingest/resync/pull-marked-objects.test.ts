@@ -3,7 +3,7 @@ import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
-import { mockNetwork } from '@pepys/kit/test-utils/mock-network';
+import { mockNetwork } from '@pepys/mock-network';
 import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
 import { HttpResponse, http } from 'msw';

@@ -30,6 +30,7 @@
   "devDependencies": {
     "@msw/data": "catalog:",
     "@orpc/client": "catalog:",
+    "@pepys/mock-network": "workspace:*",
     "@pepys/testing": "workspace:*",
     "msw": "catalog:",
     "tiny-invariant": "catalog:"

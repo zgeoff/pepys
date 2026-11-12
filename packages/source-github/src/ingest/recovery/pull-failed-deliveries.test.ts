@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { createLogger } from '@pepys/kit';
-import { mockNetwork } from '@pepys/kit/test-utils/mock-network';
+import { mockNetwork } from '@pepys/mock-network';
 import { HttpResponse, http } from 'msw';
 import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';

@@ -1,0 +1,12 @@
+{
+  "name": "@pepys/mock-network",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@mswjs/interceptors": "catalog:",
+    "msw": "catalog:",
+    "tiny-invariant": "catalog:"
+  }
+}
