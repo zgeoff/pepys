@@ -161,6 +161,61 @@ test('it never counts a cached token as input for Codex', () => {
   ]);
 });
 
+test('it counts a Codex cache write as cache creation and not as input', () => {
+  const fact = {
+    id: 'event:telemetry:codex.sse_event:h-7c2f',
+    type: 'telemetry.codex.sse_event',
+    v: 1,
+    api: 'otlp-logs/1',
+    entity: 'telemetry:session:x-9',
+    at: '2026-11-11T06:30:00.000Z',
+    payload: {
+      resource: { attributes: [] },
+      scope: { name: 'codex_otel' },
+      logRecord: {
+        attributes: [
+          { key: 'event.kind', value: { stringValue: 'response.completed' } },
+          { key: 'conversation.id', value: { stringValue: 'x-9' } },
+          { key: 'model', value: { stringValue: 'model-small' } },
+          { key: 'input_token_count', value: { intValue: '1200' } },
+          { key: 'cached_token_count', value: { intValue: '800' } },
+          { key: 'cache_write_token_count', value: { intValue: '300' } },
+          { key: 'output_token_count', value: { intValue: '45' } },
+          { key: 'duration_ms', value: { intValue: '1300' } },
+        ],
+      },
+      origin: { issuer: 'harbour-host', subject: 'imp-0193' },
+    },
+  };
+
+  const output: unknown = JSON.parse(applyFact(JSON.stringify(fact)));
+
+  expect(output).toStrictEqual([
+    {
+      upsert: {
+        telemetry_model_request: {
+          id: 'telemetry:model_request:codex.sse_event:h-7c2f',
+          session_id: 'telemetry:session:x-9',
+          agent_session: 'x-9',
+          product: 'codex',
+          model: 'model-small',
+          input_tokens: 100,
+          cache_read_tokens: 800,
+          cache_creation_tokens: 300,
+          output_tokens: 45,
+          cost_usd: null,
+          cost_basis: 'none',
+          duration_ms: 1300,
+          agent: null,
+          origin_issuer: 'harbour-host',
+          origin_subject: 'imp-0193',
+          at: '2026-11-11T06:30:00.000Z',
+        },
+      },
+    },
+  ]);
+});
+
 test.each([
   {
     row: 'a Claude Code error',
