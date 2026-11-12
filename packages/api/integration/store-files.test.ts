@@ -65,7 +65,6 @@ test('it logs a call at /rpc that fails on a current file that is not a database
   const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
 
   await mkdir(directory, { recursive: true });
-  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
   await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
@@ -87,7 +86,6 @@ test('it logs a call at /mcp that fails on a current file that is not a database
   const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
 
   await mkdir(directory, { recursive: true });
-  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
   await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 

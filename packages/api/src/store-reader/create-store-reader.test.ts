@@ -238,7 +238,9 @@ test('it closes the file of a version the host swapped away from between calls',
     descriptors.map((descriptor) => readlink(join('/proc/self/fd', descriptor)).catch(() => null)),
   );
 
-  expect(targets.filter((target) => target?.startsWith(retiredDirectory))).toStrictEqual([]);
+  expect(targets.filter((target) => target?.startsWith(retiredDirectory) === true)).toStrictEqual(
+    [],
+  );
 });
 
 test('it opens a file again once the host replaces a file it failed to open', async () => {
@@ -247,7 +249,6 @@ test('it opens a file again once the host replaces a file it failed to open', as
   const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
 
   await mkdir(directory, { recursive: true });
-  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
   await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
@@ -283,7 +284,6 @@ test('it closes after a call that failed to open a file', async () => {
   const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
 
   await mkdir(directory, { recursive: true });
-  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
   await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
