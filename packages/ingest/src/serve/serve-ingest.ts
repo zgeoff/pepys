@@ -46,7 +46,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
   }
 
   // The S2 adapter creates the basin and each missing stream, so no setup command creates streams.
-  const log = await createS2FactLog({ ...config.value.s2, streams: collectStreams(sources) });
+  const log = await createS2FactLog({
+    ...config.value.s2,
+    streams: collectStreams(sources),
+    logger,
+  });
 
   const ingest = createIngest({
     deployment: checked.value,

@@ -1,4 +1,5 @@
-import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/kit';
+import { createLogger } from '@pepys/kit';
+import type { FactEnvelope, Logger, Result, StreamName, StreamOffset } from '@pepys/kit';
 import {
   AppendInput,
   AppendRecord,
@@ -18,6 +19,9 @@ interface S2FactLogParameters {
   accessToken: string;
   basin: string;
   streams: readonly StreamName[];
+
+  // defaults to a logger that writes to stderr
+  logger?: Logger | undefined;
 }
 
 // Creates the basin and the streams when they are missing. A stream that exists keeps its records
@@ -28,6 +32,8 @@ export async function createS2FactLog(parameters: S2FactLogParameters): Promise<
     endpoints: { account: parameters.endpoint, basin: parameters.endpoint },
     requestTimeoutMillis: 5000,
   };
+
+  const logger = parameters.logger ?? createLogger(process.stderr);
 
   const client = new S2(options);
 
@@ -45,7 +51,7 @@ export async function createS2FactLog(parameters: S2FactLogParameters): Promise<
 
   return {
     appendBatch: (stream, facts, expectedTail) =>
-      appendBatch(appendBasin, stream, facts, expectedTail),
+      appendBatch({ basin: appendBasin, logger }, stream, facts, expectedTail),
     read: (stream, from, count) => readFacts(basin, stream, from, count),
     readTail: (stream) => readTail(basin, stream),
   };
@@ -78,8 +84,13 @@ async function createInfiniteStream(basin: S2Basin, stream: StreamName): Promise
   }
 }
 
+interface S2Writer {
+  basin: S2Basin;
+  logger: Logger;
+}
+
 async function appendBatch(
-  basin: S2Basin,
+  writer: S2Writer,
   stream: StreamName,
   facts: readonly FactEnvelope<unknown>[],
   expectedTail: StreamOffset,
@@ -97,7 +108,7 @@ async function appendBatch(
   );
 
   try {
-    const ack = await basin.stream(stream).append(input);
+    const ack = await writer.basin.stream(stream).append(input);
 
     return {
       kind: 'acknowledged',
@@ -112,7 +123,7 @@ async function appendBatch(
     }
 
     if (outcome.kind === 'unknown') {
-      console.error('an s2 append has an unknown outcome', error);
+      writer.logger.error('an s2 append has an unknown outcome', error);
     }
 
     return outcome;

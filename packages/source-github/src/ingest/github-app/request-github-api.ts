@@ -1,3 +1,4 @@
+import type { Logger } from '@pepys/kit';
 import { githubAPIURL } from './github-api-url.ts';
 
 // One answer of the GitHub REST API. `text` is the body as sent, for a caller that must read a
@@ -14,11 +15,12 @@ export interface GithubAnswer {
 export async function requestGithubAPI(
   pathOrURL: string,
   token: string,
+  log: Logger,
   method: 'GET' | 'POST' = 'GET',
 ): Promise<GithubAnswer> {
   const url = pathOrURL.startsWith('/') ? `${githubAPIURL}${pathOrURL}` : pathOrURL;
 
-  const response = await sendRequest(url, token, method);
+  const response = await sendRequest(url, token, method, log);
 
   if (response === undefined) {
     return { status: 0, text: '', body: undefined, next: undefined };
@@ -38,6 +40,7 @@ async function sendRequest(
   url: string,
   token: string,
   method: 'GET' | 'POST',
+  log: Logger,
 ): Promise<Response | undefined> {
   try {
     const response = await fetch(url, {
@@ -52,7 +55,7 @@ async function sendRequest(
 
     return response;
   } catch (error: unknown) {
-    console.error(`a GitHub API call to ${url} failed`, error);
+    log.error(`a GitHub API call to ${url} failed`, error);
 
     return undefined;
   }

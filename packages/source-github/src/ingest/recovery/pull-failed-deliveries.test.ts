@@ -8,6 +8,7 @@ import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
 function setupTest() {
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const lines: string[] = [];
 
   const context = {
     env: {
@@ -16,11 +17,32 @@ function setupTest() {
     },
     now: () => 1_800_000_000_000,
     marks: [],
-    log: createLogger({ write: () => {} }),
+    log: createLogger({ write: (line) => lines.push(line) }),
   };
 
-  return { pull: (cursor: string | null) => pullFailedDeliveries(cursor, context) };
+  return {
+    pull: (cursor: string | null) => pullFailedDeliveries(cursor, context),
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
+  };
 }
+
+test('it answers unavailable when GitHub cannot be reached, and logs the failed call', async () => {
+  const ctx = setupTest();
+
+  mockNetwork.use(http.get(`${GITHUB_API_URL}/app/hook/deliveries`, () => HttpResponse.error()));
+
+  const pulled: unknown = await ctx.pull(null);
+
+  expect(pulled).toStrictEqual({ kind: 'unavailable', retryAfterMs: 60_000 });
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: `a GitHub API call to ${GITHUB_API_URL}/app/hook/deliveries?per_page=100 failed`,
+      detail: expect.any(Object),
+    },
+  ]);
+});
 
 test('it pulls each failed delivery as a fact with the ID its webhook gives', async () => {
   const ctx = setupTest();

@@ -1,4 +1,4 @@
-import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
+import type { Logger, PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
 import type { GithubFactOrigin } from '../build-github-fact.ts';
@@ -34,7 +34,7 @@ export async function pullMarkedObjects(
   const facts: PendingFact[] = [];
 
   for (const target of targets) {
-    const token = await readCachedToken(tokens, target.repository, appJWT);
+    const token = await readCachedToken(tokens, target.repository, appJWT, context.log);
 
     if (token.kind === 'failed') {
       return pickPullFailure(token.status);
@@ -44,7 +44,7 @@ export async function pullMarkedObjects(
       continue;
     }
 
-    const read = await readObject(target, token.token);
+    const read = await readObject(target, token.token, context.log);
 
     if (read.kind === 'failed') {
       return pickPullFailure(read.status);
@@ -63,6 +63,7 @@ async function readCachedToken(
   tokens: Map<string, InstallationToken>,
   repository: string,
   appJWT: string,
+  log: Logger,
 ): Promise<InstallationToken> {
   const known = tokens.get(repository);
 
@@ -70,7 +71,7 @@ async function readCachedToken(
     return known;
   }
 
-  const token = await readInstallationToken(repository, appJWT);
+  const token = await readInstallationToken(repository, appJWT, log);
 
   tokens.set(repository, token);
 
@@ -87,8 +88,8 @@ type ReadObject =
 // An object the API answers 404 for is left alone. GitHub deletes no pull request, and shows a draft
 // release only to a token that can push, so a 404 cannot prove a delete. A deleted release's own
 // `deleted` delivery sets its tombstone.
-async function readObject(target: ResyncTarget, token: string): Promise<ReadObject> {
-  const answer = await requestGithubAPI(target.path, token);
+async function readObject(target: ResyncTarget, token: string, log: Logger): Promise<ReadObject> {
+  const answer = await requestGithubAPI(target.path, token, log);
 
   if (answer.status === 404) {
     return { kind: 'none' };
@@ -106,7 +107,7 @@ async function readObject(target: ResyncTarget, token: string): Promise<ReadObje
     );
   }
 
-  const repository = await requestGithubAPI(`/repos/${target.repository}`, token);
+  const repository = await requestGithubAPI(`/repos/${target.repository}`, token, log);
 
   const parsed = repositorySchema.safeParse(repository.body);
 

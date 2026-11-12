@@ -1,5 +1,5 @@
 import { planAppends } from '@pepys/ingest';
-import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
+import type { Logger, PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
 import { findAppJWT } from '../github-app/find-app-jwt.ts';
@@ -27,7 +27,7 @@ export async function pullFailedDeliveries(
 
   const seenID = cursor === null ? 0n : BigInt(cursor);
 
-  const listed = await readDeliveriesAfter(seenID, appJWT);
+  const listed = await readDeliveriesAfter(seenID, appJWT, context.log);
 
   if (listed.kind !== 'listed') {
     return pickPullFailure(listed.status);
@@ -36,7 +36,7 @@ export async function pullFailedDeliveries(
   const facts: PendingFact[] = [];
 
   for (const id of collectFailedIDs(listed.items)) {
-    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, appJWT);
+    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, appJWT, context.log);
 
     const detail = deliveryDetailSchema.safeParse(answer.body);
 
@@ -87,12 +87,16 @@ type DeliveryItem = z.infer<typeof deliveryItemSchema>;
 type DeliveryList = { kind: 'listed'; items: DeliveryItem[] } | { kind: 'failed'; status: number };
 
 // GitHub lists the newest delivery first, so the pages stop at the first one already seen.
-async function readDeliveriesAfter(seenID: bigint, appJWT: string): Promise<DeliveryList> {
+async function readDeliveriesAfter(
+  seenID: bigint,
+  appJWT: string,
+  log: Logger,
+): Promise<DeliveryList> {
   const items: DeliveryItem[] = [];
   let url: string | undefined = '/app/hook/deliveries?per_page=100';
 
   while (url !== undefined) {
-    const answer: GithubAnswer = await requestGithubAPI(url, appJWT);
+    const answer: GithubAnswer = await requestGithubAPI(url, appJWT, log);
 
     const page = deliveryListSchema.safeParse(parseDeliveryList(answer.text));
 
