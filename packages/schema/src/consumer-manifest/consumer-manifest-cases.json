@@ -1,5 +1,5 @@
 {
-  "issuePathNote": "Each refused case gives issuePath, the path of the part of the file that the schema refuses. A rule that spans fields, such as two reads or a repeated name, is refused at the manifest or the file that holds them. Only the Bun test checks the path: the host's parser returns an error with no field path.",
+  "issuePathNote": "Each refused case gives issuePath, the path of the field that the schema refuses. A rule that spans fields is refused at the field that breaks it: the later one of a repeated name or symbol, or the whole list of reads for a scope consumer. Only the Bun test checks the path: the host's parser returns an error with no field path.",
   "cases": [
     {
       "title": "accepts the stub deployment",
@@ -1923,7 +1923,7 @@
     },
     {
       "title": "refuses a scope consumer with a row read",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2000,7 +2000,7 @@
     },
     {
       "title": "refuses a scope consumer with no read",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2070,7 +2070,7 @@
     },
     {
       "title": "refuses a scope consumer with two reads",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2151,7 +2151,7 @@
     },
     {
       "title": "refuses a fact consumer with a scope read",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports", 0],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2213,7 +2213,7 @@
     },
     {
       "title": "refuses a row read of a table that the consumer does not own",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports", 0, "table"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2276,7 +2276,7 @@
     },
     {
       "title": "refuses a consumer listed twice",
-      "issuePath": [],
+      "issuePath": ["consumers", 1],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2352,13 +2352,13 @@
               "imports": [
                 {
                   "kind": "row",
-                  "table": "tide_reading",
+                  "table": "tide_gauge",
                   "length": "readTideReadingLength",
                   "into": "readTideReadingInto"
                 }
               ],
               "tables": {
-                "tide_reading": {
+                "tide_gauge": {
                   "columns": {
                     "id": {
                       "kind": "entityID",
@@ -2382,7 +2382,7 @@
                 }
               },
               "links": [],
-              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+              "schema": "CREATE TABLE \"tide_gauge\" (\n  \"id\" TEXT NOT NULL\n);\n"
             }
           }
         ]
@@ -2391,7 +2391,7 @@
     },
     {
       "title": "refuses a table in two consumers",
-      "issuePath": [],
+      "issuePath": ["consumers", 1, "manifest", "tables", "tide_reading"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2519,7 +2519,7 @@
     },
     {
       "title": "refuses a table named entity, which the host reserves",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "entity"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2582,7 +2582,7 @@
     },
     {
       "title": "refuses a table named link, which the host reserves",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "link"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2645,7 +2645,7 @@
     },
     {
       "title": "refuses a table named scope_fact, which the host reserves",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "scope_fact"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2708,7 +2708,7 @@
     },
     {
       "title": "refuses a link type declared twice",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "links", 2],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2929,7 +2929,7 @@
     },
     {
       "title": "refuses an export symbol used twice",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "exports", "apply"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -2992,7 +2992,7 @@
     },
     {
       "title": "refuses an import symbol used twice",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports", 0, "into"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3118,7 +3118,7 @@
     },
     {
       "title": "refuses a nullable primary key column",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "tide_reading", "primaryKey", 1],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3181,7 +3181,7 @@
     },
     {
       "title": "refuses a row read of a table keyed on a json column",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "tide_reading", "primaryKey", 0],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3244,7 +3244,7 @@
     },
     {
       "title": "refuses a primary key column that the table lacks",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "tide_reading", "primaryKey", 0],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3307,7 +3307,7 @@
     },
     {
       "title": "refuses an index column that the table lacks",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "tide_reading", "indexes", 0, 0],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3370,7 +3370,7 @@
     },
     {
       "title": "refuses a row read of a table named constructor that the consumer does not own",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "imports", 0, "table"],
       "file": {
         "kit": 1,
         "deployment": "harbour",
@@ -3433,7 +3433,7 @@
     },
     {
       "title": "refuses a primary key column named toString that the table lacks",
-      "issuePath": ["consumers", 0, "manifest"],
+      "issuePath": ["consumers", 0, "manifest", "tables", "tide_reading", "primaryKey", 0],
       "file": {
         "kit": 1,
         "deployment": "harbour",

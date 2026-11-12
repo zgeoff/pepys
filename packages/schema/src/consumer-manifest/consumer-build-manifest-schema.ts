@@ -77,8 +77,8 @@ const manifestSchema = z
     schema: z.string().min(1),
   })
   .superRefine((manifest, ctx) => {
-    for (const message of collectManifestProblems(manifest)) {
-      ctx.addIssue({ code: 'custom', message });
+    for (const problem of collectManifestProblems(manifest)) {
+      ctx.addIssue({ code: 'custom', ...problem });
     }
   });
 
@@ -111,55 +111,92 @@ export const consumerBuildManifestSchema = z
     consumers: z.array(listedConsumerSchema),
   })
   .superRefine((file, ctx) => {
-    for (const message of collectFileProblems(file.consumers)) {
-      ctx.addIssue({ code: 'custom', message });
+    for (const problem of collectFileProblems(file.consumers)) {
+      ctx.addIssue({ code: 'custom', ...problem });
     }
   }) satisfies z.ZodType<ConsumerBuildManifest>;
 
-function collectManifestProblems(manifest: ConsumerManifest): string[] {
-  const symbols = [
-    manifest.exports.init,
-    manifest.exports.apply,
-    ...manifest.imports.flatMap((read) => [read.length, read.into]),
+// A problem sits at the field that breaks the rule, so a failure names the rule it came from.
+interface Problem {
+  readonly message: string;
+  readonly path: (string | number)[];
+}
+
+interface Entry {
+  readonly value: string;
+  readonly path: (string | number)[];
+}
+
+function collectManifestProblems(manifest: ConsumerManifest): Problem[] {
+  const symbols: Entry[] = [
+    { value: manifest.exports.init, path: ['exports', 'init'] },
+    { value: manifest.exports.apply, path: ['exports', 'apply'] },
+    ...manifest.imports.flatMap((read, index) => [
+      { value: read.length, path: ['imports', index, 'length'] },
+      { value: read.into, path: ['imports', index, 'into'] },
+    ]),
   ];
 
   return [
     ...collectReadProblems(manifest),
-    ...collectRepeats(manifest.links.map((link) => link.name)).map(
-      (name) => `the link type ${name} is declared twice`,
-    ),
-    ...collectRepeats(symbols).map((symbol) => `the symbol ${symbol} is used twice`),
+    ...collectRepeats(
+      manifest.links.map((link, index) => ({ value: link.name, path: ['links', index] })),
+    ).map((entry) => ({
+      message: `the link type ${entry.value} is declared twice`,
+      path: entry.path,
+    })),
+    ...collectRepeats(symbols).map((entry) => ({
+      message: `the symbol ${entry.value} is used twice`,
+      path: entry.path,
+    })),
     ...Object.entries(manifest.tables).flatMap(([name, table]) =>
       collectTableProblems(name, table),
     ),
   ];
 }
 
-function collectReadProblems(manifest: ConsumerManifest): string[] {
+function collectReadProblems(manifest: ConsumerManifest): Problem[] {
   return match(manifest.input.mode)
     .with('scope', () => {
       const [read, ...others] = manifest.imports;
 
       return read?.kind === 'scope_facts' && others.length === 0
         ? []
-        : ['a scope consumer has exactly one read, of kind scope_facts'];
+        : [
+            {
+              message: 'a scope consumer has exactly one read, of kind scope_facts',
+              path: ['imports'],
+            },
+          ];
     })
     .with('fact', () =>
-      manifest.imports.flatMap((read) =>
+      manifest.imports.flatMap((read, index): Problem[] =>
         match(read)
-          .with({ kind: 'scope_facts' }, () => ['a fact consumer reads rows only'])
+          .with({ kind: 'scope_facts' }, () => [
+            { message: 'a fact consumer reads rows only', path: ['imports', index] },
+          ])
           .with({ kind: 'row' }, (row) => {
             const table = Object.hasOwn(manifest.tables, row.table)
               ? manifest.tables[row.table]
               : undefined;
 
             return table === undefined
-              ? [`the row read names ${row.table}, which is no table of the consumer`]
-              : table.primaryKey
-                  .filter((column) => table.columns[column]?.kind === 'json')
-                  .map(
-                    (column) => `the row read of ${row.table} has the json key column ${column}`,
-                  );
+              ? [
+                  {
+                    message: `the row read names ${row.table}, which is no table of the consumer`,
+                    path: ['imports', index, 'table'],
+                  },
+                ]
+              : table.primaryKey.flatMap((column, keyIndex) =>
+                  table.columns[column]?.kind === 'json'
+                    ? [
+                        {
+                          message: `the row read of ${row.table} has the json key column ${column}`,
+                          path: ['tables', row.table, 'primaryKey', keyIndex],
+                        },
+                      ]
+                    : [],
+                );
           })
           .exhaustive(),
       ),
@@ -167,44 +204,79 @@ function collectReadProblems(manifest: ConsumerManifest): string[] {
     .exhaustive();
 }
 
-function collectRepeats(values: readonly string[]): string[] {
+// Reports the later entry of each value that appears more than once.
+function collectRepeats(entries: readonly Entry[]): Entry[] {
   const seen = new Set<string>();
-  const repeats = new Set<string>();
+  const reported = new Set<string>();
 
-  for (const value of values) {
-    if (seen.has(value)) {
-      repeats.add(value);
+  const repeats: Entry[] = [];
+
+  for (const entry of entries) {
+    if (seen.has(entry.value) && !reported.has(entry.value)) {
+      reported.add(entry.value);
+      repeats.push(entry);
     }
 
-    seen.add(value);
+    seen.add(entry.value);
   }
 
-  return [...repeats];
+  return repeats;
 }
 
-function collectTableProblems(name: string, table: ManifestTable): string[] {
-  const columns = [...table.primaryKey, ...table.indexes.flat()];
+function collectTableProblems(name: string, table: ManifestTable): Problem[] {
+  const keyColumns: Entry[] = table.primaryKey.map((column, index) => ({
+    value: column,
+    path: ['tables', name, 'primaryKey', index],
+  }));
 
-  const missing = columns
-    .filter((column) => !Object.hasOwn(table.columns, column))
-    .map((column) => `the table ${name} has no column ${column}`);
+  const indexColumns: Entry[] = table.indexes.flatMap((index, indexPosition) =>
+    index.map((column, columnPosition) => ({
+      value: column,
+      path: ['tables', name, 'indexes', indexPosition, columnPosition],
+    })),
+  );
 
-  const nullableKeys = table.primaryKey
-    .filter((column) => table.columns[column]?.nullable === true)
-    .map((column) => `the key column ${column} of the table ${name} is nullable`);
+  const missing = [...keyColumns, ...indexColumns]
+    .filter((entry) => !Object.hasOwn(table.columns, entry.value))
+    .map((entry) => ({
+      message: `the table ${name} has no column ${entry.value}`,
+      path: entry.path,
+    }));
+
+  const nullableKeys = keyColumns
+    .filter((entry) => table.columns[entry.value]?.nullable === true)
+    .map((entry) => ({
+      message: `the key column ${entry.value} of the table ${name} is nullable`,
+      path: entry.path,
+    }));
 
   return reservedTableNames.has(name)
-    ? [`the table name ${name} is reserved for the host`, ...missing, ...nullableKeys]
+    ? [
+        { message: `the table name ${name} is reserved for the host`, path: ['tables', name] },
+        ...missing,
+        ...nullableKeys,
+      ]
     : [...missing, ...nullableKeys];
 }
 
-function collectFileProblems(consumers: readonly ListedConsumer[]): string[] {
-  const tables = consumers.flatMap((consumer) => Object.keys(consumer.manifest.tables));
+function collectFileProblems(consumers: readonly ListedConsumer[]): Problem[] {
+  const tables = consumers.flatMap((consumer, index) =>
+    Object.keys(consumer.manifest.tables).map((table) => ({
+      value: table,
+      path: ['consumers', index, 'manifest', 'tables', table],
+    })),
+  );
 
   return [
-    ...collectRepeats(consumers.map((consumer) => consumer.name)).map(
-      (name) => `the consumer ${name} is listed twice`,
-    ),
-    ...collectRepeats(tables).map((table) => `the table ${table} is in two consumers`),
+    ...collectRepeats(
+      consumers.map((consumer, index) => ({ value: consumer.name, path: ['consumers', index] })),
+    ).map((entry) => ({
+      message: `the consumer ${entry.value} is listed twice`,
+      path: entry.path,
+    })),
+    ...collectRepeats(tables).map((entry) => ({
+      message: `the table ${entry.value} is in two consumers`,
+      path: entry.path,
+    })),
   ];
 }
