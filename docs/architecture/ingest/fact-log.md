@@ -87,7 +87,7 @@ ways:
 - **Acknowledged:** the run landed.
 - **Rejected:** when the tail had moved, ingest reads the tail again and sends the run with the new
   guard. For any other reason, such as an unknown stream, ingest stops and answers the delivery with
-  an error ([the answers](./ingest.md#the-answers)).
+  an error ([Retries and status codes](./ingest.md#retries-and-status-codes)).
 - **Unknown:** the reply was lost, and s2-lite may or may not have stored the run.
 
 ```mermaid

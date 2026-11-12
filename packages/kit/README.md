@@ -44,8 +44,8 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
   `toStreamOffset` turn text into the `StreamName` and `StreamOffset` types that the fact log
   functions take.
 - `@pepys/kit` also holds `createLogger`, which writes one JSON line per call to any destination,
-  such as an array in a test. Ingest gives its own logger, as `log`, to a source's `read` for each
-  request on a route and to its `pull` on each timer.
+  such as an object that pushes each line onto an array in a test. Ingest gives its own logger, as
+  `log`, to a source's `read` for each request on a route and to its `pull` on each timer.
   [Log lines](../../docs/architecture/ingest/ingest.md#log-lines) gives the format.
 - `@pepys/kit/send` holds `createFactBatchSender`. Give it the source, the URL of the source's
   ingest route and the route's secret. It posts each batch of facts with the proof that the route's
