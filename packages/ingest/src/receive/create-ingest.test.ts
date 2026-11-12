@@ -175,6 +175,37 @@ test('it stores a signed fact batch that comes through its route, and the fact I
   });
 });
 
+test('it refuses a fact batch that a sender signed with another secret, and stores nothing', async () => {
+  const ctx = setupTest();
+
+  const send = createFactBatchSender({
+    source: ctx.stub.ledgerSource,
+    url: 'http://ingest.test/ledger/facts',
+    secret: 'neap-tide',
+    fetch: ctx.ingest.handleRequest,
+  });
+
+  const sent = await send([
+    {
+      type: 'ledger.till.opened',
+      event: 'evt-0002',
+      entity: 'ledger:till:7',
+      at: '2026-10-01T08:05:00Z',
+      payload: { float: 40 },
+    },
+  ]);
+
+  const ids = await ctx.readIDs(ctx.streams.till);
+
+  expect({ sent, ids }).toStrictEqual({
+    sent: {
+      ok: false,
+      failure: { kind: 'refused', status: 401, reason: '{"error":"not authorised"}' },
+    },
+    ids: [],
+  });
+});
+
 test('it stores the proven sender as the origin, and never one the body or a header names', async () => {
   const ctx = setupTest();
 
