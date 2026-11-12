@@ -65,6 +65,28 @@ test('it gives the change entries of each scope of the batch, in the order of th
   });
 });
 
+test('it keeps the rows of each scope of a batch that succeeds', async () => {
+  const ctx = await setupTest();
+
+  await ctx.runBatch([
+    {
+      scope: 'pier:berth:b',
+      output: JSON.stringify([{ upsert: { pier_berth: { id: 'pier:berth:b', label: 'Bravo' } } }]),
+    },
+    {
+      scope: 'pier:berth:a',
+      output: JSON.stringify([{ upsert: { pier_berth: { id: 'pier:berth:a', label: 'Alfa' } } }]),
+    },
+  ]);
+
+  const berths = await ctx.readBerths();
+
+  expect(berths).toStrictEqual([
+    { id: 'pier:berth:a', label: 'Alfa' },
+    { id: 'pier:berth:b', label: 'Bravo' },
+  ]);
+});
+
 test('it names the kind of a refusal, and the scopes before it in the batch write nothing', async () => {
   const ctx = await setupTest();
 
