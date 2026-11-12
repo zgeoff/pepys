@@ -101,6 +101,16 @@ export type DeploymentFailure =
       usedBy: 'primary-key' | 'index' | 'entity-view';
     }
 
+  // the API serves an entity view's id and actor as entity IDs
+  | {
+      kind: 'entity-view-column-kind';
+      consumer: string;
+      table: string;
+      view: EntityKind;
+      column: string;
+      usedAs: 'id' | 'actor';
+    }
+
   // `field` is a path such as `drawers[].label`; ingest stores the uncoerced value, which the
   // consumer's decoder refuses
   | { kind: 'coerced-payload-field'; source: string; factType: string; field: string }

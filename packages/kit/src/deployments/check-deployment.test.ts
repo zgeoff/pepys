@@ -852,6 +852,94 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
       usedBy: 'entity-view',
     },
   ],
+  [
+    'an entity view whose id column is no entity ID',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: { code: { kind: 'text' }, label: { kind: 'text' } },
+                  primaryKey: ['code'],
+                  indexes: [],
+                },
+              },
+              entityViews: [
+                {
+                  table: 'till',
+                  kind: 'ledger:till',
+                  id: 'code',
+                  title: 'label',
+                  url: null,
+                  actor: null,
+                  updatedAt: 'label',
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'entity-view-column-kind',
+      consumer: 'ledger_till',
+      table: 'till',
+      view: 'ledger:till',
+      column: 'code',
+      usedAs: 'id',
+    },
+  ],
+  [
+    'an entity view whose actor column is no entity ID',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: {
+                    id: { kind: 'entityID' },
+                    label: { kind: 'text' },
+                    clerk: { kind: 'text', nullable: true },
+                  },
+                  primaryKey: ['id'],
+                  indexes: [],
+                },
+              },
+              entityViews: [
+                {
+                  table: 'till',
+                  kind: 'ledger:till',
+                  id: 'id',
+                  title: 'label',
+                  url: null,
+                  actor: 'clerk',
+                  updatedAt: 'label',
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'entity-view-column-kind',
+      consumer: 'ledger_till',
+      table: 'till',
+      view: 'ledger:till',
+      column: 'clerk',
+      usedAs: 'actor',
+    },
+  ],
 ])('it refuses %s', (_label, buildDeployment, failure) => {
   expect(checkDeployment(buildDeployment())).toStrictEqual({ ok: false, failure: [failure] });
 });

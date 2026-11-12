@@ -425,7 +425,16 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
   }
 
   for (const view of consumer.entityViews) {
-    if (Object.hasOwn(consumer.tables, view.table)) {
+    const declared = consumer.tables[view.table]?.columns;
+
+    if (declared === undefined) {
+      failures.push({
+        kind: 'unknown-table',
+        consumer: consumer.name,
+        table: view.table,
+        usedBy: 'entity-view',
+      });
+    } else {
       const columns = [view.id, view.title, view.url, view.actor, view.updatedAt];
 
       addUnknownColumns(
@@ -433,13 +442,30 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
         columns.filter((column) => column !== null),
         'entity-view',
       );
-    } else {
-      failures.push({
-        kind: 'unknown-table',
-        consumer: consumer.name,
-        table: view.table,
-        usedBy: 'entity-view',
-      });
+
+      const idColumns = [
+        ['id', view.id],
+        ['actor', view.actor],
+      ] as const;
+
+      for (const [usedAs, column] of idColumns) {
+        if (column === null) {
+          continue;
+        }
+
+        const columnKind = declared[column]?.kind;
+
+        if (columnKind !== undefined && columnKind !== 'entityID') {
+          failures.push({
+            kind: 'entity-view-column-kind',
+            consumer: consumer.name,
+            table: view.table,
+            view: view.kind,
+            column,
+            usedAs,
+          });
+        }
+      }
     }
   }
 
