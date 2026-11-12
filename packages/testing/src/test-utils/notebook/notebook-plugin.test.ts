@@ -47,12 +47,26 @@ test("it counts the facts of a note through its own row, with the newest text an
   ]);
 });
 
-test('#notebookCountQuery answers the count of one note', async () => {
+test('#notebookCountQuery answers the count of the note it names, beside another note', async () => {
   const ctx = await setupTest();
 
   await ctx.store.apply(
     notebookSource,
     [
+      {
+        type: 'notebook.note.written',
+        event: 'n-19',
+        entity: 'notebook:note:buoy',
+        at: '2026-11-05T10:50:00.000Z',
+        payload: { text: 'Paint the buoy' },
+      },
+      {
+        type: 'notebook.note.written',
+        event: 'n-20',
+        entity: 'notebook:note:buoy',
+        at: '2026-11-05T10:55:00.000Z',
+        payload: { text: 'Paint the buoy red' },
+      },
       {
         type: 'notebook.note.written',
         event: 'n-21',
@@ -69,8 +83,22 @@ test('#notebookCountQuery answers the count of one note', async () => {
   expect(answer).toStrictEqual({ count: 1 });
 });
 
-test('#notebookCountQuery throws for a note with no row', async () => {
+test('#notebookCountQuery throws for a note with no row, beside another note', async () => {
   const ctx = await setupTest();
+
+  await ctx.store.apply(
+    notebookSource,
+    [
+      {
+        type: 'notebook.note.written',
+        event: 'n-31',
+        entity: 'notebook:note:buoy',
+        at: '2026-11-05T12:00:00.000Z',
+        payload: { text: 'Paint the buoy' },
+      },
+    ],
+    { sender: { issuer: 'https://tide.example', subject: 'keeper' } },
+  );
 
   const answering = ctx.store.query(notebookCountQuery, { id: 'notebook:note:absent' });
 
