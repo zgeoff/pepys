@@ -5,9 +5,13 @@ import { join } from 'node:path';
 import { buildStubPluginSource } from './test-utils/build-stub-plugin-source.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const root = await mkdtemp(join(tmpdir(), 'pepys-bin-'));
 
-  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  stack.defer(() => rm(root, { recursive: true, force: true }));
 
   await mkdir(join(root, 'src'), { recursive: true });
 
@@ -20,6 +24,12 @@ async function setupTest() {
       const child = Bun.spawn(['bun', join(import.meta.dir, 'bin.ts'), ...args], {
         stdout: 'pipe',
         stderr: 'pipe',
+      });
+
+      stack.defer(async () => {
+        child.kill();
+
+        await child.exited;
       });
 
       const [stdout, stderr, exitCode] = await Promise.all([

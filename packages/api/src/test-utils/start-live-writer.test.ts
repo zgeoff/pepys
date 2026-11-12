@@ -19,9 +19,7 @@ async function setupTest() {
 
 test('it commits each statement while it holds the file open', async () => {
   const ctx = await setupTest();
-  const writer = await startLiveWriter(ctx.path);
-
-  ctx.stack.defer(() => writer.stop());
+  const writer = await startLiveWriter(ctx.path, ctx.stack);
 
   await writer.run(
     "create table harbour_berth (id text); insert into harbour_berth values ('north')",

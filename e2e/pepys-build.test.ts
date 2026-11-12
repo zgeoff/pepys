@@ -6,9 +6,13 @@ import { consumerBuildManifestSchema } from '@pepys/schema';
 
 // These tests run scriptc, so they need zig and wasm-tools, which only the e2e job installs.
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const root = await mkdtemp(join(tmpdir(), 'pepys-build-'));
 
-  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  stack.defer(() => rm(root, { recursive: true, force: true }));
 
   const kitURL = import.meta.resolve('@pepys/kit');
   const zodPath = Bun.resolveSync('zod', join(import.meta.dir, '../packages/kit'));
@@ -38,6 +42,12 @@ async function setupTest() {
         ],
         { stdout: 'pipe', stderr: 'pipe' },
       );
+
+      stack.defer(async () => {
+        child.kill();
+
+        await child.exited;
+      });
 
       const [stderr, exitCode] = await Promise.all([child.stderr.text(), child.exited]);
 

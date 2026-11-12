@@ -316,9 +316,7 @@ test('it keeps one snapshot of a file that the host holds open and commits to du
 
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
-  const writer = await startLiveWriter(join(directory, 'consumer.db'));
-
-  ctx.stack.defer(() => writer.stop());
+  const writer = await startLiveWriter(join(directory, 'consumer.db'), ctx.stack);
 
   // oxlint-disable-next-line zgeoff/seed-only -- the host's own write, which the reader must see
   await writer.run("update harbour_vessel set name = 'Tern II'");
