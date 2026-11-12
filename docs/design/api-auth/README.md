@@ -171,7 +171,7 @@ interface SecurityEvent {
   kind:
     | 'authorize_started' // outcome accepted | rejected; reason 'rate_limited'
     | 'authorize_invalid' // rejected; better-auth's error code, 'bad_host', 'bad_origin' or 'other'
-    | 'owner_auth' // succeeded | failed; 'assertion_failed', 'locked', 'expired', 'not_enrolled', 'invalid_token'
+    | 'owner_auth' // succeeded | failed; 'assertion_failed', 'expired', 'not_enrolled', 'invalid_token'
     | 'consent' // allowed | denied; 'none_ticked'
     | 'token_exchange' // rejected; better-auth's error code or 'other'
     | 'bearer' // rejected; 'malformed', 'invalid_token' or 'source_not_allowed'

@@ -203,9 +203,9 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
   ```
 
 - The public listener sees cloudflared's address, never the caller's network address, so no limit
-  counts per network address. The limit on authorizations started counts per OAuth client. The lock
-  after failed passkey sign-ins counts across every client, because one owner holds every passkey.
-  The API leaves the network address out of every security event.
+  counts per network address. The limit on authorizations started counts per OAuth client. The API
+  never locks sign-in after failed passkey sign-ins. The API leaves the network address out of every
+  security event.
 - pepys turns better-auth's telemetry off, whatever the environment sets.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
   progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant
@@ -228,6 +228,9 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - **Cloudflare Access and the passkey both guard sign-in.** Access adds a login in front of the
   sign-in pages, and only the owner's passkey approves a grant, so neither one alone lets a stranger
   in.
+- **A failed passkey sign-in locks nothing.** Nobody can guess a passkey assertion, so a lock adds
+  no protection. A process on the cluster's node reaches the public listener without Access, and a
+  lock would let it lock the owner out.
 - **Every grant is bound to `<public_origin>/mcp`.** Only `/mcp` takes an OAuth token, so the API
   serves one resource.
 - **`auth.db` has no backup.** A lost `auth.db` costs one passkey enrolment and one sign-in per
@@ -237,8 +240,7 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 
 - How the public routes mount on Elysia beside better-auth's handler.
 - The wording of every page and error.
-- The rate limit on authorizations started, and the number of failed sign-ins and the time that set
-  the sign-in lock.
+- The rate limit on authorizations started.
 - Whether the bearer check reuses better-auth's MCP helper or reads the token table directly.
 - The better-auth version, within the
   [dependency rule](../../../.claude/skills/ci-design/SKILL.md#dependency-exceptions). `@pepys/api`
