@@ -1,6 +1,6 @@
 {
   "name": "@pepys/source-telemetry",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The pepys telemetry plug-in: the OTLP log records of coding agents, with their model requests and turn costs",
   "license": "MIT",
   "repository": {

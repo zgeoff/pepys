@@ -1,6 +1,6 @@
 {
   "name": "@pepys/kysely-turso",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A Kysely dialect for Turso databases on Bun",
   "license": "MIT",
   "repository": {
