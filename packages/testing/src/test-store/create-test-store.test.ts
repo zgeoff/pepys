@@ -96,6 +96,101 @@ test('it writes the rows and links that a scope consumer returns', async () => {
   });
 });
 
+test('it keeps the facts of each of two applies that run at once', async () => {
+  await using store = await createTestStore({ plugins: [ledgerPlugin] });
+
+  await Promise.all([
+    store.apply(ledgerSource, [
+      {
+        type: 'ledger.account.opened',
+        event: 'evt-1',
+        entity: 'ledger:account:quay',
+        at: '2026-11-02T08:00:00.000Z',
+        payload: { name: 'Quay fund' },
+      },
+    ]),
+    store.apply(ledgerSource, [
+      {
+        type: 'ledger.entry.posted',
+        event: 'evt-2',
+        entity: 'ledger:account:quay',
+        at: '2026-11-02T08:10:00.000Z',
+        payload: { entry: 'e-9', amount: 12, rate: 1, memo: 'Tar', details: {} },
+      },
+    ]),
+  ]);
+
+  const accounts = await store.readRows('ledger_account');
+
+  expect(accounts).toStrictEqual([
+    {
+      id: 'ledger:account:quay',
+      name: 'Quay fund',
+      balance: 12,
+      is_closed: false,
+      opened_at: '2026-11-02T08:00:00.000Z',
+      updated_at: '2026-11-02T08:10:00.000Z',
+    },
+  ]);
+});
+
+test('it rejects only the refused one of two applies that run at once', async () => {
+  const ctx = await setupTest();
+
+  const entry = await ctx.writeEntry(
+    'refuse-blank',
+    `export function applyFact(factJSON: string): string {
+  const fact = JSON.parse(factJSON);
+  const row = { id: fact.entity, text: fact.payload.text, count: 1, issuer: 'quay' };
+
+  return JSON.stringify([{ upsert: { notebook_note: fact.payload.text === '' ? { id: fact.entity } : row } }]);
+}
+`,
+  );
+
+  const plugin = definePlugin({
+    name: 'notebook',
+    sources: [notebookSource],
+    consumers: [{ ...notebookNoteConsumer, entry }],
+  });
+
+  await using store = await createTestStore({ plugins: [plugin] });
+
+  const origin = { issuer: 'https://issuer.example', subject: 'w' };
+
+  const [refused, kept] = await Promise.allSettled([
+    store.apply(notebookSource, [
+      {
+        type: 'notebook.note.written',
+        event: 'n-1',
+        entity: 'notebook:note:blank',
+        at: '2026-11-02T08:00:00.000Z',
+        payload: { text: '', origin },
+      },
+    ]),
+    store.apply(notebookSource, [
+      {
+        type: 'notebook.note.written',
+        event: 'n-2',
+        entity: 'notebook:note:buoy',
+        at: '2026-11-02T08:01:00.000Z',
+        payload: { text: 'Paint the buoy', origin },
+      },
+    ]),
+  ]);
+
+  expect({ refused: refused.status, kept: kept.status }).toStrictEqual({
+    refused: 'rejected',
+    kept: 'fulfilled',
+  });
+
+  const notes = await store.readRows('notebook_note');
+
+  expect(notes).toStrictEqual([
+    { id: 'notebook:note:buoy', text: 'Paint the buoy', count: 1, issuer: 'quay' },
+  ]);
+});
+
 test('it refuses a batch with a fact ID that the envelope parser refuses, and stores nothing', async () => {
   await using store = await createTestStore({ plugins: [ledgerPlugin] });
 

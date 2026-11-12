@@ -50,7 +50,7 @@ export async function createTestStore(options: TestStoreOptions): Promise<TestSt
     return table;
   };
 
-  const applyEnvelopes: StoreHooks['applyEnvelopes'] = async (records) => {
+  const applyInTurn = async (records: Parameters<StoreHooks['applyEnvelopes']>[0]) => {
     const next = buildFactIndex(index, records);
 
     applied = await db
@@ -60,6 +60,24 @@ export async function createTestStore(options: TestStoreOptions): Promise<TestSt
       );
 
     index = next.index;
+  };
+
+  // Each apply builds on the index and applied IDs that the one before it left, so two applies
+  // that run at once take turns. A refused apply rejects for its caller only.
+  let lastApply: Promise<void> = Promise.resolve();
+
+  const applyEnvelopes: StoreHooks['applyEnvelopes'] = async (records) => {
+    const before = lastApply;
+    const turn = Promise.withResolvers<void>();
+
+    lastApply = turn.promise;
+
+    try {
+      await before;
+      await applyInTurn(records);
+    } finally {
+      turn.resolve();
+    }
   };
 
   const testStore: TestStore = {
