@@ -2,11 +2,11 @@
 //! one checked load path. The host reads nothing else about a consumer.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Write;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::durable::write_durably;
 use crate::error::HostError;
 
 /// The tables the host keeps in every consumer file, which no consumer may declare.
@@ -231,22 +231,16 @@ pub fn read_version(directory: &Path) -> Result<ConsumerVersion, HostError> {
     Ok(version)
 }
 
-/// Writes `version` as the `version.json` of a version folder. It writes a temporary file, syncs
-/// it and renames it over the old one, so a crash leaves the whole old file, the whole new file,
-/// or none.
+/// Writes `version` as the `version.json` of a version folder, so that a crash leaves the whole
+/// old file, the whole new file, or none.
 ///
 /// # Errors
 /// Fails when the file cannot be written.
 pub fn write_version(directory: &Path, version: &ConsumerVersion) -> Result<(), HostError> {
-    let temporary = directory.join(format!("{VERSION_FILE}.tmp"));
-    let mut file = std::fs::File::create(&temporary)?;
-
-    file.write_all(serde_json::to_string_pretty(version)?.as_bytes())?;
-    file.sync_all()?;
-    std::fs::rename(&temporary, directory.join(VERSION_FILE))?;
-    std::fs::File::open(directory)?.sync_all()?;
-
-    Ok(())
+    write_durably(
+        &directory.join(VERSION_FILE),
+        serde_json::to_string_pretty(version)?.as_bytes(),
+    )
 }
 
 /// Whether a version folder holds a `version.json`.

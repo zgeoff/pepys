@@ -7,6 +7,7 @@ pub mod commands;
 pub mod consumer;
 pub mod database;
 pub mod diff;
+pub mod durable;
 #[cfg(test)]
 mod e2e;
 pub mod entity_ids;

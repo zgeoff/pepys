@@ -16,6 +16,7 @@ use crate::database::{
     Store, checkpoint, open_store, prepare_scope_tables, prepare_store, read_offset,
 };
 use crate::diff::{diff_json, diff_rows};
+use crate::durable::{rename_durably, write_durably};
 use crate::error::HostError;
 use crate::fact_log::FactLog;
 use crate::fact_log::s2::{S2Log, S2Settings};
@@ -272,9 +273,7 @@ fn repoint_current(consumer_dir: &Path, version: &str) -> Result<(), HostError> 
     }
 
     symlink(version, &temporary)?;
-    std::fs::rename(&temporary, consumer_dir.join(CURRENT_LINK))?;
-
-    Ok(())
+    rename_durably(&temporary, &consumer_dir.join(CURRENT_LINK))
 }
 
 /// Makes the `current` link follow the version that `host.db` records as current, and returns that
@@ -629,7 +628,7 @@ async fn up_version(
     }
 
     std::fs::create_dir_all(&directory)?;
-    std::fs::write(directory.join(MODULE_FILE), bytes)?;
+    write_durably(&directory.join(MODULE_FILE), bytes)?;
     write_version(&directory, version)?;
 
     let mut opened = open_version(&directory, version).await?;
