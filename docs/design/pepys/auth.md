@@ -1,12 +1,11 @@
 # Auth
 
 The API runs its own OAuth 2.1 authorization server, so each client the owner approves gets its own
-grant, and every manual fact records the client that wrote it. pepys copies the server from the
-OAuth connector in the owner's agent control tower, atc ([the OAuth server](../api-auth/oauth.md)):
-better-auth's OAuth provider and MCP plugins run the protocol, and pepys adds the owner's passkey
-sign-in, the client list and the scope check. The server serves one owner. Only clients that were
-added on the server can start an authorization, and each authorization needs a fresh passkey
-sign-in.
+grant, and every manual fact records the client that wrote it.
+[The OAuth server](../api-auth/oauth.md) holds its design: better-auth's OAuth provider and MCP
+plugins run the protocol, and pepys adds the owner's passkey sign-in, the list of clients the owner
+added, and the scope check. The server serves one owner. Only clients that were added on the server
+can start an authorization, and each authorization needs a fresh passkey sign-in.
 
 ## Clients
 
@@ -35,8 +34,9 @@ scopes set what each one may do.
    token bound to that resource.
 
 Before the first grant, the owner runs `passkeys enroll` in the API's container. It prints a
-one-time enrolment token that expires in 10 minutes, and the owner types it on the enrolment page.
-The passkey's relying party is the API's public host name, so a passkey works only at that origin.
+one-time enrolment token that expires in 10 minutes, and the owner types it on the API's `/enroll`
+page. The passkey's relying party is the API's public host name, so a passkey works only at that
+origin.
 
 ## Tokens
 
@@ -115,7 +115,7 @@ part in it.
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | a stolen access token                    | it opens only `/mcp`, lasts 1 hour, and stops on its next request or stream batch once the owner revokes its grant           |
 | a stolen refresh token                   | rotation in one transaction: a spent refresh token revokes its grant                                                         |
-| a stolen service token                   | it works only on the API listeners named for it, and the owner revokes it with no restart                                    |
+| a stolen service token                   | it works only on the listeners its entry in the callers file names, and the owner revokes it with no restart                 |
 | a prompt-injected agent writing bad data | every manual fact names its client, so the owner retracts that client's links and drops its corrections from the score       |
 | a stolen authorization code              | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
 | an MCP client used as a confused deputy  | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |

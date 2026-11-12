@@ -68,8 +68,8 @@ it has its own change stream, and an agent can subscribe and act when something 
 The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
 `read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
 [Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats. The
-oRPC routes take service tokens, which a file of their digests lists, as
-[auth for the API](../api-auth/README.md#service-tokens) sets out.
+oRPC routes, and `/mcp` on the cluster listener, take service tokens, which a file of their digests
+lists, as [auth for the API](../api-auth/README.md#service-tokens) sets out.
 
 ## Agent writes
 

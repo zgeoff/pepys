@@ -217,10 +217,11 @@ interface SecurityEvent {
   `callers_reload` security event with outcome `rejected`. A reload that changes the set writes one
   with outcome `accepted`, and a reload that changes nothing writes none. A request that starts
   after a reload finishes sees the new set.
-- To revoke a credential, the owner removes its entry, which leaves a valid file even when it was
-  the last one. The kubelet writes the changed Secret into the pod within its sync period and cache
-  delay, about a minute by default. The credential stops working at most 30 seconds after that. The
-  other callers keep working, and no process restarts.
+- To revoke a credential, the owner removes its 1Password item and applies the cloud repo's Pulumi
+  program, which removes the entry from the callers file. The file stays valid even when the entry
+  was the last one. The kubelet writes the changed Secret into the pod within its sync period and
+  cache delay, about a minute by default. The credential stops working at most 30 seconds after
+  that. The other callers keep working, and no process restarts.
 - The API never writes a service token or an `Authorization` header to a log line, an error or a
   security event.
 
@@ -243,14 +244,18 @@ Do step 8 before the deployment moves to the release that requires tokens. That 
 no callers file.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel to the public listener's ClusterIP
-   Service, with the paths [the OAuth server's paths](./oauth.md#public-paths) list. Expect:
-   `/rpc/*` and every other path get the tunnel's 404.
+   Service, with the paths [the OAuth server's paths](./oauth.md#public-paths) list. Put the browser
+   paths behind a Cloudflare Access application that admits only the owner. Keep the request's
+   `Host` unchanged in cloudflared. Expect: `/rpc/*` and every other path get the tunnel's 404.
 2. In the API's container of the host's StatefulSet pod, set `PEPYS_API_PUBLIC_URL`. Set
    `PEPYS_API_TAILNET_SOURCES` to the PC's tailnet address. Bind the three listeners on `0.0.0.0`.
 3. Mount a PersistentVolume with the `Retain` reclaim policy at `PEPYS_AUTH_DIR` in the API's
    container only.
 4. Mount the callers file's Secret as a folder, never with `subPath`. The kubelet never updates a
-   `subPath` mount.
+   `subPath` mount. Give the Secret a fixed name, and apply a change to its data without a change to
+   the pod's spec. The cloud repo's Kubernetes provider replaces a Secret when its data changes, so
+   keep the name fixed through the replace. A change to the pod's spec rolls the pod and stops the
+   host.
 5. Give the tailnet listener a NodePort Service with `externalTrafficPolicy: Local`, whose one port
    targets the tailnet listener's port. `Local` keeps the PC's address, which the tailnet listener
    checks. Give the public and the cluster listener a ClusterIP Service each.

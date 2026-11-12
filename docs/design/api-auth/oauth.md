@@ -188,25 +188,24 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
   `Origin`.
 - A form post to `/login`, `/enroll` or `/consent`, and an MCP request with an `Origin` header, must
   come from `<public_origin>`. The API answers any other with 403.
-- The sign-in, enrolment, consent and error pages carry the headers below. The first
-  `Content-Security-Policy` line is the one `/consent` sends, and the second is the one `/login` and
-  `/enroll` send. `<passkey_script_hash>` is the SHA-256 of the passkey script, and
-  `<redirect_origin>` is the origin of the client's redirect URI. On `/login` and `/enroll`,
-  `script-src` lists the passkey script; on `/consent` and `/error` it is `'none'`. On `/consent`,
-  `form-action` adds `<redirect_origin>`; on the other pages it is `'self'` alone. The error page
-  shows a fixed sentence per error code, never text from the request.
+- The sign-in, enrolment, consent and error pages carry the headers below, shown as `/login` sends
+  them. `<passkey_script_hash>` is the SHA-256 of the passkey script, and `<redirect_origin>` is the
+  origin of the client's redirect URI. On `/login` and `/enroll`, `script-src` lists the passkey
+  script; on `/consent` and `/error` it is `'none'`. On `/consent`, `form-action` adds
+  `<redirect_origin>`; on the other pages it is `'self'` alone. The error page shows a fixed
+  sentence per error code, never text from the request.
 
   ```http
-  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; form-action 'self' <redirect_origin>; frame-ancestors 'none'; base-uri 'none'
   Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-<passkey_script_hash>'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'
   X-Frame-Options: DENY
   Cache-Control: no-store
   Referrer-Policy: same-origin
   ```
 
-- The public listener sees cloudflared's address, never the caller's network address. The rate limit
-  on authorizations started therefore counts per OAuth client, and the API leaves the network
-  address out of every security event.
+- The public listener sees cloudflared's address, never the caller's network address. Every limit
+  therefore counts per OAuth client and grant: the limit on authorizations started counts per
+  client, and the lock after failed passkey sign-ins counts for the owner. The API leaves the
+  network address out of every security event.
 - pepys turns better-auth's telemetry off, whatever the environment sets.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
   progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant

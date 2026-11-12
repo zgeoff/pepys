@@ -82,8 +82,8 @@ OpenAPI server from a contract. Whoever builds the host's admin routes writes th
 hand, and a contract test runs the CLI's client against the host, so a route that drifts from the
 contract fails the test.
 
-The API's own admin commands, such as `clients add` and `passkeys enroll`, run through the API's
-entry in its container, not through the CLI, as
+The owner runs the API's own admin commands, such as `clients add` and `passkeys enroll`, with
+`kubectl exec` in the API container, as arguments to the API's entry file, not through the CLI, as
 [the OAuth server](../api-auth/oauth.md#the-api-process) sets out.
 
 The admin routes never check a token. An operator gets inside the pod only with the cluster
@@ -99,16 +99,16 @@ Kubernetes Secret that only its process mounts, as every geoff.cloud workload re
 job refuses a reference to any other vault, so the `pepys` vault holds only the copies that
 development on the owner's machine reads. Each item in the table is named `pepys-<item>` in `cloud`.
 
-| Item                | Fields                                        | Mounted by                    |
-| ------------------- | --------------------------------------------- | ----------------------------- |
-| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest                        |
-| `github-read-token` | `token`                                       | enrichment                    |
-| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest                        |
-| `jev`               | `credential`                                  | enrichment                    |
-| `api-owner-pc`      | `token`                                       | the API                       |
-| `api-boxxy`         | `token`                                       | the API, and the boxxy server |
-| `owner-identity`    | `emails`, `github-user-id`                    | ingest                        |
-| `garage-<service>`  | the access key and secret of one service      | that service                  |
+| Item                | Fields                                        | Mounted by                                |
+| ------------------- | --------------------------------------------- | ----------------------------------------- |
+| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest                                    |
+| `github-read-token` | `token`                                       | enrichment                                |
+| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest                                    |
+| `jev`               | `credential`                                  | enrichment                                |
+| `api-owner-pc`      | `token`                                       | the API, as a digest                      |
+| `api-boxxy`         | `token`                                       | the API as a digest, and the boxxy server |
+| `owner-identity`    | `emails`, `github-user-id`                    | ingest                                    |
+| `garage-<service>`  | the access key and secret of one service      | that service                              |
 
 The owner creates each Garage key once with the Garage CLI, scoped to the buckets in the
 [storage](./storage.md#buckets-and-keys) table, and stores it in `cloud` as
@@ -137,13 +137,13 @@ Every pepys port is cluster-only except three routes.
 - **The API's tailnet listener** serves `/rpc` on a NodePort that answers on the server's tailnet
   address only, to the owner's PC with the `api-owner-pc` token.
 
-The API's third listener, the cluster listener, serves `/rpc` and `/mcp` inside the cluster, to the
-boxxy server with the `api-boxxy` token. boxxy is the owner's work dispatcher, and runs in a
-namespace of its own. [Auth for the API](../api-auth/README.md#deployment-changes) lists the
-Services, NetworkPolicies and exposure registry entries of the three listeners.
+The API's cluster listener serves `/rpc` and `/mcp` inside the cluster, to the boxxy server with the
+`api-boxxy` token. boxxy is the owner's work dispatcher, and runs in a namespace of its own.
+[Auth for the API](../api-auth/README.md#deployment-changes) lists the Services, NetworkPolicies and
+exposure registry entries of the three listeners.
 
 Inside the namespace, enrichment and the pod that runs the host and the API call each other on three
-internal ports. No internal route checks a token, as with the CLI's admin routes.
+internal ports. The internal routes never check a token, as with the CLI's admin routes.
 
 | Port                                      | Serves                                                                              | Open to                                |
 | ----------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |
