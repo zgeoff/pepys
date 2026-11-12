@@ -69,7 +69,15 @@ test('it changes no file on a second run', async () => {
   const second = await ctx.runGlueBuild(file, false);
   const secondModifiedMs = await ctx.readModifiedMs('stub-tickets.sql');
 
-  expect(second).toMatchObject({ kind: 'built', written: [] });
+  expect(second).toStrictEqual({
+    kind: 'built',
+    written: [],
+    unchanged: [
+      join(ctx.root, 'src/generated/stub-tickets-boundary.ts'),
+      join(ctx.root, 'src/generated/stub-tickets.sql'),
+    ],
+  });
+
   expect(secondModifiedMs).toBe(modifiedMs);
 });
 
@@ -95,7 +103,14 @@ test('it reports every glue file as stale under --check before a first build', a
   const outcome = await ctx.runGlueBuild(join(ctx.root, 'src/plugin.ts'), true);
   const isWritten = await Bun.file(join(ctx.root, 'src/generated/stub-tickets.sql')).exists();
 
-  expect(outcome).toMatchObject({ kind: 'stale', stale: expect.toBeArrayOfSize(2) });
+  expect(outcome).toStrictEqual({
+    kind: 'stale',
+    stale: [
+      join(ctx.root, 'src/generated/stub-tickets-boundary.ts'),
+      join(ctx.root, 'src/generated/stub-tickets.sql'),
+    ],
+  });
+
   expect(isWritten).toBeFalse();
 });
 

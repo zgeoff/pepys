@@ -29,10 +29,19 @@ test('it gives a plug-in built alone its default settings', () => {
   const ctx = setupTest();
   const checked = checkBuildTarget({ kind: 'plugin', plugin: ctx.settingsPlugin });
 
-  expect(checked).toMatchObject({
+  expect(checked).toStrictEqual({
     ok: true,
     value: {
-      checked: { settings: { tickets: { project: 'main' } } },
+      deployment: null,
+      checked: {
+        name: 'tickets',
+        sources: [],
+        consumers: [],
+        queries: [],
+        entityKinds: [],
+        linkTypes: [],
+        settings: { tickets: { project: 'main' } },
+      },
       plugins: [ctx.settingsPlugin],
     },
   });
@@ -52,7 +61,22 @@ test('it passes a plug-in whose query reads a consumer of another plug-in', () =
 
   const plugin = definePlugin({ name: 'tickets', queries: [query] });
 
-  expect(checkBuildTarget({ kind: 'plugin', plugin })).toMatchObject({ ok: true });
+  expect(checkBuildTarget({ kind: 'plugin', plugin })).toStrictEqual({
+    ok: true,
+    value: {
+      deployment: null,
+      checked: {
+        name: 'tickets',
+        sources: [],
+        consumers: [],
+        queries: [query],
+        entityKinds: [],
+        linkTypes: [],
+        settings: {},
+      },
+      plugins: [plugin],
+    },
+  });
 });
 
 test('it fails a plug-in with two consumers of one name', () => {
