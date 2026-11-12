@@ -210,10 +210,11 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 
 ## 17. Deploy through the cloud repo
 
-- **Outcome:** the cloud repo runs a pepys deployment: Garage, s2-lite, ingest, the host with the
-  API, and the bucket backup. The deployment builds its own image, starts the host with `run --up`,
-  sets the listen address of the API and of ingest, and makes a public rule for exactly the routes
-  that the route table marks public.
+- **Outcome:** the cloud repo runs a pepys deployment: Garage, s2-lite, ingest, and the host with
+  the API. The deployment builds its own image, starts the host with `run --up`, sets the listen
+  address of the API and of ingest, and makes a public rule for exactly the routes that the route
+  table marks public. The deployment runs no bucket backup, which is a
+  [known limit](./v1-open.md#known-limits).
 - **Sketch:** 01, place 4; 02, part 1; 04, part 4.
 - **Needs first:** slice 16.
 - **Check:** the cloud repo's pull request is green, and every pepys workload in the cluster is

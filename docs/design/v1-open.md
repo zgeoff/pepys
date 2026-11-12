@@ -183,4 +183,10 @@ The build and the host:
 - **The delivery tie has three known gaps.** A bump in two steps reports the deploy early. A
   repository with several release components gets the first release of any of them. A repository
   that deploys itself with no bump pull request gets no deploy time.
+- **The deployed bucket has no backup.** Garage holds the fact log and the blobs on one volume. The
+  loss of that volume loses every fact, and the host can then rebuild no table.
+- **A process on the cluster's node reaches every private route.** The cluster admits the node's own
+  addresses before any network rule, so a private route is closed to other pods only. The check of
+  each route still holds: a fact batch needs its signing secret, and a telemetry export needs a
+  proven sender.
 - **Storing every log record costs log space.** Tool and hook events outnumber model requests.
