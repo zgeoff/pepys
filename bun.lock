@@ -255,7 +255,7 @@
     "@tsconfig/strictest": "2.0.8",
     "@tursodatabase/database": "0.8.3",
     "@types/bun": "1.4.4",
-    "@zgeoff/agent-hooks": "0.2.11",
+    "@zgeoff/agent-hooks": "0.2.12",
     "@zgeoff/bun-test-extended": "0.2.3",
     "@zgeoff/chex": "0.3.3",
     "@zgeoff/commitlint-config": "0.1.0",
@@ -776,7 +776,7 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.2.11", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-tm3pN/VHCL++ryz7l9ICupy1c/LNTUe3OlOTFMwAb52T7Mb+dse9qqNG8Ms0bbHp8Rz5PB6uyV2ALoYE/41aSQ=="],
+    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.2.12", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-bMEmXGtNICFNvR/e9lF9p+N4BwyIPqnG7IZ/m78vz3i5ZUZbgtSVLWgw3k5/d0cE6OXGLBW4sJ3twKd2kYzRSQ=="],
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.3", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-4ZNPft3LunVKp+s2esoJXSe64EaEywsu3z6Cg5/s/MJcdygmrQeAyfECioePCo5RuAIcaPfgF3lhYsPKcmVJ4w=="],
 

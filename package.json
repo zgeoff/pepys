@@ -25,7 +25,7 @@
       "@tsconfig/strictest": "2.0.8",
       "@tursodatabase/database": "0.8.3",
       "@types/bun": "1.4.4",
-      "@zgeoff/agent-hooks": "0.2.11",
+      "@zgeoff/agent-hooks": "0.2.12",
       "@zgeoff/bun-test-extended": "0.2.3",
       "@zgeoff/chex": "0.3.3",
       "@zgeoff/commitlint-config": "0.1.0",
