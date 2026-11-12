@@ -54,7 +54,7 @@ const bookFamily = defineFactFamily({
   types: { 'shelf.book.shelved': z.object({ title: z.string() }) },
 });
 
-const shelfSource = defineSource({
+export const shelfSource = defineSource({
   name: 'shelf',
   families: [bookFamily],
   live: receiveFactBatch({
@@ -104,22 +104,54 @@ export const shelfPlugin = definePlugin({
 });
 `;
 
-const stubEntry = `export function applyFact(_factJSON: string): string {
-  return '[]';
+// The entry of the one consumer: a shelved fact gives the book its row.
+const stubEntry = `interface BookFact {
+  entity: string;
+  payload: { title: string };
+}
+
+export function applyFact(factJSON: string): string {
+  const fact: unknown = JSON.parse(factJSON);
+
+  if (!isBookFact(fact)) {
+    return '[]';
+  }
+
+  return JSON.stringify([{ upsert: { shelf_book: { id: fact.entity, title: fact.payload.title } } }]);
+}
+
+function isBookFact(value: unknown): value is BookFact {
+  if (typeof value !== 'object' || value === null || !('entity' in value) || !('payload' in value)) {
+    return false;
+  }
+
+  const payload = value.payload;
+
+  return (
+    typeof value.entity === 'string' &&
+    typeof payload === 'object' &&
+    payload !== null &&
+    'title' in payload &&
+    typeof payload.title === 'string'
+  );
 }
 `;
 
 const stubPluginTest = `import { expect, test } from 'bun:test';
-import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
-import { toTagged } from '@zgeoff/std';
-import { shelfBookConsumer, shelfPlugin, shelfTitleQuery } from './stub-plugin.ts';
+import { shelfPlugin, shelfSource, shelfTitleQuery } from './stub-plugin.ts';
 
-test('it answers a query from rows written for the test', async () => {
+test('it answers a query from the row that a shelved fact gives', async () => {
   await using store = await createTestStore({ plugins: [shelfPlugin] });
 
-  await store.writeRows(shelfBookConsumer, 'shelf_book', [
-    { id: toTagged<EntityID>('shelf:book:atlas'), title: 'The Coral Atlas' },
+  await store.apply(shelfSource, [
+    {
+      type: 'shelf.book.shelved',
+      event: 'evt-1',
+      entity: 'shelf:book:atlas',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { title: 'The Coral Atlas' },
+    },
   ]);
 
   const answer = await store.query(shelfTitleQuery, { id: 'shelf:book:atlas' });
@@ -129,8 +161,8 @@ test('it answers a query from rows written for the test', async () => {
 `;
 
 // The files of a package that lives outside this repo: it installs every public `@pepys/*` package,
-// declares a stub plug-in, and tests a query on rows of the test store. Paths are relative to the
-// project's folder.
+// declares a stub plug-in, and tests a query on the rows its consumer writes in the test store.
+// Paths are relative to the project's folder.
 export function buildOutsideProject(input: OutsideProjectInput): Record<string, string> {
   return {
     'package.json': formatManifest(input),
