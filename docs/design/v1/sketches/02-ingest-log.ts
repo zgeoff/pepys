@@ -34,7 +34,7 @@ await serveIngest({ deployment, environment: process.env });
 
 // packages/ingest/src/receive/receive-route.test.ts (new). One batch and one export go
 // THROUGH the route: the real check, the real `read`, the real envelope check, the memory log.
-// The test store builds envelopes itself and never comes here, so only this test fails when the
+// The test store's `apply` builds envelopes itself and never comes here, so only this test fails when the
 // parser refuses a fact ID that a source builds.
 test('it stores a fact batch and an OTLP export that come through their routes', async () => {
   const routeLog = createMemoryFactLog(['facts.boxxy.work', 'facts.telemetry.log_record']);
