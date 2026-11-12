@@ -107,8 +107,6 @@ brands every ID with a fixed tag and adds the kind as a second tag.
 - The mapping from a bumped package to a deploy target.
 - A signed time in a delivery check. A third check kind would add it, and the senders of the two
   kinds in v1 would not change.
-- A public route to the API's MCP endpoint, with OAuth on the route. The API checks no caller in v1,
-  so a deployment keeps it off every public route and a client reaches it through a port-forward.
 
 ## Assumed
 
