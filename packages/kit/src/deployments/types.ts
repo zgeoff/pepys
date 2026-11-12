@@ -101,14 +101,15 @@ export type DeploymentFailure =
       usedBy: 'primary-key' | 'index' | 'entity-view';
     }
 
-  // the API serves an entity view's id and actor as entity IDs
+  // the API serves an entity view's id and actor as entity IDs, and the view keeps a row only while
+  // its deletedAt column is null, so that column is a nullable timestamp
   | {
       kind: 'entity-view-column-kind';
       consumer: string;
       table: string;
       view: EntityKind;
       column: string;
-      usedAs: 'id' | 'actor';
+      usedAs: 'id' | 'actor' | 'deletedAt';
     }
 
   // `field` is a path such as `drawers[].label`; ingest stores the uncoerced value, which the

@@ -71,7 +71,12 @@ function formatEntitySelect(view: EntityViewDeclaration): string {
     `${quoteSqlIdentifier(view.updatedAt)} AS "updated_at"`,
   ].map((selection) => `  ${selection}`);
 
-  return ['SELECT', selections.join(',\n'), `FROM ${quoteSqlIdentifier(view.table)}`].join('\n');
+  const from = `FROM ${quoteSqlIdentifier(view.table)}`;
+
+  const where =
+    view.deletedAt === undefined ? [] : [`WHERE ${quoteSqlIdentifier(view.deletedAt)} IS NULL`];
+
+  return ['SELECT', selections.join(',\n'), from, ...where].join('\n');
 }
 
 function formatOptionalColumn(column: string | null): string {

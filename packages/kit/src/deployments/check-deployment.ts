@@ -435,13 +435,30 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
         usedBy: 'entity-view',
       });
     } else {
-      const columns = [view.id, view.title, view.url, view.actor, view.updatedAt];
+      const columns = [view.id, view.title, view.url, view.actor, view.updatedAt, view.deletedAt];
 
       addUnknownColumns(
         view.table,
-        columns.filter((column) => column !== null),
+        columns.filter((column) => column !== null && column !== undefined),
         'entity-view',
       );
+
+      const deleted = view.deletedAt === undefined ? undefined : declared[view.deletedAt];
+
+      if (
+        view.deletedAt !== undefined &&
+        deleted !== undefined &&
+        (deleted.kind !== 'timestamp' || deleted.nullable !== true)
+      ) {
+        failures.push({
+          kind: 'entity-view-column-kind',
+          consumer: consumer.name,
+          table: view.table,
+          view: view.kind,
+          column: view.deletedAt,
+          usedAs: 'deletedAt',
+        });
+      }
 
       const idColumns = [
         ['id', view.id],

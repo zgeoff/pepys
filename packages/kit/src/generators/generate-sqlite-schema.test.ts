@@ -305,3 +305,53 @@ test('it joins the entity views of two tables, with NULL for a column a view lea
     ].join('\n'),
   );
 });
+
+test('it leaves a row with its deletedAt column set out of the entity view', () => {
+  const shelf = defineConsumer({
+    name: 'shelf',
+    entry: new URL('file:///stub/consumers/stub.ts'),
+    input: { mode: 'fact', streams: ['facts.shelf.book'] },
+    tables: {
+      book: defineTable({
+        columns: {
+          id: { kind: 'entityID' },
+          title: { kind: 'text' },
+          at: { kind: 'timestamp' },
+          withdrawn_at: { kind: 'timestamp', nullable: true },
+        },
+        primaryKey: ['id'],
+        indexes: [],
+      }),
+    },
+    entityViews: [
+      {
+        table: 'book',
+        kind: 'shelf:book',
+        id: 'id',
+        title: 'title',
+        url: null,
+        actor: null,
+        updatedAt: 'at',
+        deletedAt: 'withdrawn_at',
+      },
+    ],
+    reads: [],
+    links: [],
+  });
+
+  expect(generateSqliteSchema(shelf).split('\n\n').at(-1)).toStrictEqual(
+    [
+      'CREATE VIEW "entity" AS',
+      'SELECT',
+      '  "id" AS "id",',
+      `  'shelf:book' AS "kind",`,
+      '  "title" AS "title",',
+      '  NULL AS "url",',
+      '  NULL AS "actor",',
+      '  "at" AS "updated_at"',
+      'FROM "book"',
+      'WHERE "withdrawn_at" IS NULL;',
+      '',
+    ].join('\n'),
+  );
+});

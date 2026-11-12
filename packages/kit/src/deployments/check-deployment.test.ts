@@ -940,6 +940,95 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
       usedAs: 'actor',
     },
   ],
+  [
+    'an entity view whose deletedAt column is no nullable timestamp',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: {
+                    id: { kind: 'entityID' },
+                    label: { kind: 'text' },
+                    closed_at: { kind: 'timestamp' },
+                  },
+                  primaryKey: ['id'],
+                  indexes: [],
+                },
+              },
+              entityViews: [
+                {
+                  table: 'till',
+                  kind: 'ledger:till',
+                  id: 'id',
+                  title: 'label',
+                  url: null,
+                  actor: null,
+                  updatedAt: 'label',
+                  deletedAt: 'closed_at',
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'entity-view-column-kind',
+      consumer: 'ledger_till',
+      table: 'till',
+      view: 'ledger:till',
+      column: 'closed_at',
+      usedAs: 'deletedAt',
+    },
+  ],
+  [
+    'an entity view whose deletedAt column the table lacks',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: { id: { kind: 'entityID' }, label: { kind: 'text' } },
+                  primaryKey: ['id'],
+                  indexes: [],
+                },
+              },
+              entityViews: [
+                {
+                  table: 'till',
+                  kind: 'ledger:till',
+                  id: 'id',
+                  title: 'label',
+                  url: null,
+                  actor: null,
+                  updatedAt: 'label',
+                  deletedAt: 'closed_at',
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'unknown-column',
+      consumer: 'ledger_till',
+      table: 'till',
+      column: 'closed_at',
+      usedBy: 'entity-view',
+    },
+  ],
 ])('it refuses %s', (_label, buildDeployment, failure) => {
   expect(checkDeployment(buildDeployment())).toStrictEqual({ ok: false, failure: [failure] });
 });

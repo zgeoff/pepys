@@ -20,6 +20,9 @@ export interface EntityViewDeclaration<TableName extends string = string> {
   readonly url: string | null;
   readonly actor: string | null;
   readonly updatedAt: string;
+
+  // a nullable timestamp column; a row with a time in it is left out of the view
+  readonly deletedAt?: string;
 }
 
 // The entry file is a scriptc library with the model contract: it exports a model type, a message
