@@ -108,15 +108,8 @@ async fn open_version(directory: &Path, version: &ConsumerVersion) -> Result<Ver
     let manifest = Arc::new(version.manifest.clone());
     let store = open_version_store(directory, &manifest).await?;
     let bytes = std::fs::read(directory.join(MODULE_FILE))?;
-    let found = hash_module(&bytes);
 
-    if found != version.module {
-        return Err(HostError::ModuleHash {
-            consumer: version.name.clone(),
-            listed: version.module.clone(),
-            found,
-        });
-    }
+    check_module_hash(&version.name, &version.module, &bytes)?;
 
     let module = ModuleRunner::new(&bytes, Arc::clone(&manifest))?;
     let runner = match &manifest.input {
@@ -131,6 +124,21 @@ async fn open_version(directory: &Path, version: &ConsumerVersion) -> Result<Ver
         store,
         runner,
         manifest,
+    })
+}
+
+/// Refuses module bytes whose hash is not the one the manifest lists.
+fn check_module_hash(consumer: &str, listed: &str, bytes: &[u8]) -> Result<(), HostError> {
+    let found = hash_module(bytes);
+
+    if found == listed {
+        return Ok(());
+    }
+
+    Err(HostError::ModuleHash {
+        consumer: consumer.to_owned(),
+        listed: listed.to_owned(),
+        found,
     })
 }
 
@@ -517,15 +525,8 @@ async fn up_listed(
         };
         let bytes =
             std::fs::read(config.module_path(listed)).map_err(|error| wrap(error.into()))?;
-        let found = hash_module(&bytes);
 
-        if found != listed.module {
-            return Err(wrap(HostError::ModuleHash {
-                consumer: listed.name.clone(),
-                listed: listed.module.clone(),
-                found,
-            }));
-        }
+        check_module_hash(&listed.name, &listed.module, &bytes).map_err(wrap)?;
 
         report.push_str(
             &up_version(config, log, &listed.to_version(), &bytes)
@@ -1480,5 +1481,40 @@ mod tests {
             result,
             Err(HostError::Up { source, .. }) if matches!(*source, HostError::BadManifest { .. })
         ));
+    }
+
+    #[test]
+    fn it_refuses_module_bytes_only_when_their_hash_is_not_the_listed_one() {
+        let listed = hash_module(b"(module)");
+        let cases: [(&str, &[u8]); 2] = [
+            ("the listed bytes", b"(module)"),
+            ("other bytes", b"(module $other)"),
+        ];
+
+        let checked: Vec<(&str, Result<(), String>)> = cases
+            .into_iter()
+            .map(|(case, bytes)| {
+                (
+                    case,
+                    check_module_hash("github_pull_request", &listed, bytes)
+                        .map_err(|error| error.to_string()),
+                )
+            })
+            .collect();
+
+        assert_eq!(
+            checked,
+            vec![
+                ("the listed bytes", Ok(())),
+                (
+                    "other bytes",
+                    Err(format!(
+                        "the module file of github_pull_request has the hash {}, and the manifest \
+                         lists {listed}",
+                        hash_module(b"(module $other)")
+                    ))
+                ),
+            ]
+        );
     }
 }
