@@ -31,10 +31,10 @@ Three processes run a deployment:
 ```mermaid
 flowchart LR
   senders["senders: webhooks, fact batches, OTLP exporters"] --> ingest
-  ingest -- appends --> log[(fact log: s2-lite)]
+  ingest -- appends --> log[("fact log: s2-lite")]
   log -- reads --> host
   host -- runs --> modules["consumer modules"]
-  host -- writes --> store[(store: one file per consumer)]
+  host -- writes --> store[("store: one file per consumer")]
   store -- reads --> api["API: /rpc and /mcp"]
   api --> callers["tools and agents"]
 ```

@@ -13,7 +13,7 @@ flowchart LR
   check --> glue["glue for the package's own consumers"]
   check --> copy["copy of each consumer's src, glue written fresh"]
   copy --> scriptc["scriptc compile"]
-  scriptc --> modules["<consumer>/<hash>.wasm"]
+  scriptc --> modules["one .wasm per consumer"]
   modules --> manifest["consumers.json"]
 ```
 

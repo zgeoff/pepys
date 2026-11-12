@@ -75,7 +75,9 @@ streams, and the fact streams when it starts, and the host reads those streams.
 **CAUTION:** The API checks no token, so anyone who reaches its port reads every row. Keep the API
 port on a private network. Open to the public internet only the ingest routes that a plug-in
 declares with `reach: 'public'`. Of the plug-ins in this repo, only the GitHub plug-in has one,
-`/webhook/github`.
+`/webhook/github`. A cluster that admits its node's own addresses before any network rule lets every
+process on that node reach the private routes and the API. Each private ingest route still checks
+its secret or its sender proof, but the API checks nothing.
 
 **CAUTION:** Run one ingest process at a time. To restart ingest, stop the old process before you
 start the new one. Each ingest process remembers, in its own memory, the deliveries it stored in the

@@ -151,6 +151,16 @@ multi-thread runtime, such as `#[tokio::test(flavor = "multi_thread")]`.
 
 ## A fact-mode batch
 
+```mermaid
+flowchart LR
+  facts["one batch of one stream"] --> seen{"ID in applied_facts?"}
+  seen -- yes --> skip["skip the fact"]
+  seen -- no --> module["module, once per fact"]
+  module --> checks["checks and writes"]
+  checks --> offset["offset and change log row"]
+  skip --> offset
+```
+
 A fact-mode consumer keeps one offset per stream, and the host runs its module once per fact. In one
 batch, the host:
 

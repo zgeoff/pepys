@@ -125,7 +125,8 @@ JSON Schema of each input and output, and zod cannot write one for the output of
 
 `@pepys/api` exports a `DeploymentClient` type, built from `@orpc/contract` types. A caller outside
 the repo that builds a typed client with `@orpc/client` installs it at the version the repo pins for
-every `@orpc/*` package, so the client and the contract share one copy of the oRPC types.
+every `@orpc/*` package, so the client and the contract share one copy of the oRPC types. The pin is
+a beta of oRPC v2, because v2 is the one major version of oRPC with an MCP integration.
 
 A query handler reads through Kysely with the `@pepys/kysely-turso` dialect, and the dialect's
 driver queues every query of the call through the call's one connection. A query takes its row types
