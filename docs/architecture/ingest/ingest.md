@@ -85,9 +85,9 @@ what the log holds:
 | the log refuses an append, or an append throws     | the appends before it on that stream             | 500    | none          |
 
 503 means "send the same delivery again, unchanged". The resend fills in what the first delivery
-left out, because each [consumer](../consumers/host.md) drops a fact it already has. After a 500, a
-resend of the same bytes meets the same refusal. When one stream refuses an append and another
-stream has no acknowledgement, ingest therefore answers 500.
+left out, because the [host](../consumers/host.md#a-fact-mode-batch) skips a fact whose ID it
+already applied. After a 500, a resend of the same bytes meets the same refusal. When one stream
+refuses an append and another stream has no acknowledgement, ingest therefore answers 500.
 
 Ingest queues the appends on each stream, so the appends of two deliveries never mix on one stream.
 Each stream has its own queue, and the streams never wait for each other. A delivery that gets 503
