@@ -9,7 +9,6 @@ const payloadSchema = z.looseObject({
   workflow_run: z.looseObject({ id: z.number().int() }),
 });
 
-// Stored with no consumer.
 export const workflowRunFamily = defineFactFamily({
   stream: 'facts.github.workflow_run',
   api: 'github/2022-11-28',

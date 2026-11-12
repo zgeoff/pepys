@@ -29,7 +29,6 @@ const payloadSchema = z.looseObject({
   issue: z.looseObject({ id: z.number().int() }),
 });
 
-// Stored with no consumer.
 export const issueFamily = defineFactFamily({
   stream: 'facts.github.issue',
   api: 'github/2022-11-28',

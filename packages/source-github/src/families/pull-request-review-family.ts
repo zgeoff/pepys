@@ -9,7 +9,6 @@ const payloadSchema = z.looseObject({
   review: z.looseObject({ id: z.number().int() }),
 });
 
-// Stored with no consumer.
 export const pullRequestReviewFamily = defineFactFamily({
   stream: 'facts.github.pull_request_review',
   api: 'github/2022-11-28',
