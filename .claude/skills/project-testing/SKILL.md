@@ -27,20 +27,17 @@ metadata:
   these tests either: s2-lite takes longer to start from a fresh image than the `slow-timeout` of
   the default profile in [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test
   timeout allow.
-- Put the adapter tests of `@pepys/ingest` in
+- Put the e2e tests of the `@pepys/ingest` adapters in
   [`packages/ingest/e2e/`](../../../packages/ingest/e2e), with a prefix from
-  [E2e prefixes](../testing/references/system-tests.md#e2e-prefixes).
-  [Package layout](../testing/references/system-tests.md#package-layout) puts e2e tests only in a
-  package that declares a program, a command that `programs` in
-  [`rig.config.ts`](../../../rig.config.ts) names. Ingest declares none. Its adapters are the code
-  under test, so their tests stay beside it. The e2e deployment's tests go in
-  [`packages/cli/e2e/`](../../../packages/cli/e2e), as Package layout says: the CLI declares the
-  `pepys` program, whose `pepys start` runs the deployment.
+  [E2e prefixes](../testing/references/system-tests.md#e2e-prefixes). The shared
+  [Package layout](../testing/references/system-tests.md#package-layout) rule allows an `e2e/`
+  folder only in a package listed under `programs` in [`rig.config.ts`](../../../rig.config.ts).
+  Only `@pepys/cli` is listed there. Keep the adapter tests in the ingest package, which holds the
+  adapters.
 - Start a process or seed data in [`start-stack.ts`](../../../packages/cli/e2e/start-stack.ts) when
-  more than one test in `e2e/` needs it, in place of the `start` and `stop` modules of the
-  `@zgeoff/rig` test runner in
+  more than one e2e test needs it. Don't write the `start` and `stop` modules of
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
-  `bun run test:e2e` runs both `e2e/` folders with plain `bun test` and loads `start-stack.ts`
+  `bun run test:e2e` runs both `e2e/` folders with plain `bun test`, and loads `start-stack.ts`
   first.
 - Leave `lanes` empty in `rig.config.ts`, in place of the `e2e` entry that Files and shared hosts
   puts there, and keep the `pepys` program entry. pepys runs the e2e tests with `bun run test:e2e`.

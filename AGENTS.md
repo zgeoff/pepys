@@ -121,19 +121,25 @@ docs/
   writes `build/consumers/consumers.json`. It writes the same for the e2e deployment,
   `packages/cli/e2e/fixtures/e2e-deployment.ts`, under `build/e2e-consumers/`. It needs zig 0.16.0
   and wasm-tools 1.262.0, the version CI pins, at `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
+- `pepys start <deployment-file>`, a command of the CLI in `@pepys/cli`, runs a whole deployment.
+  Ingest and the API run inside the `pepys start` process. The host binary, at `PEPYS_HOST_BIN`,
+  runs as a child process with `run --up`. Set the variables that each part reads when it runs
+  alone: the host's are in the `target/debug/pepys` bullet, and the API's are in the `serve-api.ts`
+  bullet. On SIGINT or SIGTERM, or when one part ends, `pepys start` stops the other parts. It exits
+  0 after a signal when every part stopped cleanly, and 1 otherwise.
 - `bun run test:e2e` runs the e2e tests of `packages/cli/e2e/` and `packages/ingest/e2e/` against
-  Garage and s2-lite in Docker. Before the tests, its preload file,
-  [`start-stack.ts`](packages/cli/e2e/start-stack.ts), appends the ledger records to s2-lite and
-  starts the e2e deployment with `pepys start`. The tests send facts in through ingest and read the
-  rows through the API. Before you run the lane, start Docker, set `PEPYS_ZIG_BIN` and
-  `PEPYS_WASM_TOOLS_BIN`, and run `bun run test:e2e:prepare`, which builds the host at
-  `target/debug/pepys` and the consumers. The `e2e` job in `pr.yml` runs the lane on every pull
-  request.
-- `pepys start <deployment-file>`, a command of the CLI, runs a whole deployment. Ingest and the API
-  run inside the `pepys start` process, and the host runs as a child process with `run --up`, from
-  the binary at `PEPYS_HOST_BIN`. Each part reads the same variables as when it runs alone. On
-  SIGINT or SIGTERM, or when one part ends, `pepys start` stops the other parts. It exits 0 after a
-  signal when every part stopped cleanly, and 1 otherwise.
+  Garage and s2-lite in Docker. Its preload file,
+  [`start-stack.ts`](packages/cli/e2e/start-stack.ts), seeds s2-lite and starts the e2e deployment
+  with `pepys start` before the tests. The tests send facts in through ingest and read the rows
+  through the API. To run the lane:
+  1. Start Docker.
+  2. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`.
+  3. Run `bun run test:e2e:prepare`. It builds the host binary at `target/debug/pepys` and the
+     consumers.
+  4. Run `bun run test:e2e`.
+
+  The `e2e` job in `pr.yml` runs the lane on every pull request.
+
 - The host, `target/debug/pepys`, runs `up [<consumer>]`, `run [--up]` and `preview <consumer>` from
   the `consumers.json` at `PEPYS_CONSUMERS`, such as `build/consumers/consumers.json`, with the
   store at `PEPYS_STORE_DIR` and the S2 log at the `PEPYS_S2_` variables.
