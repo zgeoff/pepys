@@ -42,10 +42,9 @@ const stubPlugin = `import {
   defineQuery,
   defineSource,
   defineTable,
+  entityIDSchema,
   receiveFactBatch,
 } from '@pepys/kit';
-import type { EntityID } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 
 const bookFamily = defineFactFamily({
@@ -83,14 +82,14 @@ export const shelfBookConsumer = defineConsumer({
 export const shelfTitleQuery = defineQuery({
   name: 'shelf_title',
   description: 'The title of one book.',
-  input: z.object({ id: z.string() }),
+  input: z.object({ id: entityIDSchema }),
   output: z.object({ title: z.string() }),
   reads: [shelfBookConsumer],
   handler: async (call) => {
     const row = await call.db
       .selectFrom('shelf_book')
       .select('title')
-      .where('id', '=', toTagged<EntityID>(call.input.id))
+      .where('id', '=', call.input.id)
       .executeTakeFirstOrThrow();
 
     return { title: row.title };

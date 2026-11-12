@@ -4,7 +4,7 @@ import type { OutsideProjectInput } from './build-outside-project.ts';
 // `pepys build` writes the boundary file this entry imports before it compiles the entry, so the
 // entry type-checks only after a build.
 const shelfBookEntry = `import { initShelfBookModel, parseShelfBookFact, updateShelfBookModel } from '../generated/shelf-book-boundary.ts';
-import type { EntityID, ShelfBookMessage, ShelfBookModel, ShelfBookOperation } from '../generated/shelf-book-boundary.ts';
+import type { ShelfBookMessage, ShelfBookModel, ShelfBookOperation } from '../generated/shelf-book-boundary.ts';
 
 export type { ShelfBookMessage, ShelfBookModel } from '../generated/shelf-book-boundary.ts';
 
@@ -23,15 +23,11 @@ export function applyFact(factJSON: string): string {
 function mapFact(factJSON: string): ShelfBookOperation[] {
   const fact = parseShelfBookFact(factJSON);
 
-  if (fact === undefined || !isEntityID(fact.entity)) {
+  if (fact === undefined) {
     return [];
   }
 
   return [{ upsert: { shelf_book: { id: fact.entity, title: fact.payload.title } } }];
-}
-
-function isEntityID(text: string): text is EntityID {
-  return text.length > 0;
 }
 `;
 
