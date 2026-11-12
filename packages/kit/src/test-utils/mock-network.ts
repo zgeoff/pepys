@@ -1,7 +1,6 @@
 import { FetchInterceptor } from '@mswjs/interceptors/fetch/web';
 import { HttpNetworkFrame, InterceptorSource, defineNetwork } from 'msw/experimental';
 import invariant from 'tiny-invariant';
-import { githubAPIHandlers } from './github-api-handlers.ts';
 
 const loopbackHosts = new Set(['127.0.0.1', '[::1]', 'localhost']);
 
@@ -12,10 +11,11 @@ const fetchInterceptor: unknown = new FetchInterceptor();
 
 invariant(isSourceInterceptor(fetchInterceptor), 'the fetch interceptor applies and disposes');
 
-// The one mock network of a test process.
+// The one mock network of a test process. The test preload gives it the default handlers of each
+// remote API, through `resetHandlers`.
 export const mockNetwork = defineNetwork({
   sources: [new InterceptorSource({ interceptors: [fetchInterceptor] })],
-  handlers: [...githubAPIHandlers],
+  handlers: [],
   context: { quiet: true },
 
   // The ingest, API and stack tests call servers they start on ephemeral loopback ports, so a

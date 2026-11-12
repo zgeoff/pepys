@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@msw/data": "catalog:",
-    "@mswjs/interceptors": "catalog:",
     "@orpc/client": "catalog:",
     "@pepys/testing": "workspace:*",
     "msw": "catalog:",

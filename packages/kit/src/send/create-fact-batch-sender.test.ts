@@ -3,10 +3,10 @@ import { createHmac } from 'node:crypto';
 import { HttpResponse, http } from 'msw';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
-import { mockNetwork } from '../../../../scripts/test-preload/mock-network.ts';
 import { defineFactFamily } from '../sources/define-fact-family.ts';
 import { defineSource } from '../sources/define-source.ts';
 import { receiveFactBatch } from '../sources/receive-fact-batch.ts';
+import { mockNetwork } from '../test-utils/mock-network.ts';
 import { createFactBatchSender } from './create-fact-batch-sender.ts';
 
 function setupTest() {

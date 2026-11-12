@@ -3,6 +3,7 @@ import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
+import { mockNetwork } from '@pepys/kit/test-utils/mock-network';
 import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
 import { HttpResponse, http } from 'msw';
@@ -15,7 +16,6 @@ import {
   githubReleases,
   githubRepositories,
 } from '../../test-utils/github-api-handlers.ts';
-import { mockNetwork } from '../../test-utils/mock-network.ts';
 import { toAppliedFact } from '../../test-utils/to-applied-fact.ts';
 
 async function setupTest() {

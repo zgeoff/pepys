@@ -1,13 +1,15 @@
 import { afterAll, afterEach, beforeAll } from 'bun:test';
-import { resetGithubAPI } from './github-api-handlers.ts';
-import { mockNetwork } from './mock-network.ts';
+import { mockNetwork } from '@pepys/kit/test-utils/mock-network';
+import { githubAPIHandlers, resetGithubAPI } from './github-api-handlers.ts';
 
+// `resetHandlers` with handlers makes them the ones each later reset keeps.
 beforeAll(() => {
+  mockNetwork.resetHandlers(...githubAPIHandlers);
   mockNetwork.enable();
 });
 
 afterEach(() => {
-  mockNetwork.resetHandlers();
+  mockNetwork.resetHandlers(...githubAPIHandlers);
 
   resetGithubAPI();
 });

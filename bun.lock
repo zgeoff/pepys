@@ -159,6 +159,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@mswjs/interceptors": "catalog:",
         "@octokit/webhooks": "catalog:",
         "msw": "catalog:",
         "tiny-invariant": "catalog:",
@@ -197,7 +198,6 @@
       },
       "devDependencies": {
         "@msw/data": "catalog:",
-        "@mswjs/interceptors": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/testing": "workspace:*",
         "msw": "catalog:",
