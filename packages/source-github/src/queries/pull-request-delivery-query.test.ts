@@ -1,5 +1,7 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
 import { githubDeployConsumer } from '../github-deploy-consumer.ts';
 import { githubPlugin } from '../github-plugin.ts';
 import { githubPullRequestConsumer } from '../github-pull-request-consumer.ts';
@@ -42,7 +44,7 @@ test.each([
     environment: 'production',
     target: undefined,
     deploy: {
-      id: 'github:deploy:2:production:tag:d1:api',
+      id: toTagged<EntityID>('github:deploy:2:production:tag:d1:api'),
       at: '2026-10-01T12:35:00.000Z',
       signal: 'tag',
     },
@@ -52,7 +54,7 @@ test.each([
     environment: 'production',
     target: 'api',
     deploy: {
-      id: 'github:deploy:2:production:tag:d1:api',
+      id: toTagged<EntityID>('github:deploy:2:production:tag:d1:api'),
       at: '2026-10-01T12:35:00.000Z',
       signal: 'tag',
     },
@@ -68,7 +70,7 @@ test.each([
     environment: 'staging',
     target: undefined,
     deploy: {
-      id: 'github:deploy:2:staging:deployment_status:d1',
+      id: toTagged<EntityID>('github:deploy:2:staging:deployment_status:d1'),
       at: '2026-10-01T12:50:00Z',
       signal: 'deployment_status',
     },
@@ -86,9 +88,13 @@ test.each([
 
   expect(result).toStrictEqual([
     {
-      pullRequest: 'github:pull_request:10',
+      pullRequest: toTagged<EntityID>('github:pull_request:10'),
       mergedAt: '2026-10-01T10:00:00Z',
-      release: { id: 'github:release:2', tag: 'v1.2.0', at: '2026-10-01T11:05:00Z' },
+      release: {
+        id: toTagged<EntityID>('github:release:2'),
+        tag: 'v1.2.0',
+        at: '2026-10-01T11:05:00Z',
+      },
       deploy: row.deploy,
     },
   ]);
@@ -105,7 +111,32 @@ test('it gives an open pull request no release and no deploy, and leaves out an 
   });
 
   expect(result).toStrictEqual([
-    { pullRequest: 'github:pull_request:11', mergedAt: null, release: null, deploy: null },
+    {
+      pullRequest: toTagged<EntityID>('github:pull_request:11'),
+      mergedAt: null,
+      release: null,
+      deploy: null,
+    },
+  ]);
+});
+
+test('it leaves out text that is no entity ID and answers for the rest', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writeDeliveryRows(buildDeliveryRows());
+
+  const result = await ctx.query({
+    pullRequests: ['pull-11', 'github:pull_request:11'],
+    environment: 'production',
+  });
+
+  expect(result).toStrictEqual([
+    {
+      pullRequest: toTagged<EntityID>('github:pull_request:11'),
+      mergedAt: null,
+      release: null,
+      deploy: null,
+    },
   ]);
 });
 
@@ -163,9 +194,13 @@ test('it falls back to the merge time and the release creation time when no push
 
   expect(result).toStrictEqual([
     {
-      pullRequest: 'github:pull_request:30',
+      pullRequest: toTagged<EntityID>('github:pull_request:30'),
       mergedAt: '2026-10-01T10:00:00Z',
-      release: { id: 'github:release:31', tag: 'v1.0.0', at: '2026-10-01T10:35:00Z' },
+      release: {
+        id: toTagged<EntityID>('github:release:31'),
+        tag: 'v1.0.0',
+        at: '2026-10-01T10:35:00Z',
+      },
       deploy: null,
     },
   ]);

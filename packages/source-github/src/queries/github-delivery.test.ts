@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { definePlugin, defineQuery } from '@pepys/kit';
+import { definePlugin, defineQuery, entityIDSchema } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import { z } from 'zod';
 import { githubDeployConsumer } from '../github-deploy-consumer.ts';
@@ -14,7 +14,7 @@ async function setupTest() {
   const shippedQuery = defineQuery({
     name: 'slipway_shipped',
     description: 'The delivery of one pull request to production.',
-    input: z.object({ pullRequest: z.string() }),
+    input: z.object({ pullRequest: entityIDSchema }),
     output: z.array(z.unknown()),
     reads: githubDelivery.consumers,
     handler: async (call) => {

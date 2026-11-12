@@ -1,4 +1,4 @@
-import { defineQuery } from '@pepys/kit';
+import { defineQuery, entityIDSchema, isEntityID } from '@pepys/kit';
 import { z } from 'zod';
 import { deploySignals } from '../utils/deploy-signals.ts';
 import { githubDeliveryConsumers } from './github-delivery-consumers.ts';
@@ -9,12 +9,12 @@ import {
 
 const pullRequestsSchema = z.array(z.string()).max(200);
 const nameSchema = z.string().min(1);
-const releaseSchema = z.object({ id: z.string(), tag: z.string(), at: z.string() });
+const releaseSchema = z.object({ id: entityIDSchema, tag: z.string(), at: z.string() });
 const signalSchema = z.enum(deploySignals);
-const deploySchema = z.object({ id: z.string(), at: z.string(), signal: signalSchema });
+const deploySchema = z.object({ id: entityIDSchema, at: z.string(), signal: signalSchema });
 
 const deliverySchema = z.object({
-  pullRequest: z.string(),
+  pullRequest: entityIDSchema,
   mergedAt: z.string().nullable(),
   release: releaseSchema.nullable(),
   deploy: deploySchema.nullable(),
@@ -32,7 +32,8 @@ export const pullRequestDeliveryQuery = defineQuery({
   output: z.array(deliverySchema),
   reads: githubDeliveryConsumers,
   handler: async (call) => {
-    const [first, ...rest] = call.input.pullRequests;
+    // text that is no entity ID names no stored pull request, so it has no row either way
+    const [first, ...rest] = call.input.pullRequests.filter((id) => isEntityID(id));
 
     if (first === undefined) {
       return [];

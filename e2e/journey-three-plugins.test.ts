@@ -144,7 +144,12 @@ test("it serves the GitHub plug-in's delivery query for the stored pull request"
   });
 
   expect(answer).toStrictEqual([
-    { pullRequest: 'github:pull_request:1874433021', mergedAt: null, release: null, deploy: null },
+    {
+      pullRequest: toTagged<EntityID>('github:pull_request:1874433021'),
+      mergedAt: null,
+      release: null,
+      deploy: null,
+    },
   ]);
 });
 

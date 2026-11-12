@@ -1,7 +1,7 @@
 import { oc } from '@orpc/contract';
 import type { InferContractRouterInputs, InferContractRouterOutputs } from '@orpc/contract';
 import { openapi } from '@orpc/openapi';
-import { isEntityID } from '@pepys/kit';
+import { entityIDSchema } from '@pepys/kit';
 import { z } from 'zod';
 
 // No schema here has a transform: the MCP input and output schemas are the JSON Schema of these
@@ -13,9 +13,6 @@ export const neighbourhoodCaps = {
   // link rows read per hop; fixed, not an input
   linkReadLimit: 1000,
 } as const;
-
-// A refine keeps the JSON Schema a plain string, and its type guard brands the parsed value.
-const entityIDSchema = z.string().refine(isEntityID, 'expected an entity ID');
 
 const entitySummarySchema = z.object({
   id: entityIDSchema.describe('The entity ID, as <source>:<kind>:<id>.'),

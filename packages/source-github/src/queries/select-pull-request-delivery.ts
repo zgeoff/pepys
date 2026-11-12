@@ -1,3 +1,5 @@
+import { entityIDSchema } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
 import { sql } from 'kysely';
 import type { RawBuilder } from 'kysely';
 import { z } from 'zod';
@@ -6,7 +8,7 @@ import type { DeploySignal } from '../utils/deploy-signals.ts';
 
 interface DeliveryOptions {
   // at least one
-  pullRequests: readonly [string, ...string[]];
+  pullRequests: readonly [EntityID, ...EntityID[]];
   environment: string;
 
   // Absent: a deploy of any target, and of none, counts. Given: only a deploy of that target.
@@ -115,22 +117,22 @@ function selectFirstDeployID(options: DeliveryOptions): RawBuilder<unknown> {
 }
 
 export interface PullRequestDelivery {
-  pullRequest: string;
+  pullRequest: EntityID;
   mergedAt: string | null;
-  release: { id: string; tag: string; at: string } | null;
-  deploy: { id: string; at: string; signal: DeploySignal } | null;
+  release: { id: EntityID; tag: string; at: string } | null;
+  deploy: { id: EntityID; at: string; signal: DeploySignal } | null;
 }
 
 const textSchema = z.string().nullable();
 
 // One row per pull request, as the statement selects it.
 const deliveryRowSchema = z.object({
-  pullRequest: z.string(),
+  pullRequest: entityIDSchema,
   mergedAt: textSchema,
-  releaseID: textSchema,
+  releaseID: entityIDSchema.nullable(),
   releaseTag: textSchema,
   releaseAt: textSchema,
-  deployID: textSchema,
+  deployID: entityIDSchema.nullable(),
   deployAt: textSchema,
   deploySignal: z.enum(deploySignals).nullable(),
 });

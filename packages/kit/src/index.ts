@@ -16,6 +16,7 @@ export { defineSource } from './sources/define-source.ts';
 export { defineTable } from './tables/define-table.ts';
 export { findLinkProblem } from './links/find-link-problem.ts';
 export { isDeliveryAuthentic } from './delivery-checks/is-delivery-authentic.ts';
+export { entityIDSchema } from './entity-ids/entity-id-schema.ts';
 export { isEntityID } from './entity-ids/is-entity-id.ts';
 export type { EntityIDFailure } from './entity-ids/entity-id-failure.ts';
 export type { EntityIDParts } from './entity-ids/entity-id-parts.ts';

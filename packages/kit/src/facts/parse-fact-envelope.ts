@@ -1,7 +1,7 @@
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
-import { parseEntityID } from '../entity-ids/parse-entity-id.ts';
-import type { EntityID, FactID } from '../ids/types.ts';
+import { entityIDSchema } from '../entity-ids/entity-id-schema.ts';
+import type { FactID } from '../ids/types.ts';
 import type { FactEnvelope, Result } from '../types.ts';
 
 const factIDPattern = new RegExp(
@@ -15,11 +15,6 @@ const factIDSchema = z
   .string()
   .regex(factIDPattern, 'not a fact ID')
   .transform((text) => toTagged<FactID>(text));
-
-const entityIDSchema = z
-  .string()
-  .refine((text) => parseEntityID(text).ok, 'not an entity ID')
-  .transform((text) => toTagged<EntityID>(text));
 
 const factEnvelopeSchema = z.strictObject({
   id: factIDSchema,
