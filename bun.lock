@@ -53,7 +53,7 @@
     },
     "packages/api": {
       "name": "@pepys/api",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@better-auth/mcp": "catalog:",
         "@better-auth/oauth-provider": "catalog:",
@@ -90,7 +90,7 @@
     },
     "packages/cli": {
       "name": "@pepys/cli",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
         "pepys": "./src/bin.ts",
       },
@@ -109,7 +109,7 @@
     },
     "packages/contract": {
       "name": "@pepys/contract",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@orpc/contract": "catalog:",
         "@orpc/openapi": "catalog:",
@@ -136,7 +136,7 @@
     },
     "packages/ingest": {
       "name": "@pepys/ingest",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@impz/client": "catalog:",
         "@pepys/kit": "workspace:*",
@@ -152,7 +152,7 @@
     },
     "packages/kit": {
       "name": "@pepys/kit",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@zgeoff/std": "catalog:",
         "kysely": "catalog:",
@@ -167,7 +167,7 @@
     },
     "packages/kysely-turso": {
       "name": "@pepys/kysely-turso",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@tursodatabase/database": "catalog:",
         "kysely": "catalog:",
@@ -176,7 +176,7 @@
     },
     "packages/schema": {
       "name": "@pepys/schema",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
@@ -186,7 +186,7 @@
     },
     "packages/source-github": {
       "name": "@pepys/source-github",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@pepys/api": "workspace:*",
         "@pepys/ingest": "workspace:*",
@@ -205,7 +205,7 @@
     },
     "packages/source-telemetry": {
       "name": "@pepys/source-telemetry",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
@@ -220,7 +220,7 @@
     },
     "packages/testing": {
       "name": "@pepys/testing",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@pepys/ingest": "workspace:*",
         "@pepys/kit": "workspace:*",
