@@ -581,11 +581,19 @@ async fn up_version(
     std::fs::create_dir_all(&consumer_dir)?;
 
     // The host trusts the version as a name, so it refuses two manifests under one.
-    if has_version_file(&directory) && read_version(&directory)? != *version {
-        return Err(HostError::VersionClash {
-            consumer: consumer.to_owned(),
-            version: name.to_owned(),
-        });
+    if has_version_file(&directory) {
+        match read_version(&directory) {
+            Ok(found) if found != *version => {
+                return Err(HostError::VersionClash {
+                    consumer: consumer.to_owned(),
+                    version: name.to_owned(),
+                });
+            }
+            Ok(_) => {}
+            // An unfinished build starts again below, whatever its version file holds.
+            Err(_) if is_unfinished(config.host_state().await?.state(consumer, name).await?) => {}
+            Err(error) => return Err(error),
+        }
     }
 
     check_table_owners(config, version)?;
@@ -647,6 +655,15 @@ async fn up_version(
     repoint_current(&consumer_dir, name)?;
 
     Ok(format!("{consumer} {name}: swapped\n"))
+}
+
+/// Whether a version in `state` is a build that never finished, which `up` builds again from the
+/// first record.
+fn is_unfinished(state: Option<VersionState>) -> bool {
+    matches!(
+        state,
+        None | Some(VersionState::Building | VersionState::Previewed)
+    )
 }
 
 fn no_swap_report(consumer: &str, version: &str) -> String {
@@ -1334,5 +1351,74 @@ mod tests {
 
         assert_eq!(recorded, None);
         assert!(std::fs::read_link(directory.path().join(CURRENT_LINK)).is_err());
+    }
+
+    #[tokio::test]
+    async fn it_builds_again_an_unfinished_version_whose_version_file_a_crash_cut_short() {
+        let ctx = setup_test();
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+        let file = write_build(&ctx.config, &[(listed.clone(), bytes)]);
+        let directory = ctx.config.consumer_dir(&listed.name).join(&listed.version);
+
+        ctx.config
+            .host_state()
+            .await
+            .expect("a host state")
+            .register(&listed.name, &listed.version)
+            .await
+            .expect("a building version");
+        std::fs::create_dir_all(&directory).expect("a version folder");
+        std::fs::write(directory.join("version.json"), "{\"name\":").expect("a cut short file");
+
+        let report = up_listed(&ctx.config, &MemoryLog::seeded(STREAM, &["a"]), &file, None)
+            .await
+            .expect("an up");
+
+        assert_eq!(
+            report,
+            format!("github_pull_request {}: swapped\n", version_hash('a'))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_stops_up_of_a_previous_version_whose_version_file_is_unreadable() {
+        let ctx = setup_test();
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (first, first_bytes) = build_listed(&version_hash('a'), "[]");
+        let (second, second_bytes) = build_listed(&version_hash('b'), "[ ]");
+        let first_file = write_build(&ctx.config, &[(first.clone(), first_bytes.clone())]);
+
+        up_listed(&ctx.config, &log, &first_file, None)
+            .await
+            .expect("the first up");
+        up_listed(
+            &ctx.config,
+            &log,
+            &write_build(&ctx.config, &[(second, second_bytes)]),
+            None,
+        )
+        .await
+        .expect("the second up");
+        std::fs::write(
+            ctx.config
+                .consumer_dir(&first.name)
+                .join(&first.version)
+                .join("version.json"),
+            "{\"name\":",
+        )
+        .expect("a cut short file");
+
+        let result = up_listed(
+            &ctx.config,
+            &log,
+            &write_build(&ctx.config, &[(first, first_bytes)]),
+            None,
+        )
+        .await;
+
+        assert!(matches!(
+            result,
+            Err(HostError::Up { source, .. }) if matches!(*source, HostError::BadManifest { .. })
+        ));
     }
 }
