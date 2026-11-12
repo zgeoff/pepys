@@ -77,8 +77,8 @@ parts:
 - Ingest's clock never sets a fact's time.
 - The key in the ID is the first of these that the record holds:
   1. the event's own key, where the product defines one: the `request_id` of a Claude Code request,
-     error or refusal, the `tool_use_id` of a Claude Code tool result, and the `turn.id` of a Codex
-     turn cost;
+     error or refusal, `t-<session.id>:<tool_use_id>` for a Claude Code tool result, and the
+     `turn.id` of a Codex turn cost;
   2. for Claude Code, `s-<session.id>:<event.sequence>`, for a listed or an unlisted event;
   3. `h-` and a SHA-256 of the product's own session ID, the event name, the record's time, its body
      and its sorted attributes.

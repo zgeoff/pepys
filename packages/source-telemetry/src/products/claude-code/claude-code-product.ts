@@ -20,7 +20,7 @@ export const claudeCodeProduct = defineTelemetryProduct({
     api_refusal: { key: (record) => findAttributeText(record, 'request_id') },
     user_prompt: {},
     assistant_response: {},
-    tool_result: { key: (record) => findAttributeText(record, 'tool_use_id') },
+    tool_result: { key: findToolResultKey },
     tool_decision: {},
   },
 });
@@ -45,4 +45,13 @@ function findClaudeCodeEvent(record: LogRecord): string | undefined {
 
 function findRequestKey(record: LogRecord): string | undefined {
   return findAttributeText(record, 'request_id') ?? findAttributeText(record, 'client_request_id');
+}
+
+// The session and the tool use ID, such as `t-c-1:toolu_04`, so a tool use ID that two sessions
+// share still gives two facts; the `t-` keeps the key apart from a sequence key or a hash key.
+function findToolResultKey(record: LogRecord): string | undefined {
+  const session = findAttributeText(record, 'session.id');
+  const toolUseID = findAttributeText(record, 'tool_use_id');
+
+  return session === undefined || toolUseID === undefined ? undefined : `t-${session}:${toolUseID}`;
 }

@@ -98,14 +98,14 @@ test('it stores an event the product does not list as unlisted, keyed by a hash'
 
 test.each([
   {
-    row: 'a tool result, by its tool use ID',
+    row: 'a tool result, by its session and tool use ID',
     record: {
       'event.name': 'claude_code.tool_result',
       'event.sequence': 12,
       tool_use_id: 'toolu_04',
       tool_name: 'Bash',
     },
-    fact: ['telemetry.claude_code.tool_result', 'claude_code.tool_result:toolu_04'],
+    fact: ['telemetry.claude_code.tool_result', 'claude_code.tool_result:t-c-1:toolu_04'],
   },
   {
     row: 'a user prompt, by its session and sequence',
@@ -136,6 +136,30 @@ test.each([
 
   expect(ctx.read(body).facts.map((fact) => [fact.type, fact.event])).toStrictEqual([
     [...row.fact],
+  ]);
+});
+
+test('it keeps two tool results apart when two sessions share a tool use ID', () => {
+  const ctx = setupTest();
+
+  const body = buildLogsExport('claude_code', {}, [
+    {
+      'event.name': 'claude_code.tool_result',
+      'session.id': 'c-1',
+      'event.timestamp': '2026-11-11T02:20:00Z',
+      tool_use_id: 'toolu_07',
+    },
+    {
+      'event.name': 'claude_code.tool_result',
+      'session.id': 'c-2',
+      'event.timestamp': '2026-11-11T02:20:00Z',
+      tool_use_id: 'toolu_07',
+    },
+  ]);
+
+  expect(ctx.read(body).facts.map((fact) => fact.event)).toStrictEqual([
+    'claude_code.tool_result:t-c-1:toolu_07',
+    'claude_code.tool_result:t-c-2:toolu_07',
   ]);
 });
 
