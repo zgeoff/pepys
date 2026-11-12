@@ -443,6 +443,62 @@ test('it upserts one bump row per release URL in the body of a bot pull request'
   ]);
 });
 
+test.each([
+  { urlTag: 'kit/v1.2.0', tag: 'kit/v1.2.0' },
+  { urlTag: '@acme/kit@1.2.0', tag: '@acme/kit@1.2.0' },
+  { urlTag: '%40acme%2Fkit%401.2.0', tag: '@acme/kit@1.2.0' },
+])('it upserts a bump row for the release tag $urlTag', (row) => {
+  setupTest();
+
+  const pullRequest = {
+    id: 90,
+    number: 16,
+    title: 'Bump the kit',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/16',
+    user: { id: 9001, type: 'Bot' },
+    base: { repo: { id: 902 } },
+    body: `- [Release notes](https://github.com/acme/kit/releases/tag/${row.urlTag})`,
+    created_at: '2026-10-02T09:00:00Z',
+    updated_at: '2026-10-02T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:90',
+          number: 16,
+          repository_id: 'github:repo:902',
+          title: 'Bump the kit',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: 'github:user:9001',
+          url: 'https://github.example/acme/harbour/pull/16',
+          merge_commit_sha: null,
+          created_at: '2026-10-02T09:00:00Z',
+          updated_at: '2026-10-02T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_release_bump: {
+          pull_request_id: 'github:pull_request:90',
+          release_repository: 'acme/kit',
+          release_tag: row.tag,
+        },
+      },
+    },
+  ]);
+});
+
 test('it writes no bump row for a release URL in the body of a person', () => {
   setupTest();
 
@@ -466,6 +522,35 @@ test('it writes no bump row for a release URL in the body of a person', () => {
     { upsert: { github_pull_request: expect.objectContaining({ id: 'github:pull_request:89' }) } },
   ]);
 });
+
+test.each([{ urlTag: 'v1.2.0/' }, { urlTag: 'kit//v1.2.0' }])(
+  'it writes no bump row for the release tag $urlTag, which has an empty part',
+  (row) => {
+    setupTest();
+
+    const pullRequest = {
+      id: 91,
+      number: 17,
+      title: 'Bump the kit',
+      state: 'open',
+      html_url: 'https://github.example/acme/harbour/pull/17',
+      user: { id: 9001, type: 'Bot' },
+      base: { repo: { id: 902 } },
+      body: `- [Release notes](https://github.com/acme/kit/releases/tag/${row.urlTag})`,
+      created_at: '2026-10-02T09:00:00Z',
+      updated_at: '2026-10-02T09:00:00Z',
+    };
+
+    const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+    const operations: unknown = JSON.parse(applyFact(factJSON));
+
+    expect(operations).toStrictEqual([
+      {
+        upsert: { github_pull_request: expect.objectContaining({ id: 'github:pull_request:91' }) },
+      },
+    ]);
+  },
+);
 
 test('it replaces the bump rows of the stored body with those of a newer body', () => {
   const ctx = setupTest();

@@ -8,10 +8,10 @@
         "consumers": [
           {
             "name": "github_pull_request",
-            "module": "6898a97f1d34f1bb912cf8d137376c27b5548565af9f60e338c7cdfcfad3c3cc",
-            "path": "github_pull_request/6898a97f1d34f1bb912cf8d137376c27b5548565af9f60e338c7cdfcfad3c3cc.wasm",
+            "module": "330385617c1a46dd150a69617b58eb379a7c15df3df60ce01e9f4821252d5e09",
+            "path": "github_pull_request/330385617c1a46dd150a69617b58eb379a7c15df3df60ce01e9f4821252d5e09.wasm",
             "pins": {},
-            "version": "b533bfb21df70fa506382ebda24a2860cb32ca5df57c1327a5b942ef0fcfae4e",
+            "version": "9c79e4e38e5a9c3b376533f9cae6608c3fb991e939d02aaa81fcc4049993a84d",
             "manifest": {
               "name": "github_pull_request",
               "input": {

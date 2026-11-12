@@ -104,7 +104,8 @@ function collectReleaseBumps(
   return bumps;
 }
 
-// `<owner>/<name>/releases/tag/<tag>`, up to the first character that ends a URL in text.
+// `<owner>/<name>/releases/tag/<tag>`, up to the first character that ends a URL in text. GitHub
+// serves a tag that holds `/` both escaped and unescaped, so the tag is the rest of the path.
 function parseReleaseURLPath(text: string): { repository: string; tag: string } | undefined {
   let end = text.length;
 
@@ -117,17 +118,19 @@ function parseReleaseURLPath(text: string): { repository: string; tag: string } 
   }
 
   const parts = text.slice(0, end).split('/');
-  const [owner, name, releases, tagWord, tag] = parts;
+  const [owner, name, releases, tagWord] = parts;
+  const tagParts = parts.slice(4);
+  const tag = tagParts.join('/');
 
-  if (parts.length !== 5 || releases !== 'releases' || tagWord !== 'tag') {
+  if (parts.length < 5 || releases !== 'releases' || tagWord !== 'tag') {
     return undefined;
   }
 
-  if (owner === undefined || name === undefined || tag === undefined) {
+  if (owner === undefined || name === undefined) {
     return undefined;
   }
 
-  if (owner === '' || name === '' || tag === '') {
+  if (owner === '' || name === '' || tagParts.includes('')) {
     return undefined;
   }
 
