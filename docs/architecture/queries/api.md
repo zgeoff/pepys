@@ -1,15 +1,20 @@
 # The API
 
-The API is how tools and agents read pepys. It is one Bun process that serves every query of a
-deployment as a typed oRPC route under `/rpc` and as an MCP tool at `/mcp`, from one router, so one
-declaration gives a route, a tool and a test. Each call attaches, read-only, the current file of
-each consumer it reads, and runs its handler in one transaction that always rolls back. The API
-never writes the store and checks no token: its listen address and the deployment's network rules
-decide who reaches it.
+A consumer is the code that a plug-in declares to turn facts into rows. The host runs each consumer
+and writes its rows to one database file per consumer version, and a `current` link in the
+consumer's folder points at the version that readers see. [The host](../consumers/host.md#versions)
+covers versions and how `up` swaps the `current` link.
 
-[Entities and links](./entities-and-links.md) covers the `entity` and `link_effective` views.
-[The host](../consumers/host.md) covers the files the API reads.
-[Decision 0010](../../decisions/0010-kysely-for-api-queries.md) and
+Tools and agents read those files through the API, one Bun process. It serves every query of a
+deployment from one router, twice: as a typed oRPC route under `/rpc`, and as an MCP tool at `/mcp`.
+A plug-in declares each query once. The API serves that one declaration as both the route and the
+tool, and a plug-in test runs the same declaration on the test store of `@pepys/testing`. The API
+only reads: each call attaches its files read-only, and rolls back the transaction its handler runs
+in. The API never checks a token, so its listen address and the deployment's network rules decide
+who reaches it.
+
+[Entities and links](./entities-and-links.md) covers entity IDs, kinds, links and the views the
+queries read. [Decision 0010](../../decisions/0010-kysely-for-api-queries.md) and
 [decision 0020](../../decisions/0020-api-stack.md) record the query builder and the server stack.
 
 ## One call
@@ -23,69 +28,113 @@ flowchart LR
   rollback --> answer
 ```
 
-A call resolves the `current` link of each consumer it names before it opens anything, and keeps the
-folders it resolved, so a swap during the call changes nothing for it, and the next call reads the
-new version. When a named consumer has no current version, the handler never runs, and the call
-fails with the list of every such consumer, which a route answers as 503. The call then opens one
-connection on an empty in-memory database and attaches each current file as `file:<path>?mode=ro`,
-because Turso attaches a bare path read-write. The handler runs inside a transaction that the call
-rolls back at its end, so a handler cannot write, and one call reads one snapshot of each file.
+Every call reads a fixed set of consumers. A plug-in query lists its consumers in its `reads`. The
+two [core queries](#the-core-queries) pick theirs from the call's input. The API keeps one
+connection per call, on Turso, the SQLite engine that the host also writes with.
 
-Turso refuses to attach a file that the host holds open with its multi-process WAL, unless the
-reading process holds a handle of its own. The API therefore keeps one read-only handle on each
-current file, and through that handle each attach sees the host's newest commit. A state machine
-tracks each handle: a swap retires the old file's handle, and the handle closes once the last call
-on that file ends. A file that fails to open fails the call with 500, and the next call tries it
-again.
+1. The call resolves the `current` link of each of its consumers before it opens a file, and keeps
+   the version folders it resolved. When `up` swaps a version during the call, the call stays on the
+   old version, and the next call reads the new one.
+2. The call opens a connection on an empty in-memory database, and attaches each file as
+   `file:<path>?mode=ro`. Turso would attach a bare path read-write, so the URI sets read-only.
+3. The handler runs in a transaction, and the call rolls the transaction back at the end, so a
+   handler cannot write. The call takes its view of each file the first time it reads that file: the
+   host's newest commit at that moment. It keeps that view until it ends.
 
-The host commits each consumer's batches in that consumer's own file. One call can therefore see one
-file's newer batch beside another file's older one, in a query that joins across two consumers.
+The host opens each file with Turso's multi-process WAL, which lets a second process read the file
+while the host writes it. Turso attaches such a file to a second process only when that process
+holds its own handle on the file. The API therefore keeps one read-only handle on each current file.
+When `up` swaps a version, the API retires the old file's handle, and closes it once the last call
+on that file ends.
+
+A call fails in these cases:
+
+- When a consumer that the call needs has no current version, the handler never runs. The API
+  answers a route call with 503 and the name of each such consumer.
+- When a file fails to open, the API answers a route call with 500, and tries the file again on the
+  next call.
+
+On `/mcp`, each of these failures comes back as a tool error.
+
+The host commits each consumer's batches in that consumer's own file, and a call takes its view of
+each file separately. A query that joins two consumers can therefore see a newer batch in one file
+beside an older batch in the other.
 
 ## The core queries
 
-**`get_entity`** reads the kind from the ID, finds the consumer and table that own the kind's entity
-view, attaches only that file, and returns the entity row, the consumer, the table and the full row.
-An ID that does not parse is a bad request. A kind that no plug-in brings, a kind with no entity
-view, and an ID with no row are each not found.
+The API serves two queries of its own, beside the plug-in queries: `get_entity` and `neighbourhood`.
+Each takes an entity ID of the form `<source>:<kind>:<id>`, as
+[Entity IDs](./entities-and-links.md#entity-ids) describes.
 
-**`neighbourhood`** walks the links around one entity, breadth first, in both directions, with one
-query per hop. It attaches every consumer that has a current version, and returns the names of the
-ones it skipped, so a consumer with no version makes the walk smaller and does not fail it. The
-walk's limits keep a hub from multiplying the rows of every hop:
+**`get_entity`** returns one entity. The deployment check lets only one consumer declare the entity
+view of a kind, so `get_entity` reads the kind from the ID and attaches that one consumer's file.
+The answer holds:
 
-- The depth is 1 by default and 3 at most.
-- The walk returns 50 entities by default and 200 at most, and reads at most 1000 link rows per hop.
-- It follows a hub link type only when the caller asks, and a named hub type is dropped when the
-  caller does not.
-- The caller can set a lowest confidence. A link that two origins hold counts once, with the higher
-  confidence.
+- the entity's row in the shared `entity` view;
+- the name of the consumer;
+- the name of the consumer's table behind the view;
+- the entity's full row in that table.
 
-A walk cut by a limit is marked as cut, and is no error. A start entity with no row still walks, and
-the answer lists the IDs it found no row for. An unknown link type is a bad request that lists the
-known types.
+`get_entity` fails in these cases:
+
+- An ID that does not parse is a bad request.
+- An ID whose kind no consumer declares an entity view for is not found.
+- An ID with no row is not found.
+- When the consumer has no current version, the call fails with 503, as [One call](#one-call)
+  describes.
+
+**`neighbourhood`** returns the entities linked to a start entity, and the links between them. It
+walks the `link_effective` view, breadth first, in both directions, with one SQL query per hop. It
+reads every consumer that has a current version, and lists the names of the consumers it skipped, so
+a consumer with no version makes the walk smaller and never fails it.
+
+The caller shapes the walk with these inputs:
+
+- `depthLimit`: 1 by default, and 3 at most.
+- `entityLimit`: 50 entities by default, the start included, and 200 at most. The walk also reads at
+  most 1000 link rows per hop.
+- `linkTypes`: the link types to follow, every declared type when it is null. An unknown type is a
+  bad request, and the API lists the known types in the error.
+- `includeHubs`: false by default. A plug-in marks each link type it declares as a hub type when the
+  type can join one entity to thousands of others. The walk follows a hub type only when
+  `includeHubs` is true, and otherwise drops it from `linkTypes` with no error.
+- `minimumConfidence`: 0 by default. Each link carries a confidence from 0 to 1, and the walk skips
+  each link below this value. When two consumers write the same link, the walk counts it once, at
+  the higher confidence.
+
+When a limit cuts the walk short, the API sets `isTruncated` in the answer and returns no error. The
+walk starts even when the start entity has no row. The answer lists in `unresolved` every ID the
+walk reached that has no row.
 
 ## The router
 
-The two core procedures and each plug-in query sit in one flat router with snake case keys, and a
-plug-in query cannot take a core name. The core contract lives in `@pepys/contract`, with each
-procedure's description, zod schemas and errors. The API builds each plug-in query's contract from
-its declaration, and refuses a query whose zod schema has a transform, because zod writes no JSON
-Schema for a transform's output, and an MCP tool needs one.
+The API serves the router on two paths:
 
-The API serves the router twice. `/rpc/*` mounts oRPC's fetch handler on an Elysia route that leaves
-the body unparsed, so oRPC reads it. `/mcp` registers every procedure as a tool with `@orpc/mcp`, on
-a stateless MCP server for each request, so no tool is registered by hand. The text an agent reads
-is the procedure's description, and a typed error reaches an agent as a tool error. Every `@orpc/*`
-package is pinned to one exact version, in the API, the contract and each client, because the API
-runs a beta of oRPC v2, the one major version with an MCP integration.
+- `/rpc/*` is oRPC's fetch handler, on an Elysia route.
+- `/mcp` holds a tool for every query, which `@orpc/mcp` registers on a new stateless MCP server for
+  each request. An agent reads each query's description as the tool's description, and gets a typed
+  error as a tool error.
 
-A query handler reads through Kysely, with the `@pepys/kysely-turso` dialect: Kysely's SQLite
-adapter, compiler and introspector, with a driver over the Turso binding that queues every query of
-a call through its one connection. A query takes its row types from its consumers' table
-declarations.
+The router is flat, and keyed by each query's snake case name, which is also its tool name.
+`@pepys/contract` holds the contract of the two core queries: each query's description, zod schemas
+and errors. The API builds the contract of each plug-in query from its declaration.
 
-## Settings
+The kit's deployment check refuses a plug-in query that takes a core query's name. At start, the API
+also refuses a query whose zod schema has a transform, and the process stops. An MCP tool needs a
+JSON Schema of each input and output, and zod cannot write one for the output of a transform.
 
-The API reads `PEPYS_STORE_DIR`, the store folder that the host writes, and listens on
-`PEPYS_API_HOST`, 127.0.0.1 by default, and `PEPYS_API_PORT`, 8081 by default. It runs the kit's
-deployment check before it listens.
+`@pepys/api` exports a `DeploymentClient` type, built from `@orpc/contract` types. A caller outside
+the repo that builds a typed client with `@orpc/client` installs it at the version the repo pins for
+every `@orpc/*` package, so the client and the contract share one copy of the oRPC types.
+
+A query handler reads through Kysely with the `@pepys/kysely-turso` dialect, and the dialect's
+driver queues every query of the call through the call's one connection. A query takes its row types
+from the table declarations of the consumers it reads.
+
+## Start-up
+
+A deployment's entry file starts the API with `serveAPI` from `@pepys/api`. Before it listens,
+`serveAPI` runs the deployment check from `@pepys/kit`, which
+[Plug-ins and the build](../consumers/plug-ins-and-build.md) covers. When the check fails, or a
+setting is missing or bad, the process logs the failure and exits 1.
+[Deploying](../../runbooks/deploying.md) gives the settings and their defaults.

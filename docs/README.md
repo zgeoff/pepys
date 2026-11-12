@@ -31,8 +31,8 @@
 
 ## Runbooks
 
-- [Deploying a deployment](./runbooks/deploying.md) — build the consumers, fetch the host, and start
-  the processes.
+- [Deploying pepys](./runbooks/deploying.md) — build the consumers, fetch the host, and start the
+  processes.
 - [Releasing](./runbooks/releasing.md) — release a version, and what to do when a run fails.
 
 ## Design

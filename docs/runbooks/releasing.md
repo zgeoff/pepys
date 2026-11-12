@@ -1,41 +1,100 @@
 # Releasing
 
-Use this runbook to release a version of pepys: every public package to npm, and the host binary to
-a GitHub release, under one version. The release workflow, `.github/workflows/release.yml`, does the
-packing, the publishing and the binary. This runbook holds the steps it leaves to a person, and what
-to do when a run of it fails.
+Use this runbook to release a version of pepys. A version is every public package on npm, plus the
+host binary on the GitHub release of the version's tag. The host is the Rust process that runs a
+deployment, as the [architecture overview](../architecture/overview.md) describes. The release
+workflow, `.github/workflows/release.yml`, packs, publishes and builds. You do the steps below, and
+you act when one of the workflow's jobs fails.
+
+In this runbook, `<version>` is the version number with no leading `v`, such as `0.4.0`.
 
 ## Release a version
 
-1. In one pull request, set the new version in the `package.json` of every public package, and write
-   `bun.lock` with the pinned Bun.
-2. After the pull request merges, push the tag `v<version>` on `main`.
+1. Open one pull request that sets `"version": "<version>"` in the `package.json` of each public
+   package. [Packages in AGENTS.md](../../AGENTS.md#packages) lists the public packages.
+2. Install the Bun version in `.bun-version`.
+3. In the same pull request, run `bun install`, and commit the `bun.lock` it writes.
+4. Merge the pull request.
+5. Tag the merge commit `v<version>`.
+6. Push the tag.
 
-   Expect: `release.yml` checks the tag against each version, packs each package once, installs the
-   tarballs outside the repo, publishes them to npm with provenance, and makes the GitHub release of
-   the tag with `pepys-host-linux-x64` and `SHA256SUMS`.
+   Expect: the `release` workflow run for the tag goes green. npm lists each public package at
+   `<version>`. The GitHub release `v<version>` holds `pepys-host-linux-x64` and `SHA256SUMS`.
 
-3. Check the release from outside the repo: run `bun run test:e2e:outside` with
-   `PEPYS_OUTSIDE_VERSION=<version>` and `PEPYS_OUTSIDE_HOST_TAG=v<version>`, and with
-   `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN` set.
+7. Make sure that Docker runs, `PEPYS_ZIG_BIN` points at zig 0.16.0, and `PEPYS_WASM_TOOLS_BIN`
+   points at wasm-tools 1.262.0.
+8. Check the release outside the repo:
 
-   Expect: the check installs the version from npm, downloads the release's binary, checks it
-   against `SHA256SUMS`, and runs a stub deployment until each consumer is current.
+   ```bash
+   PEPYS_OUTSIDE_VERSION=<version> PEPYS_OUTSIDE_HOST_TAG=v<version> bun run test:e2e:outside
+   ```
 
-A package that has never been on npm needs a first publish by the owner, and npm's trusted publisher
-set for `release.yml`, before CI can publish it.
+   Expect: the script exits 0. The script installs the packages from npm into an empty folder,
+   downloads the binary, checks the binary against `SHA256SUMS`, and runs a small deployment of its
+   own on it.
 
-## When a run fails
+When step 8 fails, the version is already on npm and GitHub. Fix the cause on `main`, and release
+the next version.
 
-A second run of one tag never changes a published release. When the tag already has a release, the
-`release-host` job downloads its two files and passes only when they match what it built.
+## Publish a new package for the first time
 
-- **The job reports that the files disagree.** Delete the release of that tag on GitHub, then run
-  the job again.
-- **A run stopped during its upload.** The job uploads both files to a draft and publishes the draft
-  last, so a cut-off run leaves a draft that no deploy can download. Run the job again: it deletes
-  the draft and makes the release again.
-- **The job reports a glibc symbol newer than 2.35.** A dependency or the toolchain now needs a
-  newer glibc than the oldest image a deploy may run, as
-  [deploying](./deploying.md#3-fetch-the-host) sets out, and the job makes no release. Find the
-  change that raised it before you run the job again.
+CI publishes only a package that npm already has. Before you release a version that adds a public
+package, ask a person with publish rights on the `@pepys` npm scope to do these steps:
+
+1. From the package's folder, run `npm publish --access public`.
+
+   Expect: npm lists the package.
+
+2. On the package's settings page on npmjs.com, add a trusted publisher of type GitHub Actions, with
+   this repo and the workflow file `release.yml`. npm's
+   [trusted publishing](https://docs.npmjs.com/trusted-publishers) page shows the form.
+
+## When a job fails
+
+The workflow runs two jobs on each tag, and neither waits for the other:
+
+- **release to npm** publishes the packages.
+- **release-host** builds the binary and makes the GitHub release.
+
+One job can fail while the other succeeds. A version can then reach npm with no binary, or GitHub
+with no packages.
+
+To re-run a job, open the workflow run of the tag in GitHub Actions, and re-run the failed job. A
+re-run uses the same tagged commit, so it fixes only a cause outside the repo, such as an npm
+outage. When the cause is in the code, fix it on `main`, and release the next version. npm never
+takes a second publish of one version. Leave the broken version as it is.
+
+### Every job reports a version mismatch
+
+Both jobs check the tag against each `package.json` before they publish anything, so a mismatch
+publishes nothing.
+
+1. Delete the tag on GitHub and in your clone.
+2. Tag the commit whose `package.json` files carry `<version>`.
+3. Push the tag.
+
+### release to npm fails
+
+When the cause is outside the repo, re-run the job. The re-run skips each package that npm already
+has at `<version>`, and publishes the rest.
+
+### release-host fails
+
+- **The job stopped during its upload.** The job uploads both files to a draft release, and
+  publishes the draft last. A cut-off run therefore leaves only a draft, which no deploy can
+  download. Re-run the job. The re-run deletes the draft and makes the release again.
+- **The job reports that `pepys-host-linux-x64` needs a glibc newer than 2.35.** The job makes no
+  release. Every deploy host runs glibc 2.35 or later, as
+  [Fetch the host](./deploying.md#3-fetch-the-host) sets out, and a dependency or toolchain update
+  raised what the binary needs. Find that update in the commits since the last release, such as a
+  bump in `Cargo.lock` or `rust-toolchain.toml`. Undo or replace the update on `main`, and release
+  the next version.
+- **On a re-run, the job reports that the release's files differ from its new build.** An earlier
+  run of the tag published the release, and a rebuild does not always give the same bytes. The
+  published files stay as they are, and deploys keep using them, so leave the release.
+
+  > **CAUTION:** while the release is deleted, every deploy that fetches this version fails. Delete
+  > the release only when its files are broken, such as when a deploy's `sha256sum -c SHA256SUMS`
+  > fails.
+
+  To replace broken files, delete the GitHub release of the tag. Then re-run the job.
