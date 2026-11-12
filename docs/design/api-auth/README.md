@@ -1,6 +1,8 @@
 # Auth for the API
 
 - **Status:** agreed
+- **Decision records:** [0026](../../decisions/0026-credentials-bound-to-listeners.md),
+  [0027](../../decisions/0027-rpc-stays-off-the-public-route.md)
 
 The API runs three listeners, and each one takes one kind of credential:
 
@@ -290,16 +292,19 @@ Do step 8 below before the deployment moves to the release that requires tokens.
 - **The API checks a credential on every query, on every listener.** A NetworkPolicy never stops a
   process that runs on the cluster's node, and such a process reaches every listener. Only a
   credential then keeps the owner's mail from that process.
+  ([0026](../../decisions/0026-credentials-bound-to-listeners.md))
 - **`/rpc` stays off the public route.** atc and impz each expose only `/mcp`. The owner's script
   runs on the PC, which is on the tailnet, so the internet reaches only MCP and sign-in, and the
-  script needs no browser sign-in.
+  script needs no browser sign-in. ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
 - **Each listener takes one kind of credential, and each service caller lists its listeners.** A
   leaked boxxy token opens nothing from the tailnet, a leaked owner token opens nothing from a pod,
   and neither works on the public route. The tailnet listener checks the client address too, so the
   PC's token works from the PC alone.
+  ([0026](../../decisions/0026-credentials-bound-to-listeners.md))
 - **Pods get a listener of their own.** The boxxy server can't sign in with a passkey and doesn't
   come from the PC's tailnet address, so it can't use the public or the tailnet listener. The
   cluster listener also serves `/mcp`, so the in-cluster tests reach MCP with a service token.
+  ([0026](../../decisions/0026-credentials-bound-to-listeners.md))
 - **The tailnet route is plain HTTP.** WireGuard encrypts the tailnet and proves each peer, so TLS
   adds a certificate to keep and no protection. Grafana's NodePort on the same server runs the same
   way.

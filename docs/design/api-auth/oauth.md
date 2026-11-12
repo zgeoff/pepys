@@ -1,6 +1,9 @@
 # The OAuth server
 
 - **Status:** agreed
+- **Decision records:** [0025](../../decisions/0025-own-oauth-server-with-passkey.md),
+  [0027](../../decisions/0027-rpc-stays-off-the-public-route.md),
+  [0028](../../decisions/0028-no-backup-of-auth-db.md)
 
 The API's public listener runs an OAuth 2.1 authorization server for the owner's MCP clients. pepys
 copies the server from atc, the owner's agent control tower, whose gateway serves MCP behind the
@@ -217,15 +220,18 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - **The API runs its own authorization server, copied from atc.** pepys serves one owner, and an
   outside identity provider adds a second system to trust and to keep up. A package that atc, impz
   and pepys share is outside this design.
+  ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
 - **The owner signs in with a passkey.** impz, which runs the owner's coding agents, approves a
   sign-in code with one of its own API tokens. pepys has no such tokens for the owner, and a passkey
   works from each of the owner's devices.
+  ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
 - **The owner adds each client by hand.** The MCP authorization spec of 2026-07-28 allows
   pre-registration. Client ID metadata documents and dynamic registration would let any client start
-  a sign-in.
+  a sign-in. ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
 - **The public route runs through the shared Cloudflare tunnel.** A route that holds a long event
   stream open needs a TLS front on the server, as impz has. The MCP route answers each post with
   JSON and opens no stream, so the shared tunnel serves it, as it serves atc's gateway.
+  ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
 - **Cloudflare Access and the passkey both guard sign-in.** Access adds a login in front of the
   sign-in pages, and only the owner's passkey approves a grant, so neither one alone lets a stranger
   in.
@@ -238,7 +244,7 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - **Every grant is bound to `<public_origin>/mcp`.** Only `/mcp` takes an OAuth token, so the API
   serves one resource.
 - **`auth.db` has no backup.** A lost `auth.db` costs one passkey enrolment and one sign-in per
-  client.
+  client. ([0028](../../decisions/0028-no-backup-of-auth-db.md))
 
 ## Builder decides
 
