@@ -180,19 +180,7 @@ impl HostState {
         hash: &str,
         to: VersionState,
     ) -> Result<(), HostError> {
-        let from = self
-            .state(consumer, hash)
-            .await?
-            .ok_or_else(|| HostError::UnknownVersion(hash.to_owned()))?;
-
-        if from.can_move_to(to) {
-            Ok(())
-        } else {
-            Err(HostError::Transition {
-                from: from.as_str().to_owned(),
-                to: to.as_str().to_owned(),
-            })
-        }
+        check_transition(hash, self.state(consumer, hash).await?, to)
     }
 
     async fn write_state(
@@ -241,6 +229,25 @@ impl HostState {
     }
 }
 
+/// Refuses a move of the version `hash` from its recorded state `from` to `to` when it is not
+/// recorded or the transition table has no such edge.
+fn check_transition(
+    hash: &str,
+    from: Option<VersionState>,
+    to: VersionState,
+) -> Result<(), HostError> {
+    let from = from.ok_or_else(|| HostError::UnknownVersion(hash.to_owned()))?;
+
+    if from.can_move_to(to) {
+        Ok(())
+    } else {
+        Err(HostError::Transition {
+            from: from.as_str().to_owned(),
+            to: to.as_str().to_owned(),
+        })
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
@@ -272,6 +279,48 @@ mod tests {
                 ("current", "previous"),
                 ("previous", "current"),
                 ("previous", "removed"),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_refuses_a_move_of_an_unrecorded_version_or_along_no_edge() {
+        let cases = [
+            ("an unrecorded version", None, VersionState::Current),
+            (
+                "a move along an edge",
+                Some(VersionState::Building),
+                VersionState::Current,
+            ),
+            (
+                "a move along no edge",
+                Some(VersionState::Removed),
+                VersionState::Current,
+            ),
+        ];
+
+        let checked: Vec<(&str, Result<(), String>)> = cases
+            .into_iter()
+            .map(|(case, from, to)| {
+                (
+                    case,
+                    check_transition("abc123", from, to).map_err(|error| error.to_string()),
+                )
+            })
+            .collect();
+
+        assert_eq!(
+            checked,
+            vec![
+                (
+                    "an unrecorded version",
+                    Err("version abc123 is not recorded".to_owned())
+                ),
+                ("a move along an edge", Ok(())),
+                (
+                    "a move along no edge",
+                    Err("a version cannot move from removed to current".to_owned())
+                ),
             ]
         );
     }
