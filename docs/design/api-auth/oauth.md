@@ -167,15 +167,17 @@ better-auth adds the `iss` parameter to the redirect that carries a code (RFC 92
 - An authorization code lasts 10 minutes and works once. A second exchange revokes what the first
   made.
 - An access token is opaque, lasts 1 hour, and is checked against `mcp-auth.db` on every request.
-- A refresh token lasts 30 days and rotates on each use. better-auth marks the old refresh token
-  used with one SQL update that changes the row only while the token is still unused. When that
-  update changes no row, the refresh fails.
+- A refresh token lasts 30 days and rotates on each use. As in atc, better-auth runs the rotation,
+  and pepys adds no refresh code of its own. better-auth marks the old refresh token used with one
+  SQL update that changes the row only while the token is still unused. When that update changes no
+  row, the refresh fails.
 - better-auth writes the new token pair after that update, in separate statements and outside any
-  transaction. A crash between the two leaves the client with no refresh token, and the owner signs
-  the client in again. A `grants --revoke` that commits between the two leaves the new pair alive. A
-  `clients remove` in the same gap leaves nothing: the new rows need the client's row.
+  transaction. pepys accepts this gap, as atc does. A crash between the two leaves the client with
+  no refresh token, and the owner signs the client in again. A `grants --revoke` that commits
+  between the two leaves the new pair alive. A `clients remove` in the same gap leaves nothing: the
+  new rows need the client's row.
 - A refresh that presents a used refresh token revokes every refresh token and access token of that
-  client, across all its grants.
+  client, across all its grants. This is better-auth's rule, and atc keeps it too.
 - The server and an admin command open `mcp-auth.db` in WAL mode with a busy timeout of 5 seconds,
   so a command and a running server share the file.
 - The API runs only in the StatefulSet pod that owns the volume of `mcp-auth.db`. A Kubernetes
