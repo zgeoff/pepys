@@ -39,6 +39,7 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/commitlint-config",
   "@zgeoff/diet",
   "@zgeoff/format-codemod",
+  "@zgeoff/kysely-bun-sqlite",
   "@zgeoff/oxlint-config",
   "@zgeoff/rig",
   "@zgeoff/std",
