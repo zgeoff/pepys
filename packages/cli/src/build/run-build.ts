@@ -1,6 +1,5 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { DeploymentFailure } from '@pepys/kit';
 import { readOptionalText } from '@zgeoff/std';
 import { buildConsumerBuildManifest } from './build-consumer-build-manifest.ts';
@@ -10,6 +9,7 @@ import type { CheckedTarget } from './check-build-target.ts';
 import { collectGlueFiles } from './collect-glue-files.ts';
 import { compileConsumer } from './compile-consumer.ts';
 import type { BuildTools } from './compile-consumer.ts';
+import { loadBuildFile } from './load-build-file.ts';
 import type { TargetFailure } from './pick-build-target.ts';
 import { pickCheckedTarget } from './pick-checked-target.ts';
 import { pickGlueStep } from './pick-glue-step.ts';
@@ -58,7 +58,7 @@ export type BuildOutcome =
 export async function runBuild(options: BuildOptions): Promise<BuildOutcome> {
   const file = resolve(options.file);
 
-  const loaded: unknown = await import(pathToFileURL(file).href);
+  const loaded = await loadBuildFile(file);
 
   const target = pickCheckedTarget(loaded);
 
