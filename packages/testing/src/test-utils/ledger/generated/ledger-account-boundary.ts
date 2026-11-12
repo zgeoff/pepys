@@ -61,6 +61,10 @@ export function updateLedgerAccountModel(model: LedgerAccountModel, message: Led
   return message.kind === 'reset' ? initLedgerAccountModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface LedgerAccountOpenedPayload {
   name: string;
 }
@@ -81,13 +85,13 @@ export interface LedgerEntryPostedPayload {
 }
 
 export type LedgerAccountFact =
-  | { id: string; type: 'ledger.account.opened'; entity: string; at: string; payload: LedgerAccountOpenedPayload }
-  | { id: string; type: 'ledger.account.renamed'; entity: string; at: string; payload: LedgerAccountRenamedPayload }
-  | { id: string; type: 'ledger.account.closed'; entity: string; at: string; payload: LedgerAccountClosedPayload }
-  | { id: string; type: 'ledger.entry.posted'; entity: string; at: string; payload: LedgerEntryPostedPayload };
+  | { id: FactID; type: 'ledger.account.opened'; entity: EntityID; at: string; payload: LedgerAccountOpenedPayload }
+  | { id: FactID; type: 'ledger.account.renamed'; entity: EntityID; at: string; payload: LedgerAccountRenamedPayload }
+  | { id: FactID; type: 'ledger.account.closed'; entity: EntityID; at: string; payload: LedgerAccountClosedPayload }
+  | { id: FactID; type: 'ledger.entry.posted'; entity: EntityID; at: string; payload: LedgerEntryPostedPayload };
 
-declare function readScopeFactsLength(scope: string): number;
-declare function readScopeFactsInto(scope: string, facts: Uint8Array): void;
+declare function readScopeFactsLength(scope: LedgerAccountID): number;
+declare function readScopeFactsInto(scope: LedgerAccountID, facts: Uint8Array): void;
 
 // every fact of the scope on the consumer's streams, one per fact ID, in the host's order
 export function readScopeFacts(scope: LedgerAccountID): LedgerAccountFact[] {
@@ -125,6 +129,10 @@ function decodeLedgerAccountFact(value: unknown): LedgerAccountFact | undefined 
   const payload = 'payload' in value ? value.payload : undefined;
 
   if (typeof id !== 'string' || typeof entity !== 'string' || typeof at !== 'string') {
+    return undefined;
+  }
+
+  if (!isFactID(id) || !isFactEntityID(entity)) {
     return undefined;
   }
 
@@ -169,6 +177,14 @@ function decodeLedgerAccountFact(value: unknown): LedgerAccountFact | undefined 
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeLedgerAccountOpenedPayload(value: unknown): LedgerAccountOpenedPayload | undefined {

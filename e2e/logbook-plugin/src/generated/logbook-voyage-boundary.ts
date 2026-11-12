@@ -61,6 +61,10 @@ export function updateLogbookVoyageModel(model: LogbookVoyageModel, message: Log
   return message.kind === 'reset' ? initLogbookVoyageModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface LogbookVoyageLoggedPayload {
   title: string;
   harbour: string;
@@ -68,7 +72,7 @@ export interface LogbookVoyageLoggedPayload {
 }
 
 export type LogbookVoyageFact =
-  | { id: string; type: 'logbook.voyage.logged'; entity: string; at: string; payload: LogbookVoyageLoggedPayload };
+  | { id: FactID; type: 'logbook.voyage.logged'; entity: EntityID; at: string; payload: LogbookVoyageLoggedPayload };
 
 export function parseLogbookVoyageFact(factJSON: string): LogbookVoyageFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -91,6 +95,10 @@ function decodeLogbookVoyageFact(value: unknown): LogbookVoyageFact | undefined 
     return undefined;
   }
 
+  if (!isFactID(id) || !isFactEntityID(entity)) {
+    return undefined;
+  }
+
   if (type === 'logbook.voyage.logged') {
     const decoded = decodeLogbookVoyageLoggedPayload(payload);
 
@@ -102,6 +110,14 @@ function decodeLogbookVoyageFact(value: unknown): LogbookVoyageFact | undefined 
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeLogbookVoyageLoggedPayload(value: unknown): LogbookVoyageLoggedPayload | undefined {

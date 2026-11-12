@@ -45,6 +45,10 @@ export function updateGithubPullRequestModel(model: GithubPullRequestModel, mess
   return message.kind === 'reset' ? initGithubPullRequestModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface GithubPullRequestPayload {
   action: string;
   pull_request: GithubPullRequestPayloadPullRequest;
@@ -56,7 +60,7 @@ export interface GithubPullRequestPayloadPullRequest {
 }
 
 export type GithubPullRequestFact =
-  | { id: string; type: 'github.pull_request.assigned' | 'github.pull_request.auto_merge_disabled' | 'github.pull_request.auto_merge_enabled' | 'github.pull_request.closed' | 'github.pull_request.converted_to_draft' | 'github.pull_request.demilestoned' | 'github.pull_request.dequeued' | 'github.pull_request.edited' | 'github.pull_request.enqueued' | 'github.pull_request.labeled' | 'github.pull_request.locked' | 'github.pull_request.milestoned' | 'github.pull_request.opened' | 'github.pull_request.ready_for_review' | 'github.pull_request.reopened' | 'github.pull_request.resynced' | 'github.pull_request.review_request_removed' | 'github.pull_request.review_requested' | 'github.pull_request.synchronize' | 'github.pull_request.unassigned' | 'github.pull_request.unlabeled' | 'github.pull_request.unlocked'; entity: string; at: string; payload: GithubPullRequestPayload };
+  | { id: FactID; type: 'github.pull_request.assigned' | 'github.pull_request.auto_merge_disabled' | 'github.pull_request.auto_merge_enabled' | 'github.pull_request.closed' | 'github.pull_request.converted_to_draft' | 'github.pull_request.demilestoned' | 'github.pull_request.dequeued' | 'github.pull_request.edited' | 'github.pull_request.enqueued' | 'github.pull_request.labeled' | 'github.pull_request.locked' | 'github.pull_request.milestoned' | 'github.pull_request.opened' | 'github.pull_request.ready_for_review' | 'github.pull_request.reopened' | 'github.pull_request.resynced' | 'github.pull_request.review_request_removed' | 'github.pull_request.review_requested' | 'github.pull_request.synchronize' | 'github.pull_request.unassigned' | 'github.pull_request.unlabeled' | 'github.pull_request.unlocked'; entity: EntityID; at: string; payload: GithubPullRequestPayload };
 
 export function parseGithubPullRequestFact(factJSON: string): GithubPullRequestFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -79,6 +83,10 @@ function decodeGithubPullRequestFact(value: unknown): GithubPullRequestFact | un
     return undefined;
   }
 
+  if (!isFactID(id) || !isFactEntityID(entity)) {
+    return undefined;
+  }
+
   if (type === 'github.pull_request.assigned' || type === 'github.pull_request.auto_merge_disabled' || type === 'github.pull_request.auto_merge_enabled' || type === 'github.pull_request.closed' || type === 'github.pull_request.converted_to_draft' || type === 'github.pull_request.demilestoned' || type === 'github.pull_request.dequeued' || type === 'github.pull_request.edited' || type === 'github.pull_request.enqueued' || type === 'github.pull_request.labeled' || type === 'github.pull_request.locked' || type === 'github.pull_request.milestoned' || type === 'github.pull_request.opened' || type === 'github.pull_request.ready_for_review' || type === 'github.pull_request.reopened' || type === 'github.pull_request.resynced' || type === 'github.pull_request.review_request_removed' || type === 'github.pull_request.review_requested' || type === 'github.pull_request.synchronize' || type === 'github.pull_request.unassigned' || type === 'github.pull_request.unlabeled' || type === 'github.pull_request.unlocked') {
     const decoded = decodeGithubPullRequestPayload(payload);
 
@@ -90,6 +98,14 @@ function decodeGithubPullRequestFact(value: unknown): GithubPullRequestFact | un
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeGithubPullRequestPayload(value: unknown): GithubPullRequestPayload | undefined {

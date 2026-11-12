@@ -85,6 +85,10 @@ export function updateGithubDeployModel(model: GithubDeployModel, message: Githu
   return message.kind === 'reset' ? initGithubDeployModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface GithubRefPushedPayload {
   ref: string;
   repository: GithubRefPushedPayloadRepository;
@@ -103,8 +107,8 @@ export interface GithubDeploymentPayloadDeployment {
 }
 
 export type GithubDeployFact =
-  | { id: string; type: 'github.ref.pushed'; entity: string; at: string; payload: GithubRefPushedPayload }
-  | { id: string; type: 'github.deployment.created' | 'github.deployment.status_created'; entity: string; at: string; payload: GithubDeploymentPayload };
+  | { id: FactID; type: 'github.ref.pushed'; entity: EntityID; at: string; payload: GithubRefPushedPayload }
+  | { id: FactID; type: 'github.deployment.created' | 'github.deployment.status_created'; entity: EntityID; at: string; payload: GithubDeploymentPayload };
 
 export function parseGithubDeployFact(factJSON: string): GithubDeployFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -124,6 +128,10 @@ function decodeGithubDeployFact(value: unknown): GithubDeployFact | undefined {
   const payload = 'payload' in value ? value.payload : undefined;
 
   if (typeof id !== 'string' || typeof entity !== 'string' || typeof at !== 'string') {
+    return undefined;
+  }
+
+  if (!isFactID(id) || !isFactEntityID(entity)) {
     return undefined;
   }
 
@@ -148,6 +156,14 @@ function decodeGithubDeployFact(value: unknown): GithubDeployFact | undefined {
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeGithubRefPushedPayload(value: unknown): GithubRefPushedPayload | undefined {

@@ -414,6 +414,45 @@ test('it reads no fact of a type that no family on the streams declares', async 
   expect(fact).toBeUndefined();
 });
 
+test('it types the fact ID, the entity and the scope as branded IDs', () => {
+  const ctx = setupTest();
+  const glue = ctx.generateShelfGlue(undefined);
+
+  expect(glue).toContain(
+    [
+      'export type ArchiveShelfFact =',
+      "  | { id: FactID; type: 'archive.shelf.filled'; entity: EntityID; at: string; payload: ArchiveShelfFilledPayload }",
+      "  | { id: FactID; type: 'archive.shelf.emptied'; entity: EntityID; at: string; payload: ArchiveShelfEmptiedPayload };",
+      '',
+      'declare function readScopeFactsLength(scope: ArchiveShelfID): number;',
+      'declare function readScopeFactsInto(scope: ArchiveShelfID, facts: Uint8Array): void;',
+    ].join('\n'),
+  );
+});
+
+test.each([
+  { row: 'an empty fact ID', id: '', entity: 'ledger:note:1' },
+  { row: 'an empty entity ID', id: 'event:ledger:n-1', entity: '' },
+])('it reads no fact with $row', async (row) => {
+  const ctx = setupTest();
+
+  const glue = await ctx.loadGlue(ctx.generateNoteGlue(z.object({})));
+
+  const fact = ctx.call(
+    glue,
+    'parseLedgerNoteFact',
+    JSON.stringify({
+      id: row.id,
+      type: 'ledger.note.written',
+      entity: row.entity,
+      at: '2026-11-01T08:00:00.000Z',
+      payload: {},
+    }),
+  );
+
+  expect(fact).toBeUndefined();
+});
+
 test('it reads the scope facts with an index loop, never for...of or filter', () => {
   const ctx = setupTest();
   const glue = ctx.generateShelfGlue(undefined);

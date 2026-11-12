@@ -45,6 +45,10 @@ export function updateGithubReleaseModel(model: GithubReleaseModel, message: Git
   return message.kind === 'reset' ? initGithubReleaseModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface GithubReleasePayload {
   action: string;
   release: GithubReleasePayloadRelease;
@@ -55,7 +59,7 @@ export interface GithubReleasePayloadRelease {
 }
 
 export type GithubReleaseFact =
-  | { id: string; type: 'github.release.created' | 'github.release.deleted' | 'github.release.edited' | 'github.release.prereleased' | 'github.release.published' | 'github.release.released' | 'github.release.resynced' | 'github.release.unpublished'; entity: string; at: string; payload: GithubReleasePayload };
+  | { id: FactID; type: 'github.release.created' | 'github.release.deleted' | 'github.release.edited' | 'github.release.prereleased' | 'github.release.published' | 'github.release.released' | 'github.release.resynced' | 'github.release.unpublished'; entity: EntityID; at: string; payload: GithubReleasePayload };
 
 export function parseGithubReleaseFact(factJSON: string): GithubReleaseFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -78,6 +82,10 @@ function decodeGithubReleaseFact(value: unknown): GithubReleaseFact | undefined 
     return undefined;
   }
 
+  if (!isFactID(id) || !isFactEntityID(entity)) {
+    return undefined;
+  }
+
   if (type === 'github.release.created' || type === 'github.release.deleted' || type === 'github.release.edited' || type === 'github.release.prereleased' || type === 'github.release.published' || type === 'github.release.released' || type === 'github.release.resynced' || type === 'github.release.unpublished') {
     const decoded = decodeGithubReleasePayload(payload);
 
@@ -89,6 +97,14 @@ function decodeGithubReleaseFact(value: unknown): GithubReleaseFact | undefined 
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeGithubReleasePayload(value: unknown): GithubReleasePayload | undefined {

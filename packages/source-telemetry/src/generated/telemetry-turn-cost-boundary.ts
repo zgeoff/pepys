@@ -61,6 +61,10 @@ export function updateTelemetryTurnCostModel(model: TelemetryTurnCostModel, mess
   return message.kind === 'reset' ? initTelemetryTurnCostModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface TelemetryPayload {
   resource: TelemetryPayloadResource;
   scope: TelemetryPayloadScope;
@@ -97,7 +101,7 @@ export interface TelemetryPayloadOrigin {
 }
 
 export type TelemetryTurnCostFact =
-  | { id: string; type: 'telemetry.claude_code.api_request' | 'telemetry.claude_code.api_error' | 'telemetry.claude_code.api_refusal' | 'telemetry.claude_code.user_prompt' | 'telemetry.claude_code.assistant_response' | 'telemetry.claude_code.tool_result' | 'telemetry.claude_code.tool_decision' | 'telemetry.claude_code.unlisted' | 'telemetry.codex.sse_event' | 'telemetry.codex.api_request' | 'telemetry.codex.turn_cost' | 'telemetry.codex.conversation_starts' | 'telemetry.codex.user_prompt' | 'telemetry.codex.tool_decision' | 'telemetry.codex.tool_result' | 'telemetry.codex.unlisted'; entity: string; at: string; payload: TelemetryPayload };
+  | { id: FactID; type: 'telemetry.claude_code.api_request' | 'telemetry.claude_code.api_error' | 'telemetry.claude_code.api_refusal' | 'telemetry.claude_code.user_prompt' | 'telemetry.claude_code.assistant_response' | 'telemetry.claude_code.tool_result' | 'telemetry.claude_code.tool_decision' | 'telemetry.claude_code.unlisted' | 'telemetry.codex.sse_event' | 'telemetry.codex.api_request' | 'telemetry.codex.turn_cost' | 'telemetry.codex.conversation_starts' | 'telemetry.codex.user_prompt' | 'telemetry.codex.tool_decision' | 'telemetry.codex.tool_result' | 'telemetry.codex.unlisted'; entity: EntityID; at: string; payload: TelemetryPayload };
 
 export function parseTelemetryTurnCostFact(factJSON: string): TelemetryTurnCostFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -120,6 +124,10 @@ function decodeTelemetryTurnCostFact(value: unknown): TelemetryTurnCostFact | un
     return undefined;
   }
 
+  if (!isFactID(id) || !isFactEntityID(entity)) {
+    return undefined;
+  }
+
   if (type === 'telemetry.claude_code.api_request' || type === 'telemetry.claude_code.api_error' || type === 'telemetry.claude_code.api_refusal' || type === 'telemetry.claude_code.user_prompt' || type === 'telemetry.claude_code.assistant_response' || type === 'telemetry.claude_code.tool_result' || type === 'telemetry.claude_code.tool_decision' || type === 'telemetry.claude_code.unlisted' || type === 'telemetry.codex.sse_event' || type === 'telemetry.codex.api_request' || type === 'telemetry.codex.turn_cost' || type === 'telemetry.codex.conversation_starts' || type === 'telemetry.codex.user_prompt' || type === 'telemetry.codex.tool_decision' || type === 'telemetry.codex.tool_result' || type === 'telemetry.codex.unlisted') {
     const decoded = decodeTelemetryPayload(payload);
 
@@ -131,6 +139,14 @@ function decodeTelemetryTurnCostFact(value: unknown): TelemetryTurnCostFact | un
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeTelemetryPayload(value: unknown): TelemetryPayload | undefined {

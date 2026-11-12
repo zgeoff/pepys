@@ -32,6 +32,7 @@ export function formatFactReader(parameters: FactReaderParameters): string[] {
   }));
 
   return [
+    formatFactID(),
     ...members.flatMap((member) => member.payload.interfaces),
     formatFactUnion(fact, members),
     ...formatRead(fact, parameters.input),
@@ -68,6 +69,15 @@ function pickPayloadName(types: readonly string[]): string {
   return shared.length > 0 ? shared.join('.') : (types[0] ?? '');
 }
 
+// scriptc refuses a type-fest import, so the glue brands a fact ID with a symbol of its own.
+function formatFactID(): string {
+  return [
+    'declare const factTag: unique symbol;',
+    '',
+    "export type FactID = string & { readonly [factTag]: 'FactID' };",
+  ].join('\n');
+}
+
 interface FactMember {
   types: readonly string[];
   payload: FormattedShape;
@@ -80,7 +90,7 @@ function formatFactUnion(fact: string, members: readonly FactMember[]): string {
 
   const lines = members.map(
     (member) =>
-      `  | { id: string; type: ${formatTypeUnion(member.types)}; entity: string; at: string; payload: ${member.payload.type} }`,
+      `  | { id: FactID; type: ${formatTypeUnion(member.types)}; entity: EntityID; at: string; payload: ${member.payload.type} }`,
   );
 
   return [`export type ${fact} =`, ...lines].join('\n').concat(';');
@@ -107,8 +117,8 @@ function formatRead(fact: string, input: ConsumerInput): string[] {
 
   return [
     [
-      'declare function readScopeFactsLength(scope: string): number;',
-      'declare function readScopeFactsInto(scope: string, facts: Uint8Array): void;',
+      `declare function readScopeFactsLength(scope: ${scope}): number;`,
+      `declare function readScopeFactsInto(scope: ${scope}, facts: Uint8Array): void;`,
     ].join('\n'),
     [
       "// every fact of the scope on the consumer's streams, one per fact ID, in the host's order",
@@ -167,15 +177,21 @@ function formatFactDecoder(fact: string, members: readonly FactMember[]): string
           '    return undefined;',
           '  }',
           '',
+          '  if (!isFactID(id) || !isFactEntityID(entity)) {',
+          '    return undefined;',
+          '  }',
+          '',
           ...branches,
         ];
 
-  return [
+  const decoder = [
     `function decode${fact}(${parameter}: unknown): ${fact} | undefined {`,
     ...body,
     '  return undefined;',
     '}',
   ].join('\n');
+
+  return members.length === 0 ? decoder : [decoder, formatFactIDGuards()].join('\n\n');
 }
 
 function formatPayloadDecode(payload: FormattedShape): string[] {
@@ -191,4 +207,17 @@ function formatPayloadDecode(payload: FormattedShape): string[] {
     '    }',
     '',
   ];
+}
+
+// The host checked both IDs when the fact came in, so the glue only brands them.
+function formatFactIDGuards(): string {
+  return [
+    'function isFactID(text: string): text is FactID {',
+    '  return text.length > 0;',
+    '}',
+    '',
+    'function isFactEntityID(text: string): text is EntityID {',
+    '  return text.length > 0;',
+    '}',
+  ].join('\n');
 }

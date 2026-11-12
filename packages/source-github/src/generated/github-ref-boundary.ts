@@ -45,6 +45,10 @@ export function updateGithubRefModel(model: GithubRefModel, message: GithubRefMe
   return message.kind === 'reset' ? initGithubRefModel() : { ...model, input: message.input };
 }
 
+declare const factTag: unique symbol;
+
+export type FactID = string & { readonly [factTag]: 'FactID' };
+
 export interface GithubRefPushedPayload {
   ref: string;
   repository: GithubRefPushedPayloadRepository;
@@ -55,7 +59,7 @@ export interface GithubRefPushedPayloadRepository {
 }
 
 export type GithubRefFact =
-  | { id: string; type: 'github.ref.pushed'; entity: string; at: string; payload: GithubRefPushedPayload };
+  | { id: FactID; type: 'github.ref.pushed'; entity: EntityID; at: string; payload: GithubRefPushedPayload };
 
 export function parseGithubRefFact(factJSON: string): GithubRefFact | undefined {
   const parsed: unknown = JSON.parse(factJSON);
@@ -78,6 +82,10 @@ function decodeGithubRefFact(value: unknown): GithubRefFact | undefined {
     return undefined;
   }
 
+  if (!isFactID(id) || !isFactEntityID(entity)) {
+    return undefined;
+  }
+
   if (type === 'github.ref.pushed') {
     const decoded = decodeGithubRefPushedPayload(payload);
 
@@ -89,6 +97,14 @@ function decodeGithubRefFact(value: unknown): GithubRefFact | undefined {
   }
 
   return undefined;
+}
+
+function isFactID(text: string): text is FactID {
+  return text.length > 0;
+}
+
+function isFactEntityID(text: string): text is EntityID {
+  return text.length > 0;
 }
 
 function decodeGithubRefPushedPayload(value: unknown): GithubRefPushedPayload | undefined {
