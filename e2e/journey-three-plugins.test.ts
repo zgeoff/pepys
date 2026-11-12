@@ -3,10 +3,10 @@ import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { DeploymentClient } from '@pepys/api';
 import type { EntityID } from '@pepys/kit';
+import { buildLogsExport } from '@pepys/source-telemetry/test-utils/build-logs-export';
 import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { buildLogsExport } from '../packages/source-telemetry/src/test-utils/build-logs-export.ts';
 import type { e2eDeployment } from './deployment/e2e-deployment.ts';
 
 // The preload sends every fact these tests read: GitHub webhooks, a signed logbook fact batch, and
