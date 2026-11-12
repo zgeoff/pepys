@@ -1,6 +1,7 @@
 import { kitVersion } from '../constants.ts';
 import type { ConsumerDeclaration } from '../consumers/types.ts';
 import { factKinds } from '../entity-ids/fact-kinds.ts';
+import { collectCoercedFields } from '../generators/collect-coerced-fields.ts';
 import type { EntityKind, LinkTypeDeclaration } from '../link-types/types.ts';
 import type { FactFamily, SourceDefinition } from '../sources/types.ts';
 import type { Result } from '../types.ts';
@@ -23,6 +24,7 @@ export function checkDeployment(
     ...collectKitFailures(deployment.plugins),
     ...collectDuplicates(deployment.plugins, parts),
     ...collectReservedNames(deployment.plugins, parts),
+    ...collectCoercedFieldFailures(parts),
     ...collectConsumerFailures(deployment.plugins, parts),
     ...collectMissingConsumers(deployment.plugins, parts),
     ...settings.failures,
@@ -303,6 +305,19 @@ function collectReservedNames(
   }
 
   return failures;
+}
+
+function collectCoercedFieldFailures(parts: DeploymentParts): DeploymentFailure[] {
+  return parts.families.flatMap((owned) =>
+    Object.entries(owned.item.types).flatMap(([factType, schema]) =>
+      collectCoercedFields(schema, '').map((field) => ({
+        kind: 'coerced-payload-field' as const,
+        plugin: owned.plugin,
+        factType,
+        field,
+      })),
+    ),
+  );
 }
 
 function collectConsumerFailures(

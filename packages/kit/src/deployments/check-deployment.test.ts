@@ -133,6 +133,34 @@ test('it accepts a deployment and gives what each process works from', () => {
   });
 });
 
+test('it refuses a payload field that coerces what ingest stores as sent', () => {
+  const counted = z.object({ total: z.coerce.number() });
+
+  const family = defineFactFamily({
+    stream: 'facts.ledger.till',
+    api: 'ledger/1',
+    entityKind: 'ledger:till',
+    types: { 'ledger.till.counted': counted },
+  });
+
+  const plugin = definePlugin({
+    name: 'ledger',
+    sources: [defineSource({ name: 'ledger', families: [family] })],
+  });
+
+  expect(checkDeployment({ name: 'harbour', plugins: [plugin] })).toStrictEqual({
+    ok: false,
+    failure: [
+      {
+        kind: 'coerced-payload-field',
+        plugin: 'ledger',
+        factType: 'ledger.till.counted',
+        field: 'total',
+      },
+    ],
+  });
+});
+
 test('it fills a setting the deployment leaves out with its default', () => {
   const schema = z.object({ currency: z.string(), roundCents: z.boolean() });
 
