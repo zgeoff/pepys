@@ -36,6 +36,8 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 
 - `@pepys/kit`: the `define*` declarations and the deployment check. `toStreamName` and
   `toStreamOffset` give a family's `stream` and a number as the branded types that a fact log takes.
+  `isEntityID` and `entityIDSchema` check text as an entity ID and brand it as `EntityID`. Use
+  `entityIDSchema` for an ID in a query's input or output: its JSON Schema is a plain string.
 - `@pepys/kit/generators`: the SQL schema and glue generators.
 - `@pepys/kit/send`: the client that signs and sends a fact batch.
 
