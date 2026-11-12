@@ -1,0 +1,95 @@
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { isAllowedRedirectURI } from '../auth/is-allowed-redirect-uri.ts';
+import { normalizeClientName } from '../auth/normalize-client-name.ts';
+import { openMCPAuth } from '../auth/open-mcp-auth.ts';
+import { readClientViews } from '../auth/read-client-views.ts';
+import { removeClient } from '../auth/remove-client.ts';
+import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
+import { PROCESS_IO } from './process-io.ts';
+import type { ProcessIO } from './process-io.ts';
+
+export type ClientsAction =
+  | { readonly kind: 'list' }
+  | { readonly kind: 'add'; readonly name: string; readonly redirectURIs: readonly string[] }
+  | { readonly kind: 'remove'; readonly clientID: string };
+
+// The authorization server's database, and the command that prefixes every
+// message, such as `clients`.
+interface ClientsTarget {
+  readonly dbPath: string;
+  readonly command: string;
+}
+
+export async function runClients(
+  action: ClientsAction,
+  target: ClientsTarget,
+  io: Pick<ProcessIO, 'print' | 'printError' | 'setExitCode' | 'exit'> = PROCESS_IO,
+): Promise<void> {
+  if (action.kind === 'add') {
+    const refused = action.redirectURIs.find((uri) => !isAllowedRedirectURI(uri));
+
+    if (action.redirectURIs.length === 0 || refused !== undefined) {
+      const message =
+        refused === undefined
+          ? `${target.command} add: give at least one --redirect-uri`
+          : `${target.command} add: '${refused}' is not a redirect URI pepys accepts; use https, or http on a loopback host, with no fragment`;
+
+      io.printError(message);
+      io.exit(1);
+
+      return;
+    }
+  }
+
+  mkdirSync(dirname(target.dbPath), { recursive: true });
+
+  const store = await openMCPAuth({
+    dbPath: target.dbPath,
+    openDatabase: openMCPAuthDatabase,
+    origin: null,
+  });
+
+  try {
+    if (action.kind === 'add') {
+      const name = normalizeClientName(action.name);
+
+      const created = await store.auth.api.createFixedClient({
+        body: { name, redirectURIs: [...action.redirectURIs] },
+      });
+
+      io.print(`Added ${name}. Its client ID is ${created.clientID}`);
+
+      return;
+    }
+
+    if (action.kind === 'remove') {
+      const removed = await removeClient(store.db, action.clientID);
+
+      if (!removed) {
+        io.printError(`${target.command} remove: no client has the ID '${action.clientID}'`);
+        io.setExitCode(1);
+
+        return;
+      }
+
+      io.print(`Removed client ${action.clientID} and revoked every grant it held`);
+
+      return;
+    }
+
+    const clients = await readClientViews(store.db);
+
+    if (clients.length === 0) {
+      io.print(`No clients. Add one with: ${target.command} add <name> --redirect-uri <uri>`);
+
+      return;
+    }
+
+    for (const client of clients) {
+      io.print(`${client.clientID}  ${client.name}  ${client.redirectURIs.join(' ')}`);
+    }
+  } finally {
+    await store.close();
+  }
+}

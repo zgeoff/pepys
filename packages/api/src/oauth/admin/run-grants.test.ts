@@ -1,0 +1,183 @@
+import { expect, onTestFinished, test } from 'bun:test';
+import { systemClock } from '../auth/system-clock.ts';
+import { buildSeeder } from '../test-utils/build-seeder.ts';
+import { readJSONRecord } from '../test-utils/read-json-record.ts';
+import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
+import { setupMCPHTTP } from '../test-utils/setup-mcp-http.ts';
+import { runGrants } from './run-grants.ts';
+
+async function setupTest() {
+  const server = await setupMCPHTTP();
+
+  return { server, seed: buildSeeder({ db: server.store.db, clock: systemClock }) };
+}
+
+// A grant id is random base64url, so one in 64 starts with a dash; this one
+// does, with an underscore after it, the shape an argument parser reads as a
+// group of short flags.
+test('it lists a grant whose id starts with a dash', async () => {
+  const ctx = await setupTest();
+
+  const clientID = await ctx.server.createClient('Claude', [
+    'https://assistant.example.com/callback',
+  ]);
+
+  const authorized = await runMCPAuthorization(ctx.server, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  await fetch(`${ctx.server.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  await ctx.seed.grantID({ clientID, grantID: '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc' });
+
+  const printed: string[] = [];
+
+  await runGrants(
+    null,
+    { dbPath: ctx.server.dbPath, command: 'grants' },
+    {
+      print: (line) => {
+        printed.push(line);
+      },
+      printError: () => {},
+      setExitCode: () => {},
+    },
+  );
+
+  expect(printed).toStrictEqual([
+    '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc  Claude  read  last used never',
+  ]);
+});
+
+test('it revokes a grant so its access token stops working and it lists no grants', async () => {
+  const ctx = await setupTest();
+
+  const clientID = await ctx.server.createClient('Claude', [
+    'https://assistant.example.com/callback',
+  ]);
+
+  const authorized = await runMCPAuthorization(ctx.server, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const exchanged = await fetch(`${ctx.server.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  const tokens = await readJSONRecord(exchanged);
+
+  await ctx.seed.grantID({ clientID, grantID: '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc' });
+
+  const printed: string[] = [];
+  const errors: string[] = [];
+  const codes: number[] = [];
+
+  await runGrants(
+    '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc',
+    { dbPath: ctx.server.dbPath, command: 'grants' },
+    {
+      print: (line) => {
+        printed.push(line);
+      },
+      printError: (line) => {
+        errors.push(line);
+      },
+      setExitCode: (code) => {
+        codes.push(code);
+      },
+    },
+  );
+
+  const pinged = await fetch(`${ctx.server.url}/mcp`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${String(tokens['access_token'])}` },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+  });
+
+  const listed: string[] = [];
+
+  await runGrants(
+    null,
+    { dbPath: ctx.server.dbPath, command: 'grants' },
+    {
+      print: (line) => {
+        listed.push(line);
+      },
+      printError: () => {},
+      setExitCode: () => {},
+    },
+  );
+
+  expect({ printed, errors, codes }).toStrictEqual({
+    printed: ['Revoked grant -yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc'],
+    errors: [],
+    codes: [],
+  });
+
+  expect(pinged.status).toBe(401);
+  expect(listed).toStrictEqual(['No grants.']);
+});
+
+test('it refuses to revoke an unknown grant', async () => {
+  const ctx = await setupTest();
+
+  const errors: string[] = [];
+  const codes: number[] = [];
+
+  await runGrants(
+    'unknown',
+    { dbPath: ctx.server.dbPath, command: 'grants' },
+    {
+      print: () => {},
+      printError: (line) => {
+        errors.push(line);
+      },
+      setExitCode: (code) => {
+        codes.push(code);
+      },
+    },
+  );
+
+  expect({ codes, errors }).toStrictEqual({
+    codes: [1],
+    errors: ["grants: no grant has the ID 'unknown'"],
+  });
+});
+
+test('it sets the process exit code to 1 when it refuses to revoke by default', async () => {
+  const ctx = await setupTest();
+
+  // Bun ignores an assignment of undefined, so an unset exit code goes back
+  // as 0, the code an unset one exits with.
+  const exitCode = process.exitCode ?? 0;
+
+  onTestFinished(() => {
+    process.exitCode = exitCode;
+  });
+
+  await runGrants('unknown', { dbPath: ctx.server.dbPath, command: 'grants' });
+
+  expect(process.exitCode).toBe(1);
+});

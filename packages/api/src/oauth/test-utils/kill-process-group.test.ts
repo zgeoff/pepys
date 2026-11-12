@@ -1,0 +1,57 @@
+import { expect, onTestFinished, test } from 'bun:test';
+import { waitFor } from '@zgeoff/testing/helpers';
+import { killProcessGroup } from './kill-process-group.ts';
+
+test('it kills the leader of a group and a child the leader forked', async () => {
+  const leader = Bun.spawn(
+    ['sh', '-c', 'sleep 31 > /dev/null & echo "$!"; exec > /dev/null; wait'],
+    {
+      stdout: 'pipe',
+      detached: true,
+    },
+  );
+
+  onTestFinished(() => {
+    killProcessGroup(leader.pid);
+  });
+
+  const output = await leader.stdout.text();
+
+  const child = Number(output.trim());
+
+  killProcessGroup(leader.pid);
+
+  await leader.exited;
+
+  await waitFor(() => {
+    expect(() => process.kill(child, 0)).toThrow();
+  });
+
+  expect(leader.signalCode).toBe('SIGKILL');
+});
+
+test('it returns for a group with no process left', async () => {
+  const leader = Bun.spawn(['true'], { detached: true });
+
+  await leader.exited;
+
+  expect(() => {
+    killProcessGroup(leader.pid);
+  }).not.toThrow();
+});
+
+test.each(['ESRCH', 'EPERM'])('it returns when the kill fails with %s', (code) => {
+  expect(() => {
+    killProcessGroup(4242, () => {
+      throw Object.assign(new Error(`kill() failed: ${code}`), { code });
+    });
+  }).not.toThrow();
+});
+
+test('it throws when the kill fails with any other error', () => {
+  expect(() => {
+    killProcessGroup(4242, () => {
+      throw Object.assign(new Error('kill() failed: EINVAL'), { code: 'EINVAL' });
+    });
+  }).toThrowWithMessage(Error, 'kill() failed: EINVAL');
+});

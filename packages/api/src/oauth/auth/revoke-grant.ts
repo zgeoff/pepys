@@ -1,0 +1,23 @@
+import type { Kysely } from 'kysely';
+import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+
+export function revokeGrant(db: Kysely<MCPAuthSchema>, grantID: string): Promise<boolean> {
+  return db.transaction().execute(async (trx) => {
+    const grant = await trx
+      .selectFrom('oauthRefreshToken')
+      .select('clientId')
+      .where('authorizationCodeId', '=', grantID)
+      .executeTakeFirst();
+
+    if (grant === undefined) {
+      return false;
+    }
+
+    await trx.deleteFrom('oauthAccessToken').where('authorizationCodeId', '=', grantID).execute();
+    await trx.deleteFrom('oauthRefreshToken').where('authorizationCodeId', '=', grantID).execute();
+    await trx.deleteFrom('oauthConsent').where('clientId', '=', grant.clientId).execute();
+    await trx.deleteFrom('pepys_grant_use').where('grant_id', '=', grantID).execute();
+
+    return true;
+  });
+}
