@@ -519,7 +519,27 @@ test('it writes no bump row for a release URL in the body of a person', () => {
   const operations: unknown = JSON.parse(applyFact(factJSON));
 
   expect(operations).toStrictEqual([
-    { upsert: { github_pull_request: expect.objectContaining({ id: 'github:pull_request:89' }) } },
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:89',
+          number: 15,
+          repository_id: 'github:repo:902',
+          title: 'Note the release',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: 'github:user:4401',
+          url: 'https://github.example/acme/harbour/pull/15',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
   ]);
 });
 
@@ -546,7 +566,25 @@ test.each([{ urlTag: 'v1.2.0/' }, { urlTag: 'kit//v1.2.0' }])(
 
     expect(operations).toStrictEqual([
       {
-        upsert: { github_pull_request: expect.objectContaining({ id: 'github:pull_request:91' }) },
+        upsert: {
+          github_pull_request: {
+            id: 'github:pull_request:91',
+            number: 17,
+            repository_id: 'github:repo:902',
+            title: 'Bump the kit',
+            state: 'open',
+            is_draft: false,
+            is_merged: false,
+            author_id: 'github:user:9001',
+            url: 'https://github.example/acme/harbour/pull/17',
+            merge_commit_sha: null,
+            created_at: '2026-10-02T09:00:00Z',
+            updated_at: '2026-10-02T09:00:00Z',
+            closed_at: null,
+            merged_at: null,
+            payload: pullRequest,
+          },
+        },
       },
     ]);
   },
