@@ -181,6 +181,8 @@ pub async fn checkpoint(store: &Store) -> Result<(), HostError> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::task::Poll;
+
     use super::*;
 
     async fn count_items(store: &Store) -> i64 {
@@ -350,7 +352,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn it_waits_for_a_lock_that_another_handle_holds_and_then_writes() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let path = directory.path().join("consumer.db");
@@ -369,22 +371,26 @@ mod tests {
             .await
             .expect("a write under the lock");
 
-        let release = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(300)).await;
-            holder
+        let mut write = std::pin::pin!(
+            waiter
                 .connection
-                .execute("COMMIT", ())
-                .await
-                .expect("a commit");
-        });
+                .execute("INSERT INTO applied_facts (fact_id) VALUES ('waited')", ())
+        );
+        let is_waiting =
+            std::future::poll_fn(|context| Poll::Ready(write.as_mut().poll(context).is_pending()))
+                .await;
 
-        let written = waiter
+        holder
             .connection
-            .execute("INSERT INTO applied_facts (fact_id) VALUES ('waited')", ())
-            .await;
+            .execute("COMMIT", ())
+            .await
+            .expect("a commit");
 
-        release.await.expect("the release task");
+        let written = write.await;
 
-        assert_eq!(written.expect("a write after the wait"), 1);
+        assert_eq!(
+            (is_waiting, written.expect("a write after the wait")),
+            (true, 1)
+        );
     }
 }
