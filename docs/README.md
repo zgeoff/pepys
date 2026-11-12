@@ -18,8 +18,8 @@
 - [The manifest and the host](./design/v1-host.md) — `consumers.json`, and how the host runs a
   module in fact mode and in scope mode.
 - [The plug-ins of v1](./design/v1-plug-ins.md) — the telemetry and GitHub plug-ins.
-- [Auth for the API's public route](./design/api-auth.md) — the public route with OAuth, and service
-  tokens on the cluster listener.
+- [Auth for the API](./design/api-auth/README.md) — OAuth on the public `/mcp` route, and service
+  tokens on the tailnet and cluster `/rpc` routes.
 - [Open for the builder](./design/v1-open.md) — what two trial runs found, and what no run has
   checked.
 - [The v1 work list](./design/v1-work-list.md) — the build, as numbered slices in dependency order.
