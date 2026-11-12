@@ -41,12 +41,12 @@ flowchart LR
 
 ### The API process
 
-A deployment's API entry is the file that starts its API, such as
-`packages/source-github/src/api/serve-api.ts`. It passes its command-line arguments to `serveAPI`.
-With no arguments, `serveAPI` serves the API. With an admin command, it runs that command against
-`mcp-auth.db` and exits.
+Start the API with a deployment's API entry, the file that calls `serveAPI`, such as
+`packages/source-github/src/api/serve-api.ts`. The entry passes its command-line arguments to
+`serveAPI`. With no arguments, `serveAPI` serves the API. With an admin command, it runs that
+command against `mcp-auth.db` and exits.
 
-The owner runs each command with `kubectl exec` in the API's container, where `mcp-auth.db` lives. A
+Run each admin command with `kubectl exec` in the API's container, where `mcp-auth.db` lives. A
 command reads only `PEPYS_AUTH_DIR`, and runs beside the server, which keeps serving.
 
 ```ts
@@ -76,10 +76,11 @@ interface ServeAPIOptions {
 | `passkeys`                                                   | lists the passkeys                                           |
 | `passkeys remove <passkey_id>`                               | removes one passkey                                          |
 | `grants`                                                     | lists the live grants                                        |
-| `grants --revoke=<grant_id>`                                 | revokes one grant, in the flag form atc's command uses       |
+| `grants --revoke=<grant_id>`                                 | revokes one grant                                            |
 
-An admin command skips `checkDeployment`, the check of the deployment's plug-ins that the server
-runs at start. An unknown command or a bad argument exits 2 with the usage.
+`grants --revoke=<grant_id>` takes a flag where the other commands take a subcommand, to match the
+same command in atc. An admin command skips `checkDeployment`, the check of the deployment's
+plug-ins that the server runs at start. An unknown command or a bad argument exits 2 with the usage.
 
 ### Public paths
 
@@ -102,7 +103,8 @@ login first, and sends a client's request straight to the API.
 | `/.well-known/oauth-protected-resource/mcp` | an MCP client       | straight in   |
 
 `POST /` is a second address for the MCP endpoint, for a client that posts MCP to the origin with no
-path. It takes the same token as `POST /mcp` and answers the same 401:
+path. `POST /mcp` and `POST /` take the same token. Without one, both answer this 401, shown for
+`POST /mcp`:
 
 ```http
 POST /mcp HTTP/1.1
@@ -113,8 +115,8 @@ WWW-Authenticate: Bearer resource_metadata="<public_origin>/.well-known/oauth-pr
 ```
 
 `GET /.well-known/oauth-protected-resource/mcp` and `GET /.well-known/oauth-protected-resource` both
-answer with the protected resource metadata that better-auth builds, without its introspection and
-DPoP fields:
+answer with the protected resource metadata that better-auth builds. The API leaves out its
+introspection fields and its DPoP fields, which describe tokens bound to a client's key (RFC 9449):
 
 ```json
 {
@@ -127,10 +129,12 @@ DPoP fields:
 
 ### Adding a client
 
-`<api_pod>` is the pod that runs the API, and `<api_entry>` is the deployment's API entry.
+In the commands below, put the pod that runs the API in place of `<api_pod>`, and the deployment's
+API entry in place of `<api_entry>`.
 
-1. Run `kubectl exec <api_pod> -- bun <api_entry> passkeys enroll`, and type the printed token on
-   `<public_origin>/enroll`. Expect: one passkey in the list that `passkeys` prints.
+1. Run `kubectl exec <api_pod> -- bun <api_entry> passkeys`. If it lists no passkey, run
+   `kubectl exec <api_pod> -- bun <api_entry> passkeys enroll`, and type the printed token on
+   `<public_origin>/enroll`. Expect: `passkeys` lists the passkey.
 2. Pick a fixed callback port, `<port>`, for the client.
 3. Run
    `kubectl exec <api_pod> -- bun <api_entry> clients add <name> --redirect-uri http://localhost:<port>/callback`.
@@ -153,9 +157,11 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - It serves better-auth's authorization server metadata without the introspection and DPoP fields,
   and sets `token_endpoint_auth_methods_supported` and `revocation_endpoint_auth_methods_supported`
   to `["none"]`.
-- It locks a pending approval after failed passkey checks, as [Requests](#requests) says.
+- It locks a [pending approval](#the-owner) after failed passkey checks, as [Requests](#requests)
+  says.
 
-better-auth adds the `iss` parameter to the redirect that carries a code (RFC 9207), and sets
+better-auth adds the `iss` parameter to the redirect that carries a code, as
+[RFC 9207](https://www.rfc-editor.org/rfc/rfc9207) asks, and sets
 `authorization_response_iss_parameter_supported` to `true` in the metadata.
 
 ### Tokens and grants
@@ -167,21 +173,31 @@ better-auth adds the `iss` parameter to the redirect that carries a code (RFC 92
 - An authorization code lasts 10 minutes and works once. A second exchange revokes what the first
   made.
 - An access token is opaque, lasts 1 hour, and is checked against `mcp-auth.db` on every request.
-- A refresh token lasts 30 days and rotates on each use. As in atc, better-auth runs the rotation,
-  and pepys adds no refresh code of its own. better-auth marks the old refresh token used with one
-  SQL update that changes the row only while the token is still unused. When that update changes no
-  row, the refresh fails.
-- better-auth writes the new token pair after that update, in separate statements and outside any
-  transaction. pepys accepts this gap, as atc does. A crash between the two leaves the client with
-  no refresh token, and the owner signs the client in again. A `grants --revoke` that commits
-  between the two leaves the new pair alive. A `clients remove` in the same gap leaves nothing: the
-  new rows need the client's row.
-- A refresh that presents a used refresh token revokes every refresh token and access token of that
-  client, across all its grants. This is better-auth's rule, and atc keeps it too.
+- A refresh token lasts 30 days and rotates on each use. better-auth runs the rotation, and pepys
+  adds no refresh code, to match atc.
+
+A refresh runs in two steps. First, one SQL update marks the old refresh token used, and changes the
+row only while the token is still unused. When the update changes no row, the refresh fails, so of
+two refreshes at once, one fails. Second, better-auth writes the new access and refresh token in
+separate statements, outside any transaction.
+
+pepys accepts what can happen between the two steps, as atc does:
+
+- When the API stops between the steps, the client keeps no refresh token, and the owner signs the
+  client in again.
+- When a `grants --revoke` commits between the steps, the new token pair survives the revoke. The
+  revoke deletes the grant's rows by the grant's ID, and nothing stops the later write.
+- When a `clients remove` commits between the steps, the write fails: each token row needs its
+  client's row.
+
+A refresh that presents a used refresh token revokes every refresh token and access token of that
+client, across all its grants. better-auth does this, and atc keeps it.
+
 - The server and an admin command open `mcp-auth.db` in WAL mode with a busy timeout of 5 seconds,
   so a command and a running server share the file.
-- The API runs only in the StatefulSet pod that owns the volume of `mcp-auth.db`. A Kubernetes
-  Deployment could start a second copy on another volume.
+- Run the API only in the StatefulSet pod that owns the volume of `mcp-auth.db`. A Kubernetes
+  Deployment object could start a second copy of the API, with its own `mcp-auth.db` on another
+  volume, and a token from one copy would fail on the other.
 - `mcp-auth.db` stores a hash of each token, code and enrollment token.
 - The API keeps every token, code and cookie out of its log lines, errors and security events.
 
@@ -204,8 +220,8 @@ Each authorization moves through these records:
   then adds no passkey. Grants and their tokens survive the reset.
 - `passkeys remove` deletes the passkey and every owner session in one transaction.
 - Once a passkey check passes and better-auth starts the owner session, the API checks in one
-  transaction that the passkey and the session both still exist, and deletes the session when either
-  is gone. A sign-in that a reset or a remove overtook then fails.
+  transaction that the passkey and the session both still exist. It deletes the session when either
+  is gone, so a sign-in that a reset or a remove overtook fails.
 - The consent page lists the scopes the client asked for, with `read` ticked. The owner may untick
   it, and the API denies a consent with no scope ticked.
 
@@ -231,9 +247,10 @@ Each authorization moves through these records:
   ```
 
 - The API sees the address of cloudflared, the tunnel's connector in the cluster, as the address of
-  every request from the tunnel. No limit counts per network address.
-- The API holds at most 16 pending approvals, and at most 3 for one client: a new one ends the
-  client's oldest. Across all clients, it refuses an eleventh authorization started within a minute.
+  every request from the tunnel. So the API counts no limit per network address.
+- The API holds at most 16 pending approvals, and at most 3 for one client. A new approval past
+  either limit ends the oldest one in that limit: the client's oldest, or the oldest of all.
+- Across all clients, the API refuses an eleventh authorization started within a minute.
 - After 5 failed passkey checks for one pending approval, the API ends that approval and writes an
   `owner_auth` event with reason `locked`. The owner starts again from the client.
 - A security event records the socket's peer address. It also records the address in the
@@ -247,19 +264,20 @@ Each authorization moves through these records:
 ## Decisions
 
 - **The API runs its own authorization server, copied from atc.** pepys serves one owner, and an
-  outside identity provider adds a second system to trust and to keep up. A package that atc, pepys
-  and impz, the owner's agent runner, share is outside this design.
+  outside identity provider adds a second system to trust and to keep up.
   ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
-- **The owner signs in with a passkey.** impz approves a sign-in code with one of its own API
-  tokens. pepys has no such tokens for the owner, and a passkey works from each of the owner's
-  devices. ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
+- **The owner signs in with a passkey.** A passkey works from each of the owner's devices, and
+  nobody can guess or phish it. impz, the owner's agent runner, approves a sign-in code with one of
+  its own API tokens instead, and pepys has no such tokens for the owner.
+  ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
 - **The owner adds each client by hand.** The MCP authorization spec of 2026-07-28 allows
   pre-registration. Client ID metadata documents and dynamic registration would let any client start
   a sign-in. ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
-- **The public route runs through the shared Cloudflare tunnel.** impz holds long event streams
-  open, and runs its own TLS front for them. The MCP route answers each post with one message, as
-  JSON or as an event stream that ends after it, so the shared tunnel serves it, as it serves atc's
-  gateway. ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
+- **The public route runs through the shared Cloudflare tunnel.** The MCP route answers each post
+  with one message, as JSON or as an event stream that ends after it, so it holds no stream open,
+  and the shared tunnel serves it, as it serves atc's gateway. The tunnel can't hold a long event
+  stream open. impz holds such streams, and runs its own TLS front for them.
+  ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
 - **Cloudflare Access and the passkey both guard sign-in.** A stranger on the internet has to pass
   Access's login, and then the owner's passkey, to approve a grant. A process on the cluster's node
   skips Access, and still needs the passkey.
@@ -267,8 +285,8 @@ Each authorization moves through these records:
   can guess a passkey assertion, so the lock only ends a request that keeps failing. A process on
   the cluster's node reaches the API without Access, and a lock on the owner would let it lock the
   owner out.
-- **The API checks no Cloudflare Access header.** The passkey already stops a sign-in from a process
-  on the cluster's node, and the check would need the API to reach the internet for Access's keys.
+- **The API checks no Cloudflare Access header.** The passkey stops a sign-in from a process on the
+  cluster's node, and the check would need the API to reach the internet for Access's keys.
 - **Every grant is bound to `<public_origin>/mcp`.** Only `/mcp` takes an OAuth token, so the API
   serves one resource.
 - **`mcp-auth.db` has no backup.** A lost `mcp-auth.db` costs one passkey enrollment and one sign-in
