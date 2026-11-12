@@ -22,6 +22,14 @@ The pepys consumer manifest, for Bun: the types and the strict schema of `consum
 bun add @pepys/schema
 ```
 
+Check a `consumers.json` that `pepys build` wrote:
+
+```ts
+import { consumerBuildManifestSchema } from '@pepys/schema';
+
+const manifest = consumerBuildManifestSchema.parse(await Bun.file('build/consumers.json').json());
+```
+
 ## Features
 
 - `consumerBuildManifestSchema`: the strict schema of `consumers.json`, with its types.

@@ -23,6 +23,20 @@ with its consumer.
 bun add @pepys/source-github
 ```
 
+Add the plug-in to a deployment, then build its consumers:
+
+```ts
+// deployment.ts
+import { defineDeployment } from '@pepys/kit';
+import { githubPlugin } from '@pepys/source-github';
+
+export const deployment = defineDeployment({ name: 'home', plugins: [githubPlugin] });
+```
+
+```sh
+bunx pepys build deployment.ts --out build
+```
+
 ## Features
 
 - `githubPlugin`: the plug-in, to add to a deployment.

@@ -22,6 +22,24 @@ Kysely a dialect that queries it. The pepys test store and the pepys API use it.
 bun add @pepys/kysely-turso
 ```
 
+Open a Kysely instance over a Turso file:
+
+```ts
+import { createTursoDialect } from '@pepys/kysely-turso';
+import { connect } from '@tursodatabase/database';
+import { Kysely } from 'kysely';
+
+interface Tables {
+  book: { id: string; title: string };
+}
+
+const db = new Kysely<Tables>({
+  dialect: createTursoDialect({ database: () => connect('shelf.db') }),
+});
+
+const books = await db.selectFrom('book').selectAll().execute();
+```
+
 ## Features
 
 - `createTursoDialect`: the dialect to pass to `new Kysely({ dialect })`.

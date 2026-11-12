@@ -22,6 +22,22 @@ delivery, and appends the facts it reads to the fact log.
 bun add @pepys/ingest
 ```
 
+Serve a deployment's routes from an entry file, with the S2 settings and each secret its routes
+name:
+
+```ts
+// serve-ingest.ts
+import { serveIngest } from '@pepys/ingest';
+import { deployment } from './deployment.ts';
+
+await serveIngest({ deployment, environment: process.env });
+```
+
+```sh
+export PEPYS_S2_ACCESS_TOKEN  # the S2 access token, set in your shell beforehand
+PEPYS_S2_ENDPOINT=http://127.0.0.1:8090 PEPYS_S2_BASIN=pepys bun serve-ingest.ts
+```
+
 ## Features
 
 - `serveIngest` and `createIngest`: the receive routes of a deployment.

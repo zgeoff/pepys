@@ -21,6 +21,33 @@ A deployment serves the core queries and each plug-in's queries over oRPC and as
 bun add @pepys/api
 ```
 
+Serve a deployment's queries from an entry file, then call them with a typed client:
+
+```ts
+// serve-api.ts
+import { serveAPI } from '@pepys/api';
+import { deployment } from './deployment.ts';
+
+serveAPI({ deployment, environment: process.env });
+```
+
+```sh
+PEPYS_STORE_DIR=./store bun serve-api.ts
+```
+
+```ts
+import { createORPCClient } from '@orpc/client';
+import { RPCLink } from '@orpc/client/fetch';
+import type { DeploymentClient } from '@pepys/api';
+import type { deployment } from './deployment.ts';
+
+const api: DeploymentClient<typeof deployment> = createORPCClient(
+  new RPCLink({ url: '/rpc', origin: 'http://127.0.0.1:8081' }),
+);
+
+const pullRequest = await api.get_entity({ id: 'github:pull_request:9001' });
+```
+
 ## Features
 
 - `serveAPI`, which serves a deployment's queries at `/rpc`, and as MCP tools at `/mcp` behind the

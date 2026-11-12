@@ -25,6 +25,32 @@ bun add -d @pepys/testing
 
 Set the compiler options from the [kit's README](../kit/README.md#configuration).
 
+Then test a query on rows written for the test:
+
+```ts
+import { expect, test } from 'bun:test';
+import type { EntityID } from '@pepys/kit';
+import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
+import { shelfBookConsumer, shelfPlugin, shelfTitleQuery } from './shelf-plugin.ts';
+
+test('it answers a query from rows written for the test', async () => {
+  await using store = await createTestStore({ plugins: [shelfPlugin] });
+
+  await store.writeRows(shelfBookConsumer, 'shelf_book', [
+    { id: toTagged<EntityID>('shelf:book:atlas'), title: 'The Coral Atlas' },
+  ]);
+
+  expect(await store.query(shelfTitleQuery, { id: 'shelf:book:atlas' })).toStrictEqual({
+    title: 'The Coral Atlas',
+  });
+});
+```
+
+```sh
+bun test
+```
+
 ## Features
 
 - `createTestStore`: apply facts or write rows, then run a query, read rows and read links.

@@ -23,6 +23,20 @@ request and one per reported turn cost with its two consumers.
 bun add @pepys/source-telemetry
 ```
 
+Add the plug-in to a deployment, then build its consumers:
+
+```ts
+// deployment.ts
+import { defineDeployment } from '@pepys/kit';
+import { telemetryPlugin } from '@pepys/source-telemetry';
+
+export const deployment = defineDeployment({ name: 'home', plugins: [telemetryPlugin] });
+```
+
+```sh
+bunx pepys build deployment.ts --out build
+```
+
 ## Features
 
 - `telemetryPlugin`: the plug-in, to add to a deployment.
