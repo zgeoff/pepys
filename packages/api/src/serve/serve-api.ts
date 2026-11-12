@@ -24,11 +24,14 @@ interface ServeAPIOptions {
 
   // absent or empty: serve; otherwise an admin command, such as `passkeys enroll`
   argv?: readonly string[];
+
+  // false leaves SIGINT and SIGTERM to the caller, who stops the API through the returned function
+  exitOnSignal?: boolean;
 }
 
 // The API process of a deployment, or one admin command on the OAuth server's database. It exits
 // 2 on bad arguments, and 1 on a failed deployment check, a bad variable or a failed start.
-export async function serveAPI(options: ServeAPIOptions): Promise<void> {
+export async function serveAPI(options: ServeAPIOptions): Promise<() => Promise<void>> {
   const parsed = parseAPIArguments(options.argv ?? []);
 
   if (!parsed.ok) {
@@ -46,7 +49,7 @@ export async function serveAPI(options: ServeAPIOptions): Promise<void> {
       process.exit(1);
     }
 
-    return;
+    return async () => {};
   }
 
   const checked = checkDeployment(options.deployment);
@@ -74,12 +77,18 @@ export async function serveAPI(options: ServeAPIOptions): Promise<void> {
     process.exit(1);
   }
 
-  const shutdown = makeShutdownHandler({
-    stop: async () => {
-      await stopServer();
+  const stop = async (): Promise<void> => {
+    await stopServer();
 
-      await store.close();
-    },
+    await store.close();
+  };
+
+  if (options.exitOnSignal === false) {
+    return stop;
+  }
+
+  const shutdown = makeShutdownHandler({
+    stop,
     logError,
     exit: (code) => process.exit(code),
   });
@@ -89,6 +98,8 @@ export async function serveAPI(options: ServeAPIOptions): Promise<void> {
       void shutdown();
     });
   }
+
+  return stop;
 }
 
 type AdminCommand = Exclude<APICommand, { kind: 'serve' }>;

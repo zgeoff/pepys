@@ -11,12 +11,15 @@ import { startPullTimers } from './start-pull-timers.ts';
 interface ServeIngestOptions {
   deployment: Deployment;
   environment: Readonly<Record<string, string | undefined>>;
+
+  // false leaves SIGINT and SIGTERM to the caller, who stops ingest through the returned function
+  exitOnSignal?: boolean;
 }
 
 // The ingest process of a deployment. It exits 1 at start on a failed deployment check, on any
 // missing variable, or on a trust folder it cannot load, so no route ever runs with an empty secret.
 // A path whose trust documents or audience are unset starts, and refuses every delivery.
-export async function serveIngest(options: ServeIngestOptions): Promise<void> {
+export async function serveIngest(options: ServeIngestOptions): Promise<() => Promise<void>> {
   const logger = createLogger(process.stderr);
   const checked = checkDeployment(options.deployment);
 
@@ -76,12 +79,18 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
 
   console.log(`ingest listening on ${server.hostname}:${server.port}`);
 
-  const shutdown = makeShutdownHandler({
-    stop: () => {
-      stopPulls();
+  const stop = async (): Promise<void> => {
+    stopPulls();
 
-      return server.stop();
-    },
+    await server.stop();
+  };
+
+  if (options.exitOnSignal === false) {
+    return stop;
+  }
+
+  const shutdown = makeShutdownHandler({
+    stop,
     logError: (message, error) => {
       logger.error(message, error);
     },
@@ -93,6 +102,8 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
       void shutdown();
     });
   }
+
+  return stop;
 }
 
 // every receive path's secret, and every name a pull path's `env` lists
