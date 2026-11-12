@@ -35,6 +35,11 @@ serveAPI({ deployment, environment: process.env });
 PEPYS_STORE_DIR=./store bun serve-api.ts
 ```
 
+To compile the entry with `bun build --compile`, import `@pepys/api` before any other package that
+loads the MCP SDK. Bun's bundler can leave out zod's start-up for the MCP SDK, and `@pepys/api` runs
+it first. With another such package first, the binary exits at start with
+`undefined is not a constructor (evaluating 'new ZodLazy(...)')`.
+
 ```ts
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
