@@ -1,6 +1,6 @@
-import type { Logger } from '@pepys/kit';
 import { z } from 'zod';
 import { requestGithubAPI } from './request-github-api.ts';
+import type { GithubCall } from './request-github-api.ts';
 
 // `not-installed`: the App has no installation on the repository, so it can read nothing there.
 export type InstallationToken =
@@ -15,9 +15,9 @@ const accessTokenSchema = z.looseObject({ token: z.string().min(1) });
 export async function readInstallationToken(
   repository: string,
   appJWT: string,
-  log: Logger,
+  call: GithubCall,
 ): Promise<InstallationToken> {
-  const installation = await requestGithubAPI(`/repos/${repository}/installation`, appJWT, log);
+  const installation = await requestGithubAPI(`/repos/${repository}/installation`, appJWT, call);
 
   if (installation.status === 404) {
     return { kind: 'not-installed' };
@@ -32,7 +32,7 @@ export async function readInstallationToken(
   const created = await requestGithubAPI(
     `/app/installations/${parsedInstallation.data.id}/access_tokens`,
     appJWT,
-    log,
+    call,
     'POST',
   );
 

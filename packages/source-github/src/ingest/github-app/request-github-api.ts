@@ -10,17 +10,24 @@ export interface GithubAnswer {
   next: string | undefined;
 }
 
+// What each call needs from the pull that makes it: the logger, and the signal that aborts the call
+// when ingest stops.
+export interface GithubCall {
+  log: Logger;
+  signal: AbortSignal;
+}
+
 // One call to the GitHub REST API, with a path or a whole URL from a `link` header. A transport
-// failure answers status 0.
+// failure, an aborted call included, answers status 0.
 export async function requestGithubAPI(
   pathOrURL: string,
   token: string,
-  log: Logger,
+  call: GithubCall,
   method: 'GET' | 'POST' = 'GET',
 ): Promise<GithubAnswer> {
   const url = pathOrURL.startsWith('/') ? `${githubAPIURL}${pathOrURL}` : pathOrURL;
 
-  const response = await sendRequest(url, token, method, log);
+  const response = await sendRequest(url, token, method, call);
 
   if (response === undefined) {
     return { status: 0, text: '', body: undefined, next: undefined };
@@ -40,11 +47,12 @@ async function sendRequest(
   url: string,
   token: string,
   method: 'GET' | 'POST',
-  log: Logger,
+  call: GithubCall,
 ): Promise<Response | undefined> {
   try {
     const response = await fetch(url, {
       method,
+      signal: call.signal,
       headers: {
         accept: 'application/vnd.github+json',
         authorization: `Bearer ${token}`,
@@ -55,7 +63,10 @@ async function sendRequest(
 
     return response;
   } catch (error: unknown) {
-    log.error(`a GitHub API call to ${url} failed`, error);
+    // a call that ingest's stop aborted is no failure
+    if (!call.signal.aborted) {
+      call.log.error(`a GitHub API call to ${url} failed`, error);
+    }
 
     return undefined;
   }

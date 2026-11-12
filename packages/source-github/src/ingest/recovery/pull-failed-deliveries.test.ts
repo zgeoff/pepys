@@ -2,13 +2,15 @@ import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { createLogger } from '@pepys/kit';
 import { mockNetwork } from '@pepys/mock-network';
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, delay, http } from 'msw';
 import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
 function setupTest() {
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const lines: string[] = [];
+
+  const stopping = new AbortController();
 
   const context = {
     env: {
@@ -18,11 +20,14 @@ function setupTest() {
     now: () => 1_800_000_000_000,
     marks: [],
     log: createLogger({ write: (line) => lines.push(line) }),
-    signal: new AbortController().signal,
+    signal: stopping.signal,
   };
 
   return {
     pull: (cursor: string | null) => pullFailedDeliveries(cursor, context),
+    stop: () => {
+      stopping.abort();
+    },
     readLogged: () => lines.map((line): unknown => JSON.parse(line)),
   };
 }
@@ -43,6 +48,32 @@ test('it answers unavailable when GitHub cannot be reached, and logs the failed 
       detail: expect.any(Object),
     },
   ]);
+});
+
+test('it ends a call GitHub has not answered when ingest stops, and logs no failure', async () => {
+  const ctx = setupTest();
+  const reached = Promise.withResolvers<void>();
+
+  mockNetwork.use(
+    http.get(`${GITHUB_API_URL}/app/hook/deliveries`, async () => {
+      reached.resolve();
+
+      await delay('infinite');
+
+      return HttpResponse.json([]);
+    }),
+  );
+
+  const pulling = ctx.pull(null);
+
+  await reached.promise;
+
+  ctx.stop();
+
+  const pulled: unknown = await pulling;
+
+  expect(pulled).toStrictEqual({ kind: 'unavailable', retryAfterMs: 60_000 });
+  expect(ctx.readLogged()).toStrictEqual([]);
 });
 
 test('it pulls each failed delivery as a fact with the ID its webhook gives', async () => {

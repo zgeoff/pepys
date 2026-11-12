@@ -1,11 +1,11 @@
 import { planAppends } from '@pepys/ingest';
-import type { Logger, PendingFact, PullContext, Pulled } from '@pepys/kit';
+import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
 import { findAppJWT } from '../github-app/find-app-jwt.ts';
 import { pickPullFailure } from '../github-app/pick-pull-failure.ts';
 import { requestGithubAPI } from '../github-app/request-github-api.ts';
-import type { GithubAnswer } from '../github-app/request-github-api.ts';
+import type { GithubAnswer, GithubCall } from '../github-app/request-github-api.ts';
 
 const deliveryDetailSchema = z.looseObject({
   event: z.string(),
@@ -27,7 +27,7 @@ export async function pullFailedDeliveries(
 
   const seenID = cursor === null ? 0n : BigInt(cursor);
 
-  const listed = await readDeliveriesAfter(seenID, appJWT, context.log);
+  const listed = await readDeliveriesAfter(seenID, appJWT, context);
 
   if (listed.kind !== 'listed') {
     return pickPullFailure(listed.status);
@@ -36,7 +36,7 @@ export async function pullFailedDeliveries(
   const facts: PendingFact[] = [];
 
   for (const id of collectFailedIDs(listed.items)) {
-    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, appJWT, context.log);
+    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, appJWT, context);
 
     const detail = deliveryDetailSchema.safeParse(answer.body);
 
@@ -90,13 +90,13 @@ type DeliveryList = { kind: 'listed'; items: DeliveryItem[] } | { kind: 'failed'
 async function readDeliveriesAfter(
   seenID: bigint,
   appJWT: string,
-  log: Logger,
+  call: GithubCall,
 ): Promise<DeliveryList> {
   const items: DeliveryItem[] = [];
   let url: string | undefined = '/app/hook/deliveries?per_page=100';
 
   while (url !== undefined) {
-    const answer: GithubAnswer = await requestGithubAPI(url, appJWT, log);
+    const answer: GithubAnswer = await requestGithubAPI(url, appJWT, call);
 
     const page = deliveryListSchema.safeParse(parseDeliveryList(answer.text));
 
