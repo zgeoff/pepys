@@ -1,4 +1,5 @@
 import type { FactEnvelope } from '@pepys/kit';
+import { compareCodePoints } from '../utils/compare-code-points.ts';
 import type { FactIndex } from './types.ts';
 
 // The read of one scope, as the host serves it: every fact of the entity on `streams`, one per fact
@@ -13,8 +14,8 @@ export function collectScopeFacts(
     .map((record) => ({ record, sortKey: toSortKey(record.envelope.at) }))
     .toSorted(
       (left, right) =>
-        compareText(left.sortKey, right.sortKey) ||
-        compareText(left.record.stream, right.record.stream) ||
+        compareCodePoints(left.sortKey, right.sortKey) ||
+        compareCodePoints(left.record.stream, right.record.stream) ||
         left.record.seqNum - right.record.seqNum,
     )
     .map((entry) => entry.record.envelope);
@@ -31,12 +32,4 @@ function toSortKey(at: string): string {
   const fraction = (parts.groups['fraction'] ?? '').padEnd(9, '0').slice(0, 9);
 
   return `${parts.groups['seconds']}.${fraction}${parts.groups['zone']}`;
-}
-
-function compareText(left: string, right: string): number {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
 }

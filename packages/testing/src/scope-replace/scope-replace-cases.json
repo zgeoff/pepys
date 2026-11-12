@@ -1740,6 +1740,87 @@
         "ledger_tag": []
       },
       "links": []
+    },
+    {
+      "title": "the change entries come in code point order, so a key above U+FFFF sorts after a key at U+E000",
+      "batches": [
+        {
+          "scopes": [
+            {
+              "scope": "ledger:account:a",
+              "output": "[{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:\\ud800\\udc00\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}},{\"upsert\":{\"ledger_entry\":{\"id\":\"ledger:entry:\\ue000\",\"account_id\":\"ledger:account:a\",\"amount\":5,\"rate\":1.25,\"memo\":\"Rope\",\"details\":{\"till\":\"north\"},\"posted_at\":\"2026-11-01T09:00:00.000Z\"}}}]"
+            }
+          ],
+          "changes": [
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:\"]",
+              "value": {
+                "id": "ledger:entry:",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            },
+            {
+              "type": "ledger_entry",
+              "key": "[\"ledger:entry:𐀀\"]",
+              "value": {
+                "id": "ledger:entry:𐀀",
+                "account_id": "ledger:account:a",
+                "amount": 5,
+                "rate": 1.25,
+                "memo": "Rope",
+                "details": {
+                  "till": "north"
+                },
+                "posted_at": "2026-11-01T09:00:00.000Z"
+              },
+              "headers": {
+                "operation": "insert"
+              }
+            }
+          ]
+        }
+      ],
+      "rows": {
+        "ledger_account": [],
+        "ledger_entry": [
+          {
+            "id": "ledger:entry:",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          },
+          {
+            "id": "ledger:entry:𐀀",
+            "account_id": "ledger:account:a",
+            "amount": 5,
+            "rate": 1.25,
+            "memo": "Rope",
+            "details": {
+              "till": "north"
+            },
+            "posted_at": "2026-11-01T09:00:00.000Z"
+          }
+        ],
+        "ledger_rate": [],
+        "ledger_tag": []
+      },
+      "links": []
     }
   ]
 }

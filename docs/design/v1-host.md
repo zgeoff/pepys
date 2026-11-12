@@ -213,7 +213,7 @@ what the scope no longer returns.
   and the value `{ type, from, to, confidence, evidence }`, with `old_value` on an update. A deleted
   link gives only the type, the key and `headers: { operation: 'delete' }`.
 - **Order.** The entries of one scope come as rows written, links written, rows deleted and links
-  deleted, each sorted by key with a plain text comparison. The scopes of a batch keep their order.
+  deleted, each sorted by key in code point order. The scopes of a batch keep their order.
 
 ### The ledger journey
 

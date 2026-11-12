@@ -1,4 +1,5 @@
 import type { Result } from '@pepys/kit';
+import { compareCodePoints } from '../utils/compare-code-points.ts';
 import type { ApplyFailure, ChangeEntry, WireLink } from '../utils/types.ts';
 import { buildLinkKey } from './build-link-key.ts';
 import { buildRowID } from './build-row-id.ts';
@@ -74,14 +75,12 @@ export function pickScopeChanges(
   return { ok: true, value: { writtenRows, writtenLinks, deletedRows, deletedLinks, entries } };
 }
 
-// Plain `<` on the parts, never a locale order. It compares UTF-16 code units, and the host's Rust
-// maps compare code points, so a key with text above U+FFFF can sort apart from the host's order.
 function compareKeys(left: readonly string[], right: readonly string[]): number {
   for (const [index, part] of left.entries()) {
     const other = right[index] ?? '';
 
     if (part !== other) {
-      return part < other ? -1 : 1;
+      return compareCodePoints(part, other);
     }
   }
 

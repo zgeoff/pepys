@@ -11,6 +11,7 @@ import { parseOperations } from '../operations/parse-operations.ts';
 import { replaceScope } from '../scope-replace/replace-scope.ts';
 import type { StoreDatabase } from '../store-database/types.ts';
 import { ApplyError } from '../utils/apply-error.ts';
+import { compareCodePoints } from '../utils/compare-code-points.ts';
 
 // The fact IDs each fact-mode consumer has applied, by consumer name.
 export type AppliedFactIDs = ReadonlyMap<string, ReadonlySet<string>>;
@@ -104,7 +105,7 @@ async function runScopeConsumer(
           return parsed.ok && `${parsed.value.source}:${parsed.value.kind}` === scopeKind;
         }),
     ),
-  ].toSorted((left, right) => (left < right ? -1 : 1));
+  ].toSorted(compareCodePoints);
 
   for (const scope of scopes) {
     const scopeFacts = JSON.stringify(collectScopeFacts(index, scope, consumer.input.streams));
