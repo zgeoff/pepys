@@ -23,7 +23,9 @@ bun add @pepys/api
 
 ## Features
 
-- `serveAPI`, which serves a deployment's queries at `/rpc` and as MCP tools at `/mcp`.
+- `serveAPI`, which serves a deployment's queries at `/rpc`, and as MCP tools at `/mcp` behind the
+  API's own OAuth server once `PEPYS_API_PUBLIC_URL` is set. It also runs the OAuth server's admin
+  commands: `passkeys`, `clients` and `grants`.
 - `DeploymentClient`, the type of a typed client of a deployment's queries.
 - The store reader over the host's Turso files.
 

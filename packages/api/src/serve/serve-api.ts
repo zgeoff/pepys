@@ -27,13 +27,13 @@ interface ServeAPIOptions {
 }
 
 // The API process of a deployment, or one admin command on the OAuth server's database. It exits
-// 1 on bad arguments, a failed deployment check, a bad variable or a failed start.
+// 2 on bad arguments, and 1 on a failed deployment check, a bad variable or a failed start.
 export async function serveAPI(options: ServeAPIOptions): Promise<void> {
   const parsed = parseAPIArguments(options.argv ?? []);
 
   if (!parsed.ok) {
     console.error(parsed.failure);
-    process.exit(1);
+    process.exit(2);
   }
 
   const command = parsed.value;
