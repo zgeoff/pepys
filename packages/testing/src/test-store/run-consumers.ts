@@ -1,5 +1,5 @@
 import { parseEntityID } from '@pepys/kit';
-import type { ConsumerDeclaration } from '@pepys/kit';
+import type { ConsumerDeclaration, FactID } from '@pepys/kit';
 import invariant from 'tiny-invariant';
 import { buildReadFunctions } from '../consumer-entries/build-read-functions.ts';
 import { runEntry } from '../consumer-entries/run-entry.ts';
@@ -14,7 +14,7 @@ import { ApplyError } from '../utils/apply-error.ts';
 import { compareCodePoints } from '../utils/compare-code-points.ts';
 
 // The fact IDs each fact-mode consumer has applied, by consumer name.
-export type AppliedFactIDs = ReadonlyMap<string, ReadonlySet<string>>;
+export type AppliedFactIDs = ReadonlyMap<string, ReadonlySet<FactID>>;
 
 interface ConsumerRun {
   index: FactIndex;
@@ -57,8 +57,8 @@ async function runFactConsumer(
   db: StoreDatabase,
   consumer: ConsumerDeclaration,
   facts: readonly LoggedFact[],
-  applied: ReadonlySet<string>,
-): Promise<ReadonlySet<string>> {
+  applied: ReadonlySet<FactID>,
+): Promise<ReadonlySet<FactID>> {
   const seen = new Set(applied);
 
   for (const record of facts) {

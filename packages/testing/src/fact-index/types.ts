@@ -1,4 +1,4 @@
-import type { FactEnvelope } from '@pepys/kit';
+import type { FactEnvelope, FactID } from '@pepys/kit';
 
 // One record of the test store's log: a fact in its stream, at its sequence number.
 export interface LoggedFact {
@@ -11,5 +11,5 @@ export interface LoggedFact {
 // fact ID, and a module reads synchronously, so the test store keeps the index out of the database.
 export interface FactIndex {
   log: readonly LoggedFact[];
-  firstCopies: ReadonlyMap<string, LoggedFact>;
+  firstCopies: ReadonlyMap<FactID, LoggedFact>;
 }

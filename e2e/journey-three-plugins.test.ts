@@ -164,7 +164,7 @@ test('it serves the model request of an OTLP export with a proven sender through
 
   expect(answer).toStrictEqual([
     {
-      id: 'telemetry:model_request:claude_code.api_request:req_harbour_01',
+      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_harbour_01'),
       product: 'claude_code',
       model: 'model-large',
       input_tokens: 12,

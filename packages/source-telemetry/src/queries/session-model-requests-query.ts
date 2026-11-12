@@ -1,11 +1,9 @@
-import { defineQuery } from '@pepys/kit';
-import type { EntityID } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
+import { defineQuery, entityIDSchema, isEntityID } from '@pepys/kit';
 import { z } from 'zod';
 import { telemetryModelRequestConsumer } from '../telemetry-model-request-consumer.ts';
 
 const modelRequestSchema = z.object({
-  id: z.string(),
+  id: entityIDSchema,
   product: z.string(),
   model: z.string(),
   input_tokens: z.number(),
@@ -30,6 +28,13 @@ export const sessionModelRequestsQuery = defineQuery({
   output: z.array(modelRequestSchema),
   reads: [telemetryModelRequestConsumer],
   handler: async (call) => {
+    const session = call.input.session;
+
+    // text that is no entity ID names no stored session, so it has no rows either way
+    if (!isEntityID(session)) {
+      return [];
+    }
+
     const rows = await call.db
       .selectFrom('telemetry_model_request')
       .select([
@@ -43,7 +48,7 @@ export const sessionModelRequestsQuery = defineQuery({
         'cost_usd',
         'at',
       ])
-      .where('session_id', '=', toTagged<EntityID>(call.input.session))
+      .where('session_id', '=', session)
       .where('origin_issuer', '=', call.input.issuer)
       .where('origin_subject', '=', call.input.subject)
       .orderBy('at')

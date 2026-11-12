@@ -88,7 +88,7 @@ test('it returns the model requests of a session from its sender, oldest first',
 
   expect(answer).toStrictEqual([
     {
-      id: 'telemetry:model_request:claude_code.api_request:req_01',
+      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_01'),
       product: 'claude_code',
       model: 'model-large',
       input_tokens: 12,
@@ -99,7 +99,7 @@ test('it returns the model requests of a session from its sender, oldest first',
       at: '2026-11-11T02:20:00.000Z',
     },
     {
-      id: 'telemetry:model_request:claude_code.api_request:req_02',
+      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_02'),
       product: 'claude_code',
       model: 'model-large',
       input_tokens: 12,
@@ -130,6 +130,24 @@ test('it leaves out a row of the session that another sender stored', async () =
     issuer: 'harbour-host',
     subject: 'imp-0193',
   });
+
+  expect(answer).toStrictEqual([]);
+});
+
+test('it answers no rows for a session that is no entity ID', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writeRequests([
+    {
+      id: 'telemetry:model_request:claude_code.api_request:req_01',
+      session: 'telemetry:session:s-9',
+      issuer: 'harbour-host',
+      subject: 'imp-0193',
+      at: '2026-11-11T02:20:00.000Z',
+    },
+  ]);
+
+  const answer = await ctx.query({ session: 's-9', issuer: 'harbour-host', subject: 'imp-0193' });
 
   expect(answer).toStrictEqual([]);
 });
@@ -184,7 +202,7 @@ test('it orders two requests of one time by ID', async () => {
 
   expect(answer).toStrictEqual([
     {
-      id: 'telemetry:model_request:claude_code.api_request:req_a',
+      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_a'),
       product: 'claude_code',
       model: 'model-large',
       input_tokens: 12,
@@ -195,7 +213,7 @@ test('it orders two requests of one time by ID', async () => {
       at: '2026-11-11T02:20:00.000Z',
     },
     {
-      id: 'telemetry:model_request:claude_code.api_request:req_b',
+      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_b'),
       product: 'claude_code',
       model: 'model-large',
       input_tokens: 12,

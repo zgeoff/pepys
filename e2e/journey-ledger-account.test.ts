@@ -1,5 +1,7 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { createStoreReader, readOffsets } from '@pepys/api';
+import type { StreamName } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { ledgerAccountConsumer } from '../packages/testing/src/test-utils/ledger/ledger-plugin.ts';
 
@@ -83,6 +85,6 @@ test("it records the ledger stream's last sequence number as the scope consumer'
 
   expect(result).toStrictEqual({
     ok: true,
-    value: [{ stream: 'facts.ledger.account', lastSeqNum: 7 }],
+    value: [{ stream: toTagged<StreamName>('facts.ledger.account'), lastSeqNum: 7 }],
   });
 });

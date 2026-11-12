@@ -2,6 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { StreamName } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import {
   createConsumerVersion,
   writeCurrentVersion,
@@ -42,7 +44,7 @@ test('it reads the last sequence number of each stream the consumer reads', asyn
 
   expect(result).toStrictEqual({
     ok: true,
-    value: [{ stream: 'facts.harbour.vessel', lastSeqNum: 41 }],
+    value: [{ stream: toTagged<StreamName>('facts.harbour.vessel'), lastSeqNum: 41 }],
   });
 });
 

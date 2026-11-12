@@ -1,13 +1,25 @@
-import type { ConsumerDeclaration, Result, StoreReader, StoreReaderFailure } from '@pepys/kit';
+import type {
+  ConsumerDeclaration,
+  Result,
+  StoreReader,
+  StoreReaderFailure,
+  StreamName,
+} from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
 interface Offset {
-  stream: string;
+  stream: StreamName;
   lastSeqNum: number;
 }
 
-const offsetRowSchema = z.object({ stream: z.string(), last_seq_num: z.number() });
+// the host writes each offset under the name of a stream the consumer reads
+const offsetRowSchema = z.object({
+  stream: z.string().transform((text) => toTagged<StreamName>(text)),
+  last_seq_num: z.number(),
+});
+
 const offsetRowsSchema = z.object({ rows: z.array(offsetRowSchema) });
 
 // The last sequence number the host applied from each stream the consumer reads.

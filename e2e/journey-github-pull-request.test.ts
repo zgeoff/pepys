@@ -5,7 +5,7 @@ import { RPCLink } from '@orpc/client/fetch';
 import { createStoreReader, readChangeOperations, readOffsets } from '@pepys/api';
 import type { DeploymentClient } from '@pepys/api';
 import { defineDeployment } from '@pepys/kit';
-import type { EntityID } from '@pepys/kit';
+import type { EntityID, StreamName } from '@pepys/kit';
 import { githubPlugin, githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
@@ -119,7 +119,7 @@ test("it records the stream's last sequence number as the consumer's offset", as
 
   expect(result).toStrictEqual({
     ok: true,
-    value: [{ stream: 'facts.github.pull_request', lastSeqNum: 2 }],
+    value: [{ stream: toTagged<StreamName>('facts.github.pull_request'), lastSeqNum: 2 }],
   });
 });
 
