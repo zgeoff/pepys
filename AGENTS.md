@@ -103,9 +103,10 @@ docs/
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo nextest run` are the local Rust
   checks; `bacon` runs clippy on every save. CI also runs `cargo fmt --check`, `cargo shear`,
   `cargo deny check` and `cargo test --doc`, because nextest skips doctests.
-- `bun run schema:generate` writes the generated files, and `bun run schema:check` exits 1 on a
-  stale one. Both write each consumer's boundary file and SQL schema, its glue, with the code of
-  `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`. That command needs no Docker.
+- `bun run schema:generate` writes the generated files, and `bun run schema:check` writes nothing
+  and exits 1 on a stale one. Both build each consumer's boundary file and SQL schema, its glue,
+  with the code of `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`. That command
+  needs no Docker.
 - `bun run consumers:build` runs `pepys build` on two deployments. It compiles each consumer of the
   repo's stub deployment, `scripts/stub-deployment.ts`, to `build/consumers/<name>/<hash>.wasm` and
   writes `build/consumers/consumers.json`. It writes the same for the e2e deployment,

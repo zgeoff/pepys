@@ -202,11 +202,13 @@ what the scope no longer returns.
 - **Numbers.** The host reads each number as the double that `JSON.parse` gives. An integer column
   refuses a fraction or an exponent, even `5.0`, and a number that fails `Number.isSafeInteger`. A
   REAL column and a link's confidence compare as floats, so `2` and `2.0` are one value and one key.
-  A JSON column stores the text that `JSON.stringify` writes, and compares as a value.
+  A JSON column stores the text that `JSON.stringify` writes, with each object's keys sorted, and
+  compares as a value.
 - **Row entries.** A written row gives `{ type: <table>, key, value, headers: { operation } }`, with
   the operation `insert` or `update`. An update adds `old_value`, the stored row. The key is the
-  list of the key's values as `JSON.stringify` writes it. A deleted row gives no `value`: it gives
-  the type, the key, `old_value` and `headers: { operation: 'delete' }`.
+  list of the key's values as `JSON.stringify` writes it, with each object's keys sorted. A deleted
+  row gives no `value`: it gives the type, the key, `old_value` and
+  `headers: { operation: 'delete' }`.
 - **Link entries.** A link gives the type `link`, the key as the JSON text of `[type, from, to]`,
   and the value `{ type, from, to, confidence, evidence }`, with `old_value` on an update. A deleted
   link gives only the type, the key and `headers: { operation: 'delete' }`.

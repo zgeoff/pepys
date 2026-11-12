@@ -26,7 +26,7 @@ bun add @pepys/schema
 
 - `consumerBuildManifestSchema`: the strict schema of `consumers.json`, with its types.
 - The types of a consumer's execution and of the link registry.
-- The Kysely and Rust type generators for the store schema.
+- The Kysely type generator for the store schema.
 
 ## Documentation
 

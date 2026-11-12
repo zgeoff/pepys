@@ -37,7 +37,8 @@ The sketches are [01-kit.ts](./v1/sketches/01-kit.ts),
 - **Needs first:** slice 1.
 - **Check:** a generator test covers each row of the glue's typing table, and the generated reader
   uses an index loop. The link case file passes. A batch that the sender signs passes the HMAC check
-  that ingest uses, and the sender maps a 5xx answer to a retry and a 4xx answer to a refusal.
+  that ingest uses, and the sender maps a 502, 503 or 504 answer to a retry and a 500 or a 4xx
+  answer to a refusal.
 
 ## 3. The testing package
 

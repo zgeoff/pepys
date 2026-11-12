@@ -74,7 +74,8 @@ export function pickScopeChanges(
   return { ok: true, value: { writtenRows, writtenLinks, deletedRows, deletedLinks, entries } };
 }
 
-// Plain `<` on the parts, as Rust's ordered maps and SQLite compare text: never a locale order.
+// Plain `<` on the parts, never a locale order. It compares UTF-16 code units, and the host's Rust
+// maps compare code points, so a key with text above U+FFFF can sort apart from the host's order.
 function compareKeys(left: readonly string[], right: readonly string[]): number {
   for (const [index, part] of left.entries()) {
     const other = right[index] ?? '';

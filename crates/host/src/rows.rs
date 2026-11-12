@@ -72,8 +72,9 @@ fn fits(column: ColumnInfo, value: &Value) -> bool {
 }
 
 /// The primary key as text: the JSON list of the key's values, in primary key order, as
-/// `JSON.stringify` writes it. One form for a key of one column and of several. The change log and
-/// `scope_row` hold it, so equal numbers, such as `2` and `2.0`, give one key.
+/// `JSON.stringify` writes it, except that an object's keys come sorted. One form for a key of one
+/// column and of several. The change log and `scope_row` hold it, so equal numbers, such as `2` and
+/// `2.0`, give one key.
 ///
 /// # Errors
 /// Fails when the row lacks a key column.
@@ -91,8 +92,9 @@ pub fn key_of(table: &str, info: &TableInfo, row: &Row) -> Result<String, HostEr
     Ok(format_js_json(&Value::Array(values)))
 }
 
-// JSON text as `JSON.stringify` writes it, so that the test store and the host give one key and
-// one stored JSON column for a value. Each number is a double, written as JavaScript writes one.
+// JSON text as `JSON.stringify` writes it, except that an object's keys come sorted: serde_json's
+// map keeps no insertion order. A value with no object gives the test store's text. Each number
+// is a double, written as JavaScript writes one.
 fn format_js_json(value: &Value) -> String {
     match value {
         Value::Number(number) => number

@@ -1,4 +1,5 @@
-// Code unit order, as the default sort and SQLite's binary collation give, not the locale's.
+// UTF-16 code unit order, as the default sort gives, never the locale's. SQLite's binary collation
+// orders by code point instead, so text above U+FFFF can sort apart from a SQL `ORDER BY`.
 export function compareText(first: string, second: string): number {
   if (first === second) {
     return 0;
