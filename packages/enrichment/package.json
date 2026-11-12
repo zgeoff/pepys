@@ -7,7 +7,8 @@
     "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
-    "ts-pattern": "catalog:"
+    "ts-pattern": "catalog:",
+    "type-fest": "catalog:"
   },
   "devDependencies": {
     "@zgeoff/std": "catalog:"

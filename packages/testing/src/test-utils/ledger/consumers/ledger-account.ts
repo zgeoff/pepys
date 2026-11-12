@@ -7,6 +7,7 @@ import {
   updateLedgerAccountModel,
 } from '../generated/ledger-account-boundary.ts';
 import type {
+  FactID,
   LedgerAccountFact,
   LedgerAccountID,
   LedgerAccountMessage,
@@ -45,12 +46,12 @@ export function applyScope(scope: string): string {
 interface Named {
   name: string;
   at: string;
-  factID: string;
+  factID: FactID;
 }
 
 interface PostedEntry {
   row: LedgerEntryRow;
-  factID: string;
+  factID: FactID;
 }
 
 function mapAccount(
@@ -91,7 +92,7 @@ function mapAccount(
 }
 
 // Two facts may share one time, so the larger fact ID wins a tie, in every arrival order.
-function isNewer(at: string, factID: string, otherAt: string, otherFactID: string): boolean {
+function isNewer(at: string, factID: FactID, otherAt: string, otherFactID: FactID): boolean {
   return at > otherAt || (at === otherAt && factID > otherFactID);
 }
 

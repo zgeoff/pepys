@@ -7,6 +7,7 @@ import type {
   VersionHash,
 } from '@pepys/kit';
 import type { Pins } from '@pepys/schema';
+import type { Tagged } from 'type-fest';
 
 export type Subject =
   | { kind: 'consumer'; name: string }
@@ -117,8 +118,10 @@ export type PromotionStep =
 
 export type StepState = 'pending' | 'done' | 'failed';
 
+export type PromotionPlanID = Tagged<string, 'PromotionPlanID'>;
+
 export interface PromotionPlan {
-  id: string;
+  id: PromotionPlanID;
   subject: Subject;
   challenger: VersionHash;
   steps: readonly { step: PromotionStep; state: StepState }[];
@@ -136,9 +139,11 @@ export type StepFailure =
 
 export interface PlanStore {
   findOpen: (subject: Subject) => Promise<PromotionPlan | null>;
-  create: (plan: PromotionPlan) => Promise<Result<void, { reason: 'plan-open'; open: string }>>;
-  mark: (plan: string, index: number, state: StepState) => Promise<void>;
-  close: (plan: string) => Promise<void>;
+  create: (
+    plan: PromotionPlan,
+  ) => Promise<Result<void, { reason: 'plan-open'; open: PromotionPlanID }>>;
+  mark: (plan: PromotionPlanID, index: number, state: StepState) => Promise<void>;
+  close: (plan: PromotionPlanID) => Promise<void>;
 }
 
 export type PromotionGate = (

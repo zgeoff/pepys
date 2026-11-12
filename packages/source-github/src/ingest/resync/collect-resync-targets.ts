@@ -1,10 +1,10 @@
-import type { ResyncMark } from '@pepys/kit';
+import type { EntityID, ResyncMark } from '@pepys/kit';
 
 // One marked object that the resync pull reads again: its repository, `owner/name`, its API path,
 // and the digest of the last body ingest stored for it.
 export interface ResyncTarget {
   kind: 'pull_request' | 'release';
-  entity: string;
+  entity: EntityID;
   repository: string;
   path: string;
   lastBodyDigest: string | undefined;

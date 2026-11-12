@@ -53,7 +53,7 @@ export type LinkEnds<Registry extends LinkRegistry> = {
 }[LinkTypeName<Registry>];
 
 export interface LinkDetails {
-  scope: string | null;
+  scope: EntityID | null;
   confidence: number;
   evidence: string;
 }
