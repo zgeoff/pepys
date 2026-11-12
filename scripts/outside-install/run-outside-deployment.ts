@@ -64,7 +64,7 @@ try {
   await runStep(project, [process.execPath, 'compile-api.ts']);
 
   for (const binary of ['pepys-api', 'pepys-api-minified']) {
-    // `passkeys` opens the OAuth server's database, so it loads every module the API serves with
+    // `passkeys` runs the module-level code of the whole API, the MCP SDK's included, before it exits
     await runStep(project, [join(project, 'build/api', binary), 'passkeys'], {
       PEPYS_AUTH_DIR: join(directory, binary, 'auth'),
       PEPYS_STORE_DIR: join(directory, binary, 'store'),
