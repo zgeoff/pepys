@@ -10,9 +10,10 @@ The API runs three listeners, and each one takes one kind of credential:
 - The tailnet listener serves `/rpc` to a script on the owner's PC over the owner's Tailscale
   tailnet. It takes only service tokens: long random strings that the API checks against a file of
   their digests.
-- The cluster listener serves `/rpc` and `/mcp` to pods in the cluster, such as the boxxy server. It
-  takes only service tokens.
+- The cluster listener serves `/rpc` and `/mcp` to other pods in the k3s cluster that runs pepys,
+  such as the boxxy server. It takes only service tokens.
 
+The API shares a pod with the host, pepys's process that writes the store, and only reads the store.
 This design builds the part of [Auth](../pepys/auth.md) that the API's read routes need. Ingest, the
 process that takes in facts from sources ([ingest](../pepys/ingest.md)), keeps its own check on each
 of its routes.
@@ -45,9 +46,10 @@ flowchart LR
 These outside systems appear in this design:
 
 - **atc** is the owner's agent control tower. Its gateway serves MCP on a public route behind its
-  own OAuth server, and pepys copies that server.
+  own OAuth server, and pepys copies that server's code.
 - **better-auth** is the TypeScript library that both OAuth servers run on.
-- **impz** runs the owner's coding agents in small virtual machines, called imps.
+- **impz** runs the owner's coding agents in small virtual machines, called imps. Its credential
+  broker adds a stored token to each request a session sends to an outside service.
 - **boxxy** dispatches work to coding agents. Its server runs as a pod in the same cluster as pepys,
   sends its facts to an ingest route, and reads its two plug-in queries from the API.
 
@@ -58,9 +60,9 @@ Two placeholders stand for the public route: `<public_origin>` is the value of
 
 ### Configuration
 
-`readAPIConfig` in `@pepys/api`, which reads the API's environment today, reads these variables
-beside `PEPYS_STORE_DIR`. `PEPYS_API_HOST` and `PEPYS_API_PORT` keep their meaning and set the
-cluster listener, which always runs.
+`readAPIConfig` in `@pepys/api` reads these variables beside `PEPYS_STORE_DIR`. The cluster listener
+always runs. `PEPYS_API_HOST` sets its bind address, default 127.0.0.1, and `PEPYS_API_PORT` its
+port, default 8081.
 
 ```text
 PEPYS_API_CALLERS_FILE     the service callers file, as JSON below; always needed
@@ -95,18 +97,19 @@ interface CallersFile {
 }
 ```
 
-A service token is `pepyss_` and 32 or more characters from `A-Z`, `a-z`, `0-9`, `-` and `_`. The
-caller holds the token, and the callers file holds its digest.
+The owner makes each service token as `pepyss_` and 32 or more random characters from `A-Z`, `a-z`,
+`0-9`, `-` and `_`. The caller holds the token, and the callers file holds its digest. The API
+checks no token's shape, only its digest.
 
 ### The listeners
 
 Every listener answers 404 to a path it does not serve.
 
-| Listener | Serves                                                         | Takes                                            | Reached through                            |
-| -------- | -------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
-| public   | `/mcp` and [the OAuth server's paths](./oauth.md#public-paths) | an OAuth access token                            | the tunnel, then a ClusterIP Service       |
-| tailnet  | `/rpc/*`                                                       | a service token of a caller that lists `tailnet` | a NodePort on the server's tailnet address |
-| cluster  | `/rpc/*`, `/mcp`, and `GET /healthz` for the kubelet's probes  | a service token of a caller that lists `cluster` | a ClusterIP Service                        |
+| Listener | Serves                                                         | Takes                                            | Reached through                              |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
+| public   | `/mcp` and [the OAuth server's paths](./oauth.md#public-paths) | an OAuth access token                            | the tunnel, then a ClusterIP Service         |
+| tailnet  | `/rpc/*`                                                       | a service token of a caller that lists `tailnet` | a NodePort on the k3s node's tailnet address |
+| cluster  | `/rpc/*`, `/mcp`, and `GET /healthz` for the kubelet's probes  | a service token of a caller that lists `cluster` | a ClusterIP Service                          |
 
 `GET /healthz` answers 200 while the process serves, and reads nothing. The kubelet uses it for the
 liveness and the readiness probe.
@@ -138,10 +141,11 @@ type Listener = 'public' | 'tailnet' | 'cluster';
 - The tailnet listener reads the client address of the connection. When the address sits outside
   `PEPYS_API_TAILNET_SOURCES`, the API answers 403 before it reads the token.
 - The cluster listener answers 403 to a client address in Tailscale's ranges, `100.64.0.0/10` and
-  `fd7a:115c:a1e0::/48`. This catches a NodePort that the deployment points at the cluster port by
-  mistake, when the NodePort keeps the client address. Under the default
-  `externalTrafficPolicy: Cluster`, kube-proxy replaces the client address with a node address, and
-  step 6 of [deployment changes](#deployment-changes) catches that case.
+  `fd7a:115c:a1e0::/48`.
+- A NodePort pointed at the cluster port by mistake then fails closed when its
+  `externalTrafficPolicy` is `Local`, which keeps the client's tailnet address. With the default
+  `Cluster`, kube-proxy swaps in a node address, so the check in step 6 of
+  [deployment changes](#deployment-changes) catches that NodePort instead.
 - Every listener needs a credential on every query, whatever address it binds, loopback included.
   Tests and local runs write a callers file and send a token, so every API client sends a
   credential.
@@ -155,9 +159,9 @@ type Listener = 'public' | 'tailnet' | 'cluster';
 
 ### Security events
 
-The API writes one line to stderr for each security event: `pepys security ` and a JSON object. Each
-kind writes at most 20 lines a minute. Past that, the API counts the dropped events and writes one
-`suppressed` event with the count when the minute ends.
+The API writes one line to stderr for each security event: `pepys security ` and a JSON object. The
+API writes at most 20 lines of each kind a minute. Past that, it counts the dropped events and
+writes one `suppressed` event with the count at the end of the minute.
 
 ```ts
 // @pepys/api: the security event line; the formatter picks each field by name
@@ -191,12 +195,11 @@ interface SecurityEvent {
 
 ### Fail closed at start
 
-- When `PEPYS_API_CALLERS_FILE` is unset, or its file is missing or fails a rule below, the API
-  exits 1, whatever `PEPYS_API_HOST` binds. The API's message names the variable, the caller or the
-  rule, and holds no digest.
-- The callers file fails when it breaks a rule in the comments of `CallersFile`, or one digest
-  appears twice. A file with no caller, and a caller with no credential, pass: they admit no service
-  token.
+- When `PEPYS_API_CALLERS_FILE` is unset, or its file is missing or breaks a callers file rule, the
+  API exits 1, whatever `PEPYS_API_HOST` binds. The API names the variable, the caller or the rule
+  in its message, and never a digest.
+- The callers file rules are the rules in the comments of `CallersFile`, and that no digest appears
+  twice. A file with no caller, and a caller with no credential, pass: they admit no service token.
 - When `PEPYS_API_TAILNET_SOURCES` does not parse, holds a loopback address, or holds a range wider
   than `/10` for IPv4 or `/48` for IPv6, the API exits 1.
 - When `PEPYS_API_PUBLIC_URL` is set and is not an `https` origin with no path, the API exits 1.
@@ -210,7 +213,7 @@ interface SecurityEvent {
   digests in memory.
 - The API reads the callers file again when its folder changes, and every 30 seconds. Reloads run
   one at a time, in order, so an older read never replaces a newer one.
-- When a reloaded file fails a start rule, the API keeps the last good set and writes a
+- When a reloaded file breaks a callers file rule, the API keeps the last good set and writes a
   `callers_reload` security event with outcome `rejected`. A reload that changes the set writes one
   with outcome `accepted`, and a reload that changes nothing writes none. A request that starts
   after a reload finishes sees the new set.
@@ -231,12 +234,13 @@ interface SecurityEvent {
 
 ## Deployment changes
 
-The cloud repo holds the deployment, and makes these changes in its Pulumi program and manifests.
-Its exposure registry lists every public route and port of the owner's servers, and other projects
-share it, so the agent that coordinates the owner's projects makes its entries.
+The owner's cloud repo holds the deployment's Pulumi program and manifests. Whoever changes the
+deployment makes these changes there. The repo's exposure registry lists every public route and port
+of the owner's servers, and other projects share it, so the owner's coordinator agent makes its
+entries.
 
-Put the boxxy server's token and the owner's PC token in place before the deployment moves to the
-release that requires tokens. That release exits 1 with no callers file.
+Do step 8 before the deployment moves to the release that requires tokens. That release exits 1 with
+no callers file.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel to the public listener's ClusterIP
    Service, with the paths [the OAuth server's paths](./oauth.md#public-paths) list. Expect:
@@ -257,11 +261,13 @@ release that requires tokens. That release exits 1 with no callers file.
 8. Add one 1Password item per service credential: the owner's PC token and the boxxy server's token.
    Build the callers file in the API's Secret from their digests. Put the boxxy token in the boxxy
    server's Secret. The owner's script reads its item with `op read`.
-9. Ask the coordinating agent to add two exposure registry entries: a `tailnet`-scope entry for the
-   NodePort, with the API's service token as its auth layer, as the entry for Grafana's NodePort
-   has; and a public entry for `<public_host>`, with the API's OAuth server as its auth layer.
-10. Run `passkeys enroll`, then add each client, as [the OAuth server](./oauth.md#adding-a-client)
-    says. Expect: an MCP client gets a 401, signs the owner in, and reads a query.
+9. Ask the coordinator agent to add two exposure registry entries. The first is a `tailnet`-scope
+   entry for the NodePort, with the API's service token as its auth layer, like the registry's entry
+   for Grafana's NodePort. The second is a public entry for `<public_host>`, with the API's OAuth
+   server as its auth layer.
+10. Run the admin command `passkeys enroll` in the API's container, then add each client, as
+    [the OAuth server](./oauth.md#adding-a-client) says. Expect: an MCP client gets a 401, signs the
+    owner in, and reads a query.
 
 ## Decisions
 
@@ -292,10 +298,8 @@ release that requires tokens. That release exits 1 with no callers file.
 - The names of internal functions and files.
 - How the listeners mount on Elysia.
 - How the API watches the callers file's folder.
-- The body and wording of every error.
-- Whether the limit of 20 security events a minute counts a clock minute or a sliding window.
-- How tests give the tailnet listener a client address, and whether `@pepys/testing` ships a helper
-  that writes a test callers file.
+- The body and wording of every error.- How tests give the tailnet listener a client address, and
+  whether `@pepys/testing` ships a helper that writes a test callers file.
 
 ## Out of scope
 

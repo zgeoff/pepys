@@ -10,8 +10,8 @@ at that commit gives the reasons behind the rules the two servers share.
 
 better-auth's OAuth provider and MCP plugins run the protocol. pepys adds the owner's passkey
 sign-in, the list of clients the owner added, and the check of each bearer token and its scope. A
-grant is everything that one approved authorization produced: its refresh tokens and the access
-tokens each one issued. Revoking a grant ends all of them.
+grant is everything that one approved authorization produced: its refresh tokens and every access
+token issued under it. Revoking a grant ends all of them.
 
 [Auth for the API](./README.md) holds the three listeners, the bearer check, the configuration, the
 security events and the deployment. It also defines the placeholders `<public_origin>` and
@@ -112,27 +112,28 @@ answer:
 
 ### Adding a client
 
-The owner runs `passkeys enroll` once, and types the printed token on `/enroll` to enrol a passkey.
-Then the owner runs `clients add` for each client with its redirect URI. When the owner adds pepys
-to Claude Code, Claude Code takes the client ID with `--client-id` and a fixed `--callback-port`,
-and sends the redirect URI `http://localhost:<port>/callback`. That URI matches the one
-`clients add` was given.
+1. Run `passkeys enroll` once, and type the printed token on `/enroll`. Expect: one passkey in
+   `passkeys`.
+2. Pick a fixed callback port, `<port>`, for the client.
+3. Run `clients add <name> --redirect-uri http://localhost:<port>/callback`. Expect: a client ID.
+4. Add pepys to Claude Code with that client ID in `--client-id` and the same port in
+   `--callback-port`. Expect: Claude Code opens the owner's browser on `/oauth2/authorize`.
 
 ## Constraints
 
 ### What better-auth does not cover
 
-Each rule in this design applies whatever better-auth does by default. Where the pinned better-auth
-falls short of a rule, pepys enforces the rule in its own code, as atc does to force a fresh sign-in
-for each authorization and to set a default resource.
+The rules in this design hold whatever better-auth does by default. Where better-auth falls short of
+a rule, pepys enforces the rule in its own code, as atc does. pepys's own code does these:
 
-- When an authorization request names no resource, pepys sets `<public_origin>/mcp` before
-  better-auth sees it.
-- The redirect that carries a code carries `iss` too (RFC 9207), and the authorization server
-  metadata sets `authorization_response_iss_parameter_supported` to `true`, which the MCP spec asks
-  for.
-- better-auth's own refresh rotation is not atomic, so pepys runs the refresh in
-  [Tokens and grants](#tokens-and-grants) in its own code.
+- It forces a fresh passkey sign-in for each authorization.
+- When an authorization request names no resource, it sets `<public_origin>/mcp` before better-auth
+  sees the request.
+- It adds `iss` to the redirect that carries a code (RFC 9207), and sets
+  `authorization_response_iss_parameter_supported` to `true` in the authorization server metadata,
+  as the MCP spec asks.
+- It runs the refresh in [Tokens and grants](#tokens-and-grants), because better-auth's own refresh
+  rotation is not atomic.
 
 ### Tokens and grants
 
@@ -166,8 +167,9 @@ for each authorization and to set a default resource.
 - Each authorization needs a fresh passkey sign-in for that one request. One sign-in approves one
   authorization.
 - An enrolment token lasts 10 minutes and enrols one passkey.
-- An owner session is the short sign-in that runs from the passkey check to the consent page. A
-  ceremony is one WebAuthn exchange with the owner's authenticator, for sign-in or for enrolment.
+- Three short-lived records belong to one sign-in. A ceremony is one WebAuthn exchange with the
+  owner's authenticator, for sign-in or for enrolment. An owner session runs from the passkey check
+  to the consent page. A pending approval is the authorization that waits on the consent page.
 - `auth.db` holds the owner's generation, a number. Each ceremony, enrolment, owner session and
   pending approval records the generation it began under, and the API refuses to complete one whose
   generation is not the current one.
@@ -186,21 +188,25 @@ for each authorization and to set a default resource.
   `Origin`.
 - A form post to `/login`, `/enroll` or `/consent`, and an MCP request with an `Origin` header, must
   come from `<public_origin>`. The API answers any other with 403.
-- The sign-in, enrolment, consent and error pages carry the headers below. Only `/login` and
-  `/enroll` list a script: the passkey script, by its hash. Only `/consent` adds the client's
-  redirect origin to `form-action`. The error page shows a fixed sentence per error code, never text
-  from the request.
+- The sign-in, enrolment, consent and error pages carry the headers below. The first
+  `Content-Security-Policy` line is the one `/consent` sends, and the second is the one `/login` and
+  `/enroll` send. `<passkey_script_hash>` is the SHA-256 of the passkey script, and
+  `<redirect_origin>` is the origin of the client's redirect URI. On `/login` and `/enroll`,
+  `script-src` lists the passkey script; on `/consent` and `/error` it is `'none'`. On `/consent`,
+  `form-action` adds `<redirect_origin>`; on the other pages it is `'self'` alone. The error page
+  shows a fixed sentence per error code, never text from the request.
 
   ```http
-  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-<passkey_script_hash>'; form-action 'self' <redirect_origin>; frame-ancestors 'none'; base-uri 'none'
+  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; form-action 'self' <redirect_origin>; frame-ancestors 'none'; base-uri 'none'
+  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-<passkey_script_hash>'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'
   X-Frame-Options: DENY
   Cache-Control: no-store
   Referrer-Policy: same-origin
   ```
 
-- The public listener sees cloudflared's address, never the client's. The rate limit on
-  authorizations started therefore counts per client, and no security event carries a client
-  address.
+- The public listener sees cloudflared's address, never the caller's network address. The rate limit
+  on authorizations started therefore counts per OAuth client, and the API leaves the network
+  address out of every security event.
 - pepys turns better-auth's telemetry off, whatever the environment sets.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
   progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant
