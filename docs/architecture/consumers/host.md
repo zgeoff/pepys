@@ -42,9 +42,8 @@ The store folder holds one folder per consumer, and one folder per version insid
 <store>/<consumer>/preview-<pid>/        a preview's replay, deleted when it ends
 ```
 
-Everything the host writes for one version lives in that version's `consumer.db`: the consumer's own
-tables and the host's bookkeeping tables beside them. The later sections use these bookkeeping
-tables by name:
+Everything the host writes for one version lives in its `consumer.db`: the consumer's own tables,
+and these bookkeeping tables, which the later sections use by name:
 
 - `offsets`, the last sequence number the version read on each stream;
 - `applied_facts`, the ID of each fact the version applied;
@@ -114,7 +113,9 @@ log.
 `run` refuses to start when a consumer has no current version, or when two current versions own one
 table. It runs one task per consumer. Each task polls the consumer's streams on a short timer. On
 each pass, it takes the consumer's writer lock, repairs the `current` link, and applies what is new.
-On its next pass after a swap, it opens the new version's folder.
+On its next pass after a swap, it opens the new version's folder. The writer lock is an OS file
+lock, so the kernel releases it when the process that holds it exits, and one `up` and one `run` of
+the same consumer never write one file at once.
 
 The host reads each stream in batches, in both modes. A batch is one read of one stream, of at most
 100 facts, and the host applies it as one transaction, so a crash or an error never leaves half a
@@ -123,9 +124,6 @@ batch in the file.
 A failed batch rolls back and stops that consumer's task. The host prints the error, and the other
 tasks keep running. The stopped task stays stopped until the process restarts. When every task has
 stopped, `run` exits 1. When `consumers.json` lists no consumer, `run` waits for SIGINT or SIGTERM.
-
-The writer lock is an OS file lock, so the kernel releases it when the process that holds it exits.
-One `up` and one `run` of the same consumer therefore never write one file at once.
 
 ## The module boundary
 
@@ -143,10 +141,9 @@ A consumer has two reads: a row of its own tables by primary key, and, in scope 
 its scope. A row read returns `-1` when no row has that key. The module passes a key of one column
 as the value's text, and a key of several columns as the JSON list of the values in key order.
 
-Each read takes two host calls: one returns the length of the result, and one writes the bytes into
-the module's buffer. The host needs two calls because scriptc, the compiler `pepys build` uses,
-generates imports that return only a number. A read blocks on the async store from inside a
-synchronous wasm call, so the host, and every test that runs a real read, runs on a Tokio
+Each read takes two host calls, one for the result's length and one for its bytes, because scriptc,
+the compiler `pepys build` uses, generates imports that return only a number. A read blocks on the
+async store inside a synchronous wasm call, so the host and every test of a real read run on a Tokio
 multi-thread runtime, such as `#[tokio::test(flavor = "multi_thread")]`.
 
 ## A fact-mode batch
@@ -161,15 +158,10 @@ flowchart LR
   skip --> offset
 ```
 
-A fact-mode consumer keeps one offset per stream, and the host runs its module once per fact. In one
-batch, the host:
-
-1. skips each fact whose ID is already in `applied_facts`, so a fact that the log holds twice
-   applies once;
-2. runs the module on each other fact, checks every operation the module returned, writes them all,
-   and adds the fact's ID to `applied_facts`;
-3. writes the stream's offset after the last fact;
-4. writes one `change_log` row when any row or link changed.
+A fact-mode consumer keeps one offset per stream. In one batch, the host skips each fact whose ID is
+already in `applied_facts`, so a fact that the log holds twice applies once. It runs the module on
+each other fact, checks and writes every operation the module returned, and records the fact's ID.
+It then writes the stream's offset, and one `change_log` row when any row or link changed.
 
 The host refuses the output, and the batch fails, when it is not a JSON list, when an operation has
 no verb or more than one, or when an upsert writes to a table the consumer does not own. A link that
@@ -252,9 +244,7 @@ the package plug-ins build on, and each check must report the problem kind that 
   indexes them again as it replays.
 - The host recomputes a scope in every batch that holds one of its facts, and each recompute reads
   every fact of the scope, so the cost of a batch grows with the length of the scopes it touches.
-- The host sorts the keys of a JSON object in a row's key, and `JSON.stringify` keeps them in
-  insertion order. For a table whose primary key holds a JSON object, a TypeScript reader that
-  builds the key text with `JSON.stringify` gets a different text from the one in `scope_row` and in
-  change entries, and a lookup by that text misses the row.
+- The host sorts the keys of a JSON object in a row's key, and `JSON.stringify` keeps insertion
+  order. A TypeScript lookup that builds such a key with `JSON.stringify` therefore misses the row.
 - `consumers.json` describes each table twice, as columns and as SQL. The schema check on every open
   of a version fails when the two disagree.
