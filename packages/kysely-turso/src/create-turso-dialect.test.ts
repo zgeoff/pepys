@@ -11,9 +11,13 @@ interface Schema {
 }
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'kysely-turso-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const path = join(directory, 'items.db');
 
@@ -25,7 +29,7 @@ async function setupTest() {
 
   await setup.close();
 
-  return { path };
+  return { stack, path };
 }
 
 test('it selects rows through a read-only connection', async () => {
@@ -49,7 +53,7 @@ test('it selects rows through a read-only connection', async () => {
     dialect: createTursoDialect({ database: () => connect(ctx.path, { readonly: true }) }),
   });
 
-  onTestFinished(() => reader.destroy());
+  ctx.stack.defer(() => reader.destroy());
 
   const rows = await reader.selectFrom('item').selectAll().orderBy('id').execute();
 
@@ -66,7 +70,7 @@ test('it binds the parameters of a where clause in order', async () => {
     dialect: createTursoDialect({ database: () => connect(ctx.path) }),
   });
 
-  onTestFinished(() => db.destroy());
+  ctx.stack.defer(() => db.destroy());
 
   await db
     .insertInto('item')
@@ -94,7 +98,7 @@ test('it reports the insert ID and the affected row count of a write', async () 
     dialect: createTursoDialect({ database: () => connect(ctx.path) }),
   });
 
-  onTestFinished(() => db.destroy());
+  ctx.stack.defer(() => db.destroy());
 
   const result = await db
     .insertInto('item')
@@ -112,7 +116,7 @@ test('it refuses a write on a read-only connection', async () => {
     dialect: createTursoDialect({ database: () => connect(ctx.path, { readonly: true }) }),
   });
 
-  onTestFinished(() => reader.destroy());
+  ctx.stack.defer(() => reader.destroy());
 
   expect(
     reader.insertInto('item').values({ id: 1, kind: 'pr', number: 1 }).execute(),
@@ -126,7 +130,7 @@ test('it commits the writes of a finished transaction', async () => {
     dialect: createTursoDialect({ database: () => connect(ctx.path) }),
   });
 
-  onTestFinished(() => db.destroy());
+  ctx.stack.defer(() => db.destroy());
 
   await db.transaction().execute(async (transaction) => {
     await transaction.insertInto('item').values({ id: 1, kind: 'pr', number: 1 }).execute();
@@ -144,7 +148,7 @@ test('it rolls back the writes of a failed transaction', async () => {
     dialect: createTursoDialect({ database: () => connect(ctx.path) }),
   });
 
-  onTestFinished(() => db.destroy());
+  ctx.stack.defer(() => db.destroy());
 
   const failure = await db
     .transaction()

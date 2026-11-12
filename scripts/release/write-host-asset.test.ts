@@ -5,9 +5,13 @@ import { join } from 'node:path';
 import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-host-asset-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const runCommand = async (command: string[], folder: string, env: Record<string, string>) => {
     const child = Bun.spawn(command, {
@@ -18,7 +22,7 @@ async function setupTest() {
       detached: true,
     });
 
-    onTestFinished(() => stopProcessGroup(child));
+    stack.defer(() => stopProcessGroup(child));
 
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(child.stdout).text(),

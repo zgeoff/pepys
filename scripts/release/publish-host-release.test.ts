@@ -5,9 +5,13 @@ import { join } from 'node:path';
 import { stopProcessGroup } from '../utils/stop-process-group.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-host-release-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const binDirectory = join(directory, 'bin');
   const log = join(directory, 'gh.log');
@@ -50,7 +54,7 @@ esac
       detached: true,
     });
 
-    onTestFinished(() => stopProcessGroup(child));
+    stack.defer(() => stopProcessGroup(child));
 
     const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
 

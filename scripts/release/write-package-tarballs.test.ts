@@ -6,9 +6,13 @@ import { stopProcessGroup } from '../utils/stop-process-group.ts';
 import { readPublicPackages } from './read-public-packages.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-tarballs-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   return {
     packDirectory: join(directory, 'packs'),
@@ -29,7 +33,7 @@ async function setupTest() {
         },
       );
 
-      onTestFinished(() => stopProcessGroup(child));
+      stack.defer(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([
         new Response(child.stderr).text(),

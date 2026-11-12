@@ -7,9 +7,13 @@ import { stopProcessGroup } from '../utils/stop-process-group.ts';
 import { readPublicPackages } from './read-public-packages.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'pepys-publish-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
   const binDirectory = join(directory, 'bin');
   const log = join(directory, 'npm.log');
@@ -43,7 +47,7 @@ exit "\${PUBLISH_EXIT:-0}"
         detached: true,
       });
 
-      onTestFinished(() => stopProcessGroup(child));
+      stack.defer(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([
         new Response(child.stderr).text(),
