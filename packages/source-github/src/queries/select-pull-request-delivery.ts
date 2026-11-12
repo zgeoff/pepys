@@ -16,8 +16,8 @@ interface DeliveryOptions {
 }
 
 // The statement that ties pull requests to releases and deploys. The rules it holds are in the
-// "Delivery query" section of the plug-ins design doc. Run it with `.execute(db)`, and turn its rows
-// into deliveries with the parse function below.
+// "The delivery query" section of docs/architecture/plug-ins/github.md. Run it with `.execute(db)`,
+// and turn its rows into deliveries with the parse function below.
 export function selectPullRequestDelivery(options: DeliveryOptions): RawBuilder<unknown> {
   return sql`select
     pull_request.id as "pullRequest",
