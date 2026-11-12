@@ -1,0 +1,17 @@
+{
+  "columns": [
+    { "table": "applied_facts", "name": "fact_id", "type": "TEXT", "notnull": 1, "pk": 1 },
+    { "table": "change_log", "name": "batch", "type": "INTEGER", "notnull": 1, "pk": 1 },
+    { "table": "change_log", "name": "changes", "type": "TEXT", "notnull": 1, "pk": 0 },
+    { "table": "link", "name": "type", "type": "TEXT", "notnull": 1, "pk": 1 },
+    { "table": "link", "name": "from_id", "type": "TEXT", "notnull": 1, "pk": 2 },
+    { "table": "link", "name": "to_id", "type": "TEXT", "notnull": 1, "pk": 3 },
+    { "table": "link", "name": "scope", "type": "TEXT", "notnull": 0, "pk": 0 },
+    { "table": "link", "name": "origin", "type": "TEXT", "notnull": 1, "pk": 0 },
+    { "table": "link", "name": "confidence", "type": "REAL", "notnull": 1, "pk": 0 },
+    { "table": "link", "name": "evidence", "type": "TEXT", "notnull": 1, "pk": 0 },
+    { "table": "offsets", "name": "stream", "type": "TEXT", "notnull": 1, "pk": 1 },
+    { "table": "offsets", "name": "last_seq_num", "type": "INTEGER", "notnull": 1, "pk": 0 }
+  ],
+  "indexes": [{ "index": "link_to_id_idx", "table": "link", "column": "to_id" }]
+}

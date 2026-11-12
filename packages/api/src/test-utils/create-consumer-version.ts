@@ -15,19 +15,18 @@ interface ConsumerVersion {
   changeLog?: readonly { batch: number; changes: string }[];
 }
 
-// The tables the host makes in every consumer file beside the consumer's own, and the `link`
-// table it makes in the file of a consumer with link types, in the form the test store makes it.
+// The tables the host makes in every consumer file beside the consumer's own, as `host-tables.json`
+// records them. A test of the host checks that record.
 const hostTables = `
 CREATE TABLE offsets (stream TEXT NOT NULL PRIMARY KEY, last_seq_num INTEGER NOT NULL);
 CREATE TABLE change_log (batch INTEGER NOT NULL PRIMARY KEY, changes TEXT NOT NULL);
-`;
-
-const linkTable = `
+CREATE TABLE applied_facts (fact_id TEXT NOT NULL PRIMARY KEY);
 CREATE TABLE link (
   type TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, scope TEXT,
   origin TEXT NOT NULL, confidence REAL NOT NULL, evidence TEXT NOT NULL,
   PRIMARY KEY (type, from_id, to_id)
 );
+CREATE INDEX link_to_id_idx ON link (to_id);
 `;
 
 // Writes `<store>/<consumer>/<version>/consumer.db` as the host would, and returns its folder.
@@ -41,10 +40,6 @@ export async function createConsumerVersion(options: ConsumerVersion): Promise<s
   try {
     await database.exec(generateSqliteSchema(options.consumer));
     await database.exec(hostTables);
-
-    if (options.consumer.links.length > 0) {
-      await database.exec(linkTable);
-    }
 
     for (const [table, rows] of Object.entries(options.rows ?? {})) {
       for (const row of rows) {

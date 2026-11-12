@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { connect } from '@tursodatabase/database';
 import { createConsumerVersion, writeCurrentVersion } from './create-consumer-version.ts';
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour/harbour-plugin.ts';
+import hostTables from './host-tables.json';
 
 async function setupTest() {
   const stack = new AsyncDisposableStack();
@@ -84,7 +85,7 @@ test('it writes the rows, links, offsets and change log of a version in the host
   });
 });
 
-test('it makes no link table for a consumer without link types', async () => {
+test('it makes the tables the host makes, link included, for a consumer without link types', async () => {
   const ctx = await setupTest();
 
   const directory = await createConsumerVersion({
@@ -93,12 +94,22 @@ test('it makes no link table for a consumer without link types', async () => {
     version: 'v1',
   });
 
-  const tables = await ctx.readFile(
+  const columns = await ctx.readFile(
     directory,
-    "select name from sqlite_schema where name = 'link'",
+    `select m.name as "table", p.name as name, p.type as type, p."notnull" as "notnull", p.pk as pk
+     from sqlite_master m join pragma_table_info(m.name) p
+     where m.type = 'table' and m.name != 'harbour_vessel' order by m.name, p.cid`,
   );
 
-  expect(tables).toStrictEqual([]);
+  const indexes = await ctx.readFile(
+    directory,
+    `select m.name as "index", m.tbl_name as "table", i.name as "column"
+     from sqlite_master m join pragma_index_info(m.name) i
+     where m.type = 'index' and m.sql is not null and m.tbl_name != 'harbour_vessel'
+     order by m.name, i.seqno`,
+  );
+
+  expect({ columns, indexes }).toStrictEqual(hostTables);
 });
 
 test('#writeCurrentVersion points the current link at the version, and again at a newer one', async () => {

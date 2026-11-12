@@ -287,6 +287,69 @@ mod tests {
         );
     }
 
+    // The API's tests write consumer files as the host does, from this record of the host's tables.
+    const HOST_TABLES: &str = include_str!("../../../packages/api/src/test-utils/host-tables.json");
+
+    async fn read_rows(store: &Store, statement: &str, keys: &[&str]) -> Vec<serde_json::Value> {
+        let mut rows = store
+            .connection
+            .query(statement, ())
+            .await
+            .expect("a query");
+        let mut read = Vec::new();
+
+        while let Some(row) = rows.next().await.expect("a row") {
+            let mut object = serde_json::Map::new();
+
+            for (index, key) in keys.iter().enumerate() {
+                let value = match row.get_value(index).expect("a value") {
+                    Value::Integer(number) => serde_json::Value::from(number),
+                    Value::Text(text) => serde_json::Value::from(text),
+                    other @ (Value::Null | Value::Real(_) | Value::Blob(_)) => {
+                        panic!("an unexpected value {other:?}")
+                    }
+                };
+
+                object.insert((*key).to_owned(), value);
+            }
+
+            read.push(serde_json::Value::Object(object));
+        }
+
+        read
+    }
+
+    #[tokio::test]
+    async fn it_makes_the_tables_that_the_api_tests_record_for_a_consumer_file() {
+        let directory = tempfile::tempdir().expect("a temporary directory");
+        let store = open_store(&directory.path().join("consumer.db"))
+            .await
+            .expect("a store");
+
+        prepare_store(&store, "").await.expect("the host's tables");
+
+        let columns = read_rows(
+            &store,
+            "SELECT m.name, p.name, p.type, p.\"notnull\", p.pk FROM sqlite_master m \
+             JOIN pragma_table_info(m.name) p WHERE m.type = 'table' ORDER BY m.name, p.cid",
+            &["table", "name", "type", "notnull", "pk"],
+        )
+        .await;
+        let indexes = read_rows(
+            &store,
+            "SELECT m.name, m.tbl_name, i.name FROM sqlite_master m \
+             JOIN pragma_index_info(m.name) i WHERE m.type = 'index' AND m.sql IS NOT NULL \
+             ORDER BY m.name, i.seqno",
+            &["index", "table", "column"],
+        )
+        .await;
+
+        assert_eq!(
+            serde_json::json!({ "columns": columns, "indexes": indexes }),
+            serde_json::from_str::<serde_json::Value>(HOST_TABLES).expect("the recorded tables")
+        );
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn it_waits_for_a_lock_that_another_handle_holds_and_then_writes() {
         let directory = tempfile::tempdir().expect("a temporary directory");
