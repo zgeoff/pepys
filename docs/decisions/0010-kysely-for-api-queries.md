@@ -1,6 +1,6 @@
 # 0010: The API queries with Kysely through its own Turso dialect
 
-Date: 2026-10-22 Updated: 2026-10-24
+Date: 2026-10-22 Updated: 2026-11-12
 
 ## Decision
 
