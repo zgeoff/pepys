@@ -1,7 +1,7 @@
 // Publishes each tarball in PEPYS_PACK_DIR with npm, through trusted publishing. A version that npm
 // already has is skipped, so a rerun after a failed publish sends only what is left.
 import { join } from 'node:path';
-import { buildTarballName } from './build-tarball-name.ts';
+import { pickPublishStep } from './pick-publish-step.ts';
 import { readPublicPackages } from './read-public-packages.ts';
 
 const packDirectory = process.env['PEPYS_PACK_DIR'];
@@ -14,18 +14,20 @@ if (packDirectory === undefined || packDirectory === '') {
 const packages = await readPublicPackages(join(import.meta.dir, '..', '..'));
 
 for (const pkg of packages) {
-  const isPublished = await probePublished(pkg.name, pkg.version);
+  const step = pickPublishStep({
+    pkg,
+    isPublished: await probePublished(pkg.name, pkg.version),
+    packDirectory,
+  });
 
-  if (isPublished) {
-    console.log(`${pkg.name}@${pkg.version} is on npm already`);
+  if (step.kind === 'skip') {
+    console.log(step.message);
     continue;
   }
 
   // `bun publish` has no trusted publishing, so npm publishes the tarball that bun packed
-  const tarball = join(packDirectory, buildTarballName(pkg));
-
   const exitCode = await Bun.spawn(
-    ['npm', 'publish', tarball, '--provenance', '--access', 'public'],
+    ['npm', 'publish', step.tarball, '--provenance', '--access', 'public'],
     { stdout: 'inherit', stderr: 'inherit' },
   ).exited;
 

@@ -1,11 +1,11 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { buildTarballName } from '../release/build-tarball-name.ts';
 import { readPublicPackages } from '../release/read-public-packages.ts';
 import type { PublicPackage } from '../release/read-public-packages.ts';
 import { runPackPackages } from '../release/run-pack-packages.ts';
 import { isRecord } from '../utils/is-record.ts';
 import type { OutsideProjectInput, OutsideSource } from './build-outside-project.ts';
+import { pickOutsideSource } from './pick-outside-source.ts';
 
 // Reads what an outside project needs from the repo at `repoRoot`. The packages come from the
 // tarballs in PEPYS_PACK_DIR, from npm at PEPYS_OUTSIDE_VERSION, or, with neither set, from a fresh
@@ -59,21 +59,14 @@ async function readSource(
   publicPackages: readonly PublicPackage[],
   folder: string,
 ): Promise<OutsideSource> {
-  const version = process.env['PEPYS_OUTSIDE_VERSION'];
-  const packDirectory = process.env['PEPYS_PACK_DIR'];
+  const step = pickOutsideSource({
+    packages: publicPackages,
+    version: process.env['PEPYS_OUTSIDE_VERSION'],
+    packDirectory: process.env['PEPYS_PACK_DIR'],
+  });
 
-  if (version !== undefined && version !== '') {
-    return { kind: 'npm', version };
-  }
-
-  if (packDirectory !== undefined && packDirectory !== '') {
-    const tarballs: Record<string, string> = {};
-
-    for (const pkg of publicPackages) {
-      tarballs[pkg.name] = join(packDirectory, buildTarballName(pkg));
-    }
-
-    return { kind: 'tarballs', tarballs };
+  if (step.kind !== 'pack') {
+    return step;
   }
 
   const destination = join(folder, 'tarballs');

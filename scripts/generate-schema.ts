@@ -2,8 +2,10 @@
 // committed files and exits 1 listing each that differs.
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { readOptionalText } from '@zgeoff/std';
 import { buildGeneratedFiles } from './build-generated-files.ts';
 import type { GeneratedFile } from './build-generated-files.ts';
+import { collectStaleFiles } from './collect-stale-files.ts';
 
 const root = join(import.meta.dir, '..');
 const generated = buildGeneratedFiles();
@@ -14,7 +16,9 @@ if (!generated.ok) {
 }
 
 if (process.argv.includes('--check')) {
-  const stale = await readStaleFiles(generated.files);
+  const committed = await readCommittedFiles(generated.files);
+
+  const stale = collectStaleFiles(generated.files, committed);
 
   if (stale.length > 0) {
     console.error(`generated files differ from the declarations; run \`bun run schema:generate\`:`);
@@ -29,18 +33,12 @@ if (process.argv.includes('--check')) {
   }
 }
 
-async function readStaleFiles(files: readonly GeneratedFile[]): Promise<string[]> {
-  const results = await Promise.all(
-    files.map(async (file) => {
-      const handle = Bun.file(join(root, file.path));
-
-      const exists = await handle.exists();
-
-      const committed = exists ? await handle.text() : undefined;
-
-      return { path: file.path, isStale: committed !== file.content };
-    }),
+async function readCommittedFiles(files: readonly GeneratedFile[]): Promise<Map<string, string>> {
+  const texts = await Promise.all(
+    files.map(async (file) => [file.path, await readOptionalText(join(root, file.path))] as const),
   );
 
-  return results.filter((result) => result.isStale).map((result) => result.path);
+  return new Map(
+    texts.flatMap(([path, text]): [string, string][] => (text === undefined ? [] : [[path, text]])),
+  );
 }

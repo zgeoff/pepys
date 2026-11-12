@@ -2,9 +2,9 @@
 // SHA256SUMS lists exactly that asset with its sha256, the asset needs no glibc newer than the
 // floor, and the asset starts.
 import { join } from 'node:path';
-import { collectSumsProblems } from './collect-sums-problems.ts';
-import { GLIBC_FLOOR, HOST_ASSET_NAME, SUMS_FILE_NAME } from './constants.ts';
-import { findGlibcAboveFloor } from './find-glibc-above-floor.ts';
+import { collectHostAssetProblems } from './collect-host-asset-problems.ts';
+import type { HostAssetFacts } from './collect-host-asset-problems.ts';
+import { HOST_ASSET_NAME, SUMS_FILE_NAME } from './constants.ts';
 import { readSHA256 } from './read-sha256.ts';
 
 const binary = process.env['PEPYS_HOST_BINARY'];
@@ -15,38 +15,14 @@ if (binary === undefined || binary === '' || distDirectory === undefined || dist
   process.exit(1);
 }
 
-const asset = join(distDirectory, HOST_ASSET_NAME);
 const sumsFile = Bun.file(join(distDirectory, SUMS_FILE_NAME));
 
-const hasAsset = await Bun.file(asset).exists();
 const hasSums = await sumsFile.exists();
 
-const sumsText = hasSums ? await sumsFile.text() : null;
-const assetSHA256 = hasAsset ? await readSHA256(asset) : null;
-const problems = collectSumsProblems(sumsText, assetSHA256);
-
-if (hasAsset) {
-  const binarySHA256 = await readSHA256(binary);
-
-  if (assetSHA256 !== binarySHA256) {
-    problems.push(`${HOST_ASSET_NAME} is not the binary at ${binary}`);
-  }
-
-  const symbolTable = await runCapture(['objdump', '-T', asset]);
-
-  const newerGlibc = findGlibcAboveFloor(symbolTable, GLIBC_FLOOR);
-
-  if (newerGlibc !== null) {
-    problems.push(`${HOST_ASSET_NAME} needs glibc ${newerGlibc}, newer than ${GLIBC_FLOOR}`);
-  }
-
-  const helpExitCode = await Bun.spawn([asset, '--help'], { stdout: 'ignore', stderr: 'inherit' })
-    .exited;
-
-  if (helpExitCode !== 0) {
-    problems.push(`${HOST_ASSET_NAME} --help exited with ${helpExitCode}`);
-  }
-}
+const problems = collectHostAssetProblems({
+  sumsText: hasSums ? await sumsFile.text() : null,
+  asset: await readHostAssetFacts(join(distDirectory, HOST_ASSET_NAME), binary),
+});
 
 for (const problem of problems) {
   console.error(problem);
@@ -55,6 +31,27 @@ for (const problem of problems) {
 const exitCode = problems.length === 0 ? 0 : 1;
 
 process.exit(exitCode);
+
+// what the check needs to know of the asset, or null when there is no asset to read
+async function readHostAssetFacts(
+  asset: string,
+  builtBinary: string,
+): Promise<HostAssetFacts | null> {
+  const hasAsset = await Bun.file(asset).exists();
+
+  if (!hasAsset) {
+    return null;
+  }
+
+  const sha256 = await readSHA256(asset);
+  const binarySHA256 = await readSHA256(builtBinary);
+  const symbolTable = await runCapture(['objdump', '-T', asset]);
+
+  const helpExitCode = await Bun.spawn([asset, '--help'], { stdout: 'ignore', stderr: 'inherit' })
+    .exited;
+
+  return { sha256, binarySHA256, binary: builtBinary, symbolTable, helpExitCode };
+}
 
 async function runCapture(command: string[]): Promise<string> {
   const child = Bun.spawn(command, { stdout: 'pipe', stderr: 'inherit' });

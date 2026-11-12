@@ -2,17 +2,17 @@ import { mkdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { DeploymentFailure } from '@pepys/kit';
-import { isRecord, readOptionalText } from '@zgeoff/std';
+import { readOptionalText } from '@zgeoff/std';
 import { buildConsumerBuildManifest } from './build-consumer-build-manifest.ts';
 import type { BuiltModule } from './build-consumer-build-manifest.ts';
 import type { GlueFile } from './build-consumer-glue.ts';
-import { checkBuildTarget } from './check-build-target.ts';
 import type { CheckedTarget } from './check-build-target.ts';
 import { collectGlueFiles } from './collect-glue-files.ts';
 import { compileConsumer } from './compile-consumer.ts';
 import type { BuildTools } from './compile-consumer.ts';
-import { pickBuildTarget } from './pick-build-target.ts';
 import type { TargetFailure } from './pick-build-target.ts';
+import { pickCheckedTarget } from './pick-checked-target.ts';
+import { pickGlueStep } from './pick-glue-step.ts';
 import { readPackageRoot } from './read-package-root.ts';
 import { writeBuildManifest } from './write-build-manifest.ts';
 
@@ -60,71 +60,46 @@ export async function runBuild(options: BuildOptions): Promise<BuildOutcome> {
 
   const loaded: unknown = await import(pathToFileURL(file).href);
 
-  const exports = isRecord(loaded) ? loaded : {};
-  const picked = pickBuildTarget(exports);
+  const target = pickCheckedTarget(loaded);
 
-  if (!picked.ok) {
-    return { kind: 'no-target', reason: picked.failure };
+  if (!target.ok) {
+    return target.failure;
   }
 
-  const checked = checkBuildTarget(picked.value);
-
-  if (!checked.ok) {
-    return { kind: 'invalid', failures: checked.failure };
-  }
-
-  const foundRoot = await readPackageRoot(dirname(file));
+  const packageRoot = await readPackageRoot(dirname(file));
 
   const glue = collectGlueFiles({
-    target: checked.value,
-    packageRoot: foundRoot ?? dirname(file),
+    target: target.value,
+    packageRoot: packageRoot ?? dirname(file),
   });
 
-  const stale = await readStalePaths(glue);
+  const step = pickGlueStep({
+    glue,
+    committed: await readCommittedGlue(glue),
+    isCheck: options.isCheck,
+    out: options.out === undefined ? undefined : resolve(options.out),
+    tools: options.tools,
+  });
 
-  if (options.isCheck) {
-    return buildCheckOutcome(stale, glue.length);
-  }
-
-  for (const entry of glue.filter((candidate) => stale.includes(candidate.path))) {
+  for (const entry of step.write) {
     await mkdir(dirname(entry.path), { recursive: true });
 
     await Bun.write(entry.path, entry.content);
   }
 
-  const written = stale;
-  const unchanged = glue.map((entry) => entry.path).filter((path) => !stale.includes(path));
-
-  if (options.out === undefined) {
-    return { kind: 'built', written, unchanged };
+  if (step.kind === 'done') {
+    return step.outcome;
   }
 
-  const zig = options.tools.zig;
-  const wasmTools = options.tools.wasmTools;
-
-  if (zig === undefined) {
-    return { kind: 'missing-tool', tool: 'zig' };
-  }
-
-  if (wasmTools === undefined) {
-    return { kind: 'missing-tool', tool: 'wasm-tools' };
-  }
-
-  const out = resolve(options.out);
-
-  const compiled = await compileTarget({
-    target: checked.value,
-    out,
-    tools: { scriptc: options.tools.scriptc, zig, wasmTools },
-  });
+  const compiled = await compileTarget({ target: target.value, out: step.out, tools: step.tools });
 
   if (compiled.kind !== 'compiled') {
     return compiled;
   }
 
   const manifest = await writeBuildManifest(
-    out,
-    buildConsumerBuildManifest({ target: checked.value, modules: compiled.modules }),
+    step.out,
+    buildConsumerBuildManifest({ target: target.value, modules: compiled.modules }),
   );
 
   if (!manifest.ok) {
@@ -133,30 +108,21 @@ export async function runBuild(options: BuildOptions): Promise<BuildOutcome> {
 
   return {
     kind: 'compiled',
-    written,
-    unchanged,
+    written: step.written,
+    unchanged: step.unchanged,
     modules: compiled.modules,
     manifest: manifest.value,
   };
 }
 
-async function readStalePaths(glue: readonly GlueFile[]): Promise<string[]> {
-  const results = await Promise.all(
-    glue.map(async (entry) => ({
-      path: entry.path,
-      isStale: (await readOptionalText(entry.path)) !== entry.content,
-    })),
+async function readCommittedGlue(glue: readonly GlueFile[]): Promise<Map<string, string>> {
+  const texts = await Promise.all(
+    glue.map(async (entry) => [entry.path, await readOptionalText(entry.path)] as const),
   );
 
-  return results.filter((result) => result.isStale).map((result) => result.path);
-}
-
-function buildCheckOutcome(stale: readonly string[], count: number): BuildOutcome {
-  if (stale.length > 0) {
-    return { kind: 'stale', stale };
-  }
-
-  return { kind: 'fresh', count };
+  return new Map(
+    texts.flatMap(([path, text]): [string, string][] => (text === undefined ? [] : [[path, text]])),
+  );
 }
 
 interface CompileTargetParameters {
