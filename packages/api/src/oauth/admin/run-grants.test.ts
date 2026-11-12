@@ -1,9 +1,9 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import { setupMCPHTTP } from '../../test-utils/setup-mcp-http.ts';
 import { systemClock } from '../auth/system-clock.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { readJSONRecord } from '../test-utils/read-json-record.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
-import { setupMCPHTTP } from '../test-utils/setup-mcp-http.ts';
 import { runGrants } from './run-grants.ts';
 
 async function setupTest() {

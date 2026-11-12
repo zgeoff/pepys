@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
 import { readMCPAnswer } from '../../test-utils/read-mcp-answer.ts';
+import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { readGrantViews } from '../auth/read-grant-views.ts';
@@ -23,7 +24,6 @@ import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { runPasskeySignIn } from '../test-utils/run-passkey-sign-in.ts';
 import { sendModernMCPRequest } from '../test-utils/send-modern-mcp-request.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { startHarbourMCPServer } from '../test-utils/start-harbour-mcp-server.ts';
 
 // The API of the harbour deployment with its OAuth routes, its database in
 // the test's temp folder, and the owner's passkey enrolled.

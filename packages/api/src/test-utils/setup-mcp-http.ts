@@ -2,17 +2,17 @@ import { join } from 'node:path';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import invariant from 'tiny-invariant';
-import { createApp } from '../../app/create-app.ts';
-import { buildQueryContext } from '../../queries/build-query-context.ts';
-import { harbourPlugin } from '../../test-utils/harbour/harbour-plugin.ts';
-import { openMCPAuthDatabase } from '../admin/open-mcp-auth-database.ts';
-import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
-import { openMCPAuth } from '../auth/open-mcp-auth.ts';
-import { startMCPHTTPServer } from '../http/start-mcp-http-server.ts';
-import { buildStubAuthenticator } from './build-stub-authenticator.ts';
-import { registerTestCleanup } from './register-test-cleanup.ts';
-import { runPasskeyEnrollment } from './run-passkey-enrollment.ts';
-import { setupTempDir } from './setup-temp-dir.ts';
+import { createApp } from '../app/create-app.ts';
+import { openMCPAuthDatabase } from '../oauth/admin/open-mcp-auth-database.ts';
+import { createEnrollmentToken } from '../oauth/auth/create-enrollment-token.ts';
+import { openMCPAuth } from '../oauth/auth/open-mcp-auth.ts';
+import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
+import { buildStubAuthenticator } from '../oauth/test-utils/build-stub-authenticator.ts';
+import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
+import { runPasskeyEnrollment } from '../oauth/test-utils/run-passkey-enrollment.ts';
+import { setupTempDir } from '../oauth/test-utils/setup-temp-dir.ts';
+import { buildQueryContext } from '../queries/build-query-context.ts';
+import { harbourPlugin } from './harbour/harbour-plugin.ts';
 
 interface MCPHTTPSetupOptions {
   // Further Host header values the server accepts.

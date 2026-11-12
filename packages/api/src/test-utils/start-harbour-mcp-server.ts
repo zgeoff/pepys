@@ -1,12 +1,12 @@
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import invariant from 'tiny-invariant';
-import { createApp } from '../../app/create-app.ts';
-import { buildQueryContext } from '../../queries/build-query-context.ts';
-import { harbourPlugin } from '../../test-utils/harbour/harbour-plugin.ts';
-import { openMCPAuthDatabase } from '../admin/open-mcp-auth-database.ts';
-import { startMCPHTTPServer } from '../http/start-mcp-http-server.ts';
-import { registerTestCleanup } from './register-test-cleanup.ts';
+import { createApp } from '../app/create-app.ts';
+import { openMCPAuthDatabase } from '../oauth/admin/open-mcp-auth-database.ts';
+import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
+import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
+import { buildQueryContext } from '../queries/build-query-context.ts';
+import { harbourPlugin } from './harbour/harbour-plugin.ts';
 
 type ServerOptions = Parameters<typeof startMCPHTTPServer>[0];
 

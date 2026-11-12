@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
@@ -9,7 +10,6 @@ import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { runPasskeySignIn } from '../test-utils/run-passkey-sign-in.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { startHarbourMCPServer } from '../test-utils/start-harbour-mcp-server.ts';
 import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readPasskeyViews } from './read-passkey-views.ts';

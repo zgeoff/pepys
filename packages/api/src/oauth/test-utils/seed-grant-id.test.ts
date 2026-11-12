@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { buildStubAuthenticator } from './build-stub-authenticator.ts';
@@ -9,7 +10,6 @@ import { runMCPAuthorization } from './run-mcp-authorization.ts';
 import { runPasskeyEnrollment } from './run-passkey-enrollment.ts';
 import { seedGrantID } from './seed-grant-id.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
-import { startHarbourMCPServer } from './start-harbour-mcp-server.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-seed-grant-id-');

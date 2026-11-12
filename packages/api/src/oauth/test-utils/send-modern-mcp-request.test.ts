@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { openMCPAuthDatabase } from '../admin/open-mcp-auth-database.ts';
 import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
@@ -9,7 +10,6 @@ import { runMCPTokenGrant } from './run-mcp-token-grant.ts';
 import { runPasskeyEnrollment } from './run-passkey-enrollment.ts';
 import { sendModernMCPRequest } from './send-modern-mcp-request.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
-import { startHarbourMCPServer } from './start-harbour-mcp-server.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-send-modern-mcp-request-');
