@@ -23,6 +23,7 @@ sources -> immutable fact log (one stream per source, on object storage) -> sand
 - [`@pepys/ingest`](./packages/ingest/README.md): the receive routes and the fact log.
 - [`@pepys/api`](./packages/api/README.md): typed queries over the store.
 - [`@pepys/source-github`](./packages/source-github/README.md): the GitHub plug-in.
+- [`@pepys/source-telemetry`](./packages/source-telemetry/README.md): the telemetry plug-in.
 
 ## Quick start
 
