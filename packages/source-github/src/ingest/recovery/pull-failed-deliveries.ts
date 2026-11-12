@@ -55,7 +55,7 @@ export async function pullFailedDeliveries(
     // The receive path answers 413 to a body this large and stores nothing; a batch that held it
     // would be refused whole, with every other delivery and the cursor.
     if (!planAppends([fact.fact]).ok) {
-      console.error(`the GitHub delivery ${id} is larger than one append of the log takes`);
+      context.log.error(`the GitHub delivery ${id} is larger than one append of the log takes`);
       continue;
     }
 

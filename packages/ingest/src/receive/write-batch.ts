@@ -1,4 +1,4 @@
-import type { StreamName } from '@pepys/kit';
+import type { Logger, StreamName } from '@pepys/kit';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
 import type { BatchPlan } from './plan-batch.ts';
 
@@ -11,6 +11,7 @@ export type StreamTurns = Map<StreamName, Promise<void>>;
 interface WriteBatchDependencies {
   append: BatchAppender;
   turns: StreamTurns;
+  logger: Logger;
 }
 
 // The streams append at the same time, and the appends of one stream one after the other. Every
@@ -21,12 +22,12 @@ export async function writeBatch(
 ): Promise<BatchOutcome> {
   const settled = await Promise.all(
     [...plan].map(([stream, runs]) =>
-      withStreamTurn(dependencies.turns, stream, async () => {
+      withStreamTurn(dependencies, stream, async () => {
         for (const run of runs) {
           const appended = await dependencies.append(stream, run);
 
           if (!appended.ok) {
-            console.error(`an append to ${stream} failed`, appended.failure);
+            dependencies.logger.error(`an append to ${stream} failed`, appended.failure);
 
             return appended.failure.kind;
           }
@@ -42,10 +43,11 @@ export async function writeBatch(
 
 // A throw is a refusal the log gives no outcome for, such as a bad access token.
 async function withStreamTurn(
-  turns: StreamTurns,
+  dependencies: Pick<WriteBatchDependencies, 'turns' | 'logger'>,
   stream: StreamName,
   work: () => Promise<BatchOutcome>,
 ): Promise<BatchOutcome> {
+  const turns = dependencies.turns;
   const previous = turns.get(stream) ?? Promise.resolve();
   const done = Promise.withResolvers<void>();
 
@@ -56,7 +58,7 @@ async function withStreamTurn(
 
     return await work();
   } catch (error: unknown) {
-    console.error(`an append to ${stream} threw`, error);
+    dependencies.logger.error(`an append to ${stream} threw`, error);
 
     return 'refused';
   } finally {

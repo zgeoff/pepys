@@ -1,4 +1,5 @@
-import type { CheckedDeployment, SenderProof } from '@pepys/kit';
+import { createLogger } from '@pepys/kit';
+import type { CheckedDeployment, Logger, SenderProof } from '@pepys/kit';
 import type { FactLog } from '../fact-log/fact-log.ts';
 import { makeBatchAppender } from '../fact-log/make-batch-appender.ts';
 import { makePullRunner } from '../pull/make-pull-runner.ts';
@@ -20,6 +21,9 @@ export interface IngestOptions {
   senderProof: SenderProof;
   appendRetry: { maxAttempts: number; retryDelayMs: number };
   now: () => number;
+
+  // Defaults to a logger that writes to stderr. A source's `read` and `pull` get it as `log`.
+  logger?: Logger | undefined;
 }
 
 export interface Ingest {
@@ -38,7 +42,8 @@ const recentBodyMaxAgeMs = 3_600_000;
 
 // The receive routes of a deployment over a given log, as one fetch function with no listener.
 export function createIngest(options: IngestOptions): Ingest {
-  const append = makeBatchAppender({ log: options.log, ...options.appendRetry });
+  const logger = options.logger ?? createLogger(process.stderr);
+  const append = makeBatchAppender({ log: options.log, logger, ...options.appendRetry });
 
   const turns: StreamTurns = new Map();
 
@@ -60,6 +65,7 @@ export function createIngest(options: IngestOptions): Ingest {
       makeReceiveHandler(source, path, {
         secret,
         senderProof: options.senderProof,
+        logger,
         append,
         turns,
         recentBodies: createRecentBodies({
@@ -74,7 +80,7 @@ export function createIngest(options: IngestOptions): Ingest {
     for (const route of path.ignoredRoutes ?? []) {
       handlers.set(
         route,
-        makeIgnoredRouteHandler(path, { secret, senderProof: options.senderProof }),
+        makeIgnoredRouteHandler(path, { secret, senderProof: options.senderProof, logger }),
       );
     }
   }
@@ -99,6 +105,7 @@ export function createIngest(options: IngestOptions): Ingest {
       turns,
       resyncMarks: resync.marks,
       now: options.now,
+      logger,
     }),
   };
 }

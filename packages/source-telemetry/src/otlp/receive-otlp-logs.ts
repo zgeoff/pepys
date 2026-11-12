@@ -58,7 +58,10 @@ export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
       const read = readOtlpFacts(body, { products, sessionAttribute });
 
       if (read.dropped.length > 0) {
-        console.warn(`the source ${source.name} dropped log records`, formatDropped(read.dropped));
+        source.log.warn(
+          `the source ${source.name} dropped log records`,
+          countDropped(read.dropped),
+        );
       }
 
       return buildReceived(read.facts, delivery.sender, source);
@@ -81,14 +84,14 @@ function parseJSON(text: string): unknown {
 }
 
 // One line per export: the count of each reason, never the records.
-function formatDropped(dropped: readonly DroppedRecord[]): string {
+function countDropped(dropped: readonly DroppedRecord[]): Record<string, number> {
   const counts = new Map<string, number>();
 
   for (const record of dropped) {
     counts.set(record.reason, (counts.get(record.reason) ?? 0) + 1);
   }
 
-  return JSON.stringify(Object.fromEntries(counts));
+  return Object.fromEntries(counts);
 }
 
 function buildReceived(

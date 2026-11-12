@@ -1,5 +1,6 @@
-import { expect, onTestFinished, spyOn, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { createHmac } from 'node:crypto';
+import { createLogger } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { createFactBatchSender } from '@pepys/kit/send';
 import { toTagged } from '@zgeoff/std';
@@ -43,9 +44,15 @@ function setupTest() {
   const createLog = () =>
     createMemoryFactLog([streams.till, streams.lamp, streams.stray, streams.strayMark]);
 
+  const lines: string[] = [];
+  const logger = createLogger({ write: (line) => lines.push(line) });
+
   const createIngestOver = (
     overrides: Partial<
-      Pick<IngestOptions, 'deployment' | 'log' | 'secrets' | 'senderProof' | 'appendRetry'>
+      Pick<
+        IngestOptions,
+        'deployment' | 'log' | 'secrets' | 'senderProof' | 'appendRetry' | 'logger'
+      >
     >,
   ) =>
     createIngest({
@@ -62,6 +69,7 @@ function setupTest() {
       }),
       appendRetry: { maxAttempts: 2, retryDelayMs: 0 },
       now: () => clock.nowMs,
+      logger,
       ...overrides,
     });
 
@@ -88,6 +96,7 @@ function setupTest() {
     createLog,
     createIngestOver,
     ingest: createIngestOver({ log }),
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
     readIDs: async (stream: StreamName, from: FactLog = log) => {
       const stored = await readStored(stream, from);
 
@@ -509,14 +518,9 @@ test('it refuses every delivery on a path that needs a sender when no adapter pr
   });
 });
 
-test('it refuses with 401 a delivery whose sender proof throws, and stores nothing', async () => {
+test('it refuses with 401 a delivery whose sender proof throws, stores nothing, and logs only the fact', async () => {
   const ctx = setupTest();
   const log = ctx.createLog();
-  const error = spyOn(console, 'error').mockImplementation(() => {});
-
-  onTestFinished(() => {
-    error.mockRestore();
-  });
 
   const ingest = ctx.createIngestOver({
     log,
@@ -535,6 +539,10 @@ test('it refuses with 401 a delivery whose sender proof throws, and stores nothi
     answer: { status: 401, body: { error: 'not authorised' } },
     ids: [],
   });
+
+  expect(ctx.readLogged()).toStrictEqual([
+    { level: 'error', message: 'the sender proof threw, so the delivery proves no sender' },
+  ]);
 });
 
 test('it answers 500 when the log refuses one stream of two, and the other stream keeps what it stored', async () => {

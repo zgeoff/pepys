@@ -1,7 +1,8 @@
-import { expect, onTestFinished, spyOn, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createLogger } from '@pepys/kit';
 import type { SourceDefinition, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -21,18 +22,8 @@ async function setupTest() {
 
   const stub = buildStubReceiveDeployment();
   const log = createMemoryFactLog([stub.streams.lamp]);
-
-  const logged = [
-    spyOn(console, 'error').mockImplementation(() => {}),
-    spyOn(console, 'warn').mockImplementation(() => {}),
-    spyOn(console, 'log').mockImplementation(() => {}),
-  ];
-
-  onTestFinished(() => {
-    for (const spy of logged) {
-      spy.mockRestore();
-    }
-  });
+  const lines: string[] = [];
+  const logger = createLogger({ write: (line) => lines.push(line) });
 
   return {
     folder,
@@ -42,7 +33,7 @@ async function setupTest() {
     readSenderProof: (
       sources: readonly SourceDefinition[],
       environment: Readonly<Record<string, string | undefined>>,
-    ) => readImpIdentitySenderProof({ sources, environment, now: () => 0 }),
+    ) => readImpIdentitySenderProof({ sources, environment, now: () => 0, logger }),
     deliver: async (
       environment: Readonly<Record<string, string | undefined>>,
       nowMs: number,
@@ -52,6 +43,7 @@ async function setupTest() {
         sources: stub.deployment.sources,
         environment,
         now: () => nowMs,
+        logger,
       });
 
       invariant(senderProof.ok, 'the trust folder loads');
@@ -63,6 +55,7 @@ async function setupTest() {
         senderProof: senderProof.value,
         appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
         now: () => 0,
+        logger,
       });
 
       const headers = new Headers({ authorization: 'Bearer tide-key' });
@@ -85,8 +78,7 @@ async function setupTest() {
 
       return { status: response.status, text };
     },
-    readLogged: () =>
-      logged.flatMap((spy) => spy.mock.calls.flat().map((part) => Bun.inspect(part))),
+    readLogged: () => [...lines],
     readStoredPayloads: async () => {
       const read = await log.read(stub.streams.lamp, toTagged<StreamOffset>(0), 100);
 

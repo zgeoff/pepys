@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { BlobHash, EntityID, StreamName } from '../ids/types.ts';
 import type { EntityKind } from '../link-types/types.ts';
+import type { Logger } from '../logs/types.ts';
 import type { DeclaredStreamName, FactEnvelope } from '../types.ts';
 
 export interface FactFamily<
@@ -103,6 +104,9 @@ export interface SenderProof {
 export interface SourceContext {
   name: string;
   families: readonly FactFamily[];
+
+  // ingest's logger; a line never holds a secret or a token
+  log: Logger;
 }
 
 // Ingest answers 401, 405, 413 and 415 itself, so `read` refuses with 400 or 422 only.
@@ -130,6 +134,9 @@ export interface PullContext {
   // pull. Ingest removes each of these marks that no delivery set again once the batch the pull
   // returns is stored, so a pull that cannot read every marked entity answers `unavailable`.
   marks: readonly ResyncMark[];
+
+  // ingest's logger; a line never holds a secret or a token
+  log: Logger;
 }
 
 // An entity whose row may be behind the source, with the locator of the last fact ingest stored

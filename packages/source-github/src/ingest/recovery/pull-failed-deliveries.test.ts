@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
+import { createLogger } from '@pepys/kit';
 import { HttpResponse, http } from 'msw';
 import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { mockNetwork } from '../../test-utils/mock-network.ts';
@@ -15,6 +16,7 @@ function setupTest() {
     },
     now: () => 1_800_000_000_000,
     marks: [],
+    log: createLogger({ write: () => {} }),
   };
 
   return { pull: (cursor: string | null) => pullFailedDeliveries(cursor, context) };
@@ -186,6 +188,7 @@ test('it rejects the pull when the App private key cannot sign', async () => {
     env: { PEPYS_GITHUB_APP_ID: '4242', PEPYS_GITHUB_APP_PRIVATE_KEY: 'not a key' },
     now: () => 1_800_000_000_000,
     marks: [],
+    log: createLogger({ write: () => {} }),
   });
 
   expect(pulled).toStrictEqual({

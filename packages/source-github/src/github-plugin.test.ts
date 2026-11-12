@@ -1,7 +1,7 @@
-import { expect, onTestFinished, spyOn, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
 import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
-import { checkDeployment, defineDeployment } from '@pepys/kit';
+import { checkDeployment, createLogger, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { applyInBothOrders, createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
@@ -24,6 +24,8 @@ async function setupTest() {
 
   invariant(deployment.ok, 'the GitHub deployment passes the check');
 
+  const lines: string[] = [];
+
   const ingest = createIngest({
     deployment: deployment.value,
     secrets: {
@@ -35,6 +37,7 @@ async function setupTest() {
     senderProof: noSenderProof,
     appendRetry: { maxAttempts: 2, retryDelayMs: 0 },
     now: () => 0,
+    logger: createLogger({ write: (line) => lines.push(line) }),
   });
 
   const store = await createTestStore({ plugins: [githubPlugin] });
@@ -51,6 +54,7 @@ async function setupTest() {
 
   return {
     store,
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
     runRecovery: (cursor: string | null) => ingest.runPull('github', 'recovery', cursor),
     send: (event: string, deliveryID: string, body: string, secret = 'harbour-webhook-secret') =>
       ingest.handleRequest(
@@ -148,19 +152,18 @@ test('it stores the other failed deliveries of a recovery pull and moves past on
     payload: { action: 'opened', pull_request: { id: 83, updated_at: '2026-10-04T08:01:00Z' } },
   });
 
-  const errorLog = spyOn(console, 'error').mockImplementation(() => {});
-
-  onTestFinished(() => {
-    errorLog.mockRestore();
-  });
-
   const run = await ctx.runRecovery(null);
   const ids = await ctx.readIDs('facts.github.pull_request');
 
-  expect({ run, ids, logged: errorLog.mock.calls }).toStrictEqual({
+  expect({ run, ids, logged: ctx.readLogged() }).toStrictEqual({
     run: { kind: 'stored', stored: 1, cursor: '402', isDone: true },
     ids: [expect.stringMatching(/^webhook:github:h-[0-9a-f]{64}$/u)],
-    logged: [['the GitHub delivery 401 is larger than one append of the log takes']],
+    logged: [
+      {
+        level: 'error',
+        message: 'the GitHub delivery 401 is larger than one append of the log takes',
+      },
+    ],
   });
 });
 

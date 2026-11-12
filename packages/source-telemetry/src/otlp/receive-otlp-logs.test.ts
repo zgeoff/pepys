@@ -1,7 +1,7 @@
-import { expect, onTestFinished, spyOn, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { gzipSync } from 'node:zlib';
 import { createFakeSenderProof, createIngest, createMemoryFactLog } from '@pepys/ingest';
-import { checkDeployment } from '@pepys/kit';
+import { checkDeployment, createLogger } from '@pepys/kit';
 import type { SenderProof, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -15,13 +15,8 @@ function setupTest() {
 
   const stream = toTagged<StreamName>('facts.telemetry.log_record');
   const log = createMemoryFactLog([stream]);
-  const warn = spyOn(console, 'warn').mockImplementation(() => {});
-  const error = spyOn(console, 'error').mockImplementation(() => {});
-
-  onTestFinished(() => {
-    warn.mockRestore();
-    error.mockRestore();
-  });
+  const lines: string[] = [];
+  const logger = createLogger({ write: (line) => lines.push(line) });
 
   const createIngestWith = (senderProof: SenderProof) =>
     createIngest({
@@ -31,10 +26,11 @@ function setupTest() {
       senderProof,
       appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
       now: () => 0,
+      logger,
     });
 
   return {
-    warn,
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
     createIngestWith,
     ingest: createIngestWith(
       createFakeSenderProof({
@@ -275,14 +271,15 @@ test('it answers 200 with {} to an export whose records are all dropped, and log
 
   const answer = await ctx.readAnswer(response);
 
-  expect({ answer, stored: await ctx.readStored(), warned: ctx.warn.mock.calls }).toStrictEqual({
+  expect({ answer, stored: await ctx.readStored(), logged: ctx.readLogged() }).toStrictEqual({
     answer: { status: 200, body: {} },
     stored: [],
-    warned: [
-      [
-        'the source telemetry dropped log records',
-        JSON.stringify({ 'no-session': 2, 'unknown-product': 1 }),
-      ],
+    logged: [
+      {
+        level: 'warn',
+        message: 'the source telemetry dropped log records',
+        detail: { 'no-session': 2, 'unknown-product': 1 },
+      },
     ],
   });
 });

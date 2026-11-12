@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { createLogger } from '@pepys/kit';
 import type { Sender } from '@pepys/kit';
 import invariant from 'tiny-invariant';
 import { buildStubReceiveDeployment } from './build-stub-receive-deployment.ts';
@@ -14,7 +15,7 @@ function setupTest() {
     readBeacon: (body: string, sender: Sender) =>
       beacon.read(
         { headers: new Headers(), body: new TextEncoder().encode(body), sender },
-        { name: 'beacon', families: [] },
+        { name: 'beacon', families: [], log: createLogger({ write: () => {} }) },
       ),
   };
 }

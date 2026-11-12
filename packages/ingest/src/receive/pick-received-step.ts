@@ -12,7 +12,7 @@ export type ReceivedStep =
 
 // What follows the source's read of a delivery, `threw` when the read threw.
 export function pickReceivedStep(
-  source: SourceContext,
+  source: Pick<SourceContext, 'name' | 'families'>,
   received: Received | 'threw',
   factLimit: number,
 ): ReceivedStep {

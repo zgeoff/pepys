@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isDeliveryAuthentic } from '@pepys/kit';
 import type {
+  Logger,
   ReceivePath,
   Received,
   Sender,
@@ -24,6 +25,7 @@ export interface ReceiveDependencies {
   // the value of the path's `check.secretEnv`; an empty secret passes no delivery
   secret: string;
   senderProof: SenderProof;
+  logger: Logger;
   append: BatchAppender;
   turns: StreamTurns;
   recentBodies: RecentBodies;
@@ -76,7 +78,7 @@ export function makeReceiveHandler(
       return pickDecodeFailure(body);
     }
 
-    const received = readSourceDelivery(source, path, {
+    const received = readSourceDelivery(source, path, dependencies.logger, {
       headers: request.headers,
       body,
       ...(checked.sender === undefined ? {} : { sender: checked.sender }),
@@ -93,7 +95,7 @@ export function makeReceiveHandler(
     }
 
     if (step.kind === 'has-blob') {
-      console.error(
+      dependencies.logger.error(
         `the source ${source.name} read a fact with a blob, and ingest has no blob store`,
       );
 
@@ -133,7 +135,7 @@ export function makeReceiveHandler(
 // the ignored answer. It reads no body further and stores nothing.
 export function makeIgnoredRouteHandler(
   path: ReceivePath,
-  dependencies: Pick<ReceiveDependencies, 'secret' | 'senderProof'>,
+  dependencies: Pick<ReceiveDependencies, 'secret' | 'senderProof' | 'logger'>,
 ): Handler {
   return async (request) => {
     const checked = await readCheckedDelivery(request, path, dependencies);
@@ -151,7 +153,7 @@ type CheckedDelivery =
 async function readCheckedDelivery(
   request: Request,
   path: ReceivePath,
-  dependencies: Pick<ReceiveDependencies, 'secret' | 'senderProof'>,
+  dependencies: Pick<ReceiveDependencies, 'secret' | 'senderProof' | 'logger'>,
 ): Promise<CheckedDelivery> {
   if (request.method !== 'POST') {
     return { kind: 'answer', answer: buildFailureAnswer(405, 'method not allowed') };
@@ -171,7 +173,7 @@ async function readCheckedDelivery(
     return { kind: 'checked', sent, sender: undefined };
   }
 
-  const sender = await readProvenSender(path.sender, request.headers, dependencies.senderProof);
+  const sender = await readProvenSender(path.sender, request.headers, dependencies);
 
   if (sender === null) {
     return { kind: 'answer', answer: buildFailureAnswer(401, 'not authorised') };
@@ -184,14 +186,14 @@ async function readCheckedDelivery(
 async function readProvenSender(
   requirement: SenderRequirement,
   headers: Headers,
-  senderProof: SenderProof,
+  dependencies: Pick<ReceiveDependencies, 'senderProof' | 'logger'>,
 ): Promise<Sender | null> {
   try {
-    const sender = await senderProof.prove(requirement, headers);
+    const sender = await dependencies.senderProof.prove(requirement, headers);
 
     return sender;
   } catch {
-    console.error('the sender proof threw, so the delivery proves no sender');
+    dependencies.logger.error('the sender proof threw, so the delivery proves no sender');
 
     return null;
   }
@@ -214,12 +216,13 @@ function pickDecodeFailure(failure: 'unsupported' | 'too-large' | 'corrupt'): Re
 function readSourceDelivery(
   source: SourceDefinition,
   path: ReceivePath,
+  logger: Logger,
   delivery: Parameters<ReceivePath['read']>[0],
 ): Received | 'threw' {
   try {
-    return path.read(delivery, { name: source.name, families: source.families });
+    return path.read(delivery, { name: source.name, families: source.families, log: logger });
   } catch (error: unknown) {
-    console.error(`the read of the source ${source.name} threw`, error);
+    logger.error(`the read of the source ${source.name} threw`, error);
 
     return 'threw';
   }

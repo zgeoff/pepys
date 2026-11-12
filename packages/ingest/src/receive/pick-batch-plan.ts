@@ -11,7 +11,7 @@ export interface BatchRefusal {
 // The checks a batch passes before any of it is written, in order: every fact's stream and
 // envelope, no fact with a blob, then the cut into appends.
 export function pickBatchPlan(
-  source: SourceContext,
+  source: Pick<SourceContext, 'name' | 'families'>,
   batch: Batch,
 ): Result<BatchPlan, BatchRefusal> {
   const problem = findBatchProblem(source, batch);

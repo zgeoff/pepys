@@ -1,4 +1,4 @@
-import type { SourceDefinition } from '@pepys/kit';
+import type { Logger, SourceDefinition } from '@pepys/kit';
 import { match } from 'ts-pattern';
 import type { PullPathName, PullRun, PullRunner } from '../pull/make-pull-runner.ts';
 
@@ -9,6 +9,7 @@ const pullPathNames: readonly PullPathName[] = ['live', 'recovery', 'backfill', 
 export function startPullTimers(
   sources: readonly SourceDefinition[],
   runPull: PullRunner,
+  logger: Logger,
 ): () => void {
   const timers = sources.flatMap((source) =>
     pullPathNames.flatMap((pathName) => {
@@ -34,10 +35,10 @@ export function startPullTimers(
           cursor = pickNextCursor(run, cursor);
 
           if (run.kind !== 'stored') {
-            console.error(`the ${pathName} pull of ${source.name} did not store`, run);
+            logger.error(`the ${pathName} pull of ${source.name} did not store`, run);
           }
         } catch (error: unknown) {
-          console.error(`the ${pathName} pull of ${source.name} threw`, error);
+          logger.error(`the ${pathName} pull of ${source.name} threw`, error);
         } finally {
           isRunning = false;
         }

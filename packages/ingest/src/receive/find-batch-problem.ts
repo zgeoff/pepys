@@ -3,7 +3,10 @@ import type { Batch, SourceContext } from '@pepys/kit';
 
 // Every fact is checked before any is written: its stream must be one of the source's families, and
 // its envelope must parse.
-export function findBatchProblem(source: SourceContext, batch: Batch): string | undefined {
+export function findBatchProblem(
+  source: Pick<SourceContext, 'name' | 'families'>,
+  batch: Batch,
+): string | undefined {
   const streams = new Set<string>(source.families.map((family) => family.stream));
 
   for (const [index, pending] of batch.facts.entries()) {

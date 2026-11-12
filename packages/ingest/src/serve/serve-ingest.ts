@@ -1,4 +1,4 @@
-import { checkDeployment, listReceiveRoutes } from '@pepys/kit';
+import { checkDeployment, createLogger, listReceiveRoutes } from '@pepys/kit';
 import type { Deployment, SourceDefinition, StreamName } from '@pepys/kit';
 import { makeShutdownHandler } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
@@ -17,10 +17,11 @@ interface ServeIngestOptions {
 // missing variable, or on a trust folder it cannot load, so no route ever runs with an empty secret.
 // A path whose trust documents or audience are unset starts, and refuses every delivery.
 export async function serveIngest(options: ServeIngestOptions): Promise<void> {
+  const logger = createLogger(process.stderr);
   const checked = checkDeployment(options.deployment);
 
   if (!checked.ok) {
-    console.error('the deployment fails its check', JSON.stringify(checked.failure));
+    logger.error('the deployment fails its check', checked.failure);
     process.exit(1);
   }
 
@@ -28,7 +29,7 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
   const config = readIngestConfig(options.environment, collectSecretNames(sources));
 
   if (!config.ok) {
-    console.error(config.failure.join('\n'));
+    logger.error('the ingest config is incomplete', config.failure);
     process.exit(1);
   }
 
@@ -36,10 +37,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
     sources,
     environment: options.environment,
     now: () => Date.now(),
+    logger,
   });
 
   if (!senderProof.ok) {
-    console.error(senderProof.failure);
+    logger.error('the sender proof cannot start', senderProof.failure);
     process.exit(1);
   }
 
@@ -53,13 +55,14 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
     senderProof: senderProof.value,
     appendRetry: { maxAttempts: 5, retryDelayMs: 200 },
     now: () => Date.now(),
+    logger,
   });
 
   for (const route of listReceiveRoutes(options.deployment)) {
     console.log(`route ${route.route}`, JSON.stringify(route));
   }
 
-  const stopPulls = startPullTimers(sources, ingest.runPull);
+  const stopPulls = startPullTimers(sources, ingest.runPull, logger);
 
   const server = Bun.serve({
     hostname: config.value.host,
@@ -76,7 +79,7 @@ export async function serveIngest(options: ServeIngestOptions): Promise<void> {
       return server.stop();
     },
     logError: (message, error) => {
-      console.error(message, error);
+      logger.error(message, error);
     },
     exit: (code) => process.exit(code),
   });

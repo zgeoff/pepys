@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { z } from 'zod';
+import { createLogger } from '../logs/create-logger.ts';
 import { defineFactFamily } from './define-fact-family.ts';
 import { receiveFactBatch } from './receive-fact-batch.ts';
 import type { Delivery } from './types.ts';
@@ -20,15 +21,17 @@ function setupTest() {
     check: { kind: 'hmac-sha256', header: 'x-ledger-signature-256', secretEnv: 'LEDGER_SECRET' },
   });
 
+  const log = createLogger({ write: () => {} });
+
   return {
     path,
     readBody: (body: string) => {
       const delivery: Delivery = { headers: new Headers(), body: new TextEncoder().encode(body) };
 
-      return path.read(delivery, { name: 'ledger', families: [tillFamily] });
+      return path.read(delivery, { name: 'ledger', families: [tillFamily], log });
     },
     readDelivery: (delivery: Delivery) =>
-      path.read(delivery, { name: 'ledger', families: [tillFamily] }),
+      path.read(delivery, { name: 'ledger', families: [tillFamily], log }),
   };
 }
 

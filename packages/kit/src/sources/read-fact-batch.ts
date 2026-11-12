@@ -28,7 +28,10 @@ const factBatchBodySchema = z.strictObject({
 }) satisfies z.ZodType<FactBatchBody>;
 
 // The read of a fact batch path. The testing package builds its envelopes with it, as ingest does.
-export function readFactBatch(delivery: Delivery, source: SourceContext): Received {
+export function readFactBatch(
+  delivery: Delivery,
+  source: Pick<SourceContext, 'name' | 'families'>,
+): Received {
   const json = parseJSON(new TextDecoder().decode(delivery.body));
 
   if (!json.ok) {
@@ -74,7 +77,7 @@ type BatchFact = FactBatchBody['facts'][number];
 
 function buildPendingFact(
   fact: BatchFact,
-  source: SourceContext,
+  source: Pick<SourceContext, 'name' | 'families'>,
   sender: Sender | undefined,
 ): Result<PendingFact, string> {
   const family = findFamily(source.families, fact.type);

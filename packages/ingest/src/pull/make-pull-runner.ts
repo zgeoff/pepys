@@ -1,4 +1,4 @@
-import type { CheckedDeployment, PullPath, Pulled, SourceDefinition } from '@pepys/kit';
+import type { CheckedDeployment, Logger, PullPath, Pulled, SourceDefinition } from '@pepys/kit';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
 import { pickBatchPlan } from '../receive/pick-batch-plan.ts';
 import type { ResyncMarks } from '../receive/resync-marks/create-resync-marks.ts';
@@ -30,6 +30,7 @@ interface PullRunnerDependencies {
   turns: StreamTurns;
   resyncMarks: ResyncMarks;
   now: () => number;
+  logger: Logger;
 }
 
 // For a resync pull, removes each mark it was given that no tie set again since. A pull's fact is
@@ -54,7 +55,12 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       env[name] = dependencies.secrets[name] ?? '';
     }
 
-    const pulled = await path.pull(cursor, { env, marks, now: dependencies.now });
+    const pulled = await path.pull(cursor, {
+      env,
+      marks,
+      now: dependencies.now,
+      log: dependencies.logger,
+    });
 
     if (pulled.kind !== 'batch') {
       return pulled;

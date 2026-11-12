@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'bun:test';
+import { createLogger } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -10,11 +11,15 @@ import { buildTestFact } from './test-utils/build-test-fact.ts';
 function setupTest() {
   const stream = toTagged<StreamName>('facts.github.pull_request');
   const log = createMemoryFactLog([stream]);
+  const lines: string[] = [];
+  const logger = createLogger({ write: (line) => lines.push(line) });
 
   return {
     stream,
     log,
-    append: makeBatchAppender({ log, maxAttempts: 3, retryDelayMs: 0 }),
+    logger,
+    append: makeBatchAppender({ log, logger, maxAttempts: 3, retryDelayMs: 0 }),
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
     readIDs: async () => {
       const read = await log.read(stream, toTagged<StreamOffset>(0), 100);
 
@@ -115,6 +120,7 @@ test('it stores the run once when its first attempt lands after the second is se
 
   const stored = await makeBatchAppender({
     log: ctx.log,
+    logger: ctx.logger,
     maxAttempts: 2,
     retryDelayMs: 0,
   })(ctx.stream, [buildTestFact('event:test:1'), buildTestFact('event:test:2')]);
@@ -143,6 +149,7 @@ test('it appends at the new tail after a second writer moved the tail', async ()
 
   const stored = await makeBatchAppender({
     log: { ...ctx.log, readTail },
+    logger: ctx.logger,
     maxAttempts: 3,
     retryDelayMs: 0,
   })(ctx.stream, [buildTestFact('event:test:1')]);
@@ -163,6 +170,7 @@ test('it appends after a tail read that failed', async () => {
 
   const stored = await makeBatchAppender({
     log: { ...ctx.log, readTail },
+    logger: ctx.logger,
     maxAttempts: 3,
     retryDelayMs: 0,
   })(ctx.stream, [buildTestFact('event:test:1')]);
@@ -171,15 +179,26 @@ test('it appends after a tail read that failed', async () => {
     ok: true,
     value: { firstOffset: toTagged<StreamOffset>(0), count: 1 },
   });
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'a read before an append failed',
+      detail: { name: 'Error', message: 'connection reset', stack: expect.any(String) },
+    },
+  ]);
 });
 
 test('it reports not-stored once the attempts are used up on unknown outcomes', async () => {
   const ctx = setupTest();
   const log = buildStubFactLog({ kind: 'unknown' });
 
-  const stored = await makeBatchAppender({ log, maxAttempts: 3, retryDelayMs: 0 })(ctx.stream, [
-    buildTestFact('event:test:1'),
-  ]);
+  const stored = await makeBatchAppender({
+    log,
+    logger: ctx.logger,
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(ctx.stream, [buildTestFact('event:test:1')]);
 
   expect(stored).toStrictEqual({ ok: false, failure: { kind: 'not-stored', attempts: 3 } });
   expect(log.appendBatch).toHaveBeenCalledTimes(3);
@@ -189,9 +208,12 @@ test('it appends again after each tail mismatch until the attempts are used up',
   const ctx = setupTest();
   const log = buildStubFactLog({ kind: 'rejected', reason: 'tail-mismatch' });
 
-  const stored = await makeBatchAppender({ log, maxAttempts: 3, retryDelayMs: 0 })(ctx.stream, [
-    buildTestFact('event:test:1'),
-  ]);
+  const stored = await makeBatchAppender({
+    log,
+    logger: ctx.logger,
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(ctx.stream, [buildTestFact('event:test:1')]);
 
   expect(stored).toStrictEqual({ ok: false, failure: { kind: 'not-stored', attempts: 3 } });
   expect(log.appendBatch).toHaveBeenCalledTimes(3);
@@ -205,9 +227,12 @@ test.each([
   const ctx = setupTest();
   const log = buildStubFactLog(outcome);
 
-  const stored = await makeBatchAppender({ log, maxAttempts: 3, retryDelayMs: 0 })(ctx.stream, [
-    buildTestFact('event:test:1'),
-  ]);
+  const stored = await makeBatchAppender({
+    log,
+    logger: ctx.logger,
+    maxAttempts: 3,
+    retryDelayMs: 0,
+  })(ctx.stream, [buildTestFact('event:test:1')]);
 
   expect(stored).toStrictEqual({ ok: false, failure: { kind: 'refused', reason } });
   expect(log.appendBatch).toHaveBeenCalledTimes(1);
@@ -235,6 +260,7 @@ test('it fails with the error of an append the log throws, without a retry', () 
 
   const stored = makeBatchAppender({
     log: { ...ctx.log, appendBatch },
+    logger: ctx.logger,
     maxAttempts: 3,
     retryDelayMs: 0,
   })(ctx.stream, [buildTestFact('event:test:1')]);

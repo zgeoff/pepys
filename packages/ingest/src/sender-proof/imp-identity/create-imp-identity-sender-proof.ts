@@ -1,17 +1,23 @@
 import type { verifyImpIdentity } from '@impz/client/identity';
-import type { SenderProof } from '@pepys/kit';
+import { createLogger } from '@pepys/kit';
+import type { Logger, SenderProof } from '@pepys/kit';
 import type { ImpIdentityTrust } from './types.ts';
 
 interface ImpIdentityOptions {
   verify: typeof verifyImpIdentity;
   trust: ImpIdentityTrust;
   now: () => number;
+
+  // defaults to a logger that writes to stderr
+  logger?: Logger | undefined;
 }
 
 // Proves the sender from the signed identity token in the `imp-identity` header. The issuer and
 // the subject come only from the verified token, and every failure, a throw included, proves
 // nothing. It never logs the token.
 export function createImpIdentitySenderProof(options: ImpIdentityOptions): SenderProof {
+  const logger = options.logger ?? createLogger(process.stderr);
+
   return {
     prove: async (requirement, headers) => {
       const documents = options.trust.issuers.get(requirement.issuersEnv) ?? [];
@@ -33,7 +39,7 @@ export function createImpIdentitySenderProof(options: ImpIdentityOptions): Sende
           ? null
           : { issuer: verified.issuer, subject: verified.id, name: verified.name };
       } catch {
-        console.error('the identity verifier failed, so the delivery proves no sender');
+        logger.error('the identity verifier failed, so the delivery proves no sender');
 
         return null;
       }

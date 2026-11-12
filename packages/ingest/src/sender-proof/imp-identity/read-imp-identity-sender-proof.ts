@@ -1,5 +1,5 @@
 import { verifyImpIdentity } from '@impz/client/identity';
-import type { Result, SenderProof, SourceDefinition } from '@pepys/kit';
+import type { Logger, Result, SenderProof, SourceDefinition } from '@pepys/kit';
 import { createImpIdentitySenderProof } from './create-imp-identity-sender-proof.ts';
 import { readImpIdentityTrust } from './read-imp-identity-trust.ts';
 
@@ -7,6 +7,9 @@ interface SenderProofReadOptions {
   sources: readonly SourceDefinition[];
   environment: Readonly<Record<string, string | undefined>>;
   now: () => number;
+
+  // defaults to a logger that writes to stderr
+  logger?: Logger | undefined;
 }
 
 // The sender proof that `serveIngest` runs: the trust of the deployment's environment and the
@@ -30,6 +33,7 @@ export async function readImpIdentitySenderProof(
       verify: verifyImpIdentity,
       trust: trust.value,
       now: options.now,
+      logger: options.logger,
     }),
   };
 }

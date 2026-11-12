@@ -1,5 +1,6 @@
-import { expect, mock, onTestFinished, spyOn, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
 import type { verifyImpIdentity } from '@impz/client/identity';
+import { createLogger } from '@pepys/kit';
 import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -15,18 +16,8 @@ type Verify = typeof verifyImpIdentity;
 function setupTest() {
   const stub = buildStubReceiveDeployment();
   const log = createMemoryFactLog([stub.streams.lamp]);
-
-  const logged = [
-    spyOn(console, 'error').mockImplementation(() => {}),
-    spyOn(console, 'warn').mockImplementation(() => {}),
-    spyOn(console, 'log').mockImplementation(() => {}),
-  ];
-
-  onTestFinished(() => {
-    for (const spy of logged) {
-      spy.mockRestore();
-    }
-  });
+  const lines: string[] = [];
+  const logger = createLogger({ write: (line) => lines.push(line) });
 
   return {
     createIngestWith: (verify: Verify, trust: ImpIdentityTrust) =>
@@ -34,12 +25,17 @@ function setupTest() {
         deployment: stub.deployment,
         secrets: { LEDGER_SECRET: 'till-secret', BEACON_TOKEN: 'tide-key', STRAY_TOKEN: 'stray' },
         log,
-        senderProof: createImpIdentitySenderProof({ verify, trust, now: () => 1_794_370_812_400 }),
+        senderProof: createImpIdentitySenderProof({
+          verify,
+          trust,
+          now: () => 1_794_370_812_400,
+          logger,
+        }),
         appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
         now: () => 0,
+        logger,
       }),
-    readLogged: () =>
-      logged.flatMap((spy) => spy.mock.calls.flat().map((part) => Bun.inspect(part))),
+    readLogged: () => lines.map((line): unknown => JSON.parse(line)),
     readStoredIDs: async () => {
       const read = await log.read(stub.streams.lamp, toTagged<StreamOffset>(0), 100);
 
@@ -148,8 +144,14 @@ test('it refuses with 401 when the verifier throws, and logs no token', async ()
   expect({
     status: response.status,
     stored: await ctx.readStoredIDs(),
-    logged: ctx.readLogged().filter((line) => line.includes('aGVhZA')),
-  }).toStrictEqual({ status: 401, stored: [], logged: [] });
+    logged: ctx.readLogged(),
+  }).toStrictEqual({
+    status: 401,
+    stored: [],
+    logged: [
+      { level: 'error', message: 'the identity verifier failed, so the delivery proves no sender' },
+    ],
+  });
 });
 
 test('it refuses the ignored route with 401 when the verifier refuses the token', async () => {
