@@ -144,8 +144,8 @@ The API exits 1 at start in each of these cases:
 
 - Ingest's routes keep their own checks: the GitHub webhook signature, the signature on each boxxy
   fact batch, and on the telemetry route a bearer token and the signed identity token of the imp
-  that sent the export ([ingest in v1](../v1.md#ingest)). The API's tokens open no ingest route, and
-  an ingest secret opens no API route.
+  that sent the export ([ingest](../../architecture/ingest/ingest.md)). The API's tokens open no
+  ingest route, and an ingest secret opens no API route.
 - The API reads the store and writes only `mcp-auth.db`. The host never opens `mcp-auth.db`.
 
 ## Deployment changes
