@@ -6,7 +6,6 @@
       "name": "pepys",
       "devDependencies": {
         "@commitlint/cli": "catalog:",
-        "@mswjs/interceptors": "catalog:",
         "@octokit/webhooks": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/api": "workspace:*",
@@ -33,7 +32,6 @@
         "knip": "catalog:",
         "lefthook": "catalog:",
         "logbook-plugin": "workspace:*",
-        "msw": "catalog:",
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
@@ -198,6 +196,7 @@
       },
       "devDependencies": {
         "@msw/data": "catalog:",
+        "@mswjs/interceptors": "catalog:",
         "@orpc/client": "catalog:",
         "@pepys/testing": "workspace:*",
         "msw": "catalog:",

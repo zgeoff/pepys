@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { HttpResponse, http } from 'msw';
-import { mockNetwork } from '../../../../../scripts/test-preload/mock-network.ts';
 import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
+import { mockNetwork } from '../../test-utils/mock-network.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
 function setupTest() {

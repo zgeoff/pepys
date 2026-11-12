@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll } from 'bun:test';
-import { resetGithubAPI } from '../../packages/source-github/src/test-utils/github-api-handlers.ts';
+import { resetGithubAPI } from './github-api-handlers.ts';
 import { mockNetwork } from './mock-network.ts';
 
 beforeAll(() => {

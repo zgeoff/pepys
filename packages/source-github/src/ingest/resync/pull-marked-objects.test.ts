@@ -7,7 +7,6 @@ import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
 import { HttpResponse, http } from 'msw';
 import invariant from 'tiny-invariant';
-import { mockNetwork } from '../../../../../scripts/test-preload/mock-network.ts';
 import { githubPlugin } from '../../github-plugin.ts';
 import { githubSource } from '../../github-source.ts';
 import {
@@ -16,6 +15,7 @@ import {
   githubReleases,
   githubRepositories,
 } from '../../test-utils/github-api-handlers.ts';
+import { mockNetwork } from '../../test-utils/mock-network.ts';
 import { toAppliedFact } from '../../test-utils/to-applied-fact.ts';
 
 async function setupTest() {
