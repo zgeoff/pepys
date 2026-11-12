@@ -126,7 +126,7 @@
             "module": "40ee415e7173124ff45e34be4f0939a5fe2cdcb5d00996c407efd19fbe5f511c",
             "path": "github_release/40ee415e7173124ff45e34be4f0939a5fe2cdcb5d00996c407efd19fbe5f511c.wasm",
             "pins": {},
-            "version": "4955a8937ed7b2dac74401269d87dc75b28ae6b88cd8d77f24588ffd55330b0e",
+            "version": "37fd07587382c2774d4a6eeed7551e1c1f6fec72801e64dc61f52798d7ca467f",
             "manifest": {
               "name": "github_release",
               "input": {
@@ -206,7 +206,7 @@
                 }
               },
               "links": [],
-              "schema": "CREATE TABLE \"github_release\" (\n  \"id\" TEXT NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"repository_full_name\" TEXT NOT NULL,\n  \"tag_name\" TEXT NOT NULL,\n  \"target_commitish\" TEXT NOT NULL,\n  \"name\" TEXT NOT NULL,\n  \"url\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_prerelease\" INTEGER NOT NULL,\n  \"created_at\" TEXT NOT NULL,\n  \"published_at\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  \"deleted_at\" TEXT,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_release_repository_id_idx\" ON \"github_release\" (\"repository_id\");\n\nCREATE INDEX \"github_release_repository_full_name_tag_name_idx\" ON \"github_release\" (\"repository_full_name\", \"tag_name\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:release' AS \"kind\",\n  \"name\" AS \"title\",\n  \"url\" AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_release\";\n"
+              "schema": "CREATE TABLE \"github_release\" (\n  \"id\" TEXT NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"repository_full_name\" TEXT NOT NULL,\n  \"tag_name\" TEXT NOT NULL,\n  \"target_commitish\" TEXT NOT NULL,\n  \"name\" TEXT NOT NULL,\n  \"url\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_prerelease\" INTEGER NOT NULL,\n  \"created_at\" TEXT NOT NULL,\n  \"published_at\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  \"deleted_at\" TEXT,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_release_repository_id_idx\" ON \"github_release\" (\"repository_id\");\n\nCREATE INDEX \"github_release_repository_full_name_tag_name_idx\" ON \"github_release\" (\"repository_full_name\", \"tag_name\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:release' AS \"kind\",\n  \"name\" AS \"title\",\n  \"url\" AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_release\"\nWHERE \"deleted_at\" IS NULL;\n"
             }
           },
           {

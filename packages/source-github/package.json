@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@msw/data": "catalog:",
+    "@orpc/client": "catalog:",
     "@pepys/testing": "workspace:*",
     "msw": "catalog:",
     "tiny-invariant": "catalog:"

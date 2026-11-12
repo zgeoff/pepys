@@ -89,7 +89,9 @@ A release's time is the first of `updated_at`, `published_at` and `created_at` t
 These rules keep a late delivery from undoing a newer state:
 
 - A release that GitHub deleted keeps its row, with the time of the delete in `deleted_at`. No later
-  fact clears it, because GitHub never gives a release ID to another release.
+  fact clears it, because GitHub never gives a release ID to another release. The `entity` view
+  leaves the row out, as [Entities and links](../queries/entities-and-links.md#the-entity-view)
+  describes.
 - `github_pull_request` writes nothing for a fact whose row equals the stored row in every column,
   so a repeat leaves the pull request and its bump rows as they are.
 - The bump rows of a pull request change only with its row. When a fact wins, the consumer reads the

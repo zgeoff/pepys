@@ -29,4 +29,5 @@ SELECT
   "url" AS "url",
   NULL AS "actor",
   "updated_at" AS "updated_at"
-FROM "github_release";
+FROM "github_release"
+WHERE "deleted_at" IS NULL;

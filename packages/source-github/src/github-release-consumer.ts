@@ -1,7 +1,8 @@
 import { defineConsumer, defineTable } from '@pepys/kit';
 import { releaseFamily } from './families/release-family.ts';
 
-// One row per release, never deleted: a release GitHub deleted keeps its row with `deleted_at`.
+// One row per release, never deleted: a release GitHub deleted keeps its row with `deleted_at`,
+// which leaves it out of the `entity` view.
 export const githubReleaseConsumer = defineConsumer({
   name: 'github_release',
   entry: new URL('consumers/github-release.ts', import.meta.url),
@@ -36,6 +37,7 @@ export const githubReleaseConsumer = defineConsumer({
       url: 'url',
       actor: null,
       updatedAt: 'updated_at',
+      deletedAt: 'deleted_at',
     },
   ],
   reads: ['github_release'],

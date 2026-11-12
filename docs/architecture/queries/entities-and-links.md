@@ -74,10 +74,18 @@ consumers the query needs, and puts two common table expressions in front of the
 The store reader adds the two only to a query built with Kysely, the API's query builder. A query in
 raw SQL gets neither, and a bare `entity` there reads the `entity` view of one attached file alone.
 
-A GitHub release that GitHub deleted keeps its row, with the time of the delete in `deleted_at`. The
-GitHub plug-in's own queries skip a row with `deleted_at` set, but the `entity` view keeps it.
-`get_entity` therefore returns a deleted release, and so does `neighbourhood` when a link reaches
-one.
+A consumer keeps the row of a deleted entity when a late fact could otherwise bring it back, and
+marks the delete in a nullable timestamp column. An entity view names that column as its
+`deletedAt`, and `pepys build` then writes `WHERE <column> IS NULL` into the view, so a deleted
+entity is in no `entity` view:
+
+- `get_entity` returns not found for it;
+- `neighbourhood` leaves it out of `entities`, and lists its ID in `unresolved` when a link or the
+  start of the walk reaches it.
+
+The deployment check refuses a `deletedAt` that names no nullable timestamp column of the view's
+table. In this repo, only the release view sets it, to `deleted_at`: a GitHub release that GitHub
+deleted keeps its row, and the GitHub plug-in's own queries skip it too.
 
 ## Links
 
