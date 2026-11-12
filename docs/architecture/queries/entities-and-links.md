@@ -1,19 +1,26 @@
 # Entities and links
 
-A query in pepys reads the entities and links of every source through two shared names, `entity` and
-`link_effective`, whatever consumer wrote the rows. The host keeps each consumer, the code in a
-plug-in that turns facts into rows, in a database file of its own, as
-[the host](../consumers/host.md#commands-and-the-store-folder) describes. Pull requests, releases
-and model requests are entities: each one is one thing from one source. A link joins two entities by
-their IDs, with a type, a confidence and the fact it rests on.
+Pull requests, releases and model requests are entities: each one is one thing from one source. A
+link joins two entities by their IDs, with a type, a confidence and the fact it rests on. A
+consumer, the code in a plug-in that turns facts into rows, writes both. The host keeps each
+consumer's rows in a database file of its own, as
+[the host](../consumers/host.md#commands-and-the-store-folder) describes.
 
-[Plug-ins and the build](../consumers/plug-ins-and-build.md) covers how a consumer declares its
-tables, entity views and link types. [The host](../consumers/host.md#the-link-check) covers the
-check of each link a consumer writes. [The API](./api.md#the-core-queries) covers `get_entity`,
-which returns one entity, and `neighbourhood`, which walks the links around one.
-[Decision 0011](../../decisions/0011-per-source-entity-tables.md) and
-[decision 0012](../../decisions/0012-stable-ids-and-aliases.md) record why tables are per source and
-IDs come from source database IDs.
+A query in pepys reads the entities and links of every source through two shared views, `entity` and
+`link_effective`, whatever consumer wrote the rows. The API builds the two shared views for each
+query, from the files of the consumers that the query reads.
+
+- [Plug-ins and the build](../consumers/plug-ins-and-build.md) covers how a consumer declares its
+  tables, entity views and link types.
+- [The host](../consumers/host.md#the-link-check) covers the check of each link a consumer writes.
+- [The API](./api.md#the-core-queries) covers `get_entity`, which returns one entity, and
+  `neighbourhood`, which walks the links around one and returns the IDs it could not find in its
+  `unresolved` list.
+- [The fact envelope](../ingest/fact-log.md#the-fact-envelope) covers a fact's ID and the entity it
+  names.
+- [Decision 0011](../../decisions/0011-per-source-entity-tables.md) and
+  [decision 0012](../../decisions/0012-stable-ids-and-aliases.md) record why tables are per source
+  and IDs come from source database IDs.
 
 ## Entity IDs
 
@@ -28,22 +35,26 @@ A kind with no database ID builds its last part from other fields:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `github:ref`                                     | `<repository ID>:<ref>`                                                                                 | `github:ref:902:refs/heads/main`                           |
 | `github:deploy`                                  | `<repository ID>:<environment>:<signal>:<sha>`, with `:<target>` added when the deploy tag has a target | `github:deploy:902:production:tag:4f1c2a9e`                |
-| `telemetry:session`                              | the record's `atc.session.id` attribute, or the agent's own session ID                                  | `telemetry:session:5b0e7d1c`                               |
+| `telemetry:session`                              | the session ID of an agent session, as the telemetry plug-in reads it from a log record                 | `telemetry:session:5b0e7d1c`                               |
 | `telemetry:model_request`, `telemetry:turn_cost` | the ID of the fact the row comes from, with its `event:telemetry:` prefix removed                       | `telemetry:model_request:claude_code.api_request:req_8812` |
 
 In the `github:deploy` row, `<signal>` is how GitHub reported the deploy: `tag` for a push that
 moved a deploy tag, and `deployment_status` for a deployment status of `success`.
 [Deploys](../plug-ins/github.md#deploys) covers the deploy tag and its target.
+
+The telemetry plug-in stores each OpenTelemetry log record as one fact, with an ID of the form
+`event:telemetry:<product>.<event>:<key>`.
 [One record becomes one fact](../plug-ins/telemetry.md#one-record-becomes-one-fact) covers how the
-telemetry plug-in picks a record's session.
+plug-in picks a record's session and its key.
 
 A link stores only the two IDs, and the store holds no foreign key between entities. A consumer can
 therefore write a link to a pull request before the pull request's row exists. A query that joins
 the link to `entity` returns the row once the pull request's consumer writes it.
 
-Some kinds have IDs and no table: `github:repo`, `github:user` and `telemetry:session`. Their IDs
-appear in column values, such as a pull request's `repository_id`, and as the entity of a fact, but
-`get_entity` returns not found for each.
+Some kinds have IDs and no entity view, because no consumer keeps a row for them: `github:repo`,
+`github:user` and `telemetry:session`. Their IDs appear in column values, such as a pull request's
+`repository_id`, and in the `entity` field of a fact. `get_entity` returns not found for each, and
+`neighbourhood` lists each one it reaches in `unresolved`.
 
 ## The entity view
 
@@ -62,30 +73,36 @@ The kinds with an entity view in this repo's plug-ins are:
 - `telemetry:model_request`;
 - `telemetry:turn_cost`.
 
-The shared `entity` and `link_effective` exist only inside a query. Turso, the SQLite engine of the
-store, refuses a temporary view over attached database files, so the API's store reader
-([one call](./api.md#one-call)) builds them on each query instead. It attaches the files of the
-consumers the query needs, and puts two common table expressions in front of the query:
+The API's store reader opens one connection for a call and attaches each consumer file the call
+reads, as [One call](./api.md#one-call) describes. A view across all the attached files would have
+to be a temporary view, and Turso, the SQLite engine of the store, refuses a temporary view over
+attached files. The store reader therefore puts two common table expressions in front of each query,
+and these are the shared views:
 
 - `entity`: a `union all` of the `entity` view of each attached file that has one;
 - `link_effective`: a `union all` of the `link` table of each attached consumer that declares a link
   type.
 
-The store reader adds the two only to a query built with Kysely, the API's query builder. A query in
-raw SQL gets neither, and a bare `entity` there reads the `entity` view of one attached file alone.
+The shared `entity` has the same name as each file's own `entity` view. Inside the query, SQLite
+resolves the bare name `entity` to the common table expression. The store reader adds the two shared
+views only to a query built with Kysely, the API's query builder. In a query in raw SQL, SQLite
+resolves a bare `entity` to the `entity` view of the first attached file alone.
 
-A consumer keeps the row of a deleted entity when a late fact could otherwise bring it back, and
-marks the delete in a nullable timestamp column. An entity view names that column as its
-`deletedAt`, and `pepys build` then writes `WHERE <column> IS NULL` into the view, so a deleted
-entity is in no `entity` view:
+A consumer can keep the row of a deleted entity. Take a release that GitHub deletes: the consumer
+stores the delete, and a fact from before the delete can still arrive later. A kept row lets the
+consumer see the delete and refuse to bring the release back. The consumer marks the delete in a
+nullable timestamp column, and the entity view declares that column as its `deletedAt`.
+`pepys build` then writes `WHERE <column> IS NULL` into the view, so a deleted entity is in no
+`entity` view:
 
 - `get_entity` returns not found for it;
 - `neighbourhood` leaves it out of `entities`, and lists its ID in `unresolved` when a link or the
   start of the walk reaches it.
 
-The deployment check refuses a `deletedAt` that names no nullable timestamp column of the view's
-table. In this repo, only the release view sets it, to `deleted_at`: a GitHub release that GitHub
-deleted keeps its row, and the GitHub plug-in's own queries skip it too.
+[The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) refuses a
+`deletedAt` that names no nullable timestamp column of the view's table. In this repo, only the
+release view sets it, to `deleted_at`: a GitHub release that GitHub deleted keeps its row, and the
+GitHub plug-in's own queries skip it too.
 
 ## Links
 
@@ -96,18 +113,17 @@ Each row holds:
 - `type`, and the entity IDs of the two ends, `from_id` and `to_id`;
 - `confidence`, from 0 to 1;
 - `evidence`, the ID of the fact the link rests on;
-- `scope`, the entity ID of the scope whose recompute wrote the link, for a consumer in
-  [scope mode](../consumers/host.md#a-scope-mode-batch), or null for a consumer that applies one
-  fact at a time;
+- `scope`, the entity ID that a [scope-mode](../consumers/host.md#a-scope-mode-batch) consumer
+  computed the link for, or null for a [fact-mode](../consumers/host.md#a-fact-mode-batch) consumer;
 - `origin`, the name of the consumer.
 
 The primary key is `(type, from_id, to_id)`, because one file holds one consumer and `origin` is the
 same in every row. The [test store](../consumers/plug-ins-and-build.md#the-test-store) holds every
 consumer in one database, so its key adds `origin`.
 
-The host creates a `link` table in every consumer file, even for a consumer that declares no link
-type. A consumer that returns an unlink operation with no link stored for its ends changes no row,
-and the host fails on no missing table.
+The host creates a `link` table in every consumer file, even when the consumer declares no link
+type. An unlink, the operation that deletes a link, therefore always finds a table. When no link is
+stored for its two ends, the host deletes nothing and goes on.
 
 `link_effective` keeps every row of every file, so two consumers that write the same link give two
 rows. `neighbourhood` counts such a link once, with the higher confidence. A link type can carry the
@@ -115,13 +131,7 @@ hub flag, for a type that joins one entity to many others, and `neighbourhood` f
 only when the caller asks.
 
 The GitHub and telemetry consumers in this repo write no link, so every link in a deployment comes
-from a plug-in outside the repo. The GitHub plug-in ties a pull request to its release and deploy in
-a query, when the query runs, as [the delivery query](../plug-ins/github.md#the-delivery-query)
-describes.
-
-## Known limits
-
-- `get_entity` returns not found for a repository, a user or a session, because each kind has no
-  table.
-- `neighbourhood` reaches a release or a deploy only when a consumer outside this repo writes a link
-  to one. It puts a session ID in its `unresolved` list, because a session has no row.
+from a plug-in outside the repo. The GitHub plug-in answers which release and deploy a pull request
+reached with [the delivery query](../plug-ins/github.md#the-delivery-query), which joins its tables
+when it runs and stores no link. `neighbourhood` therefore reaches a release or a deploy only
+through a link that a plug-in outside this repo writes.
