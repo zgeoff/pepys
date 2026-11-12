@@ -13,11 +13,14 @@ interface StoreReaderOptions {
   storeDirectory: string;
 }
 
+type OpenedFile = { ok: true; database: Database } | { ok: false; error: unknown };
+
 // One open read-only handle on a consumer file. Turso 0.8.3 refuses to attach a file that the
 // host holds open with its multi-process WAL, unless this process holds a handle of its own.
 interface FileKeeper {
+  consumer: string;
   path: string;
-  database: Promise<Database>;
+  opened: Promise<OpenedFile>;
   readers: number;
 }
 
@@ -38,8 +41,9 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
     }
 
     const keeper: FileKeeper = {
+      consumer: file.consumer.name,
       path: file.path,
-      database: connect(file.path, { readonly: true, experimental: ['multiprocess_wal'] }),
+      opened: openFile(file.path),
       readers: 1,
     };
 
@@ -66,13 +70,30 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       retired.delete(keeper);
     }
 
-    await Promise.all(
-      idle.map(async (keeper) => {
-        const database = await keeper.database;
+    await Promise.all(idle.map((keeper) => closeKeeper(keeper)));
+  };
 
-        await database.close();
-      }),
+  // A file that fails to open leaves the map, so the next call opens the path again.
+  const readOpenedFiles = async (held: readonly FileKeeper[]): Promise<void> => {
+    const opened = await Promise.all(
+      held.map(async (keeper) => ({ keeper, file: await keeper.opened })),
     );
+
+    const errors = opened.flatMap((entry) => {
+      if (entry.file.ok) {
+        return [];
+      }
+
+      if (keepers.get(entry.keeper.consumer) === entry.keeper) {
+        keepers.delete(entry.keeper.consumer);
+      }
+
+      return [entry.file.error];
+    });
+
+    if (errors.length > 0) {
+      throw errors[0];
+    }
   };
 
   return {
@@ -92,7 +113,7 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       const held = plan.files.map((file) => holdKeeper(file));
 
       try {
-        await Promise.all(held.map((keeper) => keeper.database));
+        await readOpenedFiles(held);
 
         const connection = await connect(':memory:', { experimental: ['attach'] });
 
@@ -143,15 +164,28 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       keepers.clear();
       retired.clear();
 
-      await Promise.all(
-        open.map(async (keeper) => {
-          const database = await keeper.database;
-
-          await database.close();
-        }),
-      );
+      await Promise.all(open.map((keeper) => closeKeeper(keeper)));
     },
   };
+}
+
+async function openFile(path: string): Promise<OpenedFile> {
+  try {
+    const database = await connect(path, { readonly: true, experimental: ['multiprocess_wal'] });
+
+    return { ok: true, database };
+  } catch (error: unknown) {
+    return { ok: false, error };
+  }
+}
+
+// A file that failed to open has nothing to close, and its call already threw the error.
+async function closeKeeper(keeper: FileKeeper): Promise<void> {
+  const file = await keeper.opened;
+
+  if (file.ok) {
+    await file.database.close();
+  }
 }
 
 function readCurrentFiles(

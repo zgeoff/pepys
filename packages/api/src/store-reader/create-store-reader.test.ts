@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, readlink, realpath, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readlink, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sql } from 'kysely';
@@ -239,6 +239,61 @@ test('it closes the file of a version the host swapped away from between calls',
   );
 
   expect(targets.filter((target) => target?.startsWith(retiredDirectory))).toStrictEqual([]);
+});
+
+test('it opens a file again once the host replaces a file it failed to open', async () => {
+  const ctx = await setupTest();
+
+  const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
+
+  await mkdir(directory, { recursive: true });
+  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
+  await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  await ctx.store
+    .withConsumers([harbourVesselConsumer], (db) =>
+      db.selectFrom('harbour_vessel').select('name').execute(),
+    )
+    .catch(() => null);
+
+  await rm(join(directory, 'consumer.db'));
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {
+      harbour_vessel: [
+        { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+      ],
+    },
+  });
+
+  const result = await ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+    db.selectFrom('harbour_vessel').select('name').execute(),
+  );
+
+  expect(result).toStrictEqual({ ok: true, value: [{ name: 'Tern' }] });
+});
+
+test('it closes after a call that failed to open a file', async () => {
+  const ctx = await setupTest();
+
+  const directory = join(ctx.storeDirectory, harbourVesselConsumer.name, 'v1');
+
+  await mkdir(directory, { recursive: true });
+  // oxlint-disable-next-line zgeoff/seed-only -- a torn file, which no module of pepys writes
+  await writeFile(join(directory, 'consumer.db'), 'a page torn in half');
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  await ctx.store
+    .withConsumers([harbourVesselConsumer], (db) =>
+      db.selectFrom('harbour_vessel').select('name').execute(),
+    )
+    .catch(() => null);
+
+  await expect(ctx.store.close()).toResolve();
 });
 
 test('it keeps one snapshot of a file that the host holds open and commits to during the call', async () => {
