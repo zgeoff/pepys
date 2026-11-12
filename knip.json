@@ -58,7 +58,7 @@
       "bun": false
     },
     "packages/testing": {
-      "entry": ["src/**/*.test.ts", "src/test-utils/*/consumers/*.ts"],
+      "entry": ["src/**/*.test.ts", "src/test-utils/*/consumers/*.ts", "src/ledger/consumers/*.ts"],
       "bun": false
     }
   },

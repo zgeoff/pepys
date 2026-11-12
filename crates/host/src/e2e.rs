@@ -115,8 +115,7 @@ mod scope_journey {
     use crate::rows::load_all_rows;
     use crate::test_utils::{read_link_rows, to_float_numbers};
 
-    const JOURNEY: &str =
-        include_str!("../../../packages/testing/src/test-utils/ledger/ledger-journey.json");
+    const JOURNEY: &str = include_str!("../../../packages/testing/src/ledger/ledger-journey.json");
     const BASIN: &str = "scope-ledger-journey";
     const STREAM: &str = "facts.ledger.account";
 

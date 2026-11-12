@@ -11,7 +11,8 @@
   "files": [
     "src",
     "!src/**/*.test.ts",
-    "!src/**/test-utils"
+    "!src/**/test-utils",
+    "!src/ledger"
   ],
   "type": "module",
   "exports": "./src/index.ts",

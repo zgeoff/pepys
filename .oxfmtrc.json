@@ -4,6 +4,7 @@
     "bun.lock",
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
+    "packages/testing/src/ledger/generated/**",
     "e2e/*/src/generated/**",
     "docs/design/**/sketches/**"
   ],

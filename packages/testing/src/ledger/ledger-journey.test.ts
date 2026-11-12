@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
-import { createTestStore } from '../../test-store/create-test-store.ts';
-import { parseAppliedFacts } from '../../test-store/parse-applied-facts.ts';
-import type { AppliedFact } from '../../test-store/types.ts';
+import { createTestStore } from '../test-store/create-test-store.ts';
+import { parseAppliedFacts } from '../test-store/parse-applied-facts.ts';
+import type { AppliedFact } from '../test-store/types.ts';
 import journey from './ledger-journey.json' with { type: 'json' };
 import { ledgerPlugin, ledgerSource } from './ledger-plugin.ts';
 

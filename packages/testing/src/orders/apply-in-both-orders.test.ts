@@ -6,11 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { definePlugin } from '@pepys/kit';
 import type { EntityID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
-import {
-  ledgerAccountConsumer,
-  ledgerPlugin,
-  ledgerSource,
-} from '../test-utils/ledger/ledger-plugin.ts';
+import { ledgerAccountConsumer, ledgerPlugin, ledgerSource } from '../ledger/ledger-plugin.ts';
 import { applyInBothOrders } from './apply-in-both-orders.ts';
 
 async function setupTest() {

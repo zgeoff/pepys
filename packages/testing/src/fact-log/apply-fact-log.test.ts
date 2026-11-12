@@ -5,8 +5,8 @@ import type { EntityID, FactID } from '@pepys/kit';
 import { createFactBatchSender } from '@pepys/kit/send';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { ledgerPlugin, ledgerSource } from '../ledger/ledger-plugin.ts';
 import { createTestStore } from '../test-store/create-test-store.ts';
-import { ledgerPlugin, ledgerSource } from '../test-utils/ledger/ledger-plugin.ts';
 import { notebookPlugin, notebookSource } from '../test-utils/notebook/notebook-plugin.ts';
 import { applyFactLog } from './apply-fact-log.ts';
 

@@ -3,7 +3,7 @@ import { createStoreReader, readOffsets } from '@pepys/api';
 import type { StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { ledgerAccountConsumer } from '../packages/testing/src/test-utils/ledger/ledger-plugin.ts';
+import { ledgerAccountConsumer } from '../packages/testing/src/ledger/ledger-plugin.ts';
 
 // The setup appends the ledger journey's records to s2-lite before `pepys up`, so the host's scope
 // batch has run the compiled ledger module on them.

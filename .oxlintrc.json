@@ -22,6 +22,7 @@
       "files": [
         "packages/source-*/src/consumers/*.ts",
         "packages/*/src/test-utils/*/consumers/*.ts",
+        "packages/testing/src/ledger/consumers/*.ts",
         "e2e/*/src/consumers/*.ts"
       ],
       "rules": {
@@ -122,6 +123,7 @@
     "docs/design/**",
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
+    "packages/testing/src/ledger/generated/**",
     "e2e/*/src/generated/**"
   ]
 }
