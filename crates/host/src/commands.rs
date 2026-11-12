@@ -1645,7 +1645,7 @@ mod tests {
                 .join("version.json"),
             "{\"name\":",
         )
-        .expect("a cut short file");
+        .expect("a corrupt file");
 
         let result = up_listed(
             &ctx.config,
