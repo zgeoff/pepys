@@ -8,7 +8,9 @@ import type { LastBody, StoredFactTime } from './collect-tied-entities.ts';
 // it. In memory only, so a restart loses them.
 export interface ResyncMarks {
   list: (source: string) => readonly ResyncMark[];
-  remove: (source: string, entity: EntityID) => void;
+
+  // A mark set again while the pull ran is a new object, so it stays for the next pull.
+  remove: (source: string, mark: ResyncMark) => void;
 }
 
 // What the receive route of one source tells the marks.
@@ -20,8 +22,7 @@ export interface SourceMarks {
 interface SourceState {
   lastBodies: Map<EntityID, LastBody>;
 
-  // each marked entity, with the locator of the last fact stored for it
-  marks: Map<EntityID, string | undefined>;
+  marks: Map<EntityID, ResyncMark>;
 }
 
 export interface ResyncMarkStore {
@@ -53,10 +54,13 @@ export function createResyncMarks(options: ResyncMarksOptions): ResyncMarkStore 
 
   return {
     marks: {
-      list: (source) =>
-        [...(sources.get(source)?.marks ?? [])].map(([entity, locator]) => ({ entity, locator })),
-      remove: (source, entity) => {
-        sources.get(source)?.marks.delete(entity);
+      list: (source) => [...(sources.get(source)?.marks.values() ?? [])],
+      remove: (source, mark) => {
+        const marks = sources.get(source)?.marks;
+
+        if (marks?.get(mark.entity) === mark) {
+          marks.delete(mark.entity);
+        }
       },
     },
     createSourceMarks: (source) => {
@@ -83,6 +87,7 @@ export function createResyncMarks(options: ResyncMarksOptions): ResyncMarkStore 
 }
 
 // The locator comes from the last body stored for the entity, which the caller has noted first.
+// Each call makes a new mark object, which `remove` tells apart from the one a pull was given.
 function addMarks(
   state: SourceState,
   entities: readonly EntityID[],
@@ -90,7 +95,7 @@ function addMarks(
 ): void {
   for (const entity of entities) {
     state.marks.delete(entity);
-    state.marks.set(entity, state.lastBodies.get(entity)?.locator);
+    state.marks.set(entity, { entity, locator: state.lastBodies.get(entity)?.locator });
   }
 
   trimToCapacity(state.marks, options.capacity);
@@ -98,7 +103,7 @@ function addMarks(
 
 // drops the oldest entries first: a Map and a Set keep insertion order
 function trimToCapacity(
-  entries: Map<EntityID, LastBody> | Map<EntityID, string | undefined>,
+  entries: Map<EntityID, LastBody> | Map<EntityID, ResyncMark>,
   capacity: number,
 ): void {
   for (const key of entries.keys()) {

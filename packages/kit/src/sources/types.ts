@@ -124,8 +124,8 @@ export interface PullContext {
   env: Readonly<Record<string, string>>;
 
   // For a `resync` pull, the source's marked entities when the pull starts; empty for any other
-  // pull. Ingest removes each of these marks once the batch the pull returns is stored, so a pull
-  // that cannot read every marked entity answers `unavailable` and every mark stays.
+  // pull. Ingest removes each of these marks that no delivery set again once the batch the pull
+  // returns is stored, so a pull that cannot read every marked entity answers `unavailable`.
   marks: readonly ResyncMark[];
 }
 

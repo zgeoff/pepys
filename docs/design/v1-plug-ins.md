@@ -173,8 +173,10 @@ Any other failed call stops the run with no fact stored, and every mark stays fo
 
 The ingest process keeps the marks in memory, for each source that has a resync pull, and the pull
 of that source runs in the same process and reads them there. Ingest removes the marks that a run
-read only after the run's whole batch is stored, so a failed run keeps every mark. A restart loses
-every mark, and an object that loses its mark keeps a stale row until its next delivery.
+read only after the run's whole batch is stored, so a failed run keeps every mark. A delivery that
+marks the object again while the run is going sets a new mark, and ingest keeps that mark for the
+next run. A restart loses every mark, and an object that loses its mark keeps a stale row until its
+next delivery.
 
 **Deploys.** Two signals report a deploy, and one table holds both: a push that moves a tag that
 matches the deploy tag pattern, and a deployment status of `success`. The pattern is a

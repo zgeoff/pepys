@@ -1,6 +1,6 @@
 import { expect, onTestFinished, spyOn, test } from 'bun:test';
 import { createHmac } from 'node:crypto';
-import type { EntityID, StreamName, StreamOffset } from '@pepys/kit';
+import type { StreamName, StreamOffset } from '@pepys/kit';
 import { createFactBatchSender } from '@pepys/kit/send';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
@@ -44,7 +44,9 @@ function setupTest() {
     createMemoryFactLog([streams.till, streams.lamp, streams.stray, streams.strayMark]);
 
   const createIngestOver = (
-    overrides: Partial<Pick<IngestOptions, 'log' | 'secrets' | 'senderProof' | 'appendRetry'>>,
+    overrides: Partial<
+      Pick<IngestOptions, 'deployment' | 'log' | 'secrets' | 'senderProof' | 'appendRetry'>
+    >,
   ) =>
     createIngest({
       deployment: stub.deployment,
@@ -860,6 +862,66 @@ test('it stores the facts of a resync pull and then removes the marks it was giv
   });
 });
 
+test('it keeps a mark that a tie sets while the resync pull runs', async () => {
+  const ctx = setupTest();
+  const ledger = ctx.stub.deployment.sources.find((source) => source.name === 'ledger');
+  const resync = ledger?.resync;
+
+  invariant(ledger !== undefined && resync?.kind === 'pull', 'the ledger source has a resync pull');
+
+  const started = Promise.withResolvers<void>();
+  const resumed = Promise.withResolvers<void>();
+
+  const pausedLedger = {
+    ...ledger,
+    resync: {
+      ...resync,
+      pull: async (...args: Parameters<typeof resync.pull>) => {
+        started.resolve();
+
+        await resumed.promise;
+
+        return resync.pull(...args);
+      },
+    },
+  };
+
+  const ingest = ctx.createIngestOver({
+    deployment: { ...ctx.stub.deployment, sources: [pausedLedger] },
+  });
+
+  const sendTill = (event: string) =>
+    ingest.handleRequest(
+      ctx.buildLedgerRequest({
+        facts: [
+          {
+            type: 'ledger.till.opened',
+            event,
+            entity: 'ledger:till:7',
+            at: '2026-10-01T08:00:00Z',
+            payload: { float: 1 },
+          },
+        ],
+      }),
+    );
+
+  await sendTill('first');
+  await sendTill('tied');
+
+  const run = ingest.runPull('ledger', 'resync', null);
+
+  await started.promise;
+  await sendTill('tied-again');
+
+  resumed.resolve();
+
+  await run;
+
+  const marks: unknown = ingest.resyncMarks.list('ledger');
+
+  expect(marks).toStrictEqual([expect.objectContaining({ entity: 'ledger:till:7' })]);
+});
+
 test('it refuses to run a pull that the source does not have', async () => {
   const ctx = setupTest();
 
@@ -883,7 +945,11 @@ test('it removes a mark once the resync pull removes it', async () => {
     await ctx.ingest.handleRequest(ctx.buildLedgerRequest({ facts: [fact] }));
   }
 
-  ctx.ingest.resyncMarks.remove('ledger', toTagged<EntityID>('ledger:till:7'));
+  const [mark] = ctx.ingest.resyncMarks.list('ledger');
+
+  invariant(mark !== undefined, 'the tie marks the till');
+
+  ctx.ingest.resyncMarks.remove('ledger', mark);
 
   const marks = ctx.ingest.resyncMarks.list('ledger');
 
