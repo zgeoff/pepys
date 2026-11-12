@@ -4,11 +4,13 @@ import { buildPageResponse } from '../http/build-page-response.ts';
 import { APPROVAL_WINDOW_SECONDS } from './approval-window-seconds.ts';
 import { buildConsentBinding } from './build-consent-binding.ts';
 import { normalizeClientName } from './normalize-client-name.ts';
+import { pickConsentChoice } from './pick-consent-choice.ts';
+import { pickConsentOutcome } from './pick-consent-outcome.ts';
 import { readClientName } from './read-client-name.ts';
 import { readOwnerSessionID } from './read-owner-session-id.ts';
 import { removeOwnerSession } from './remove-owner-session.ts';
 import { renderConsentPage } from './render-consent-page.ts';
-import type { HTTPServerContext, Requester, SecurityOutcome } from './types.ts';
+import type { HTTPServerContext, Requester } from './types.ts';
 import { verifyOAuthQuery } from './verify-oauth-query.ts';
 
 interface ConsentRequest {
@@ -63,14 +65,11 @@ export async function answerConsentRequest(
   // either answer ends the session's binding, so one sign-in approves one request.
   ctx.approvals.removeApproved(sessionID);
 
-  const ticked = form.getAll('scope');
-  const scopes = GRANT_SCOPES.filter((scope) => ticked.includes(scope));
-  const allow = form.get('decision') === 'approve';
-  const accept = allow && scopes.length > 0;
+  const choice = pickConsentChoice(form.getAll('scope'), form.get('decision'));
 
-  const choice = JSON.stringify({
-    accept,
-    ...(accept ? { scope: [...scopes, 'offline_access'].join(' ') } : {}),
+  const choiceBody = JSON.stringify({
+    accept: choice.accept,
+    ...(choice.scope === null ? {} : { scope: choice.scope }),
     oauth_query: oauthQuery,
   });
 
@@ -82,7 +81,7 @@ export async function answerConsentRequest(
       origin: ctx.origin,
       ...(request.cookie === null ? {} : { cookie: request.cookie }),
     },
-    body: choice,
+    body: choiceBody,
   });
 
   const consented = await ctx.store.auth.handler(forwarded);
@@ -113,7 +112,7 @@ export async function answerConsentRequest(
   const storedName = await readClientName(ctx.store.db, clientID);
 
   ctx.security.record({
-    ...pickConsentOutcome(issuedCode, allow && !accept),
+    ...pickConsentOutcome(issuedCode, choice.noneTicked),
     path: request.url.pathname,
     requester: request.requester,
     client: { id: clientID, name: normalizeClientName(storedName) },
@@ -173,15 +172,4 @@ async function verifyConsentRequest(
   }
 
   return { sessionID, correlationID: approved.correlationID };
-}
-
-// `noneTicked` is an allow sent with no scope ticked, which denies.
-function pickConsentOutcome(issuedCode: boolean, noneTicked: boolean): SecurityOutcome {
-  if (issuedCode) {
-    return { kind: 'consent', outcome: 'allowed' };
-  }
-
-  return noneTicked
-    ? { kind: 'consent', outcome: 'denied', reason: 'none_ticked' }
-    : { kind: 'consent', outcome: 'denied' };
 }
