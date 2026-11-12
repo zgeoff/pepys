@@ -117,7 +117,8 @@ answer:
 2. Pick a fixed callback port, `<port>`, for the client.
 3. Run `clients add <name> --redirect-uri http://localhost:<port>/callback`. Expect: a client ID.
 4. Add pepys to Claude Code with that client ID in `--client-id` and the same port in
-   `--callback-port`. Expect: Claude Code opens the owner's browser on `/oauth2/authorize`.
+   `--callback-port`. Leave out `--client-secret`, because every client is public. Expect: Claude
+   Code opens the owner's browser on `/oauth2/authorize`.
 
 ## Constraints
 
