@@ -18,6 +18,7 @@ function setupTest() {
     now: () => 1_800_000_000_000,
     marks: [],
     log: createLogger({ write: (line) => lines.push(line) }),
+    signal: new AbortController().signal,
   };
 
   return {
@@ -211,6 +212,7 @@ test('it rejects the pull when the App private key cannot sign', async () => {
     now: () => 1_800_000_000_000,
     marks: [],
     log: createLogger({ write: () => {} }),
+    signal: new AbortController().signal,
   });
 
   expect(pulled).toStrictEqual({

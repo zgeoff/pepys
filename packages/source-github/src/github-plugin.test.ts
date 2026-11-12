@@ -55,7 +55,8 @@ async function setupTest() {
   return {
     store,
     readLogged: () => lines.map((line): unknown => JSON.parse(line)),
-    runRecovery: (cursor: string | null) => ingest.runPull('github', 'recovery', cursor),
+    runRecovery: (cursor: string | null) =>
+      ingest.runPull('github', 'recovery', cursor, new AbortController().signal),
     send: (event: string, deliveryID: string, body: string, secret = 'harbour-webhook-secret') =>
       ingest.handleRequest(
         new Request('http://ingest.test/webhook/github', {

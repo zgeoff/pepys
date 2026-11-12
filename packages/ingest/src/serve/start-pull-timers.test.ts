@@ -58,6 +58,8 @@ function setupTest() {
       const stop = startPullTimers(deployment.value.sources, ingest.runPull, logger);
 
       onTestFinished(stop);
+
+      return stop;
     },
   };
 }
@@ -88,4 +90,28 @@ test('it logs a timed pull that throws, with its error', async () => {
       detail: { name: 'Error', message: 'the tide table is offline', stack: expect.any(String) },
     });
   });
+});
+
+test('it aborts a pull in flight on stop, and settles once the pull ends', async () => {
+  const ctx = setupTest();
+  const seen = Promise.withResolvers<AbortSignal>();
+  const ended: string[] = [];
+
+  const stop = ctx.startTimers(async (_cursor, context) => {
+    seen.resolve(context.signal);
+
+    await new Promise((resolve) => {
+      context.signal.addEventListener('abort', resolve);
+    });
+
+    ended.push('pull');
+
+    return { kind: 'unavailable', retryAfterMs: 1 };
+  });
+
+  const signal = await seen.promise;
+
+  await stop();
+
+  expect({ isAborted: signal.aborted, ended }).toStrictEqual({ isAborted: true, ended: ['pull'] });
 });

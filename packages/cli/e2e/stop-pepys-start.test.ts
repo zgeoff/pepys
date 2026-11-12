@@ -21,7 +21,7 @@ async function setupTest() {
   onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
 
   return {
-    runStart: (host: string) => {
+    runStart: (host: string, ingestPort = readFreePort()) => {
       const child = Bun.spawn(
         [
           'bun',
@@ -33,7 +33,7 @@ async function setupTest() {
           env: buildDeploymentEnvironment({
             base: process.env,
             hostBinary: host,
-            ingestPort: readFreePort(),
+            ingestPort,
             apiPort: readFreePort(),
             storeDirectory,
           }),
@@ -82,4 +82,21 @@ test('it exits 0 on SIGTERM once the host has stopped', async () => {
   await reading;
 
   expect(exitCode).toBe(0);
+});
+
+test('it exits 1 when ingest cannot listen, and leaves no timer to keep it alive', async () => {
+  const ctx = await setupTest();
+
+  const taken = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data: () => {} } });
+
+  onTestFinished(() => {
+    taken.stop(true);
+  });
+
+  const start = ctx.runStart(ctx.hostBinary, taken.port);
+
+  // a CLI left alive by a pull timer runs into the test's time limit
+  const exitCode = await start.exited;
+
+  expect(exitCode).toBe(1);
 });

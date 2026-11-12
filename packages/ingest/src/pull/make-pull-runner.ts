@@ -19,6 +19,7 @@ export type PullRunner = (
   source: string,
   path: PullPathName,
   cursor: string | null,
+  signal: AbortSignal,
 ) => Promise<PullRun>;
 
 interface PullRunnerDependencies {
@@ -37,7 +38,7 @@ interface PullRunnerDependencies {
 // noted in no mark: a resynced fact ties with the body it replaces, and would mark its entity again
 // on every run.
 export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner {
-  return async (sourceName, pathName, cursor) => {
+  return async (sourceName, pathName, cursor, signal) => {
     const source = dependencies.deployment.sources.find(
       (candidate) => candidate.name === sourceName,
     );
@@ -60,6 +61,7 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       marks,
       now: dependencies.now,
       log: dependencies.logger,
+      signal,
     });
 
     if (pulled.kind !== 'batch') {

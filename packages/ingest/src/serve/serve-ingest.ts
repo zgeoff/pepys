@@ -69,18 +69,19 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
     console.log(`route ${route.route}`, JSON.stringify(route));
   }
 
-  const stopPulls = startPullTimers(sources, ingest.runPull, logger);
-
+  // The server starts first, so a failed listen leaves no timer behind.
   const server = Bun.serve({
     hostname: config.value.host,
     port: config.value.port,
     fetch: ingest.handleRequest,
   });
 
+  const stopPulls = startPullTimers(sources, ingest.runPull, logger);
+
   console.log(`ingest listening on ${server.hostname}:${server.port}`);
 
   const stop = async (): Promise<void> => {
-    stopPulls();
+    await stopPulls();
 
     await server.stop();
   };
