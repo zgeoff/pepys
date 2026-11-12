@@ -99,9 +99,7 @@ test('it exits 0 on SIGTERM while ingest still waits on the fact log', async () 
   const holdRequest = (): Promise<Response> => never.promise;
   const silent = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: holdRequest });
 
-  onTestFinished(() => {
-    silent.stop(true);
-  });
+  onTestFinished(() => silent.stop(true));
 
   const start = ctx.runStart(ctx.hostBinary, readFreePort(), {
     PEPYS_S2_ENDPOINT: `http://127.0.0.1:${silent.port}`,

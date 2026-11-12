@@ -9,7 +9,9 @@ function setupTest(stopParts: () => Promise<boolean>) {
   actor.start();
 
   return {
-    send: (event: StartEvent) => actor.send(event),
+    send: (event: StartEvent) => {
+      actor.send(event);
+    },
     readExitCode: () => toPromise(actor),
   };
 }
