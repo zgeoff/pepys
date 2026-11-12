@@ -893,6 +893,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::durable::rename_fault;
     use crate::fact_log::memory::MemoryLog;
     use crate::test_utils::{
         CannedRunner, build_text_module, stub_build_manifest, stub_scope_manifest, upsert_json,
@@ -1507,53 +1508,72 @@ mod tests {
         );
     }
 
-    async fn state_with_current(directory: &Path, version: &str) -> HostState {
-        let state = HostState::open(&directory.join("host.db"))
-            .await
-            .expect("a host state");
-
-        state
-            .register("github_pull_request", version)
-            .await
-            .expect("a registered version");
-        state
-            .move_to("github_pull_request", version, VersionState::Current)
-            .await
-            .expect("a current version");
-
-        state
-    }
-
     #[tokio::test]
     async fn it_creates_the_current_link_that_an_interrupted_swap_never_made() {
-        let directory = tempfile::tempdir().expect("a directory");
-        let state = state_with_current(directory.path(), "abc123").await;
+        let ctx = setup_test();
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+        let file = write_build(&ctx.config, &[(listed.clone(), bytes)]);
+        let link = ctx.config.consumer_dir(&listed.name).join(CURRENT_LINK);
 
-        let recorded = reconcile_current(directory.path(), &state, "github_pull_request")
+        rename_fault::arm(&link);
+        up_listed(&ctx.config, &log, &file, None)
             .await
-            .expect("a reconciled link");
+            .expect_err("an up stopped before its link");
 
-        assert_eq!(recorded.as_deref(), Some("abc123"));
+        let report = up_listed(&ctx.config, &log, &file, None)
+            .await
+            .expect("an up");
+
         assert_eq!(
-            std::fs::read_link(directory.path().join(CURRENT_LINK)).expect("a link"),
-            Path::new("abc123")
+            report,
+            format!(
+                "github_pull_request {}: no swap, the version is current\n",
+                version_hash('a')
+            )
+        );
+        assert_eq!(
+            std::fs::read_link(&link).expect("a link"),
+            Path::new(&listed.version)
         );
     }
 
     #[tokio::test]
     async fn it_repoints_a_current_link_that_follows_an_older_version() {
-        let directory = tempfile::tempdir().expect("a directory");
-        let state = state_with_current(directory.path(), "new456").await;
+        let ctx = setup_test();
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (first, first_bytes) = build_listed(&version_hash('a'), "[]");
+        let (second, second_bytes) = build_listed(&version_hash('b'), "[ ]");
+        let link = ctx.config.consumer_dir(&second.name).join(CURRENT_LINK);
 
-        symlink("old123", directory.path().join(CURRENT_LINK)).expect("a stale link");
-
-        reconcile_current(directory.path(), &state, "github_pull_request")
+        up_listed(
+            &ctx.config,
+            &log,
+            &write_build(&ctx.config, &[(first, first_bytes)]),
+            None,
+        )
+        .await
+        .expect("the first up");
+        let second_file = write_build(&ctx.config, &[(second.clone(), second_bytes)]);
+        rename_fault::arm(&link);
+        up_listed(&ctx.config, &log, &second_file, None)
             .await
-            .expect("a reconciled link");
+            .expect_err("an up stopped before its link");
+
+        let report = up_listed(&ctx.config, &log, &second_file, None)
+            .await
+            .expect("an up");
 
         assert_eq!(
-            std::fs::read_link(directory.path().join(CURRENT_LINK)).expect("a link"),
-            Path::new("new456")
+            report,
+            format!(
+                "github_pull_request {}: no swap, the version is current\n",
+                version_hash('b')
+            )
+        );
+        assert_eq!(
+            std::fs::read_link(&link).expect("a link"),
+            Path::new(&second.version)
         );
     }
 
