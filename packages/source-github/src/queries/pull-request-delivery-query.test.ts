@@ -2,16 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
-import { githubDeployConsumer } from '../github-deploy-consumer.ts';
 import { githubPlugin } from '../github-plugin.ts';
-import { githubPullRequestConsumer } from '../github-pull-request-consumer.ts';
-import { githubRefConsumer } from '../github-ref-consumer.ts';
-import { githubReleaseConsumer } from '../github-release-consumer.ts';
-import {
-  buildDeliveryRows,
-  buildPullRequestRow,
-  buildReleaseRow,
-} from '../test-utils/build-delivery-rows.ts';
+import { githubSource } from '../github-source.ts';
+import { buildDeliveryFacts } from '../test-utils/build-delivery-facts.ts';
 import { pullRequestDeliveryQuery } from './pull-request-delivery-query.ts';
 
 interface DeliveryInput {
@@ -27,13 +20,6 @@ async function setupTest() {
 
   return {
     store,
-    writeDeliveryRows: async (rows: ReturnType<typeof buildDeliveryRows>) => {
-      await store.writeRows(githubPullRequestConsumer, 'github_pull_request', rows.pullRequests);
-      await store.writeRows(githubPullRequestConsumer, 'github_release_bump', rows.bumps);
-      await store.writeRows(githubReleaseConsumer, 'github_release', rows.releases);
-      await store.writeRows(githubRefConsumer, 'github_commit', rows.commits);
-      await store.writeRows(githubDeployConsumer, 'github_deploy', rows.deploys);
-    },
     query: (input: DeliveryInput) => store.query(pullRequestDeliveryQuery, input),
   };
 }
@@ -78,7 +64,7 @@ test.each([
 ])('it ties a merged pull request to its first release and its deploy to $row', async (row) => {
   const ctx = await setupTest();
 
-  await ctx.writeDeliveryRows(buildDeliveryRows());
+  await ctx.store.apply(githubSource, buildDeliveryFacts());
 
   const result = await ctx.query({
     pullRequests: ['github:pull_request:10'],
@@ -103,7 +89,7 @@ test.each([
 test('it gives an open pull request no release and no deploy, and leaves out an unknown one', async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDeliveryRows(buildDeliveryRows());
+  await ctx.store.apply(githubSource, buildDeliveryFacts());
 
   const result = await ctx.query({
     pullRequests: ['github:pull_request:11', 'github:pull_request:99'],
@@ -123,7 +109,7 @@ test('it gives an open pull request no release and no deploy, and leaves out an 
 test('it leaves out text that is no entity ID and answers for the rest', async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDeliveryRows(buildDeliveryRows());
+  await ctx.store.apply(githubSource, buildDeliveryFacts());
 
   const result = await ctx.query({
     pullRequests: ['pull-11', 'github:pull_request:11'],
@@ -143,7 +129,7 @@ test('it leaves out text that is no entity ID and answers for the rest', async (
 test('it answers an empty list with no rows', async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDeliveryRows(buildDeliveryRows());
+  await ctx.store.apply(githubSource, buildDeliveryFacts());
 
   const result = await ctx.query({ pullRequests: [], environment: 'production' });
 
@@ -153,38 +139,73 @@ test('it answers an empty list with no rows', async () => {
 test('it falls back to the merge time and the release creation time when no push gave the commits', async () => {
   const ctx = await setupTest();
 
-  await ctx.store.writeRows(githubPullRequestConsumer, 'github_pull_request', [
-    buildPullRequestRow({
-      id: 'github:pull_request:30',
-      repository: 'github:repo:3',
-      mergeSha: 'unknown-sha',
-      mergedAt: '2026-10-01T10:00:00Z',
-    }),
-  ]);
+  const release = {
+    target_commitish: 'main',
+    draft: false,
+    prerelease: false,
+    html_url: 'https://github.example/acme/tide/releases',
+  };
 
-  await ctx.store.writeRows(githubReleaseConsumer, 'github_release', [
-    buildReleaseRow({
-      id: 'github:release:30',
-      repository: 'github:repo:3',
-      repositoryName: 'acme/tide',
-      tag: 'v0.9.0',
-      target: 'main',
-      isDraft: false,
-      createdAt: '2026-10-01T09:00:00Z',
-      publishedAt: '2026-10-01T09:00:00Z',
-      deletedAt: null,
-    }),
-    buildReleaseRow({
-      id: 'github:release:31',
-      repository: 'github:repo:3',
-      repositoryName: 'acme/tide',
-      tag: 'v1.0.0',
-      target: 'main',
-      isDraft: false,
-      createdAt: '2026-10-01T10:30:00Z',
-      publishedAt: '2026-10-01T10:35:00Z',
-      deletedAt: null,
-    }),
+  const repository = { id: 3, full_name: 'acme/tide' };
+
+  await ctx.store.apply(githubSource, [
+    {
+      type: 'github.pull_request.closed',
+      event: 'pull_request-30',
+      entity: 'github:pull_request:30',
+      at: '2026-10-01T10:00:00Z',
+      payload: {
+        action: 'closed',
+        pull_request: {
+          id: 30,
+          number: 30,
+          title: 'Chart the tide',
+          state: 'closed',
+          html_url: 'https://github.example/acme/tide/pull/30',
+          base: { repo: { id: 3 } },
+          merged: true,
+          merge_commit_sha: 'unknown-sha',
+          created_at: '2026-10-01T08:00:00Z',
+          updated_at: '2026-10-01T10:00:00Z',
+          closed_at: '2026-10-01T10:00:00Z',
+          merged_at: '2026-10-01T10:00:00Z',
+        },
+      },
+    },
+    {
+      type: 'github.release.published',
+      event: 'release-30',
+      entity: 'github:release:30',
+      at: '2026-10-01T09:00:00Z',
+      payload: {
+        action: 'published',
+        release: {
+          ...release,
+          id: 30,
+          tag_name: 'v0.9.0',
+          created_at: '2026-10-01T09:00:00Z',
+          published_at: '2026-10-01T09:00:00Z',
+        },
+        repository,
+      },
+    },
+    {
+      type: 'github.release.published',
+      event: 'release-31',
+      entity: 'github:release:31',
+      at: '2026-10-01T10:35:00Z',
+      payload: {
+        action: 'published',
+        release: {
+          ...release,
+          id: 31,
+          tag_name: 'v1.0.0',
+          created_at: '2026-10-01T10:30:00Z',
+          published_at: '2026-10-01T10:35:00Z',
+        },
+        repository,
+      },
+    },
   ]);
 
   const result = await ctx.query({

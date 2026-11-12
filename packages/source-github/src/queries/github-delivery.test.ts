@@ -2,12 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { definePlugin, defineQuery, entityIDSchema } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import { z } from 'zod';
-import { githubDeployConsumer } from '../github-deploy-consumer.ts';
 import { githubPlugin } from '../github-plugin.ts';
-import { githubPullRequestConsumer } from '../github-pull-request-consumer.ts';
-import { githubRefConsumer } from '../github-ref-consumer.ts';
-import { githubReleaseConsumer } from '../github-release-consumer.ts';
-import { buildDeliveryRows } from '../test-utils/build-delivery-rows.ts';
+import { githubSource } from '../github-source.ts';
+import { buildDeliveryFacts } from '../test-utils/build-delivery-facts.ts';
 import { githubDelivery } from './github-delivery.ts';
 
 async function setupTest() {
@@ -33,13 +30,7 @@ async function setupTest() {
   onTestFinished(() => store[Symbol.asyncDispose]());
 
   return {
-    writeDeliveryRows: async (rows: ReturnType<typeof buildDeliveryRows>) => {
-      await store.writeRows(githubPullRequestConsumer, 'github_pull_request', rows.pullRequests);
-      await store.writeRows(githubPullRequestConsumer, 'github_release_bump', rows.bumps);
-      await store.writeRows(githubReleaseConsumer, 'github_release', rows.releases);
-      await store.writeRows(githubRefConsumer, 'github_commit', rows.commits);
-      await store.writeRows(githubDeployConsumer, 'github_deploy', rows.deploys);
-    },
+    store,
     readShipped: (pullRequest: string) => store.query(shippedQuery, { pullRequest }),
   };
 }
@@ -47,7 +38,7 @@ async function setupTest() {
 test("it gives another plug-in's query the delivery of a pull request", async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDeliveryRows(buildDeliveryRows());
+  await ctx.store.apply(githubSource, buildDeliveryFacts());
 
   const result = await ctx.readShipped('github:pull_request:10');
 
