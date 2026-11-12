@@ -345,12 +345,7 @@ fn check_table_owners(config: &HostConfig, version: &ConsumerVersion) -> Result<
             continue;
         };
 
-        if let Some(table) = version
-            .manifest
-            .tables
-            .keys()
-            .find(|table| current.manifest.tables.contains_key(*table))
-        {
+        if let Some(table) = find_shared_table(&version.manifest.tables, &current.manifest.tables) {
             return Err(HostError::TableOwned {
                 consumer: version.name.clone(),
                 table: table.clone(),
@@ -360,6 +355,14 @@ fn check_table_owners(config: &HostConfig, version: &ConsumerVersion) -> Result<
     }
 
     Ok(())
+}
+
+/// The first table of `tables`, in key order, that `others` also holds.
+fn find_shared_table<'a, V>(
+    tables: &'a BTreeMap<String, TableInfo>,
+    others: &BTreeMap<String, V>,
+) -> Option<&'a String> {
+    tables.keys().find(|table| others.contains_key(*table))
 }
 
 async fn wait_for_stop() -> Result<(), HostError> {
@@ -434,14 +437,16 @@ async fn start_run(
         let current = read_current_version(config, &listed.name)?
             .ok_or_else(|| HostError::NoCurrentVersion(listed.name.clone()))?;
 
+        if let Some(table) = find_shared_table(&current.manifest.tables, &owners) {
+            return Err(HostError::TableOwned {
+                consumer: listed.name.clone(),
+                table: table.clone(),
+                owner: owners[table].clone(),
+            });
+        }
+
         for table in current.manifest.tables.keys() {
-            if let Some(owner) = owners.insert(table.clone(), listed.name.clone()) {
-                return Err(HostError::TableOwned {
-                    consumer: listed.name.clone(),
-                    table: table.clone(),
-                    owner,
-                });
-            }
+            owners.insert(table.clone(), listed.name.clone());
         }
     }
 
@@ -1649,6 +1654,88 @@ mod tests {
         }
 
         tables
+    }
+
+    #[test]
+    fn it_finds_the_first_table_in_key_order_that_another_consumer_holds() {
+        let cases = [
+            ("no shared table", &["item", "note"][..], &["ledger"][..]),
+            ("one shared table", &["item", "note"][..], &["note"][..]),
+            (
+                "two shared tables",
+                &["note", "item"][..],
+                &["note", "item"][..],
+            ),
+        ];
+
+        let found: Vec<(&str, Option<String>)> = cases
+            .into_iter()
+            .map(|(case, tables, others)| {
+                let shared =
+                    find_shared_table(&build_tables(tables), &build_tables(others)).cloned();
+
+                (case, shared)
+            })
+            .collect();
+
+        assert_eq!(
+            found,
+            vec![
+                ("no shared table", None),
+                ("one shared table", Some("note".to_owned())),
+                ("two shared tables", Some("item".to_owned())),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn it_refuses_to_start_run_when_two_current_versions_own_one_table() {
+        let ctx = setup_test();
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (first, bytes) = build_listed(&version_hash('a'), "[]");
+        let mut listed_rival: ListedConsumer = serde_json::from_str(
+            &serde_json::to_string(&first)
+                .expect("JSON")
+                .replace("github_pull_request", "rival")
+                .replace("github_release_bump", "rival_bump"),
+        )
+        .expect("a rival consumer");
+        let mut current_rival = first.to_version();
+
+        listed_rival.path = "rival/module.wasm".to_owned();
+        current_rival.name = "rival".to_owned();
+        current_rival.manifest.name = "rival".to_owned();
+
+        let file = write_build(&ctx.config, &[(first, bytes.clone())]);
+
+        up_listed(&ctx.config, &log, &file, None)
+            .await
+            .expect("the first up");
+
+        let rival_dir = ctx.config.consumer_dir("rival").join(version_hash('a'));
+
+        std::fs::create_dir_all(&rival_dir).expect("a rival version folder");
+        write_version(&rival_dir, &current_rival).expect("a rival version file");
+        repoint_current(&ctx.config.consumer_dir("rival"), &version_hash('a'))
+            .expect("a rival current link");
+        write_build(
+            &ctx.config,
+            &[
+                (file.consumers[0].clone(), bytes.clone()),
+                (listed_rival, bytes),
+            ],
+        );
+
+        let result = start_run(&ctx.config, &log, false).await;
+
+        assert_eq!(
+            result.map(|_| ()).map_err(|error| error.to_string()),
+            Err(
+                "rival declares the table github_pull_request, which the current version of \
+                 github_pull_request owns"
+                    .to_owned()
+            )
+        );
     }
 
     #[test]
