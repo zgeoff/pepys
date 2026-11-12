@@ -1,11 +1,12 @@
 # Auth
 
 The API runs its own OAuth 2.1 authorization server, so each client the owner approves gets its own
-grant, and every manual fact records the client that wrote it. The server follows the OAuth
-connector in the owner's agent control tower, atc: better-auth's OAuth provider and MCP plugins run
-the protocol, and pepys adds the owner's passkey sign-in, the client list and the scope check. The
-server serves one owner. Only clients that were added on the server can start an authorization, and
-each authorization needs a fresh passkey sign-in.
+grant, and every manual fact records the client that wrote it. pepys copies the server from the
+OAuth connector in the owner's agent control tower, atc ([the OAuth server](../api-auth/oauth.md)):
+better-auth's OAuth provider and MCP plugins run the protocol, and pepys adds the owner's passkey
+sign-in, the client list and the scope check. The server serves one owner. Only clients that were
+added on the server can start an authorization, and each authorization needs a fresh passkey
+sign-in.
 
 ## Clients
 
@@ -33,8 +34,9 @@ scopes set what each one may do.
    token, both bound to the one resource the API serves, its MCP endpoint. `/mcp` accepts only a
    token bound to that resource.
 
-`passkeys enroll` prints a one-time enrolment token that expires in 10 minutes. The passkey's
-relying party is the API's public host name, so a passkey works only at that origin.
+Before the first grant, the owner runs `passkeys enroll` in the API's container. It prints a
+one-time enrolment token that expires in 10 minutes, and the owner types it on the enrolment page.
+The passkey's relying party is the API's public host name, so a passkey works only at that origin.
 
 ## Tokens
 
@@ -50,13 +52,14 @@ never the token.
 
 better-auth's refresh rotation is not atomic: two refreshes that overlap can both succeed. The API
 therefore runs each refresh as one `auth.db` transaction that consumes the old refresh token by
-compare and swap, so the rule holds across processes
+compare and swap, so a reused refresh token revokes its grant even across processes
 ([tokens and grants](../api-auth/oauth.md#tokens-and-grants)).
 
 A change feed stream outlives a single request. The API checks the stream's token against the
 database before it sends each batch, and closes the stream when the token has expired or its grant
-is revoked. The reader reconnects from its offset with a fresh token. `pepys grants revoke <client>`
-revokes every grant of one client, and `pepys clients remove <client>` removes the client as well.
+is revoked. The reader reconnects from its offset with a fresh token. `grants revoke <client>`
+revokes every grant of one client, and `clients remove <client>` revokes them and removes the
+client.
 
 ## Scopes
 
@@ -92,17 +95,19 @@ user. It holds the clients, the passkeys' public keys, short-lived owner session
 The API never writes the store, and the host never opens `auth.db`.
 
 1Password holds the service tokens, one item per credential, and nothing for OAuth. better-auth's
-secret is drawn at each start, which ends the sign-ins in progress and keeps every grant. Losing
-`auth.db` ends every grant, and the owner approves each client again, so `auth.db` has no backup.
+secret is generated at random at each start, which ends the sign-ins in progress and keeps every
+grant. Losing `auth.db` ends every grant, and the owner approves each client again, so `auth.db` has
+no backup.
 
 ## Network
 
 The API serves MCP and the sign-in pages on a public route through a Cloudflare tunnel, and oRPC on
 the owner's tailnet and inside the cluster with service tokens.
 [Auth for the API](../api-auth/README.md) holds its listeners, the credential each one takes, and
-the checks on each request. Its cluster-internal port, which serves change feed reads and search to
-enrichment, is designed with enrichment ([runtime](./runtime.md#network)). Ingest checks the GitHub
-webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no part in it.
+the checks on each request. The API's internal port, which serves change feed reads and search to
+the enrichment process, is outside that design, and [runtime](./runtime.md#network) lists it. Ingest
+checks the GitHub webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no
+part in it.
 
 ## Threats
 
@@ -110,7 +115,7 @@ webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays 
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | a stolen access token                    | it opens only `/mcp`, lasts 1 hour, and stops on its next request or stream batch once the owner revokes its grant           |
 | a stolen refresh token                   | rotation in one transaction: a spent refresh token revokes its grant                                                         |
-| a stolen service token                   | it works only on the listeners its caller lists, and the owner removes its digest without a restart                          |
+| a stolen service token                   | it works only on the API listeners named for it, and the owner revokes it with no restart                                    |
 | a prompt-injected agent writing bad data | every manual fact names its client, so the owner retracts that client's links and drops its corrections from the score       |
 | a stolen authorization code              | PKCE: the code is useless without the client's verifier, and it expires in 10 minutes                                        |
 | an MCP client used as a confused deputy  | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |

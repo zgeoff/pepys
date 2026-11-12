@@ -1,12 +1,17 @@
 # API
 
 The API is the only way into pepys for tools and agents. It is one Bun process running Elysia v2,
-oRPC for typed routes, and an MCP server over streamable HTTP. Agents reach MCP on a public route
-behind OAuth, tools reach oRPC on the owner's tailnet with a service token
-([auth for the API](../api-auth/README.md)), and enrichment reads the change feed and search on a
-cluster-internal port ([runtime](./runtime.md#network)). Every query and write is one procedure of
-an oRPC contract, so one definition gives a typed route, an MCP tool and a test. The API reads the
-store and never writes it: every write from a person or an agent becomes a manual fact in the log.
+oRPC for typed routes, and an MCP server over streamable HTTP. Its callers reach it three ways:
+
+- agents reach MCP on a public route, with an OAuth token;
+- the owner's scripts reach oRPC on the owner's tailnet, and pods reach oRPC and MCP inside the
+  cluster, each with a service token;
+- enrichment reads the change feed and search on an internal port ([runtime](./runtime.md#network)).
+
+[Auth for the API](../api-auth/README.md) holds the listener and the credential of each route. Every
+query and write is one procedure of an oRPC contract, so one definition gives a typed route, an MCP
+tool and a test. The API reads the store and never writes it: every write from a person or an agent
+becomes a manual fact in the log.
 
 [pepys v1](../v1.md#the-store-api) builds `get_entity`, `neighbourhood` and each plug-in's queries,
 as oRPC routes and MCP tools. It has no search, no entity history, no write, no deployment catalog
@@ -62,7 +67,9 @@ it has its own change stream, and an agent can subscribe and act when something 
 
 The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
 `read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
-[Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats.
+[Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats. The
+oRPC routes take service tokens, which a file of their digests lists, as
+[auth for the API](../api-auth/README.md#service-tokens) sets out.
 
 ## Agent writes
 
