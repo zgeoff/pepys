@@ -510,7 +510,7 @@ async function runUntilCaughtUp(
     { intervalMs: 200, timeoutMs: 60_000, label: 'pepys run to catch up' },
   ).then(
     () => null,
-    (error: unknown) => error,
+    (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
   );
 
   await store.close();
