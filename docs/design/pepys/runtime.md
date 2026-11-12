@@ -142,8 +142,9 @@ The API's cluster listener serves `/rpc` and `/mcp` inside the cluster, to the b
 [Auth for the API](../api-auth/README.md#deployment-changes) lists the Services, NetworkPolicies and
 exposure registry entries of the three listeners.
 
-Inside the namespace, enrichment and the pod that runs the host and the API call each other on three
-internal ports. The internal routes never check a token, as with the CLI's admin routes.
+Inside the namespace, enrichment and the pod that runs the host and the API call each other on the
+three internal ports below. The admin ports, which the CLI calls, are in [the CLI](#the-cli). The
+internal routes never check a token, as with the CLI's admin routes.
 
 | Port                                      | Serves                                                                              | Open to                                |
 | ----------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |

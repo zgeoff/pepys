@@ -8,10 +8,10 @@ oRPC for typed routes, and an MCP server over streamable HTTP. Its callers reach
   cluster, each with a service token;
 - enrichment reads the change feed and search on an internal port ([runtime](./runtime.md#network)).
 
-[Auth for the API](../api-auth/README.md) holds the listener and the credential of each route. Every
-query and write is one procedure of an oRPC contract, so one definition gives a typed route, an MCP
-tool and a test. The API reads the store and never writes it: every write from a person or an agent
-becomes a manual fact in the log.
+[Auth for the API](../api-auth/README.md) owns which listener serves each route, and which
+credential each listener takes. Every query and write is one procedure of an oRPC contract, so one
+definition gives a typed route, an MCP tool and a test. The API reads the store and never writes it:
+every write from a person or an agent becomes a manual fact in the log.
 
 [pepys v1](../v1.md#the-store-api) builds `get_entity`, `neighbourhood` and each plug-in's queries,
 as oRPC routes and MCP tools. It has no search, no entity history, no write, no deployment catalog
@@ -19,11 +19,10 @@ and no OAuth: its API checks no token.
 
 ## Callers
 
-| Caller                               | Wants                    | Through                  |
-| ------------------------------------ | ------------------------ | ------------------------ |
-| agents such as Claude Code and Codex | tools with descriptions  | MCP                      |
-| a dashboard in the browser           | queries and live updates | oRPC and the change feed |
-| automations                          | notice of changes        | the change feed          |
+| Caller                               | Wants                   | Through         |
+| ------------------------------------ | ----------------------- | --------------- |
+| agents such as Claude Code and Codex | tools with descriptions | MCP             |
+| automations                          | notice of changes       | the change feed |
 
 ## The contract
 
@@ -67,9 +66,7 @@ it has its own change stream, and an agent can subscribe and act when something 
 
 The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
 `read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
-[Auth](./auth.md) holds the clients, the flow, the tokens, the scopes per route and the threats. The
-oRPC routes, and `/mcp` on the cluster listener, take service tokens, which a file of their digests
-lists, as [auth for the API](../api-auth/README.md#service-tokens) sets out.
+[Auth](./auth.md) holds the OAuth clients, the flow, the OAuth tokens, the scopes and the threats.
 
 ## Agent writes
 

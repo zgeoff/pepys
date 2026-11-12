@@ -51,8 +51,9 @@ database and a revoked grant fails on its next request. The database stores a ha
 never the token.
 
 better-auth's refresh rotation is not atomic: two refreshes that overlap can both succeed. The API
-therefore runs each refresh as one `auth.db` transaction that consumes the old refresh token by
-compare and swap, so a reused refresh token revokes its grant even across processes
+therefore runs each refresh as one transaction in the auth database, `auth.db`
+([where the state lives](#where-the-state-lives)), that consumes the old refresh token by compare
+and swap, so a reused refresh token revokes its grant even across processes
 ([tokens and grants](../api-auth/oauth.md#tokens-and-grants)).
 
 A change feed stream outlives a single request. The API checks the stream's token against the
@@ -102,12 +103,12 @@ no backup.
 ## Network
 
 The API serves MCP and the sign-in pages on a public route through a Cloudflare tunnel, and oRPC on
-the owner's tailnet and inside the cluster with service tokens.
+the owner's tailnet and inside the k3s cluster that runs pepys with service tokens.
 [Auth for the API](../api-auth/README.md) holds its listeners, the credential each one takes, and
 the checks on each request. The API's internal port, which serves change feed reads and search to
-the enrichment process, is outside that design, and [runtime](./runtime.md#network) lists it. Ingest
-checks the GitHub webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth plays no
-part in it.
+[enrichment](./enrichment.md), is outside that design, and [runtime](./runtime.md#network) lists it.
+Ingest checks the GitHub webhook's signature, as [ingest](./ingest.md#github) describes, and OAuth
+plays no part in it.
 
 ## Threats
 
