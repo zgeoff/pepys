@@ -9,8 +9,8 @@ use tokio::task::JoinSet;
 
 use crate::batch::{FactRunner, apply_batch};
 use crate::consumer::{
-    BuildManifest, ConsumerInput, ConsumerManifest, ConsumerVersion, ListedConsumer, find_consumer,
-    has_version_file, read_build_manifest, read_version, write_version,
+    BuildManifest, ConsumerInput, ConsumerManifest, ConsumerVersion, ListedConsumer, TableInfo,
+    find_consumer, has_version_file, read_build_manifest, read_version, write_version,
 };
 use crate::database::{
     Store, checkpoint, open_store, prepare_scope_tables, prepare_store, read_offset,
@@ -801,9 +801,27 @@ async fn compare_with_current(
     }
 
     let after = read_all_tables(&previewed.store, &previewed.manifest).await?;
+
+    build_preview_diff(
+        &previewed.manifest.tables,
+        current.as_ref().map(|current| &current.manifest.tables),
+        &before,
+        &after,
+    )
+}
+
+/// The preview's row diff of each previewed table, from the current rows `before` to the
+/// previewed rows `after`, where each row of a current table that `previewed` drops shows as
+/// removed.
+fn build_preview_diff(
+    previewed: &BTreeMap<String, TableInfo>,
+    current: Option<&BTreeMap<String, TableInfo>>,
+    before: &TableRows,
+    after: &TableRows,
+) -> Result<serde_json::Value, HostError> {
     let mut diffs = Vec::new();
 
-    for (table, info) in &previewed.manifest.tables {
+    for (table, info) in previewed {
         let empty = Vec::new();
         let current = before.get(table).unwrap_or(&empty);
         let rows = after.get(table).unwrap_or(&empty);
@@ -812,9 +830,9 @@ async fn compare_with_current(
     }
 
     let removed_tables = current
-        .iter()
-        .flat_map(|current| &current.manifest.tables)
-        .filter(|(table, _)| !previewed.manifest.tables.contains_key(*table));
+        .into_iter()
+        .flatten()
+        .filter(|(table, _)| !previewed.contains_key(*table));
 
     for (table, info) in removed_tables {
         let rows = before.get(table).map_or(&[][..], Vec::as_slice);
@@ -1582,6 +1600,100 @@ mod tests {
                 ("no open version", true),
                 ("another open version", true),
                 ("the current version open", false),
+            ]
+        );
+    }
+
+    fn build_tables(names: &[&str]) -> BTreeMap<String, TableInfo> {
+        names
+            .iter()
+            .map(|name| {
+                let info = serde_json::from_value(json!({
+                    "columns": {
+                        "id": {"kind": "text", "nullable": false},
+                        "title": {"kind": "text", "nullable": false}
+                    },
+                    "primaryKey": ["id"],
+                    "indexes": []
+                }))
+                .expect("a table");
+
+                ((*name).to_owned(), info)
+            })
+            .collect()
+    }
+
+    fn build_rows(rows: &[(&str, &str, &str)]) -> TableRows {
+        let mut tables = TableRows::new();
+
+        for (table, id, title) in rows {
+            let row = serde_json::from_value(json!({"id": id, "title": title})).expect("a row");
+
+            tables.entry((*table).to_owned()).or_default().push(row);
+        }
+
+        tables
+    }
+
+    #[test]
+    fn it_builds_the_preview_diff_of_each_table_and_of_each_table_the_preview_drops() {
+        let cases = [
+            (
+                "no current version",
+                build_tables(&["item"]),
+                None,
+                build_rows(&[]),
+                build_rows(&[("item", "a", "First")]),
+            ),
+            (
+                "the same rows",
+                build_tables(&["item"]),
+                Some(build_tables(&["item"])),
+                build_rows(&[("item", "a", "First")]),
+                build_rows(&[("item", "a", "First")]),
+            ),
+            (
+                "a changed row",
+                build_tables(&["item"]),
+                Some(build_tables(&["item"])),
+                build_rows(&[("item", "a", "First")]),
+                build_rows(&[("item", "a", "Second")]),
+            ),
+            (
+                "a table the preview drops",
+                build_tables(&["item"]),
+                Some(build_tables(&["item", "note"])),
+                build_rows(&[("item", "a", "First"), ("note", "n", "Kept")]),
+                build_rows(&[("item", "a", "First")]),
+            ),
+        ];
+
+        let diffs: Vec<(&str, serde_json::Value)> = cases
+            .into_iter()
+            .map(|(case, previewed, current, before, after)| {
+                let diff = build_preview_diff(&previewed, current.as_ref(), &before, &after)
+                    .expect("a diff");
+
+                (case, diff)
+            })
+            .collect();
+
+        assert_eq!(
+            diffs,
+            vec![
+                (
+                    "no current version",
+                    json!({"item": {"added": [r#"["a"]"#], "changed": [], "removed": []}})
+                ),
+                ("the same rows", json!({})),
+                (
+                    "a changed row",
+                    json!({"item": {"added": [], "changed": [r#"["a"]"#], "removed": []}})
+                ),
+                (
+                    "a table the preview drops",
+                    json!({"note": {"added": [], "changed": [], "removed": [r#"["n"]"#]}})
+                ),
             ]
         );
     }
