@@ -31,7 +31,7 @@
     },
     {
       // the fact envelope names its version field `v`, and the log doc fixes that name
-      "files": ["packages/*/src/**", "packages/*/integration/**"],
+      "files": ["packages/*/src/**"],
       "rules": {
         "id-length": [
           "error",

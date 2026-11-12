@@ -5,7 +5,6 @@
   },
   "include": [
     "packages/*/src/**/*.ts",
-    "packages/*/integration/**/*.ts",
     "scripts/**/*.ts",
     "stack/**/*.ts",
     "e2e/**/*.ts",

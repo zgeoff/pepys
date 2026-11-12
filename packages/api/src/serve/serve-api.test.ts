@@ -8,15 +8,15 @@ import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { EntityID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { createApp } from '../src/app/create-app.ts';
-import type { DeploymentClient } from '../src/client/deployment-client.ts';
-import { buildQueryContext } from '../src/queries/build-query-context.ts';
-import { createStoreReader } from '../src/store-reader/create-store-reader.ts';
-import { writeCurrentVersion } from '../src/test-utils/create-consumer-version.ts';
-import { harbourPlugin, harbourVesselConsumer } from '../src/test-utils/harbour/harbour-plugin.ts';
-import { seedHarbourFiles } from '../src/test-utils/harbour/seed-harbour-files.ts';
-import { readMCPAnswer } from '../src/test-utils/read-mcp-answer.ts';
-import { startAuthorizedMCP } from '../src/test-utils/start-authorized-mcp.ts';
+import { createApp } from '../app/create-app.ts';
+import type { DeploymentClient } from '../client/deployment-client.ts';
+import { buildQueryContext } from '../queries/build-query-context.ts';
+import { createStoreReader } from '../store-reader/create-store-reader.ts';
+import { writeCurrentVersion } from '../test-utils/create-consumer-version.ts';
+import { harbourPlugin, harbourVesselConsumer } from '../test-utils/harbour/harbour-plugin.ts';
+import { seedHarbourFiles } from '../test-utils/harbour/seed-harbour-files.ts';
+import { readMCPAnswer } from '../test-utils/read-mcp-answer.ts';
+import { startAuthorizedMCP } from '../test-utils/start-authorized-mcp.ts';
 
 async function setupTest() {
   const deployment = defineDeployment({ name: 'harbour', plugins: [harbourPlugin] });
