@@ -73,26 +73,9 @@ export function createMCPHTTPApp(options: MCPHTTPAppOptions & MCPRoutes) {
 
       // Elysia runs this hook for every route of the app this one is mounted
       // on, the routes beside it included.
-      if (path.startsWith(options.besidePrefix)) {
-        return;
-      }
-
-      const host = context.request.headers.get('host');
-
-      if (host === null || !options.hosts.has(host)) {
-        options.security.record({
-          kind: 'authorize_invalid',
-          outcome: 'rejected',
-          reason: 'bad_host',
-          path,
-          requester: options.readRequester(context.request),
-        });
-
-        return new Response(null, { status: 403 });
-      }
-
-      // Elysia answers with any value a hook returns but undefined, null included
-      return options.readContext() === null ? new Response(null, { status: 503 }) : undefined;
+      return path.startsWith(options.besidePrefix)
+        ? undefined
+        : refuseUnservedRequest(options, context.request, path);
     })
 
     // Elysia scopes this hook to these routes, so an unknown path keeps the
@@ -203,6 +186,31 @@ export function createMCPHTTPApp(options: MCPHTTPAppOptions & MCPRoutes) {
   return app;
 }
 
+// A request whose Host the server doesn't answer gets 403, and a request that
+// comes before the authorization server opens gets 503.
+function refuseUnservedRequest(
+  options: MCPHTTPAppOptions,
+  request: Request,
+  path: string,
+): Response | undefined {
+  const host = request.headers.get('host');
+
+  if (host === null || !options.hosts.has(host)) {
+    options.security.record({
+      kind: 'authorize_invalid',
+      outcome: 'rejected',
+      reason: 'bad_host',
+      path,
+      requester: options.readRequester(request),
+    });
+
+    return new Response(null, { status: 403 });
+  }
+
+  // Elysia answers with any value a hook returns but undefined, null included
+  return options.readContext() === null ? new Response(null, { status: 503 }) : undefined;
+}
+
 // better-auth builds every URL it returns from its base URL, so a request
 // that reached the local address is handed over as if it came to the public
 // origin.
@@ -255,7 +263,14 @@ async function answerTokenRequest(
 
   const sent = new Request(request.url, { method: request.method, headers: request.headers, body });
 
-  const response = await ctx.store.auth.handler(toPublicRequest(ctx, sent));
+  // better-auth binds the tokens to a DPoP proof's key whenever a request
+  // carries one, and has no option to turn DPoP off. pepys serves no DPoP.
+  const response = request.headers.has('dpop')
+    ? Response.json(
+        { error: 'invalid_request', error_description: 'DPoP is not supported' },
+        { status: 400, headers: { 'cache-control': 'no-store' } },
+      )
+    : await ctx.store.auth.handler(toPublicRequest(ctx, sent));
 
   if (!response.ok) {
     await recordRefusedExchange(ctx, {

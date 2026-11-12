@@ -10,7 +10,7 @@ interface TokenAccess {
 }
 
 // An inactive, unknown, expired or revoked token, one bound to another
-// resource, or one without a client id reads as null. Reading records no use.
+// resource or to a key, or one without a client id reads as null. Reading records no use.
 export async function readTokenAccess(
   ctx: HTTPServerContext,
   token: string,
@@ -28,6 +28,12 @@ export async function readTokenAccess(
   }
 
   if (!isRecord(payload) || ![payload['aud']].flat().includes(ctx.resource)) {
+    return null;
+  }
+
+  // A token bound to a key, such as a DPoP key, needs a proof of that key,
+  // and /mcp takes a bearer token alone.
+  if (payload['token_type'] !== 'Bearer' || payload['cnf'] !== undefined) {
     return null;
   }
 

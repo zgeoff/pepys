@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
 import { readMCPAnswer } from '../../test-utils/read-mcp-answer.ts';
@@ -3858,4 +3858,97 @@ test('it refreshes a grant issued before the passkeys were reset', async () => {
   });
 
   expect(refreshed.status).toBe(200);
+});
+
+test('it refuses a code exchange that carries a DPoP proof with invalid_request', async () => {
+  const ctx = await setupTest();
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const authorized = await runMCPAuthorization(ctx, {
+    clientID: created.clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const header = { typ: 'dpop+jwt', alg: 'ES256', jwk: keys.publicKey.export({ format: 'jwk' }) };
+
+  const claims = {
+    jti: crypto.randomUUID(),
+    htm: 'POST',
+    htu: `${ctx.origin}/oauth2/token`,
+    iat: Math.floor(Date.now() / 1000),
+  };
+
+  const unsigned = [header, claims]
+    .map((part) => Buffer.from(JSON.stringify(part)).toString('base64url'))
+    .join('.');
+
+  const signature = sign('sha256', Buffer.from(unsigned), {
+    key: keys.privateKey,
+    dsaEncoding: 'ieee-p1363',
+  });
+
+  const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    headers: { dpop: `${unsigned}.${signature.toString('base64url')}` },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: created.clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  expect({ status: exchanged.status, body: await exchanged.json() }).toStrictEqual({
+    status: 400,
+    body: { error: 'invalid_request', error_description: 'DPoP is not supported' },
+  });
+
+  expect(readGrantViews(ctx.store.db)).resolves.toStrictEqual([]);
+});
+
+test('it refuses a DPoP-bound access token sent as a bearer token with invalid_token', async () => {
+  const ctx = await setupTest();
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const granted = await runMCPTokenGrant(ctx, {
+    clientID: created.clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  await ctx.seed.dpopBinding({ clientID: created.clientID, jkt: 'thumbprint-of-a-key' });
+
+  const called = await fetch(`${ctx.url}/mcp`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${granted.accessToken}`,
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'harbour_voyage_count', arguments: { vessel: 'harbour:vessel:7' } },
+    }),
+  });
+
+  expect({
+    status: called.status,
+    challenge: called.headers.get('www-authenticate'),
+  }).toStrictEqual({
+    status: 401,
+    challenge: `Bearer error="invalid_token", resource_metadata="${ctx.origin}/.well-known/oauth-protected-resource/mcp"`,
+  });
 });

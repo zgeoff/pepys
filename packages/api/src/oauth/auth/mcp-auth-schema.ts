@@ -14,6 +14,10 @@ export interface MCPAuthSchema {
     readonly clientId: string;
     readonly sessionId: string | null;
     readonly authorizationCodeId: string | null;
+
+    // The key a token is bound to, as JSON such as `{"jkt":"…"}`; null for a
+    // bearer token.
+    readonly confirmation: string | null;
   };
   readonly oauthRefreshToken: {
     readonly id: string;

@@ -157,6 +157,8 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - It serves better-auth's authorization server metadata without the introspection and DPoP fields,
   and sets `token_endpoint_auth_methods_supported` and `revocation_endpoint_auth_methods_supported`
   to `["none"]`.
+- It refuses a token request that carries a `DPoP` header with `invalid_request`, and answers 401
+  `invalid_token` on `/mcp` to a token bound to a key.
 - It locks a [pending approval](#the-owner) after failed passkey checks, as [Requests](#requests)
   says.
 
