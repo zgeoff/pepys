@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { createApp } from '../src/app/create-app.ts';
 import type { DeploymentClient } from '../src/client/deployment-client.ts';
@@ -126,11 +128,11 @@ test('it serves get_entity from the file of the consumer that owns the kind', as
 
   expect(found).toStrictEqual({
     entity: {
-      id: 'harbour:voyage:12',
+      id: toTagged<EntityID>('harbour:voyage:12'),
       kind: 'harbour:voyage',
       title: 'harbour:port:north',
       url: null,
-      actor: 'harbour:vessel:7',
+      actor: toTagged<EntityID>('harbour:vessel:7'),
       updated_at: '2026-11-02T06:00:00.000Z',
     },
     consumer: 'harbour_voyage',
@@ -155,7 +157,7 @@ test('it walks a link in one file to an entity in another', async () => {
   expect(near).toStrictEqual({
     entities: [
       {
-        id: 'harbour:vessel:7',
+        id: toTagged<EntityID>('harbour:vessel:7'),
         kind: 'harbour:vessel',
         title: 'Tern',
         url: null,
@@ -164,11 +166,11 @@ test('it walks a link in one file to an entity in another', async () => {
         depth: 0,
       },
       {
-        id: 'harbour:voyage:12',
+        id: toTagged<EntityID>('harbour:voyage:12'),
         kind: 'harbour:voyage',
         title: 'harbour:port:north',
         url: null,
-        actor: 'harbour:vessel:7',
+        actor: toTagged<EntityID>('harbour:vessel:7'),
         updated_at: '2026-11-02T06:00:00.000Z',
         depth: 1,
       },
@@ -176,8 +178,8 @@ test('it walks a link in one file to an entity in another', async () => {
     links: [
       {
         type: 'voyage_of',
-        from: 'harbour:voyage:12',
-        to: 'harbour:vessel:7',
+        from: toTagged<EntityID>('harbour:voyage:12'),
+        to: toTagged<EntityID>('harbour:vessel:7'),
         direction: 'incoming',
         origin: 'harbour_voyage',
         confidence: 1,

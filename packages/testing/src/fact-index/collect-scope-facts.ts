@@ -1,4 +1,4 @@
-import type { FactEnvelope } from '@pepys/kit';
+import type { EntityID, FactEnvelope } from '@pepys/kit';
 import { compareCodePoints } from '../utils/compare-code-points.ts';
 import type { FactIndex } from './types.ts';
 
@@ -6,7 +6,7 @@ import type { FactIndex } from './types.ts';
 // ID, sorted by time, then stream, then sequence number.
 export function collectScopeFacts(
   index: FactIndex,
-  scope: string,
+  scope: EntityID,
   streams: readonly string[],
 ): FactEnvelope<unknown>[] {
   return [...index.firstCopies.values()]

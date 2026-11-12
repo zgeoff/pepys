@@ -2,7 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { EntityID } from '@pepys/kit';
 import { connect } from '@tursodatabase/database';
+import { toTagged } from '@zgeoff/std';
 import { createConsumerVersion, writeCurrentVersion } from './create-consumer-version.ts';
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour/harbour-plugin.ts';
 import hostTables from './host-tables.json';
@@ -51,8 +53,8 @@ test('it writes the rows, links, offsets and change log of a version in the host
     links: [
       {
         type: 'voyage_of',
-        from_id: 'harbour:voyage:12',
-        to_id: 'harbour:vessel:7',
+        from_id: toTagged<EntityID>('harbour:voyage:12'),
+        to_id: toTagged<EntityID>('harbour:vessel:7'),
         scope: null,
         origin: 'harbour_voyage',
         confidence: 1,

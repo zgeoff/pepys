@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration } from '@pepys/kit';
+import type { ConsumerDeclaration, EntityID } from '@pepys/kit';
 import { removeLink } from '../links/remove-link.ts';
 import { writeLink } from '../links/write-link.ts';
 import { removeRow } from '../rows/remove-row.ts';
@@ -9,7 +9,7 @@ import type { ScopeChanges } from './types.ts';
 export async function writeScopeChanges(
   db: StoreDatabase,
   consumer: ConsumerDeclaration,
-  scope: string,
+  scope: EntityID,
   changes: ScopeChanges,
 ): Promise<void> {
   for (const row of changes.writtenRows) {

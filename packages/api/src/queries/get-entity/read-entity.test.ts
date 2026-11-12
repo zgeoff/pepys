@@ -1,6 +1,8 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { checkDeployment } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { harbourPlugin, harbourSource } from '../../test-utils/harbour/harbour-plugin.ts';
 import { buildQueryContext } from '../build-query-context.ts';
@@ -37,11 +39,11 @@ test('it returns the summary, the owning consumer and table, and the full row of
     ok: true,
     value: {
       entity: {
-        id: 'harbour:voyage:12',
+        id: toTagged<EntityID>('harbour:voyage:12'),
         kind: 'harbour:voyage',
         title: 'harbour:port:north',
         url: null,
-        actor: 'harbour:vessel:7',
+        actor: toTagged<EntityID>('harbour:vessel:7'),
         updated_at: '2026-11-02T06:00:00.000Z',
       },
       consumer: 'harbour_voyage',

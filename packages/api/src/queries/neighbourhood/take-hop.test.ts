@@ -1,19 +1,21 @@
 import { expect, test } from 'bun:test';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { takeHop } from './take-hop.ts';
 
 test('it follows a link out of the frontier and a link into it, and adds both far ends', () => {
   const state = {
-    depths: new Map([['harbour:vessel:7', 0]]),
+    depths: new Map([[toTagged<EntityID>('harbour:vessel:7'), 0]]),
     links: [],
-    frontier: ['harbour:vessel:7'],
+    frontier: [toTagged<EntityID>('harbour:vessel:7')],
     isTruncated: false,
   };
 
   const rows = [
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:3',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:3'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 1,
@@ -21,8 +23,8 @@ test('it follows a link out of the frontier and a link into it, and adds both fa
     },
     {
       type: 'voyage_of',
-      from_id: 'harbour:voyage:12',
-      to_id: 'harbour:vessel:7',
+      from_id: toTagged<EntityID>('harbour:voyage:12'),
+      to_id: toTagged<EntityID>('harbour:vessel:7'),
       scope: null,
       origin: 'harbour_voyage',
       confidence: 0.75,
@@ -32,15 +34,15 @@ test('it follows a link out of the frontier and a link into it, and adds both fa
 
   expect(takeHop(state, rows, { depth: 1, entityLimit: 50, linkReadLimit: 1000 })).toStrictEqual({
     depths: new Map([
-      ['harbour:vessel:7', 0],
-      ['harbour:berth:3', 1],
-      ['harbour:voyage:12', 1],
+      [toTagged<EntityID>('harbour:vessel:7'), 0],
+      [toTagged<EntityID>('harbour:berth:3'), 1],
+      [toTagged<EntityID>('harbour:voyage:12'), 1],
     ]),
     links: [
       {
         type: 'docked_at',
-        from: 'harbour:vessel:7',
-        to: 'harbour:berth:3',
+        from: toTagged<EntityID>('harbour:vessel:7'),
+        to: toTagged<EntityID>('harbour:berth:3'),
         direction: 'outgoing',
         origin: 'harbour_berth',
         confidence: 1,
@@ -48,32 +50,32 @@ test('it follows a link out of the frontier and a link into it, and adds both fa
       },
       {
         type: 'voyage_of',
-        from: 'harbour:voyage:12',
-        to: 'harbour:vessel:7',
+        from: toTagged<EntityID>('harbour:voyage:12'),
+        to: toTagged<EntityID>('harbour:vessel:7'),
         direction: 'incoming',
         origin: 'harbour_voyage',
         confidence: 0.75,
         depth: 1,
       },
     ],
-    frontier: ['harbour:berth:3', 'harbour:voyage:12'],
+    frontier: [toTagged<EntityID>('harbour:berth:3'), toTagged<EntityID>('harbour:voyage:12')],
     isTruncated: false,
   });
 });
 
 test('it makes one link of a link that two origins hold, with the higher confidence', () => {
   const state = {
-    depths: new Map([['harbour:vessel:7', 0]]),
+    depths: new Map([[toTagged<EntityID>('harbour:vessel:7'), 0]]),
     links: [],
-    frontier: ['harbour:vessel:7'],
+    frontier: [toTagged<EntityID>('harbour:vessel:7')],
     isTruncated: false,
   };
 
   const rows = [
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:3',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:3'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 0.5,
@@ -81,9 +83,9 @@ test('it makes one link of a link that two origins hold, with the higher confide
     },
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:3',
-      scope: 'harbour:berth:3',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:3'),
+      scope: toTagged<EntityID>('harbour:berth:3'),
       origin: 'harbour_pilot',
       confidence: 0.875,
       evidence: 'the pilot report',
@@ -95,8 +97,8 @@ test('it makes one link of a link that two origins hold, with the higher confide
   expect(next.links).toStrictEqual([
     {
       type: 'docked_at',
-      from: 'harbour:vessel:7',
-      to: 'harbour:berth:3',
+      from: toTagged<EntityID>('harbour:vessel:7'),
+      to: toTagged<EntityID>('harbour:berth:3'),
       direction: 'outgoing',
       origin: 'harbour_pilot',
       confidence: 0.875,
@@ -107,17 +109,17 @@ test('it makes one link of a link that two origins hold, with the higher confide
 
 test('it drops the rows past the read limit and marks the walk cut', () => {
   const state = {
-    depths: new Map([['harbour:vessel:7', 0]]),
+    depths: new Map([[toTagged<EntityID>('harbour:vessel:7'), 0]]),
     links: [],
-    frontier: ['harbour:vessel:7'],
+    frontier: [toTagged<EntityID>('harbour:vessel:7')],
     isTruncated: false,
   };
 
   const rows = [
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:3',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:3'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 1,
@@ -125,8 +127,8 @@ test('it drops the rows past the read limit and marks the walk cut', () => {
     },
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:4',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:4'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 1,
@@ -138,8 +140,8 @@ test('it drops the rows past the read limit and marks the walk cut', () => {
 
   expect({ depths: next.depths, isTruncated: next.isTruncated }).toStrictEqual({
     depths: new Map([
-      ['harbour:vessel:7', 0],
-      ['harbour:berth:3', 1],
+      [toTagged<EntityID>('harbour:vessel:7'), 0],
+      [toTagged<EntityID>('harbour:berth:3'), 1],
     ]),
     isTruncated: true,
   });
@@ -147,17 +149,17 @@ test('it drops the rows past the read limit and marks the walk cut', () => {
 
 test('it adds new IDs in ID order up to the entity limit, and drops the links to the rest', () => {
   const state = {
-    depths: new Map([['harbour:vessel:7', 0]]),
+    depths: new Map([[toTagged<EntityID>('harbour:vessel:7'), 0]]),
     links: [],
-    frontier: ['harbour:vessel:7'],
+    frontier: [toTagged<EntityID>('harbour:vessel:7')],
     isTruncated: false,
   };
 
   const rows = [
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:9',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:9'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 1,
@@ -165,8 +167,8 @@ test('it adds new IDs in ID order up to the entity limit, and drops the links to
     },
     {
       type: 'docked_at',
-      from_id: 'harbour:vessel:7',
-      to_id: 'harbour:berth:2',
+      from_id: toTagged<EntityID>('harbour:vessel:7'),
+      to_id: toTagged<EntityID>('harbour:berth:2'),
       scope: null,
       origin: 'harbour_berth',
       confidence: 1,
@@ -181,8 +183,8 @@ test('it adds new IDs in ID order up to the entity limit, and drops the links to
     reached: next.links.map((link) => link.to),
     isTruncated: next.isTruncated,
   }).toStrictEqual({
-    frontier: ['harbour:berth:2'],
-    reached: ['harbour:berth:2'],
+    frontier: [toTagged<EntityID>('harbour:berth:2')],
+    reached: [toTagged<EntityID>('harbour:berth:2')],
     isTruncated: true,
   });
 });
@@ -190,30 +192,30 @@ test('it adds new IDs in ID order up to the entity limit, and drops the links to
 test('it keeps a new link to an ID seen before without expanding it again, and skips a followed link', () => {
   const state = {
     depths: new Map([
-      ['harbour:vessel:7', 0],
-      ['harbour:voyage:12', 1],
-      ['harbour:voyage:13', 1],
+      [toTagged<EntityID>('harbour:vessel:7'), 0],
+      [toTagged<EntityID>('harbour:voyage:12'), 1],
+      [toTagged<EntityID>('harbour:voyage:13'), 1],
     ]),
     links: [
       {
         type: 'voyage_of',
-        from: 'harbour:voyage:12',
-        to: 'harbour:vessel:7',
+        from: toTagged<EntityID>('harbour:voyage:12'),
+        to: toTagged<EntityID>('harbour:vessel:7'),
         direction: 'incoming',
         origin: 'harbour_voyage',
         confidence: 1,
         depth: 1,
       } as const,
     ],
-    frontier: ['harbour:voyage:12', 'harbour:voyage:13'],
+    frontier: [toTagged<EntityID>('harbour:voyage:12'), toTagged<EntityID>('harbour:voyage:13')],
     isTruncated: false,
   };
 
   const rows = [
     {
       type: 'followed_by',
-      from_id: 'harbour:voyage:12',
-      to_id: 'harbour:voyage:13',
+      from_id: toTagged<EntityID>('harbour:voyage:12'),
+      to_id: toTagged<EntityID>('harbour:voyage:13'),
       scope: null,
       origin: 'harbour_voyage',
       confidence: 1,
@@ -221,8 +223,8 @@ test('it keeps a new link to an ID seen before without expanding it again, and s
     },
     {
       type: 'voyage_of',
-      from_id: 'harbour:voyage:12',
-      to_id: 'harbour:vessel:7',
+      from_id: toTagged<EntityID>('harbour:voyage:12'),
+      to_id: toTagged<EntityID>('harbour:vessel:7'),
       scope: null,
       origin: 'harbour_voyage',
       confidence: 1,
@@ -238,8 +240,8 @@ test('it keeps a new link to an ID seen before without expanding it again, and s
       ...state.links,
       {
         type: 'followed_by',
-        from: 'harbour:voyage:12',
-        to: 'harbour:voyage:13',
+        from: toTagged<EntityID>('harbour:voyage:12'),
+        to: toTagged<EntityID>('harbour:voyage:13'),
         direction: 'outgoing',
         origin: 'harbour_voyage',
         confidence: 1,

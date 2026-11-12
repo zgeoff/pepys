@@ -1,4 +1,4 @@
-import type { LinkProblem } from '@pepys/kit';
+import type { EntityID, LinkProblem } from '@pepys/kit';
 
 // Why the test store refused an apply. The kinds from `bad-operation` on are the host's refusals
 // of a module's output, which the scope replace case file names.
@@ -18,10 +18,10 @@ export type ApplyFailure =
   | {
       kind: 'scope-conflict';
       consumer: string;
-      scope: string;
+      scope: EntityID;
       table: string;
       key: string;
-      owner: string | null;
+      owner: EntityID | null;
     };
 
 // A row as the module writes it and as the test store reads it back: booleans as booleans and a

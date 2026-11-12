@@ -1,3 +1,5 @@
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { createConsumerVersion, writeCurrentVersion } from '../create-consumer-version.ts';
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour-plugin.ts';
 
@@ -33,8 +35,8 @@ export async function seedHarbourFiles(storeDirectory: string): Promise<void> {
     links: [
       {
         type: 'voyage_of',
-        from_id: 'harbour:voyage:12',
-        to_id: 'harbour:vessel:7',
+        from_id: toTagged<EntityID>('harbour:voyage:12'),
+        to_id: toTagged<EntityID>('harbour:vessel:7'),
         scope: null,
         origin: 'harbour_voyage',
         confidence: 1,
@@ -42,8 +44,8 @@ export async function seedHarbourFiles(storeDirectory: string): Promise<void> {
       },
       {
         type: 'called_at',
-        from_id: 'harbour:voyage:12',
-        to_id: 'harbour:port:north',
+        from_id: toTagged<EntityID>('harbour:voyage:12'),
+        to_id: toTagged<EntityID>('harbour:port:north'),
         scope: null,
         origin: 'harbour_voyage',
         confidence: 1,

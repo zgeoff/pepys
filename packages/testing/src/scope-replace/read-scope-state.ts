@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration } from '@pepys/kit';
+import type { ConsumerDeclaration, EntityID } from '@pepys/kit';
 import { readLinkRows } from '../links/read-link-rows.ts';
 import { readTableRows } from '../rows/read-table-rows.ts';
 import type { StoreDatabase } from '../store-database/types.ts';
@@ -10,7 +10,7 @@ import type { ScopeResult, ScopeState, StoredLink } from './types.ts';
 export async function readScopeState(
   db: StoreDatabase,
   consumer: ConsumerDeclaration,
-  scope: string,
+  scope: EntityID,
   result: ScopeResult,
 ): Promise<ScopeState> {
   const owned = await db

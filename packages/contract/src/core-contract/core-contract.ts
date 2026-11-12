@@ -1,6 +1,7 @@
 import { oc } from '@orpc/contract';
 import type { InferContractRouterInputs, InferContractRouterOutputs } from '@orpc/contract';
 import { openapi } from '@orpc/openapi';
+import { isEntityID } from '@pepys/kit';
 import { z } from 'zod';
 
 // No schema here has a transform: the MCP input and output schemas are the JSON Schema of these
@@ -13,12 +14,15 @@ export const neighbourhoodCaps = {
   linkReadLimit: 1000,
 } as const;
 
+// A refine keeps the JSON Schema a plain string, and its type guard brands the parsed value.
+const entityIDSchema = z.string().refine(isEntityID, 'expected an entity ID');
+
 const entitySummarySchema = z.object({
-  id: z.string().describe('The entity ID, as <source>:<kind>:<id>.'),
+  id: entityIDSchema.describe('The entity ID, as <source>:<kind>:<id>.'),
   kind: z.string().describe('The entity kind, as <source>:<kind>.'),
   title: z.string().describe('A short title for a person to read.'),
   url: z.string().nullable().describe('The page of the entity at its source, when it has one.'),
-  actor: z.string().nullable().describe('The entity ID of who made or owns the entity.'),
+  actor: entityIDSchema.nullable().describe('The entity ID of who made or owns the entity.'),
   updated_at: z.string().describe('When the entity last changed, as an ISO 8601 time.'),
 });
 
@@ -72,8 +76,8 @@ const neighbourhoodInput = z.object({
 
 const neighbourhoodLinkSchema = z.object({
   type: z.string().describe('The link type.'),
-  from: z.string().describe('The entity ID the link starts at.'),
-  to: z.string().describe('The entity ID the link ends at.'),
+  from: entityIDSchema.describe('The entity ID the link starts at.'),
+  to: entityIDSchema.describe('The entity ID the link ends at.'),
   direction: z
     .enum(['outgoing', 'incoming'])
     .describe('outgoing when the walk reached the link at its start, incoming at its end.'),
@@ -91,7 +95,9 @@ const neighbourhoodOutput = z.object({
     .array(neighbourhoodEntitySchema)
     .describe('The start first, then by depth and ID; only the entities that have a row.'),
   links: z.array(neighbourhoodLinkSchema).describe('Every followed link.'),
-  unresolved: z.array(z.string()).describe('The IDs the walk reached that no entity view holds.'),
+  unresolved: z
+    .array(entityIDSchema)
+    .describe('The IDs the walk reached that no entity view holds.'),
   skippedConsumers: z
     .array(z.string())
     .describe('The consumers with no current version, whose rows and links are left out.'),

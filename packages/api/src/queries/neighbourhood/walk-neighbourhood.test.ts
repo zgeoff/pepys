@@ -1,6 +1,8 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { checkDeployment } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { harbourPlugin, harbourSource } from '../../test-utils/harbour/harbour-plugin.ts';
 import { buildQueryContext } from '../build-query-context.ts';
@@ -52,16 +54,16 @@ test('it walks one hop both ways and leaves the hub link types alone by default'
     value: {
       entities: [
         {
-          id: 'harbour:voyage:12',
+          id: toTagged<EntityID>('harbour:voyage:12'),
           kind: 'harbour:voyage',
           title: 'harbour:port:north',
           url: null,
-          actor: 'harbour:vessel:7',
+          actor: toTagged<EntityID>('harbour:vessel:7'),
           updated_at: '2026-11-02T06:00:00.000Z',
           depth: 0,
         },
         {
-          id: 'harbour:vessel:7',
+          id: toTagged<EntityID>('harbour:vessel:7'),
           kind: 'harbour:vessel',
           title: 'Tern',
           url: null,
@@ -73,8 +75,8 @@ test('it walks one hop both ways and leaves the hub link types alone by default'
       links: [
         {
           type: 'voyage_of',
-          from: 'harbour:voyage:12',
-          to: 'harbour:vessel:7',
+          from: toTagged<EntityID>('harbour:voyage:12'),
+          to: toTagged<EntityID>('harbour:vessel:7'),
           direction: 'outgoing',
           origin: 'harbour_voyage',
           confidence: 0.9,
@@ -117,15 +119,15 @@ test('it follows a hub link type when asked, and names each reached ID that no e
       links: [
         {
           type: 'called_at',
-          from: 'harbour:voyage:12',
-          to: 'harbour:port:north',
+          from: toTagged<EntityID>('harbour:voyage:12'),
+          to: toTagged<EntityID>('harbour:port:north'),
           direction: 'outgoing',
           origin: 'harbour_voyage',
           confidence: 1,
           depth: 1,
         },
       ],
-      unresolved: ['harbour:port:north'],
+      unresolved: [toTagged<EntityID>('harbour:port:north')],
       skippedConsumers: [],
       isTruncated: false,
     },
@@ -178,8 +180,8 @@ test('it walks two hops and leaves out a link below the lowest confidence', asyn
       links: [
         {
           type: 'voyage_of',
-          from: 'harbour:voyage:12',
-          to: 'harbour:vessel:7',
+          from: toTagged<EntityID>('harbour:voyage:12'),
+          to: toTagged<EntityID>('harbour:vessel:7'),
           direction: 'outgoing',
           origin: 'harbour_voyage',
           confidence: 1,
@@ -187,15 +189,15 @@ test('it walks two hops and leaves out a link below the lowest confidence', asyn
         },
         {
           type: 'voyage_of',
-          from: 'harbour:voyage:13',
-          to: 'harbour:vessel:7',
+          from: toTagged<EntityID>('harbour:voyage:13'),
+          to: toTagged<EntityID>('harbour:vessel:7'),
           direction: 'incoming',
           origin: 'harbour_voyage',
           confidence: 0.8,
           depth: 2,
         },
       ],
-      unresolved: ['harbour:vessel:7'],
+      unresolved: [toTagged<EntityID>('harbour:vessel:7')],
       skippedConsumers: [],
       isTruncated: false,
     },

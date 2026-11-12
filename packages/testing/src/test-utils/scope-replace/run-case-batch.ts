@@ -1,4 +1,5 @@
-import type { ConsumerDeclaration } from '@pepys/kit';
+import type { ConsumerDeclaration, EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { replaceScope } from '../../scope-replace/replace-scope.ts';
 import type { StoreDatabase } from '../../store-database/types.ts';
 import { ApplyError } from '../../utils/apply-error.ts';
@@ -23,7 +24,12 @@ export async function runCaseBatch(
       const entries: ChangeEntry[] = [];
 
       for (const scope of scopes) {
-        const replaced = await replaceScope(transaction, consumer, scope.scope, scope.output);
+        const replaced = await replaceScope(
+          transaction,
+          consumer,
+          toTagged<EntityID>(scope.scope),
+          scope.output,
+        );
 
         entries.push(...replaced);
       }

@@ -1,4 +1,4 @@
-import type { ConsumerDeclaration } from '@pepys/kit';
+import type { ConsumerDeclaration, EntityID } from '@pepys/kit';
 import { parseOperations } from '../operations/parse-operations.ts';
 import type { StoreDatabase } from '../store-database/types.ts';
 import { ApplyError } from '../utils/apply-error.ts';
@@ -13,7 +13,7 @@ import { writeScopeChanges } from './write-scope-changes.ts';
 export async function replaceScope(
   db: StoreDatabase,
   consumer: ConsumerDeclaration,
-  scope: string,
+  scope: EntityID,
   output: string,
 ): Promise<readonly ChangeEntry[]> {
   const operations = parseOperations(consumer, output);

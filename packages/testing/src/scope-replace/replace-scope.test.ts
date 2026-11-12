@@ -1,4 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { readLinkRows } from '../links/read-link-rows.ts';
 import { writeLink } from '../links/write-link.ts';
 import { readTableRows } from '../rows/read-table-rows.ts';
@@ -15,14 +17,17 @@ async function setupTest() {
   onTestFinished(() => store.db.destroy());
 
   return {
-    writeStoredLink: (row: (typeof replaceCases.cases)[number]['links'][number]) =>
-      writeLink(store.db, row.origin, row.scope, {
+    writeStoredLink: (row: (typeof replaceCases.cases)[number]['links'][number]) => {
+      const scope = row.scope === null ? null : toTagged<EntityID>(row.scope);
+
+      return writeLink(store.db, row.origin, scope, {
         type: row.type,
         from: row.from_id,
         to: row.to_id,
         confidence: row.confidence,
         evidence: row.evidence,
-      }),
+      });
+    },
     runBatch: (scopes: readonly { scope: string; output: string }[]) =>
       runCaseBatch(store.db, consumer, scopes),
     readRows: async () => {

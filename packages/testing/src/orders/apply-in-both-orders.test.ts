@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { definePlugin } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import {
   ledgerAccountConsumer,
   ledgerPlugin,
@@ -114,18 +116,18 @@ test('it reads equal rows and links for the ledger facts applied twice and in bo
     links: [
       {
         type: 'entry_of',
-        from_id: 'ledger:entry:e-1',
-        to_id: 'ledger:account:harbour',
-        scope: 'ledger:account:harbour',
+        from_id: toTagged<EntityID>('ledger:entry:e-1'),
+        to_id: toTagged<EntityID>('ledger:account:harbour'),
+        scope: toTagged<EntityID>('ledger:account:harbour'),
         origin: 'ledger_account',
         confidence: 1,
         evidence: 'event:ledger:evt-4',
       },
       {
         type: 'entry_of',
-        from_id: 'ledger:entry:e-2',
-        to_id: 'ledger:account:reef',
-        scope: 'ledger:account:reef',
+        from_id: toTagged<EntityID>('ledger:entry:e-2'),
+        to_id: toTagged<EntityID>('ledger:account:reef'),
+        scope: toTagged<EntityID>('ledger:account:reef'),
         origin: 'ledger_account',
         confidence: 1,
         evidence: 'event:ledger:evt-5',

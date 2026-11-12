@@ -85,9 +85,9 @@ test('it writes the rows and links that a scope consumer returns', async () => {
     links: [
       {
         type: 'entry_of',
-        from_id: 'ledger:entry:e-1',
-        to_id: 'ledger:account:harbour',
-        scope: 'ledger:account:harbour',
+        from_id: toTagged<EntityID>('ledger:entry:e-1'),
+        to_id: toTagged<EntityID>('ledger:account:harbour'),
+        scope: toTagged<EntityID>('ledger:account:harbour'),
         origin: 'ledger_account',
         confidence: 1,
         evidence: 'event:ledger:evt-2',
@@ -534,7 +534,7 @@ test('it shows the rows of every entity view and every link in the two shared vi
     value: {
       entities: [
         {
-          id: 'ledger:account:harbour',
+          id: toTagged<EntityID>('ledger:account:harbour'),
           kind: 'ledger:account',
           title: 'Harbour fund',
           url: null,
@@ -542,7 +542,7 @@ test('it shows the rows of every entity view and every link in the two shared vi
           updated_at: '2026-11-01T09:05:00.000Z',
         },
         {
-          id: 'ledger:entry:e-1',
+          id: toTagged<EntityID>('ledger:entry:e-1'),
           kind: 'ledger:entry',
           title: 'Rope',
           url: null,

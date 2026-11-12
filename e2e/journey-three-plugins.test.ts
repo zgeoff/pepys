@@ -2,7 +2,9 @@ import { expect, test } from 'bun:test';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { DeploymentClient } from '@pepys/api';
+import type { EntityID } from '@pepys/kit';
 import { S2 } from '@s2-dev/streamstore';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildLogsExport } from '../packages/source-telemetry/src/test-utils/build-logs-export.ts';
 import type { e2eDeployment } from './deployment/e2e-deployment.ts';
@@ -72,7 +74,7 @@ test('it serves a voyage of the outside plug-in through get_entity', async () =>
 
   expect(answer).toStrictEqual({
     entity: {
-      id: 'logbook:voyage:v-1',
+      id: toTagged<EntityID>('logbook:voyage:v-1'),
       kind: 'logbook:voyage',
       title: 'Charting the harbour reef',
       url: null,
@@ -98,7 +100,7 @@ test('it walks from a voyage across its link to the GitHub pull request it cites
   expect(answer).toStrictEqual({
     entities: [
       {
-        id: 'logbook:voyage:v-1',
+        id: toTagged<EntityID>('logbook:voyage:v-1'),
         kind: 'logbook:voyage',
         title: 'Charting the harbour reef',
         url: null,
@@ -107,11 +109,11 @@ test('it walks from a voyage across its link to the GitHub pull request it cites
         depth: 0,
       },
       {
-        id: 'github:pull_request:1874433021',
+        id: toTagged<EntityID>('github:pull_request:1874433021'),
         kind: 'github:pull_request',
         title: 'Add the harbour map and tides',
         url: 'https://github.example/acme/harbour/pull/12',
-        actor: 'github:user:4401',
+        actor: toTagged<EntityID>('github:user:4401'),
         updated_at: '2026-10-01T10:00:00Z',
         depth: 1,
       },
@@ -119,8 +121,8 @@ test('it walks from a voyage across its link to the GitHub pull request it cites
     links: [
       {
         type: 'logbook_voyage_cites',
-        from: 'logbook:voyage:v-1',
-        to: 'github:pull_request:1874433021',
+        from: toTagged<EntityID>('logbook:voyage:v-1'),
+        to: toTagged<EntityID>('github:pull_request:1874433021'),
         direction: 'outgoing',
         origin: 'logbook_voyage',
         confidence: 1,

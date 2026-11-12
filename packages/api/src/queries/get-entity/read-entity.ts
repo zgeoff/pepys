@@ -1,5 +1,5 @@
 import type { CoreOutputs } from '@pepys/contract';
-import { parseEntityID } from '@pepys/kit';
+import { isEntityID, parseEntityID } from '@pepys/kit';
 import type { Result } from '@pepys/kit';
 import { sql } from 'kysely';
 import invariant from 'tiny-invariant';
@@ -28,6 +28,8 @@ export async function readEntity(
       },
     };
   }
+
+  invariant(isEntityID(id), 'text that parses as an entity ID is one');
 
   const notFound = {
     ok: false,

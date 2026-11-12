@@ -21,9 +21,11 @@
   "dependencies": {
     "@orpc/contract": "catalog:",
     "@orpc/openapi": "catalog:",
+    "@pepys/kit": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@orpc/server": "catalog:"
+    "@orpc/server": "catalog:",
+    "@zgeoff/std": "catalog:"
   }
 }

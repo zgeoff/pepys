@@ -1,10 +1,10 @@
-import type { LinkRow } from '@pepys/kit';
+import type { EntityID, LinkRow } from '@pepys/kit';
 import { compareText } from '../../utils/compare-text.ts';
 
 interface WalkLink {
   type: string;
-  from: string;
-  to: string;
+  from: EntityID;
+  to: EntityID;
   direction: 'outgoing' | 'incoming';
   origin: string;
   confidence: number;
@@ -13,11 +13,11 @@ interface WalkLink {
 
 export interface WalkState {
   // every ID seen, with the depth it was first seen at; the cycle guard
-  depths: ReadonlyMap<string, number>;
+  depths: ReadonlyMap<EntityID, number>;
   links: readonly WalkLink[];
 
   // the IDs the next hop expands
-  frontier: readonly string[];
+  frontier: readonly EntityID[];
   isTruncated: boolean;
 }
 
@@ -84,7 +84,7 @@ export function takeHop(state: WalkState, rows: readonly LinkRow[], hop: Hop): W
   };
 }
 
-function toLinkKey(type: string, from: string, to: string): string {
+function toLinkKey(type: string, from: EntityID, to: EntityID): string {
   return JSON.stringify([type, from, to]);
 }
 

@@ -1,4 +1,4 @@
-import type { Result } from '@pepys/kit';
+import type { EntityID, Result } from '@pepys/kit';
 import { compareCodePoints } from '../utils/compare-code-points.ts';
 import type { ApplyFailure, ChangeEntry, WireLink } from '../utils/types.ts';
 import { buildLinkKey } from './build-link-key.ts';
@@ -10,7 +10,7 @@ import type { KeyedRow, ScopeChanges, ScopeResult, ScopeState } from './types.ts
 // entries come as rows written, links written, rows deleted, links deleted, each in key order.
 export function pickScopeChanges(
   consumer: string,
-  scope: string,
+  scope: EntityID,
   result: ScopeResult,
   state: ScopeState,
 ): Result<ScopeChanges, ApplyFailure> {
@@ -89,7 +89,7 @@ function compareKeys(left: readonly string[], right: readonly string[]): number 
 
 function findConflict(
   consumer: string,
-  scope: string,
+  scope: EntityID,
   result: ScopeResult,
   state: ScopeState,
 ): ApplyFailure | undefined {

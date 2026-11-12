@@ -1,6 +1,6 @@
 import type { CoreOutputs, CoreParsedInputs } from '@pepys/contract';
 import { neighbourhoodCaps } from '@pepys/contract';
-import { parseEntityID } from '@pepys/kit';
+import { isEntityID, parseEntityID } from '@pepys/kit';
 import type { Result } from '@pepys/kit';
 import invariant from 'tiny-invariant';
 import { compareText } from '../../utils/compare-text.ts';
@@ -27,6 +27,10 @@ export async function walkNeighbourhood(
     return { ok: false, failure: { code: 'BAD_REQUEST', message } };
   }
 
+  const start = input.id;
+
+  invariant(isEntityID(start), 'text that parses as an entity ID is one');
+
   const kind = `${parsed.value.source}:${parsed.value.kind}`;
 
   if (!context.deployment.entityKinds.some((known) => known === kind)) {
@@ -48,9 +52,9 @@ export async function walkNeighbourhood(
     [],
     async (db, call) => {
       let state: WalkState = {
-        depths: new Map([[input.id, 0]]),
+        depths: new Map([[start, 0]]),
         links: [],
-        frontier: [input.id],
+        frontier: [start],
         isTruncated: false,
       };
 

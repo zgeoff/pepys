@@ -1,14 +1,15 @@
 import type { Kysely } from 'kysely';
 import type { ConsumerDeclaration } from '../consumers/types.ts';
+import type { EntityID, StreamName } from '../ids/types.ts';
 import type { StoreTables } from '../queries/types.ts';
 import type { Result } from '../types.ts';
 
 // One row of the `link` table that the host keeps in each consumer file.
 export interface LinkRow {
   type: string;
-  from_id: string;
-  to_id: string;
-  scope: string | null;
+  from_id: EntityID;
+  to_id: EntityID;
+  scope: EntityID | null;
   origin: string;
   confidence: number;
   evidence: string;
@@ -18,11 +19,11 @@ export interface LinkRow {
 export interface SharedViews {
   // one row per entity of every entity view of every attached consumer
   entity: {
-    id: string;
+    id: EntityID;
     kind: string;
     title: string;
     url: string | null;
-    actor: string | null;
+    actor: EntityID | null;
     updated_at: string;
   };
 
@@ -33,7 +34,7 @@ export interface SharedViews {
 // The host's own tables of a consumer file, reached as `<consumer>.<table>`.
 export type HostTables<Consumers extends readonly ConsumerDeclaration[]> = {
   [Name in Consumers[number]['name'] as `${Name}.offsets`]: {
-    stream: string;
+    stream: StreamName;
     last_seq_num: number;
   };
 };

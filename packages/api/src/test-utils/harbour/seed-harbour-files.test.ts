@@ -2,6 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { createStoreReader } from '../../store-reader/create-store-reader.ts';
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour-plugin.ts';
 import { seedHarbourFiles } from './seed-harbour-files.ts';
@@ -40,7 +42,10 @@ test('it leaves a current vessel file and a current voyage file with its links',
   expect(read).toStrictEqual({
     ok: true,
     value: {
-      entities: [{ id: 'harbour:vessel:7' }, { id: 'harbour:voyage:12' }],
+      entities: [
+        { id: toTagged<EntityID>('harbour:vessel:7') },
+        { id: toTagged<EntityID>('harbour:voyage:12') },
+      ],
       links: [{ type: 'called_at' }, { type: 'voyage_of' }],
     },
   });

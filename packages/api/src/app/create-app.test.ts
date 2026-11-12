@@ -2,7 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import { checkDeployment, defineDeployment, definePlugin, defineQuery } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
 import type { DeploymentClient } from '../client/deployment-client.ts';
@@ -88,7 +90,7 @@ test('it serves get_entity at /rpc', async () => {
 
   expect(found).toStrictEqual({
     entity: {
-      id: 'harbour:vessel:7',
+      id: toTagged<EntityID>('harbour:vessel:7'),
       kind: 'harbour:vessel',
       title: 'Tern',
       url: null,
@@ -119,7 +121,7 @@ test('it serves neighbourhood at /rpc with every default filled in', async () =>
   expect(near).toStrictEqual({
     entities: [expect.objectContaining({ id: 'harbour:voyage:12', depth: 0 })],
     links: [expect.objectContaining({ type: 'voyage_of', to: 'harbour:vessel:7', depth: 1 })],
-    unresolved: ['harbour:vessel:7'],
+    unresolved: [toTagged<EntityID>('harbour:vessel:7')],
     skippedConsumers: [],
     isTruncated: false,
   });

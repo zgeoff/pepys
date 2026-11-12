@@ -1,3 +1,4 @@
+import type { EntityID } from '@pepys/kit';
 import type { ChangeEntry, Row, WireLink } from '../utils/types.ts';
 
 export interface KeyedRow {
@@ -13,7 +14,7 @@ export interface ScopeResult {
 }
 
 export interface StoredLink {
-  scope: string | null;
+  scope: EntityID | null;
   link: WireLink;
 }
 
@@ -21,7 +22,7 @@ export interface StoredLink {
 // `buildRowID`, links by the JSON text of their key.
 export interface ScopeState {
   // the scope of each row that a scope owns
-  rowOwners: ReadonlyMap<string, string>;
+  rowOwners: ReadonlyMap<string, EntityID>;
 
   // the stored row of each key that the result names or that the scope owns
   storedRows: ReadonlyMap<string, Row>;

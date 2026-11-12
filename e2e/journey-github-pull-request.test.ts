@@ -5,8 +5,10 @@ import { RPCLink } from '@orpc/client/fetch';
 import { createStoreReader, readChangeOperations, readOffsets } from '@pepys/api';
 import type { DeploymentClient } from '@pepys/api';
 import { defineDeployment } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
 import { githubPlugin, githubPullRequestConsumer } from '@pepys/source-github';
 import { S2 } from '@s2-dev/streamstore';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../scripts/utils/stop-process-group.ts';
 
@@ -167,11 +169,11 @@ test("it serves the stored row through the API's get_entity", async () => {
 
   expect(result).toStrictEqual({
     entity: {
-      id: 'github:pull_request:1874433021',
+      id: toTagged<EntityID>('github:pull_request:1874433021'),
       kind: 'github:pull_request',
       title: 'Add the harbour map and tides',
       url: 'https://github.example/acme/harbour/pull/12',
-      actor: 'github:user:4401',
+      actor: toTagged<EntityID>('github:user:4401'),
       updated_at: '2026-10-01T10:00:00Z',
     },
     consumer: 'github_pull_request',

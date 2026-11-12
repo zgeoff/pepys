@@ -2,6 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, readdir, readlink, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { EntityID } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import { sql } from 'kysely';
 import {
   createConsumerVersion,
@@ -62,8 +64,8 @@ test('it joins the tables of two attached files and shows the entities and links
     links: [
       {
         type: 'voyage_of',
-        from_id: 'harbour:voyage:12',
-        to_id: 'harbour:vessel:7',
+        from_id: toTagged<EntityID>('harbour:voyage:12'),
+        to_id: toTagged<EntityID>('harbour:vessel:7'),
         scope: null,
         origin: 'harbour_voyage',
         confidence: 1,
@@ -159,7 +161,7 @@ test('it attaches each optional consumer with a current version and names the re
     ok: true,
     value: {
       call: { attached: { harbour_vessel: { version: 'v1' } }, skipped: ['harbour_voyage'] },
-      entities: [{ id: 'harbour:vessel:7' }],
+      entities: [{ id: toTagged<EntityID>('harbour:vessel:7') }],
       links: [],
     },
   });
