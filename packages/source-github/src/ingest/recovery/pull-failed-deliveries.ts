@@ -1,3 +1,4 @@
+import { planAppends } from '@pepys/ingest';
 import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
@@ -45,9 +46,18 @@ export async function pullFailedDeliveries(
 
     const fact = buildGithubFact(detail.data.event, detail.data.request.payload, 'delivery');
 
-    if (fact !== 'ignored' && fact !== 'invalid') {
-      facts.push(fact);
+    if (fact === 'ignored' || fact === 'invalid') {
+      continue;
     }
+
+    // The receive path answers 413 to a body this large and stores nothing; a batch that held it
+    // would be refused whole, with every other delivery and the cursor.
+    if (!planAppends([fact.fact]).ok) {
+      console.error(`the GitHub delivery ${id} is larger than one append of the log takes`);
+      continue;
+    }
+
+    facts.push(fact);
   }
 
   const highestID = listed.items.reduce(

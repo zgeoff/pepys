@@ -1,5 +1,5 @@
-import { expect, onTestFinished, test } from 'bun:test';
-import { createHmac } from 'node:crypto';
+import { expect, onTestFinished, spyOn, test } from 'bun:test';
+import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
@@ -10,9 +10,11 @@ import { githubPlugin } from './github-plugin.ts';
 import { githubSource } from './github-source.ts';
 import { buildBotPullRequestBody } from './test-utils/build-bot-pull-request-body.ts';
 import { buildPushedFact } from './test-utils/build-pushed-fact.ts';
+import { githubDeliveries } from './test-utils/github-api-handlers.ts';
 import { toAppliedFact } from './test-utils/to-applied-fact.ts';
 
 async function setupTest() {
+  const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const streams = githubSource.families.map((family) => toTagged<StreamName>(family.stream));
   const log = createMemoryFactLog(streams);
 
@@ -24,7 +26,11 @@ async function setupTest() {
 
   const ingest = createIngest({
     deployment: deployment.value,
-    secrets: { PEPYS_GITHUB_WEBHOOK_SECRET: 'harbour-webhook-secret' },
+    secrets: {
+      PEPYS_GITHUB_WEBHOOK_SECRET: 'harbour-webhook-secret',
+      PEPYS_GITHUB_APP_ID: '4242',
+      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    },
     log,
     senderProof: noSenderProof,
     appendRetry: { maxAttempts: 2, retryDelayMs: 0 },
@@ -45,6 +51,7 @@ async function setupTest() {
 
   return {
     store,
+    runRecovery: (cursor: string | null) => ingest.runPull('github', 'recovery', cursor),
     send: (event: string, deliveryID: string, body: string, secret = 'harbour-webhook-secret') =>
       ingest.handleRequest(
         new Request('http://ingest.test/webhook/github', {
@@ -105,6 +112,54 @@ test('it refuses a webhook signed with another secret and stores nothing', async
   const ids = await ctx.readIDs('facts.github.pull_request');
 
   expect({ status: response.status, ids }).toStrictEqual({ status: 401, ids: [] });
+});
+
+test('it refuses a webhook body over 1 MiB and stores nothing', async () => {
+  const ctx = await setupTest();
+
+  const body = JSON.stringify({
+    action: 'opened',
+    pull_request: { id: 77, updated_at: '2026-10-02T10:30:00Z', body: 'x'.repeat(1_100_000) },
+  });
+
+  const response = await ctx.send('pull_request', 'd-7', body);
+  const ids = await ctx.readIDs('facts.github.pull_request');
+
+  expect({ status: response.status, ids }).toStrictEqual({ status: 413, ids: [] });
+});
+
+test('it stores the other failed deliveries of a recovery pull and moves past one over 1 MiB', async () => {
+  const ctx = await setupTest();
+
+  await githubDeliveries.create({
+    id: '401',
+    statusCode: 413,
+    event: 'pull_request',
+    payload: {
+      action: 'opened',
+      pull_request: { id: 82, updated_at: '2026-10-04T08:00:00Z', body: 'x'.repeat(1_100_000) },
+    },
+  });
+
+  await githubDeliveries.create({
+    id: '402',
+    statusCode: 503,
+    event: 'pull_request',
+    payload: { action: 'opened', pull_request: { id: 83, updated_at: '2026-10-04T08:01:00Z' } },
+  });
+
+  const errorLog = spyOn(console, 'error').mockImplementation(() => {});
+
+  onTestFinished(() => errorLog.mockRestore());
+
+  const run = await ctx.runRecovery(null);
+  const ids = await ctx.readIDs('facts.github.pull_request');
+
+  expect({ run, ids, logged: errorLog.mock.calls }).toStrictEqual({
+    run: { kind: 'stored', stored: 1, cursor: '402', isDone: true },
+    ids: [expect.stringMatching(/^webhook:github:h-[0-9a-f]{64}$/u)],
+    logged: [['the GitHub delivery 401 is larger than one append of the log takes']],
+  });
 });
 
 test('it keeps the second of two release updates with one time when the first body comes again', async () => {

@@ -162,6 +162,8 @@ The build and the host:
   GitHub route is public, so the size limit and that hour are the bound.
 - **The resync marks are in ingest's memory.** A restart before the pull runs loses them, and the
   row stays at the older state until the next delivery for the object.
+- **A GitHub delivery larger than one append of the log is never stored.** Ingest answers it with
+  413 on the webhook route, and the recovery pull skips it and logs its delivery ID as an error.
 - **One fact ID can have two sessions.** The fact ID leaves the OTLP resource out, and the session
   comes from the resource first. When a sink rewrites the resource between two copies of one record,
   the first copy in the log wins.
