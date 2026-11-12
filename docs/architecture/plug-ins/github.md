@@ -62,12 +62,13 @@ GitHub redelivers a webhook only within the window its
 give. The plug-in therefore stores the last three families with no consumer, so a later consumer can
 replay their full history from the log.
 
-Each consumer writes a table of its own name. The `github_ref` consumer also writes `github_commit`,
-one row per commit of a push. The `github_pull_request` consumer also writes `github_release_bump`,
-one row for each URL of the form `https://github.com/<owner>/<name>/releases/tag/<tag>` in the
-description of a pull request whose author GitHub gives the user type `Bot`. Such a pull request is
-a bump: it updates its own repository to use a release of another repository, as a dependency update
-bot does. [The delivery query](#the-delivery-query) follows a bump to a deploy.
+The `github_release`, `github_deploy` and `github_pull_request` consumers each write a table of
+their own name. The `github_ref` consumer writes only `github_commit`, one row per commit of a push.
+The `github_pull_request` consumer also writes `github_release_bump`, one row for each URL of the
+form `https://github.com/<owner>/<name>/releases/tag/<tag>` in the description of a pull request
+whose author GitHub gives the user type `Bot`. Such a pull request is a bump: it updates its own
+repository to use a release of another repository, as a dependency update bot does.
+[The delivery query](#the-delivery-query) follows a bump to a deploy.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.

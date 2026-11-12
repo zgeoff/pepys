@@ -43,10 +43,10 @@ limits:
 | body size, in bytes | 1,048,576           | 4,194,304  |
 | facts in one export | 100                 | 1,000      |
 
-An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only when the body is not
-OTLP JSON in shape. In an export of the right shape, the source's `read` function, which turns the
-export into facts, skips each resource, scope, log record or attribute of the wrong shape, and keeps
-the rest.
+An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only when the
+`Content-Type` is not `application/json`, or the body is not OTLP JSON in shape. In an export of the
+right shape, the source's `read` function, which turns the export into facts, skips each resource,
+scope, log record or attribute of the wrong shape, and keeps the rest.
 
 ## The checks
 
@@ -101,8 +101,9 @@ Ingest's clock never sets a fact's time. The key in the ID is the first of these
 holds:
 
 1. the event's own key, where the product defines one: the `request_id` of a Claude Code request,
-   error or refusal, `t-<session.id>:<tool_use_id>` for a Claude Code tool result, and the `turn.id`
-   of a Codex turn cost;
+   error or refusal, or the `client_request_id` of a request or an error with no `request_id`,
+   `t-<session.id>:<tool_use_id>` for a Claude Code tool result, and the `turn.id` of a Codex turn
+   cost;
 2. for Claude Code, `s-<session.id>:<event.sequence>`, for a listed or an unlisted event;
 3. `h-` and a SHA-256 of these parts of the record: the product's own session ID, the event name,
    `timeUnixNano`, the body, and the attributes sorted by name.
