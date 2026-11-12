@@ -1,6 +1,6 @@
 {
   "name": "@pepys/ingest",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "pepys ingest: the receive routes, the fact log and the blob store",
   "license": "MIT",
   "repository": {

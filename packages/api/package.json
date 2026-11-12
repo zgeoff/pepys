@@ -1,6 +1,6 @@
 {
   "name": "@pepys/api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The pepys API: typed queries over the store",
   "license": "MIT",
   "repository": {
