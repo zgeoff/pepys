@@ -18,6 +18,7 @@ import { githubPullRequestConsumer } from '@pepys/source-github';
 import { telemetryModelRequestConsumer, telemetryTurnCostConsumer } from '@pepys/source-telemetry';
 import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
+import { waitFor } from '@zgeoff/testing/helpers';
 import { logbookSource, logbookVoyageConsumer } from 'logbook-plugin';
 import { createIdentityIssuer } from '../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import type { IdentityIssuer } from '../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
@@ -437,21 +438,22 @@ async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
 const startDeadlineMs = 30_000;
 
 async function waitForIngest(url: string, stop: AbortSignal): Promise<void> {
-  const deadline = Date.now() + startDeadlineMs;
+  await waitFor(
+    async () => {
+      if (stop.aborted) {
+        return;
+      }
 
-  while (Date.now() < deadline) {
-    stop.throwIfAborted();
+      const response = await fetch(url, { method: 'POST' });
 
-    const response = await fetch(url, { method: 'POST' }).catch(() => null);
+      if (response.status !== 401) {
+        throw new Error(`ingest answered ${response.status}, not 401`);
+      }
+    },
+    { intervalMs: 100, timeoutMs: startDeadlineMs, label: 'ingest' },
+  );
 
-    if (response?.status === 401) {
-      return;
-    }
-
-    await Bun.sleep(100);
-  }
-
-  throw new Error('ingest did not answer before the deadline');
+  stop.throwIfAborted();
 }
 
 // the tail of each stream that a consumer in `readConsumers` reads, by stream name
@@ -491,49 +493,64 @@ async function runUntilCaughtUp(
   const hostErrors: HostErrors = { text: '' };
   const reading = readHostErrors(run.stderr, hostErrors);
   const store = createStoreReader({ storeDirectory });
-  const deadline = Date.now() + 60_000;
-  let lagging = readConsumers.map((entry) => entry.consumer.name);
 
-  try {
-    // a stopped task never catches up, so the wait ends at the first error, which a test reports
-    while (lagging.length > 0 && Date.now() < deadline && !hasHostError(hostErrors.text)) {
-      stop.throwIfAborted();
-
-      lagging = [];
-
-      for (const entry of readConsumers) {
-        const offsets = await readOffsets(store, entry.consumer);
-
-        const tail = tails.get(entry.stream);
-
-        const isCaughtUp =
-          offsets.ok &&
-          offsets.value.some(
-            (offset) => offset.stream === entry.stream && offset.lastSeqNum === (tail ?? 0) - 1,
-          );
-
-        if (!isCaughtUp) {
-          lagging.push(entry.consumer.name);
-        }
+  // a stopped task never catches up, so the wait ends at the first error, which a test reports
+  const failure = await waitFor(
+    async () => {
+      if (stop.aborted || hasHostError(hostErrors.text)) {
+        return;
       }
+
+      const lagging = await readLaggingConsumers(store, tails);
 
       if (lagging.length > 0) {
-        await Bun.sleep(200);
+        throw new Error(`still behind: ${lagging.join(', ')}`);
       }
-    }
-  } finally {
-    await store.close();
+    },
+    { intervalMs: 200, timeoutMs: 60_000, label: 'pepys run to catch up' },
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
 
-    await stopProcessGroup(run);
-  }
+  await store.close();
 
+  await stopProcessGroup(run);
   await reading;
 
   await Bun.write(runStderrPath, hostErrors.text);
 
-  if (lagging.length > 0 && !hasHostError(hostErrors.text)) {
-    throw new Error(`pepys run did not catch up before the deadline: ${lagging.join(', ')}`);
+  stop.throwIfAborted();
+
+  if (failure !== null && !hasHostError(hostErrors.text)) {
+    throw failure;
   }
+}
+
+// the name of each consumer in `readConsumers` that has not applied the tail of its stream
+async function readLaggingConsumers(
+  store: ReturnType<typeof createStoreReader>,
+  tails: ReadonlyMap<string, number>,
+): Promise<string[]> {
+  const lagging: string[] = [];
+
+  for (const entry of readConsumers) {
+    const offsets = await readOffsets(store, entry.consumer);
+
+    const tail = tails.get(entry.stream);
+
+    const isCaughtUp =
+      offsets.ok &&
+      offsets.value.some(
+        (offset) => offset.stream === entry.stream && offset.lastSeqNum === (tail ?? 0) - 1,
+      );
+
+    if (!isCaughtUp) {
+      lagging.push(entry.consumer.name);
+    }
+  }
+
+  return lagging;
 }
 
 // The host keeps running when one consumer task stops, and only prints the error, so the lane keeps
@@ -569,21 +586,22 @@ async function startAPI(stop: AbortSignal): Promise<string> {
   });
 
   const rpcURL = `http://127.0.0.1:${apiPort}/rpc`;
-  const deadline = Date.now() + startDeadlineMs;
 
-  while (Date.now() < deadline) {
-    stop.throwIfAborted();
+  // any answer shows the API listens; a refused connection rejects and is tried again
+  await waitFor(
+    async () => {
+      if (stop.aborted) {
+        return;
+      }
 
-    const response = await fetch(rpcURL).catch(() => null);
+      await fetch(rpcURL);
+    },
+    { intervalMs: 100, timeoutMs: startDeadlineMs, label: 'the API' },
+  );
 
-    if (response !== null) {
-      return rpcURL;
-    }
+  stop.throwIfAborted();
 
-    await Bun.sleep(100);
-  }
-
-  throw new Error('the API did not answer before the deadline');
+  return rpcURL;
 }
 
 function readFreePort(): number {

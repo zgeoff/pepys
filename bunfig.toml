@@ -42,6 +42,7 @@ minimumReleaseAgeExcludes = [
   "@zgeoff/oxlint-config",
   "@zgeoff/rig",
   "@zgeoff/std",
+  "@zgeoff/testing",
   "@impz/client",
   "@orpc/client",
   "@orpc/contract",
