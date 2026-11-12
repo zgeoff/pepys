@@ -5,7 +5,7 @@ consumer owns a full table for its kind, with every column that kind needs, plus
 `entity` with six fixed columns that every kind shares. Cross-source queries read the shared view,
 and queries about one kind read its full table. Entities are named by stable global IDs, and an
 alias table maps the readable forms people write to those IDs. Each source brings the entity
-consumers for its own kinds, and the GitHub and Gmail sections below show the first two sources.
+consumers for its own kinds. The sections below cover the GitHub, telemetry and Gmail sources.
 
 ## Tables and the entity view
 
@@ -25,15 +25,22 @@ detail, and the `kind` column already answers cross-source questions.
 
 ## IDs and aliases
 
-An entity ID has the form `<source>:<kind>:<id>`, built from the source's database ID:
-`github:pull_request:1874433021`, `github:user:583231`, `gmail:msg:18c4f2a9b01e`. Database IDs
-survive a repository rename or a login change, which readable forms such as `acme/api#412` do not. A
-kind is lowercase with `_` between words, such as `review_comment`.
+An entity ID has the form `<source>:<kind>:<id>`, built from the source's database ID when the
+source gives one: `github:pull_request:1874433021`, `github:user:583231`, `gmail:msg:18c4f2a9b01e`.
+Database IDs survive a repository rename or a login change, which readable forms such as
+`acme/api#412` do not. A kind is lowercase with `_` between words, such as `review_comment`.
 
-Two kinds of entity have no database ID:
+These kinds have no database ID, so their last part is built from other fields:
 
 - An email address is `gmail:addr:<lowercased address>`.
 - The owner is `deployment:person:owner` ([people](#people)).
+- A GitHub ref is `github:ref:<repository ID>:<ref>`, such as `github:ref:902:refs/heads/main`.
+- A GitHub deploy is `github:deploy:<repository ID>:<environment>:<signal>:<sha>`, with `:<target>`
+  after it when the report names a target.
+- A telemetry session is `telemetry:session:<session ID>`, with the session ID that the log record
+  carries.
+- A telemetry model request or turn cost is `telemetry:<kind>:<product>.<event>:<key>`: the ID of
+  the fact it comes from, without the fact ID's `event:telemetry:` prefix.
 
 Each entity consumer writes aliases for its entities: readable references, URLs, a pull request's
 merge commit SHA, an email's `Message-ID` header. Link extractors store a reference as the text
@@ -42,23 +49,42 @@ links written before it keep resolving.
 
 ## GitHub entities
 
-| Kind           | Stream                        | Facts                                                 |
-| -------------- | ----------------------------- | ----------------------------------------------------- |
-| repository     | `facts.github.repository`     | repository events                                     |
-| pull request   | `facts.github.pull_request`   | pull request webhooks and timeline backfill           |
-| review         | `facts.github.review`         | review webhooks                                       |
-| review comment | `facts.github.review_comment` | review comment webhooks, review bot findings included |
-| review thread  | `facts.github.review_thread`  | review thread webhooks                                |
-| issue comment  | `facts.github.issue_comment`  | conversation comments on issues and pull requests     |
-| commit         | `facts.github.commit`         | push webhooks                                         |
-| issue          | `facts.github.issue`          | issue webhooks and timeline backfill                  |
+| Kind                  | Stream                             | Facts                                                 |
+| --------------------- | ---------------------------------- | ----------------------------------------------------- |
+| `repo`                | `facts.github.repository`          | repository events                                     |
+| `pull_request`        | `facts.github.pull_request`        | pull request webhooks and timeline backfill           |
+| `pull_request_review` | `facts.github.pull_request_review` | pull request review webhooks                          |
+| `review_comment`      | `facts.github.review_comment`      | review comment webhooks, review bot findings included |
+| `review_thread`       | `facts.github.review_thread`       | review thread webhooks                                |
+| `issue_comment`       | `facts.github.issue_comment`       | conversation comments on issues and pull requests     |
+| `commit`              | `facts.github.commit`              | push webhooks                                         |
+| `issue`               | `facts.github.issue`               | issue webhooks and timeline backfill                  |
+| `release`             | `facts.github.release`             | release webhooks                                      |
+| `ref`                 | `facts.github.ref`                 | pushes to the default branch or to a tag              |
+| `deployment`          | `facts.github.deployment`          | deployment and deployment status webhooks             |
+| `workflow_run`        | `facts.github.workflow_run`        | workflow run webhooks                                 |
 
-The comment kinds are `review_comment` and `issue_comment`, as in `github:review_comment:<id>`. A
-review thread takes the ID of its first comment. Every reply carries the ID of the comment it
+The `github_deploy` consumer builds one more kind, `deploy`, from the `ref` and `deployment` facts:
+one entity per signal that reported a commit to an environment.
+
+A review thread takes the ID of its first comment. Every reply carries the ID of the comment it
 answers, so following those IDs back finds the first comment without another API call.
 
-Check runs, CI status, GitHub notifications as a source, and reactions stay out until a question
-needs them. Each one becomes a new fact family when it joins.
+Check runs, commit statuses, GitHub notifications as a source, and reactions stay out until a
+question needs them. Each one becomes a new fact family when it joins.
+
+## Telemetry entities
+
+The telemetry source has one stream, `facts.telemetry.log_record`. Each fact is one OTLP log record
+of a coding agent, and its entity is the agent's session, of the kind `session`. Two consumers build
+the other kinds from those facts:
+
+| Kind            | Consumer                  | Rows                                |
+| --------------- | ------------------------- | ----------------------------------- |
+| `model_request` | `telemetry_model_request` | one per model request               |
+| `turn_cost`     | `telemetry_turn_cost`     | one per turn cost the agent reports |
+
+Both tables join to the session through their `session_id` column.
 
 ## Gmail entities
 
