@@ -1,3 +1,6 @@
+// oxlint-disable-next-line import/no-unassigned-import -- runs zod's init before the MCP SDK loads
+import './load-zod-first.ts';
+
 export { createApp } from './app/create-app.ts';
 export { createRouter } from './app/create-router.ts';
 export type { DeploymentClient } from './client/deployment-client.ts';
