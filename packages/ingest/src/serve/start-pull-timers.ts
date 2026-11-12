@@ -42,11 +42,14 @@ export function startPullTimers(
 
           cursor = pickNextCursor(run, cursor);
 
-          if (run.kind !== 'stored') {
+          // a run that the stop cut short is no failure
+          if (run.kind !== 'stored' && !controller.signal.aborted) {
             logger.error(`the ${pathName} pull of ${source.name} did not store`, run);
           }
         } catch (error: unknown) {
-          logger.error(`the ${pathName} pull of ${source.name} threw`, error);
+          if (!controller.signal.aborted) {
+            logger.error(`the ${pathName} pull of ${source.name} threw`, error);
+          }
         } finally {
           isRunning = false;
 

@@ -115,3 +115,43 @@ test('it aborts a pull in flight on stop, and settles once the pull ends', async
 
   expect({ isAborted: signal.aborted, ended }).toStrictEqual({ isAborted: true, ended: ['pull'] });
 });
+
+test('it logs no failure for a pull that the stop cut short', async () => {
+  const ctx = setupTest();
+  const seen = Promise.withResolvers<void>();
+
+  const stop = ctx.startTimers(async (_cursor, context) => {
+    seen.resolve();
+
+    await new Promise((resolve) => {
+      context.signal.addEventListener('abort', resolve);
+    });
+
+    return { kind: 'unavailable', retryAfterMs: 1 };
+  });
+
+  await seen.promise;
+  await stop();
+
+  expect(ctx.readLogged()).toStrictEqual([]);
+});
+
+test('it logs no failure for a pull that throws once the stop aborted it', async () => {
+  const ctx = setupTest();
+  const seen = Promise.withResolvers<void>();
+
+  const stop = ctx.startTimers(async (_cursor, context) => {
+    seen.resolve();
+
+    await new Promise((resolve) => {
+      context.signal.addEventListener('abort', resolve);
+    });
+
+    throw new Error('the tide table read was aborted');
+  });
+
+  await seen.promise;
+  await stop();
+
+  expect(ctx.readLogged()).toStrictEqual([]);
+});

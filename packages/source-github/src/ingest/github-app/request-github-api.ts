@@ -33,22 +33,27 @@ export async function requestGithubAPI(
     return { status: 0, text: '', body: undefined, next: undefined };
   }
 
-  const text = await response.text();
-
   return {
     status: response.status,
-    text,
-    body: parseBody(text),
+    text: response.text,
+    body: parseBody(response.text),
     next: findNextPage(response.headers.get('link')),
   };
 }
 
+interface SentRequest {
+  status: number;
+  text: string;
+  headers: Headers;
+}
+
+// The body is read inside the `try`, so an abort while GitHub still sends it counts as a failed call.
 async function sendRequest(
   url: string,
   token: string,
   method: 'GET' | 'POST',
   call: GithubCall,
-): Promise<Response | undefined> {
+): Promise<SentRequest | undefined> {
   try {
     const response = await fetch(url, {
       method,
@@ -61,7 +66,9 @@ async function sendRequest(
       },
     });
 
-    return response;
+    const text = await response.text();
+
+    return { status: response.status, text, headers: response.headers };
   } catch (error: unknown) {
     // a call that ingest's stop aborted is no failure
     if (!call.signal.aborted) {
