@@ -25,25 +25,30 @@ bun add -d @pepys/testing
 
 Set the compiler options from the [kit's README](../kit/README.md#configuration).
 
-Then test a query on rows written for the test:
+Then apply facts, and test a query on the rows that the plug-in's consumers write from them. A query
+test that seeds through the consumers fails when a consumer changes the shape of its rows:
 
 ```ts
 import { expect, test } from 'bun:test';
-import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
-import { toTagged } from '@zgeoff/std';
-import { shelfBookConsumer, shelfPlugin, shelfTitleQuery } from './shelf-plugin.ts';
+import { shelfPlugin, shelfSource, shelfTitleQuery } from './shelf-plugin.ts';
 
-test('it answers a query from rows written for the test', async () => {
+test('it answers a query from the row that a shelved fact gives', async () => {
   await using store = await createTestStore({ plugins: [shelfPlugin] });
 
-  await store.writeRows(shelfBookConsumer, 'shelf_book', [
-    { id: toTagged<EntityID>('shelf:book:atlas'), title: 'The Coral Atlas' },
+  await store.apply(shelfSource, [
+    {
+      type: 'shelf.book.shelved',
+      event: 'evt-1',
+      entity: 'shelf:book:atlas',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { title: 'The Coral Atlas' },
+    },
   ]);
 
-  expect(await store.query(shelfTitleQuery, { id: 'shelf:book:atlas' })).toStrictEqual({
-    title: 'The Coral Atlas',
-  });
+  const answer = await store.query(shelfTitleQuery, { id: 'shelf:book:atlas' });
+
+  expect(answer).toStrictEqual({ title: 'The Coral Atlas' });
 });
 ```
 
