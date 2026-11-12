@@ -17,8 +17,9 @@ Declare a pepys plug-in or deployment as plain data.
 A plug-in brings one source of data to pepys. It declares the facts the source sends, the consumers
 that turn those facts into table rows, and the queries that read the rows. A deployment lists the
 plug-ins that one pepys install runs. You declare each part with a `define*` function of the kit,
-and [pepys v1](../../docs/design/v1.md) defines each part. The package ships its TypeScript source
-and runs on Bun.
+and
+[What a plug-in declares](../../docs/architecture/consumers/plug-ins-and-build.md#what-a-plug-in-declares)
+defines each part. The package ships its TypeScript source and runs on Bun.
 
 ## Install
 
