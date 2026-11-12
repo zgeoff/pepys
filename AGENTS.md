@@ -104,9 +104,9 @@ docs/
   checks; `bacon` runs clippy on every save. CI also runs `cargo fmt --check`, `cargo shear`,
   `cargo deny check` and `cargo test --doc`, because nextest skips doctests.
 - `bun run schema:generate` writes the generated files, and `bun run schema:check` writes nothing
-  and exits 1 on a stale one. Both build each consumer's boundary file and SQL schema, its glue,
-  with the code of `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`. That command
-  needs no Docker.
+  and exits 1 on a stale one. Neither needs Docker. The generated files are the store's Kysely types
+  and each consumer's glue: its boundary file and its SQL schema. Both scripts build the glue with
+  the same code as `pepys build <path-to-plug-in-file> [--check]` in `@pepys/cli`.
 - `bun run consumers:build` runs `pepys build` on two deployments. It compiles each consumer of the
   repo's stub deployment, `scripts/stub-deployment.ts`, to `build/consumers/<name>/<hash>.wasm` and
   writes `build/consumers/consumers.json`. It writes the same for the e2e deployment,

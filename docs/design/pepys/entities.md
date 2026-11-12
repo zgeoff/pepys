@@ -36,11 +36,13 @@ These kinds have no database ID, so their last part is built from other fields:
 - The owner is `deployment:person:owner` ([people](#people)).
 - A GitHub ref is `github:ref:<repository ID>:<ref>`, such as `github:ref:902:refs/heads/main`.
 - A GitHub deploy is `github:deploy:<repository ID>:<environment>:<signal>:<sha>`, with `:<target>`
-  after it when the report names a target.
+  after it when the report names a target. The signal is `tag` or `deployment_status`, and
+  [the GitHub plug-in](../v1-plug-ins.md#github) gives the rules for each.
 - A telemetry session is `telemetry:session:<session ID>`, with the session ID that the log record
   carries.
-- A telemetry model request or turn cost is `telemetry:<kind>:<product>.<event>:<key>`: the ID of
-  the fact it comes from, without the fact ID's `event:telemetry:` prefix.
+- A telemetry model request or turn cost is `telemetry:<kind>:<product>.<event>:<key>`, the ID of
+  the fact it comes from with its `event:telemetry:` prefix cut.
+  [The telemetry plug-in](../v1-plug-ins.md#telemetry) defines the product, the event and the key.
 
 Each entity consumer writes aliases for its entities: readable references, URLs, a pull request's
 merge commit SHA, an email's `Message-ID` header. Link extractors store a reference as the text
@@ -65,7 +67,9 @@ links written before it keep resolving.
 | `workflow_run`        | `facts.github.workflow_run`        | workflow run webhooks                                 |
 
 The `github_deploy` consumer builds one more kind, `deploy`, from the `ref` and `deployment` facts:
-one entity per signal that reported a commit to an environment.
+one entity per signal that reported a commit to an environment. A `deployment` is GitHub's own
+deployment object, and a `deploy` is pepys's record that a commit reached an environment, whichever
+signal reported it.
 
 A review thread takes the ID of its first comment. Every reply carries the ID of the comment it
 answers, so following those IDs back finds the first comment without another API call.
