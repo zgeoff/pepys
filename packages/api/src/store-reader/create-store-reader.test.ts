@@ -15,15 +15,19 @@ import { startLiveWriter } from '../test-utils/start-live-writer.ts';
 import { createStoreReader } from './create-store-reader.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-reader-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   const store = createStoreReader({ storeDirectory });
 
-  onTestFinished(() => store.close());
+  stack.defer(() => store.close());
 
-  return { store, storeDirectory };
+  return { stack, store, storeDirectory };
 }
 
 test('it joins the tables of two attached files and shows the entities and links of both', async () => {
@@ -314,7 +318,7 @@ test('it keeps one snapshot of a file that the host holds open and commits to du
 
   const writer = await startLiveWriter(join(directory, 'consumer.db'));
 
-  onTestFinished(() => writer.stop());
+  ctx.stack.defer(() => writer.stop());
 
   // oxlint-disable-next-line zgeoff/seed-only -- the host's own write, which the reader must see
   await writer.run("update harbour_vessel set name = 'Tern II'");
@@ -381,7 +385,7 @@ test('it attaches a file whose folder name holds a space, a percent sign, a hash
 
   const store = createStoreReader({ storeDirectory });
 
-  onTestFinished(() => store.close());
+  ctx.stack.defer(() => store.close());
 
   const result = await store.withConsumers([harbourVesselConsumer], (db) =>
     sql`select name from harbour_vessel`.execute(db),

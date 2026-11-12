@@ -7,13 +7,17 @@ import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour-plugin.t
 import { seedHarbourFiles } from './seed-harbour-files.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-harbour-files-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   const store = createStoreReader({ storeDirectory });
 
-  onTestFinished(() => store.close());
+  stack.defer(() => store.close());
 
   return { storeDirectory, store };
 }

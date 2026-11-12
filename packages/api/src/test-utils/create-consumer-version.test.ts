@@ -7,16 +7,20 @@ import { createConsumerVersion, writeCurrentVersion } from './create-consumer-ve
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour/harbour-plugin.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-version-'));
 
-  onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
+  stack.defer(() => rm(storeDirectory, { recursive: true, force: true }));
 
   return {
     storeDirectory,
     readFile: async (directory: string, statement: string): Promise<unknown> => {
       const database = await connect(join(directory, 'consumer.db'), { readonly: true });
 
-      onTestFinished(() => database.close());
+      stack.defer(() => database.close());
 
       const rows: unknown = await database.all(statement);
 

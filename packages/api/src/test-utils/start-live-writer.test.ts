@@ -6,18 +6,22 @@ import { connect } from '@tursodatabase/database';
 import { startLiveWriter } from './start-live-writer.ts';
 
 async function setupTest() {
+  const stack = new AsyncDisposableStack();
+
+  onTestFinished(() => stack.disposeAsync());
+
   const directory = await mkdtemp(join(tmpdir(), 'live-writer-'));
 
-  onTestFinished(() => rm(directory, { recursive: true, force: true }));
+  stack.defer(() => rm(directory, { recursive: true, force: true }));
 
-  return { path: join(directory, 'consumer.db') };
+  return { stack, path: join(directory, 'consumer.db') };
 }
 
 test('it commits each statement while it holds the file open', async () => {
   const ctx = await setupTest();
   const writer = await startLiveWriter(ctx.path);
 
-  onTestFinished(() => writer.stop());
+  ctx.stack.defer(() => writer.stop());
 
   await writer.run(
     "create table harbour_berth (id text); insert into harbour_berth values ('north')",
@@ -25,7 +29,7 @@ test('it commits each statement while it holds the file open', async () => {
 
   const reader = await connect(ctx.path, { readonly: true, experimental: ['multiprocess_wal'] });
 
-  onTestFinished(() => reader.close());
+  ctx.stack.defer(() => reader.close());
 
   const rows: unknown = await reader.all('select id from harbour_berth');
 
