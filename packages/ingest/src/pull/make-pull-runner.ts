@@ -32,9 +32,9 @@ interface PullRunnerDependencies {
   resyncMarks: ResyncMarks;
 }
 
-// One run of one pull path: the pull, the envelope check, the appends, and then, for a resync pull,
-// the removal of every mark it was given that no tie has set again since. A pull's fact is noted in no mark: a resynced fact ties
-// with the body it replaces, and would mark its entity again on every run.
+// For a resync pull, removes each mark it was given that no tie set again since. A pull's fact is
+// noted in no mark: a resynced fact ties with the body it replaces, and would mark its entity again
+// on every run.
 export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner {
   return async (sourceName, pathName, cursor) => {
     const source = dependencies.deployment.sources.find(

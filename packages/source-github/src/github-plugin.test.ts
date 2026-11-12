@@ -150,7 +150,9 @@ test('it stores the other failed deliveries of a recovery pull and moves past on
 
   const errorLog = spyOn(console, 'error').mockImplementation(() => {});
 
-  onTestFinished(() => errorLog.mockRestore());
+  onTestFinished(() => {
+    errorLog.mockRestore();
+  });
 
   const run = await ctx.runRecovery(null);
   const ids = await ctx.readIDs('facts.github.pull_request');
