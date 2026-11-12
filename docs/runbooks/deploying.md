@@ -116,7 +116,8 @@ other's marks.
    consumer's name, and exits 1.
 
 6. Set `PEPYS_STORE_DIR` for the API to `<store-folder>`. The API reads no S2 setting.
-   `PEPYS_API_HOST` defaults to 127.0.0.1, and `PEPYS_API_PORT` defaults to 8081.
+   `PEPYS_API_HOST` defaults to 127.0.0.1, and `PEPYS_API_PORT` defaults to 8081. To serve MCP, also
+   set the settings in the [API auth design](../design/api-auth/README.md#configuration).
 7. Start the API with `bun <api-entry-file>`.
 
    Expect: the API listens on its port. Until a consumer has a current version, each query that

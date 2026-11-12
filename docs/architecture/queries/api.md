@@ -10,8 +10,13 @@ deployment from one router, twice: as a typed oRPC route under `/rpc`, and as an
 A plug-in declares each query once. The API serves that one declaration as both the route and the
 tool, and a plug-in test runs the same declaration on the test store of `@pepys/testing`. The API
 only reads: each call attaches its files read-only, and rolls back the transaction its handler runs
-in. The API never checks a token, so its listen address and the deployment's network rules decide
-who reaches it.
+in.
+
+The API checks no credential on `/rpc`, so its listen address and the deployment's network rules
+decide who reaches that route. It serves `/mcp` only with `PEPYS_API_PUBLIC_URL` and
+`PEPYS_AUTH_DIR` set, and then refuses each MCP request without a valid access token from its OAuth
+server. With either setting unset, `/mcp` answers 404. The
+[OAuth server](../../design/api-auth/oauth.md) covers the tokens and the owner's passkey sign-in.
 
 [Entities and links](./entities-and-links.md) covers entity IDs, kinds, links and the views the
 queries read. [Decision 0010](../../decisions/0010-kysely-for-api-queries.md) and

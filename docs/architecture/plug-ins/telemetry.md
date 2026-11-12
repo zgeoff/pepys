@@ -102,7 +102,9 @@ counts nothing twice.
 
 - The model request consumer writes `cost_basis` to record whether the product reported a cost, and
   leaves a missing cost null, never 0.
-- Each consumer skips a record that lacks a model or token counts.
+- The model request consumer skips a record that lacks a model or token counts.
+- The turn cost consumer needs only the cost. Codex's estimate can come without a model, so the
+  consumer writes that turn with a null model.
 - Nobody has checked either product's wire format against a captured export, so each consumer reads
   a number from a JSON number or from decimal text.
 

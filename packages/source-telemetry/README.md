@@ -20,10 +20,12 @@ request and one per reported turn cost with its two consumers.
 ## Install
 
 ```sh
-bun add @pepys/source-telemetry
+bun add @pepys/source-telemetry @pepys/kit
+bun add -d @pepys/cli
 ```
 
-Add the plug-in to a deployment, then build its consumers:
+Add the plug-in to a deployment, then build its consumers. The build compiles each consumer, which
+needs zig and wasm-tools, as the [CLI README](../cli/README.md) says.
 
 ```ts
 // deployment.ts
