@@ -21,7 +21,11 @@ async function setupTest() {
   onTestFinished(() => rm(storeDirectory, { recursive: true, force: true }));
 
   return {
-    runStart: (host: string, ingestPort = readFreePort()) => {
+    runStart: (
+      host: string,
+      ingestPort = readFreePort(),
+      overrides: Readonly<Record<string, string>> = {},
+    ) => {
       const child = Bun.spawn(
         [
           'bun',
@@ -30,13 +34,16 @@ async function setupTest() {
           join(import.meta.dir, 'fixtures/e2e-deployment.ts'),
         ],
         {
-          env: buildDeploymentEnvironment({
-            base: process.env,
-            hostBinary: host,
-            ingestPort,
-            apiPort: readFreePort(),
-            storeDirectory,
-          }),
+          env: {
+            ...buildDeploymentEnvironment({
+              base: process.env,
+              hostBinary: host,
+              ingestPort,
+              apiPort: readFreePort(),
+              storeDirectory,
+            }),
+            ...overrides,
+          },
           stdout: 'pipe',
           stderr: 'pipe',
         },
@@ -80,6 +87,39 @@ test('it exits 0 on SIGTERM once the host has stopped', async () => {
   const exitCode = await start.exited;
 
   await reading;
+
+  expect(exitCode).toBe(0);
+});
+
+test('it exits 0 on SIGTERM while ingest still waits on the fact log', async () => {
+  const ctx = await setupTest();
+
+  // an S2 endpoint that takes each request and never answers, so ingest's startup stays pending
+  const never = Promise.withResolvers<Response>();
+  const holdRequest = (): Promise<Response> => never.promise;
+  const silent = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: holdRequest });
+
+  onTestFinished(() => {
+    silent.stop(true);
+  });
+
+  const start = ctx.runStart(ctx.hostBinary, readFreePort(), {
+    PEPYS_S2_ENDPOINT: `http://127.0.0.1:${silent.port}`,
+  });
+
+  await waitFor(
+    () => {
+      expect(silent.pendingRequests).toBeGreaterThan(0);
+
+      return Promise.resolve();
+    },
+    { intervalMs: 50, timeoutMs: 10_000, label: 'ingest to call the fact log' },
+  );
+
+  start.kill('SIGTERM');
+
+  // a pending startup request that keeps the CLI alive runs into the test's time limit
+  const exitCode = await start.exited;
 
   expect(exitCode).toBe(0);
 });
