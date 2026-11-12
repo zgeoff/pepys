@@ -1,6 +1,9 @@
-import { expect, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
+import { createHmac } from 'node:crypto';
+import { HttpResponse, http } from 'msw';
+import invariant from 'tiny-invariant';
 import { z } from 'zod';
-import { isDeliveryAuthentic } from '../delivery-checks/is-delivery-authentic.ts';
+import { mockNetwork } from '../../../../scripts/test-preload/mock-network.ts';
 import { defineFactFamily } from '../sources/define-fact-family.ts';
 import { defineSource } from '../sources/define-source.ts';
 import { receiveFactBatch } from '../sources/receive-fact-batch.ts';
@@ -28,53 +31,29 @@ function setupTest() {
     }),
   });
 
-  const requests: Request[] = [];
-
-  return {
-    source,
-    requests,
-
-    // A stand-in for ingest's route: the same check and the same read, then a status answer.
-    receive: async (request: Request): Promise<Response> => {
-      requests.push(request);
-
-      const path = source.live;
-
-      const bytes = await request.arrayBuffer();
-
-      const body = new Uint8Array(bytes);
-
-      if (path?.kind !== 'receive') {
-        return new Response(null, { status: 500 });
-      }
-
-      if (!isDeliveryAuthentic(path.check, 'tide-table', request.headers, body)) {
-        return new Response(null, { status: 401 });
-      }
-
-      const received = path.read({ headers: request.headers, body }, source);
-
-      if (received.kind !== 'batch') {
-        return new Response(null, { status: 422 });
-      }
-
-      return Response.json({ status: 'stored', stored: received.batch.facts.length });
-    },
-
-    // An ingest that gives every request the same answer.
-    makeAnswer: (status: number, text: string) => (): Promise<Response> =>
-      Promise.resolve(new Response(text, { status })),
-  };
+  return { source };
 }
 
-test('it signs a batch that passes the check and the read of the receive path', async () => {
+test('it posts the batch as JSON to the URL it was given', async () => {
   const ctx = setupTest();
+  const received = mock<(request: Record<string, unknown>) => void>();
+
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', async (info) => {
+      received({
+        method: info.request.method,
+        contentType: info.request.headers.get('content-type'),
+        body: await info.request.json(),
+      });
+
+      return HttpResponse.json({ status: 'stored', stored: 2 });
+    }),
+  );
 
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.receive,
   });
 
   const sent = await send([
@@ -95,19 +74,54 @@ test('it signs a batch that passes the check and the read of the receive path', 
   ]);
 
   expect(sent).toStrictEqual({ ok: true, value: { stored: 2 } });
+
+  expect(received).toHaveBeenCalledExactlyOnceWith({
+    method: 'POST',
+    contentType: 'application/json',
+    body: {
+      v: 1,
+      facts: [
+        {
+          type: 'ledger.entry.posted',
+          event: 'e-1',
+          entity: 'ledger:entry:1',
+          at: '2026-11-01T08:00:00.000Z',
+          payload: { cents: 1200 },
+        },
+        {
+          type: 'ledger.entry.posted',
+          event: 'e-2',
+          entity: 'ledger:entry:2',
+          at: '2026-11-01T08:01:00.000Z',
+          payload: { cents: 80 },
+        },
+      ],
+    },
+  });
 });
 
-test('it refuses a batch with a wrong secret at the receive path', async () => {
+test('it signs the bytes it sends with the secret, in the header of the path', async () => {
   const ctx = setupTest();
+  const sentProofs: { header: string | null; body: string }[] = [];
+
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', async (info) => {
+      sentProofs.push({
+        header: info.request.headers.get('x-ledger-signature-256'),
+        body: await info.request.text(),
+      });
+
+      return HttpResponse.json({ status: 'stored', stored: 1 });
+    }),
+  );
 
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
-    secret: 'neap-tide',
-    fetch: ctx.receive,
+    secret: 'tide-table',
   });
 
-  const sent = await send([
+  await send([
     {
       type: 'ledger.entry.posted',
       event: 'e-1',
@@ -117,17 +131,29 @@ test('it refuses a batch with a wrong secret at the receive path', async () => {
     },
   ]);
 
-  expect(sent).toStrictEqual({ ok: false, failure: { kind: 'refused', status: 401, reason: '' } });
+  const [proof] = sentProofs;
+
+  invariant(proof !== undefined, 'the sender made one request');
+
+  expect(proof.header).toBe(
+    `sha256=${createHmac('sha256', 'tide-table').update(proof.body).digest('hex')}`,
+  );
 });
 
 test.each([502, 503, 504])('it reads a %d answer as a retry', async (status) => {
   const ctx = setupTest();
 
+  mockNetwork.use(
+    http.post(
+      'https://ingest.example/ledger/facts',
+      () => new HttpResponse('log unavailable', { status }),
+    ),
+  );
+
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.makeAnswer(status, 'log unavailable'),
   });
 
   const sent = await send([
@@ -146,14 +172,17 @@ test.each([502, 503, 504])('it reads a %d answer as a retry', async (status) => 
   });
 });
 
-test.each([400, 401, 413, 422, 302, 500])('it reads a %d answer as a refusal', async (status) => {
+test.each([400, 401, 413, 422, 500])('it reads a %d answer as a refusal', async (status) => {
   const ctx = setupTest();
+
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', () => new HttpResponse('no', { status })),
+  );
 
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.makeAnswer(status, 'no'),
   });
 
   const sent = await send([
@@ -169,14 +198,61 @@ test.each([400, 401, 413, 422, 302, 500])('it reads a %d answer as a refusal', a
   expect(sent).toStrictEqual({ ok: false, failure: { kind: 'refused', status, reason: 'no' } });
 });
 
-test('it reads an ignored batch as none stored', async () => {
+test('it reads a redirect as a refusal, and never follows it', async () => {
   const ctx = setupTest();
+  const followed = mock<() => void>();
+
+  mockNetwork.use(
+    http.post(
+      'https://ingest.example/ledger/facts',
+      () =>
+        new HttpResponse('moved', {
+          status: 302,
+          headers: { location: 'https://ingest.example/elsewhere' },
+        }),
+    ),
+    http.all('https://ingest.example/elsewhere', () => {
+      followed();
+
+      return HttpResponse.json({ status: 'stored', stored: 1 });
+    }),
+  );
 
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.makeAnswer(202, '{"status":"ignored"}'),
+  });
+
+  const sent = await send([
+    {
+      type: 'ledger.entry.posted',
+      event: 'e-1',
+      entity: 'ledger:entry:1',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { cents: 1200 },
+    },
+  ]);
+
+  expect({ sent, followed: followed.mock.calls.length }).toStrictEqual({
+    sent: { ok: false, failure: { kind: 'refused', status: 302, reason: 'moved' } },
+    followed: 0,
+  });
+});
+
+test('it reads an ignored batch as none stored', async () => {
+  const ctx = setupTest();
+
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', () =>
+      HttpResponse.json({ status: 'ignored' }, { status: 202 }),
+    ),
+  );
+
+  const send = createFactBatchSender({
+    source: ctx.source,
+    url: 'https://ingest.example/ledger/facts',
+    secret: 'tide-table',
   });
 
   const sent = await send([
@@ -195,11 +271,14 @@ test('it reads an ignored batch as none stored', async () => {
 test('it reads a success with no count as a retry', async () => {
   const ctx = setupTest();
 
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', () => new HttpResponse('ok', { status: 200 })),
+  );
+
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.makeAnswer(200, 'ok'),
   });
 
   const sent = await send([
@@ -215,6 +294,33 @@ test('it reads a success with no count as a retry', async () => {
   expect(sent).toStrictEqual({
     ok: false,
     failure: { kind: 'retry', reason: 'ingest answered 200: ok' },
+  });
+});
+
+test('it reads a transport failure as a retry', async () => {
+  const ctx = setupTest();
+
+  mockNetwork.use(http.post('https://ingest.example/ledger/facts', () => HttpResponse.error()));
+
+  const send = createFactBatchSender({
+    source: ctx.source,
+    url: 'https://ingest.example/ledger/facts',
+    secret: 'tide-table',
+  });
+
+  const sent = await send([
+    {
+      type: 'ledger.entry.posted',
+      event: 'e-1',
+      entity: 'ledger:entry:1',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { cents: 1200 },
+    },
+  ]);
+
+  expect(sent).toStrictEqual({
+    ok: false,
+    failure: { kind: 'retry', reason: expect.any(String) },
   });
 });
 
@@ -245,12 +351,20 @@ test('it reads no connection as a retry', async () => {
 
 test('it refuses a batch over the fact limit of the path without a request', async () => {
   const ctx = setupTest();
+  const received = mock<() => void>();
+
+  mockNetwork.use(
+    http.post('https://ingest.example/ledger/facts', () => {
+      received();
+
+      return HttpResponse.json({ status: 'stored', stored: 3 });
+    }),
+  );
 
   const send = createFactBatchSender({
     source: ctx.source,
     url: 'https://ingest.example/ledger/facts',
     secret: 'tide-table',
-    fetch: ctx.receive,
   });
 
   const fact = {
@@ -263,8 +377,8 @@ test('it refuses a batch over the fact limit of the path without a request', asy
 
   const sent = await send([fact, fact, fact]);
 
-  expect([sent, ctx.requests.length]).toStrictEqual([
-    {
+  expect({ sent, requests: received.mock.calls.length }).toStrictEqual({
+    sent: {
       ok: false,
       failure: {
         kind: 'refused',
@@ -272,8 +386,8 @@ test('it refuses a batch over the fact limit of the path without a request', asy
         reason: "3 facts is over the path's limit of 2",
       },
     },
-    0,
-  ]);
+    requests: 0,
+  });
 });
 
 test('it will not make a sender with an empty secret', () => {

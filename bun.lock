@@ -160,6 +160,7 @@
       },
       "devDependencies": {
         "@octokit/webhooks": "catalog:",
+        "msw": "catalog:",
         "tiny-invariant": "catalog:",
       },
     },
