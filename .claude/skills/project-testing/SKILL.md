@@ -103,9 +103,9 @@ blob store adapters on s2-lite and Garage, and `pepys build`, which compiles con
 
 The e2e deployment holds the GitHub and telemetry plug-ins, the logbook plug-in in
 [`e2e/logbook-plugin/`](../../../e2e/logbook-plugin), and the ledger plug-in of the stub deployment,
-[`ledger-plugin.ts`](../../../packages/testing/src/test-utils/ledger/ledger-plugin.ts), whose one
-consumer runs in scope mode. The logbook plug-in imports the kit by package name, as a plug-in
-outside the repo does. `bun run consumers:build` compiles the deployment to `build/e2e-consumers/`.
+[`ledger-plugin.ts`](../../../packages/testing/src/ledger/ledger-plugin.ts), whose one consumer runs
+in scope mode. The logbook plug-in imports the kit by package name, as a plug-in outside the repo
+does. `bun run consumers:build` compiles the deployment to `build/e2e-consumers/`.
 
 - Read the addresses of the Docker services in each test's `setupTest()`, from the `PEPYS_`
   variables in [`build-stack-env.ts`](../../../stack/build-stack-env.ts), which `start-stack.ts`
