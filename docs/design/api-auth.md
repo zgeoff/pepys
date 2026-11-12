@@ -1,10 +1,12 @@
-# Auth for the API's public route
+# Auth for the API
 
 - **Status:** draft
 
-The API gets a public route, so the owner's MCP clients, such as Claude Code on the owner's PC,
-reach pepys with no port-forward and no tailnet. The API runs two listeners: a public one that takes
-only OAuth access tokens from its own authorization server, and a cluster one that takes only
+The API runs three listeners, and each one takes one kind of credential. The public listener serves
+`/mcp` and the sign-in pages through a Cloudflare tunnel, so the owner's MCP clients, such as Claude
+Code on the owner's PC, reach pepys from anywhere. It takes only OAuth access tokens from the API's
+own authorization server. The tailnet listener serves `/rpc` to a script on the owner's PC over the
+owner's tailnet, and the cluster listener serves `/rpc` to pods in the cluster. Both take only
 service tokens. Ingest keeps its own check on each route, and OAuth plays no part in it. This doc
 builds the part of [Auth](./pepys/auth.md) that the API's read routes need.
 
@@ -16,8 +18,7 @@ Three outside systems appear in this doc:
 
 - **atc** is the owner's agent control tower. Its gateway serves MCP on a public route behind its
   own OAuth server, and this design follows that server.
-- **impz** runs the owner's coding agents in small virtual machines, called imps. It also serves MCP
-  on a public route behind OAuth.
+- **impz** runs the owner's coding agents in small virtual machines, called imps.
 - **boxxy** dispatches work to coding agents. Its server runs as a pod in the same cluster as pepys,
   sends its facts to an ingest route, and reads its two plug-in queries from the API.
 
@@ -27,20 +28,19 @@ Three outside systems appear in this doc:
 flowchart LR
   client["MCP client"] -->|"HTTPS"| edge["Cloudflare tunnel"]
   browser["owner's browser"] -->|"HTTPS, Cloudflare Access login"| edge
-  edge -->|"listed paths only"| public["public listener: OAuth tokens"]
-  boxxy["boxxy server pod"] -->|"service token"| cluster["cluster listener"]
-  public --> queries["/rpc and /mcp"]
-  cluster --> queries
-  queries --> store[("the host's store")]
+  edge -->|"listed paths only"| public["public listener: /mcp, OAuth tokens"]
+  pc["owner's script on the PC"] -->|"tailnet NodePort"| tailnet["tailnet listener: /rpc, service tokens"]
+  boxxy["boxxy server pod"] -->|"ClusterIP"| cluster["cluster listener: /rpc, service tokens"]
+  public --> store[("the host's store")]
+  tailnet --> store
+  cluster --> store
   public --> authdb[("auth.db")]
-  admin["admin commands"] --> authdb
 ```
 
 better-auth's OAuth provider and MCP plugins run the protocol. pepys adds the owner's passkey
 sign-in, the list of clients the owner added, the bearer check and the scope check, as atc does. A
 grant is everything that one approved authorization produced: its refresh tokens and the access
-tokens each one issued. Revoking a grant ends all of them. This doc states every rule the builder
-needs.
+tokens each one issued. Revoking a grant ends all of them.
 [atc's OAuth doc](https://github.com/zgeoff/atc/blob/fa46d50b25a6599d2c246604509282c1a3db951a/docs/architecture/remote/oauth.md)
 at that commit gives the reasons behind the rules this design shares with atc.
 
@@ -52,14 +52,14 @@ Two placeholders stand for the public route: `<public_origin>` is the value of
 ### The API process
 
 A deployment's API entry passes its arguments to `serveAPI`. With no arguments, `serveAPI` serves
-both listeners. With an admin command, it runs that command against `auth.db` and exits. The owner
+the listeners. With an admin command, it runs that command against `auth.db` and exits. The owner
 runs each command with `kubectl exec` in the API's container, where `auth.db` lives. A command reads
 only `PEPYS_AUTH_DIR` and `PEPYS_API_PUBLIC_URL`, and runs beside the server, which keeps serving.
 
 ```ts
 // a deployment's API entry
 serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) });
-// argv [] → serves both listeners
+// argv [] → serves the listeners
 // argv ['clients', 'add', 'Claude Code', '--redirect-uri', 'http://localhost:33418/callback']
 //   → prints 'client 9f3k2m…' and exits 0
 ```
@@ -86,36 +86,75 @@ interface ServeAPIOptions {
 
 ### Configuration
 
-`readAPIConfig` reads these five variables beside `PEPYS_STORE_DIR`. `PEPYS_API_HOST` and
-`PEPYS_API_PORT` set the cluster listener.
+`readAPIConfig` reads these variables beside `PEPYS_STORE_DIR`. `PEPYS_API_HOST` and
+`PEPYS_API_PORT` set the cluster listener, which always runs.
 
 ```text
-PEPYS_API_PUBLIC_URL     <public_origin>, an https origin with no path;
-                         unset: no public listener and no OAuth
-PEPYS_API_PUBLIC_HOST    the public listener's bind address; default 127.0.0.1
-PEPYS_API_PUBLIC_PORT    the public listener's port; default 8082
-PEPYS_AUTH_DIR           the folder that holds auth.db; needed when PEPYS_API_PUBLIC_URL is set
-PEPYS_API_SERVICE_TOKENS the service tokens, as JSON below; always needed
+PEPYS_API_CALLERS_FILE     the service callers file, as JSON below; always needed
+PEPYS_API_TAILNET_SOURCES  the client addresses the tailnet listener admits, as CIDRs split by
+                           commas; unset: no tailnet listener
+PEPYS_API_TAILNET_HOST     the tailnet listener's bind address; default 127.0.0.1
+PEPYS_API_TAILNET_PORT     the tailnet listener's port; default 8083
+PEPYS_API_PUBLIC_URL       <public_origin>, an https origin with no path;
+                           unset: no public listener and no OAuth
+PEPYS_API_PUBLIC_HOST      the public listener's bind address; default 127.0.0.1
+PEPYS_API_PUBLIC_PORT      the public listener's port; default 8082
+PEPYS_AUTH_DIR             the folder that holds auth.db; needed when PEPYS_API_PUBLIC_URL is set
 ```
 
 ```ts
-// @pepys/api: the value of PEPYS_API_SERVICE_TOKENS
-interface ServiceTokens {
-  clients: Record<
-    string, // the client's name, such as 'boxxy'; its principal is `service:<name>`
+// @pepys/api: the callers file at PEPYS_API_CALLERS_FILE. It holds digests, never a token.
+interface CallersFile {
+  version: 1;
+  callers: Record<
+    string, // the caller's name, such as 'owner' or 'boxxy'; its principal is `service:<name>`
     {
+      listeners: readonly ('tailnet' | 'cluster')[]; // where its tokens work; at least one
       scopes: readonly 'read'[]; // at least one
-      tokens: readonly string[]; // one, or two during a rotation; each 'pepyss_' and 32 or more characters
+      credentials: readonly {
+        id: string; // unique within its caller, such as 'pc' or '2026-11'
+        sha256: string; // the token's SHA-256 digest, as 64 lowercase hex characters
+      }[]; // at least one; two during a rotation
     }
   >;
 }
 ```
 
+```json
+{
+  "version": 1,
+  "callers": {
+    "owner": {
+      "listeners": ["tailnet"],
+      "scopes": ["read"],
+      "credentials": [{ "id": "pc", "sha256": "3f9a…" }]
+    },
+    "boxxy": {
+      "listeners": ["cluster"],
+      "scopes": ["read"],
+      "credentials": [{ "id": "2026-11", "sha256": "c07e…" }]
+    }
+  }
+}
+```
+
+A service token is `pepyss_` and 32 or more characters from `A-Z`, `a-z`, `0-9`, `-` and `_`. The
+caller holds the token, and the callers file holds its digest.
+
+### The listeners
+
+Every listener answers 404 to a path it does not serve.
+
+| Listener | Serves                                       | Takes                                            | Reached through                            |
+| -------- | -------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| public   | `/mcp` and the OAuth and sign-in paths below | an OAuth access token                            | the tunnel, then a ClusterIP Service       |
+| tailnet  | `/rpc/*`                                     | a service token of a caller that lists `tailnet` | a NodePort on the server's tailnet address |
+| cluster  | `/rpc/*` and `GET /healthz`                  | a service token of a caller that lists `cluster` | a ClusterIP Service                        |
+
 ### The public listener
 
-The public listener serves the paths below and answers 404 to every other path. The tunnel forwards
-only these paths. It sends the owner's browser through a Cloudflare Access login first, and sends a
-client's request straight to the listener.
+The tunnel forwards only the paths below. It sends the owner's browser through a Cloudflare Access
+login first, and sends a client's request straight to the listener.
 
 | Path                                        | Caller            | At the tunnel |
 | ------------------------------------------- | ----------------- | ------------- |
@@ -125,7 +164,6 @@ client's request straight to the listener.
 | `/consent`                                  | the owner browser | Access login  |
 | `/error`                                    | the owner browser | Access login  |
 | `/mcp`                                      | an MCP client     | straight in   |
-| `/rpc/*`                                    | an oRPC client    | straight in   |
 | `/oauth2/token`                             | a client          | straight in   |
 | `/oauth2/revoke`                            | a client          | straight in   |
 | `/.well-known/oauth-authorization-server`   | a client          | straight in   |
@@ -140,8 +178,6 @@ HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer resource_metadata="<public_origin>/.well-known/oauth-protected-resource/mcp", scope="read"
 ```
 
-A 401 on `/rpc/*` carries `WWW-Authenticate: Bearer` with no `resource_metadata`, because RFC 9728
-has a client refuse metadata whose resource differs from the URL it called.
 `GET /.well-known/oauth-protected-resource/mcp` and `GET /.well-known/oauth-protected-resource` both
 answer:
 
@@ -156,49 +192,72 @@ answer:
 
 ### The bearer check
 
-One function decides the caller on both listeners. The public listener runs the Host check under
-[Requests](#requests) on every request, before it matches a path. A request to `/rpc/*` or `/mcp`
-then passes `readCaller` and the scope check before oRPC or MCP sees it. The cluster listener checks
-no `Host` and no `Origin`. Every MCP request needs a token, whatever its method, `initialize`
-included.
+One function decides the caller on every listener. It runs on `/mcp` and `/rpc/*`, before MCP or
+oRPC sees the request. The sign-in pages, the OAuth endpoints, the metadata and `/healthz` take no
+bearer token. Every MCP request needs a token, whatever its method, `initialize` included.
 
 ```ts
 // @pepys/api
 const caller = await readCaller(request, listener);
 // → { kind: 'grant', clientID: '9f3k2m…', clientName: 'Claude Code', grantID: 'g_51…', scopes: ['read'] }
-//   or { kind: 'service', name: 'boxxy', scopes: ['read'] }
-//   or { kind: 'refused', reason: 'malformed' | 'invalid_token' } → HTTP 401 with the challenge
+//   or { kind: 'service', name: 'owner', credentialID: 'pc', scopes: ['read'] }
+//   or { kind: 'refused', status: 401, reason: 'malformed' | 'invalid_token' } → with the challenge
+//   or { kind: 'refused', status: 403, reason: 'source_not_allowed' }
 
-type Listener = 'public' | 'cluster';
+type Listener = 'public' | 'tailnet' | 'cluster';
 ```
 
 - On `public`, only an opaque access token that `auth.db` holds, unexpired, unrevoked and bound to
   the resource `<public_origin>/mcp`, gives a `grant` caller. The IDs are better-auth's own.
-- On `cluster`, only a `pepyss_` token from the service tokens gives a `service` caller.
-- The cluster listener needs a service token on every query, whatever address it binds, loopback
-  included. Tests and local runs set `PEPYS_API_SERVICE_TOKENS` and send a token, so no process in
-  the pod reads the store without one.
+- On `tailnet` and `cluster`, only a service token whose digest the callers file holds gives a
+  `service` caller, and only when its caller lists that listener. The API answers a token of a
+  caller that lists another listener as it answers an unknown token.
+- The tailnet listener reads the client address of the connection. When the address sits outside
+  `PEPYS_API_TAILNET_SOURCES`, the API answers 403 before it reads the token.
+- The cluster listener answers 403 to a client address in Tailscale's ranges, `100.64.0.0/10` and
+  `fd7a:115c:a1e0::/48`. A NodePort that the deployment points at the cluster port then fails
+  closed.
+- Every listener needs a credential on every query, whatever address it binds, loopback included.
+  Tests and local runs write a callers file and send a token, so no process in the pod reads the
+  store without one.
 - Every procedure needs the scope `read`, so the API answers a caller without it with HTTP 403 and
   `WWW-Authenticate: Bearer error="insufficient_scope", scope="read"`. A procedure declares its own
   scope once a second scope exists.
 - A 401 for `invalid_token` adds `error="invalid_token"` to the challenge. A 401 for `malformed`, a
   header that holds no bearer token, adds no error.
-- The cluster listener's 401 carries `WWW-Authenticate: Bearer` with no `resource_metadata`.
-- The cluster listener answers `GET /healthz` with 200 and needs no token, for the kubelet's probes.
+- A 401 on the tailnet or the cluster listener carries `WWW-Authenticate: Bearer` with no
+  `resource_metadata`.
 
 ## Constraints
 
 ### Fail closed at start
 
-- When `PEPYS_API_SERVICE_TOKENS` is unset, the API exits 1, whatever `PEPYS_API_HOST` binds.
+- When `PEPYS_API_CALLERS_FILE` is unset, or its file is missing or fails a rule below, the API
+  exits 1, whatever `PEPYS_API_HOST` binds. Its message names the caller and the rule, and holds no
+  digest.
+- The callers file fails when it names no caller, a caller has no listener, no scope or no
+  credential, a listener is not `tailnet` or `cluster`, two credentials of one caller share an ID, a
+  digest is not 64 lowercase hex characters, or one digest appears twice.
+- When `PEPYS_API_TAILNET_SOURCES` does not parse, holds a loopback address, or holds a range wider
+  than `/10` for IPv4 or `/48` for IPv6, the API exits 1.
 - When `PEPYS_API_PUBLIC_URL` is set and is not an `https` origin with no path, the API exits 1.
 - When `PEPYS_API_PUBLIC_URL` is set and `PEPYS_AUTH_DIR` is unset, the API exits 1.
-- When `PEPYS_API_SERVICE_TOKENS` does not parse, a client has no scope, a token is shorter than 32
-  characters after its prefix, or one token appears under two clients, the API exits 1. Its message
-  holds no token.
-- When the public and the cluster listener name the same port number, the API exits 1.
+- When two listeners name the same port number, the API exits 1.
 - An admin command runs no deployment check. An unknown command or a bad argument exits 2 with the
   usage.
+
+### Service tokens
+
+- The API finds a service token by the SHA-256 digest of what the caller sent, and keeps only
+  digests in memory.
+- The API reads the callers file again when its folder changes, and every 30 seconds. Reloads run
+  one at a time, in order, so an older read never replaces a newer one.
+- When a reloaded file fails a start rule, the API keeps the last good set and writes a
+  `callers_reload` security event with outcome `rejected`. A request that starts after a reload
+  finishes sees the new set.
+- A credential removed from the 1Password item stops working once the kubelet writes the changed
+  Secret into the pod, then within 30 seconds. The other callers keep working, and no process
+  restarts.
 
 ### What better-auth does not cover
 
@@ -211,8 +270,8 @@ the MCP spec asks for.
 
 ### Tokens and grants
 
-- A token works on one listener only. The API answers an OAuth token on the cluster listener with
-  401, and a service token on the public listener with 401.
+- An OAuth token works on the public listener only. The API answers a service token on the public
+  listener with 401, and an OAuth token on the tailnet or the cluster listener with 401.
 - The authorization server has no dynamic client registration and never fetches a client ID metadata
   document, which a client would host to register itself. When an authorization names a client that
   the owner never added, the owner's browser gets the error page and no redirect.
@@ -233,8 +292,6 @@ the MCP spec asks for.
   fails once the command has returned. A test runs the two at once.
 - The API runs only in the StatefulSet pod that owns `auth.db`'s volume, never in a Deployment.
 - `auth.db` stores a hash of each token, code and enrolment token, never the value.
-- The API compares service tokens by their SHA-256 digests in constant time, and keeps only the
-  digests in memory.
 - The API never writes a token, a code, a cookie or an `Authorization` header to a log line, an
   error or a security event.
 
@@ -259,7 +316,7 @@ the MCP spec asks for.
 ### Requests
 
 - The public listener answers only a request whose `Host` is `<public_host>`, and answers 403 to any
-  other.
+  other. The tailnet and the cluster listener check no `Host` and no `Origin`.
 - A form post to `/login`, `/enroll` or `/consent`, and an MCP request with an `Origin` header, must
   come from `<public_origin>`. The API answers any other with 403.
 - The sign-in, enrolment, consent and error pages carry the headers below. Only `/login` and
@@ -274,6 +331,8 @@ the MCP spec asks for.
   Referrer-Policy: same-origin
   ```
 
+- The public listener sees cloudflared's address, never the client's, so every limit counts per
+  client and grant, and no security event carries a client address.
 - The API writes one line to stderr for each security event: `pepys security ` and a JSON object.
   Each kind writes at most 20 lines a minute. Past that, the API counts the dropped events and
   writes one `suppressed` event with the count when the minute ends.
@@ -289,14 +348,17 @@ the MCP spec asks for.
       | 'owner_auth' // succeeded | failed; 'assertion_failed', 'locked', 'expired', 'not_enrolled', 'invalid_token'
       | 'consent' // allowed | denied; 'none_ticked'
       | 'token_exchange' // rejected; better-auth's error code or 'other'
-      | 'bearer' // rejected; 'malformed' or 'invalid_token'
+      | 'bearer' // rejected; 'malformed', 'invalid_token' or 'source_not_allowed'
+      | 'callers_reload' // accepted | rejected; the failed rule
       | 'suppressed'; // reason: the dropped kind, with count
+    listener: Listener;
     outcome?: string;
     reason?: string;
     count?: number;
     method?: 'passkey' | 'enrollment_token'; // owner_auth only
     route: string; // a path the API serves, else 'other'; never a query
     client?: { id: string; name: string }; // only for a client auth.db holds
+    service?: { name: string; credentialID: string }; // only for a service caller
     redirectHost?: string; // only after better-auth validated the redirect URI
     correlationID?: string; // random, joins one authorization's events
     userAgent?: string; // cut to 200 characters, control characters removed
@@ -318,60 +380,85 @@ the MCP spec asks for.
 ## Deployment changes
 
 The repo that holds the deployment makes these changes in its Pulumi program and manifests. The
-boxxy server sends its token, and the API's Secret holds it, before the deployment moves to the
-release that requires tokens: that release exits 1 with no tokens set.
+exposure registry is a file the estate shares, so the coordinator makes its entries. The boxxy
+server sends its token, and the API's Secret holds its digest, before the deployment moves to the
+release that requires tokens: that release exits 1 with no callers file.
 
-1. Route `<public_host>` through the shared Cloudflare tunnel. Add one rule for the browser paths,
-   behind a Cloudflare Access application that admits only the owner, and one for the client paths.
-   Every other path gets the tunnel's 404. cloudflared passes the request's `Host` through
-   unchanged. The public-route registry entry names the pepys API's OAuth server as the route's auth
-   layer.
-2. Set `PEPYS_API_PUBLIC_URL`, bind both listeners on `0.0.0.0`, and mount a volume that outlives
-   its claim at `PEPYS_AUTH_DIR` in the API's container of the host's StatefulSet pod. The host's
-   container never mounts it.
-3. Add NetworkPolicy rules: the shared tunnel's cloudflared reaches the public port alone, and the
-   boxxy server reaches the cluster port alone.
-4. Add a 1Password item for the boxxy server's API token. The API's Secret builds
-   `PEPYS_API_SERVICE_TOKENS` from it, and the boxxy server sends it as a bearer token.
-5. Run `passkeys enroll`, then add each client with its redirect URI. Claude Code takes the client
+1. Route `<public_host>` through the shared Cloudflare tunnel to the public listener's ClusterIP
+   Service. Add one rule for the browser paths, behind a Cloudflare Access application that admits
+   only the owner, and one for the client paths. Every other path, `/rpc/*` included, gets the
+   tunnel's 404. cloudflared passes the request's `Host` through unchanged.
+2. In the API's container of the host's StatefulSet pod, set `PEPYS_API_PUBLIC_URL`, set
+   `PEPYS_API_TAILNET_SOURCES` to the PC's tailnet address, and bind the three listeners on
+   `0.0.0.0`. Mount a volume that outlives its claim at `PEPYS_AUTH_DIR`; the host's container never
+   mounts it. Mount the callers file's Secret as a folder, never with `subPath`, because the kubelet
+   never updates a `subPath` mount.
+3. Give the tailnet listener a NodePort Service with `externalTrafficPolicy: Local`, whose one port
+   targets the tailnet listener's port. `Local` keeps the PC's address, which the tailnet listener
+   checks. A check in the deployment repo fails when the Service targets another port or another
+   traffic policy. Give the public and the cluster listener a ClusterIP Service each.
+4. Add NetworkPolicy rules: cloudflared reaches the public port alone, the boxxy server reaches the
+   cluster port alone, and the PC's tailnet address reaches the tailnet port alone.
+5. Add one 1Password item per service credential: the owner's PC token and the boxxy server's token.
+   The API's Secret builds the callers file from their digests. The boxxy server's Secret takes its
+   token, and the owner's script reads its item with `op read`.
+6. The coordinator adds a `tailnet`-scope entry for the NodePort to the exposure registry, as
+   Grafana's NodePort has, and names the API's service token as its auth layer. The public-route
+   entry names the API's OAuth server as the route's auth layer.
+7. Run `passkeys enroll`, then add each client with its redirect URI. Claude Code takes the client
    ID with `--client-id` and a fixed `--callback-port`, and sends the redirect URI
    `http://localhost:<port>/callback`.
 
 ## Decisions
 
-- **The API checks a token on every query, on both listeners.** This changes the network that
+- **The API checks a credential on every query, on every listener.** This changes the network that
   [Auth](./pepys/auth.md#network) describes: the API serves a public route, the passkey's relying
   party is `<public_host>`, a token is bound to `<public_origin>/mcp`, and `passkeys enroll` prints
-  a token.
-- **The API runs its own authorization server.** pepys serves one owner, and an outside identity
-  provider adds a second system to trust and to keep up.
+  a token. A NetworkPolicy never stops a process on the cluster's node, so only a caller with a
+  credential reads the store once mail joins it.
+- **The API runs its own authorization server, from atc's code.** pepys serves one owner, and an
+  outside identity provider adds a second system to trust and to keep up. pepys copies atc's OAuth
+  server into `@pepys/api`; moving the copies in atc, impz and pepys to one package is separate
+  work.
+- **The owner signs in with a passkey.** pepys has no API tokens of its own for the owner to approve
+  a code with, as impz does, and a passkey works from each of the owner's devices.
 - **The owner adds each client by hand.** The MCP authorization spec of 2026-07-28 allows
   pre-registration. Client ID metadata documents and dynamic registration would let any client start
   a sign-in.
-- **Each credential works on one listener.** A leaked service token is useless outside the cluster.
-  On the public route, the MCP spec lets an MCP server accept only tokens that its authorization
-  server issued.
-- **The cluster listener checks a token.** A NetworkPolicy never stops a process on the cluster's
-  node, so a policy alone leaves the API open to every process there. Once mail joins the store,
-  only a caller with a token reads it.
-- **Service tokens come from an environment variable.** Ingest reads its secrets the same way, and a
-  variable needs no file-mode check at start.
-- **One resource, `<public_origin>/mcp`, serves `/mcp` and `/rpc`.** An MCP client takes the
-  resource from the metadata at its MCP URL, and one grant then serves both routes. The owner adds a
-  script that reads oRPC as a client with a loopback redirect URI, and the script signs in as an MCP
-  client does.
+- **The public route runs through the shared Cloudflare tunnel.** The MCP route answers each post
+  with JSON and opens no stream, so it needs no TLS front of its own, and atc's gateway runs the
+  same way. The change feed's design settles the route again for a stream.
 - **Cloudflare Access and the passkey both guard sign-in.** Access adds a login in front of the
   sign-in pages, and only the owner's passkey approves a grant, so neither one alone lets a stranger
   in.
+- **`/rpc` stays off the public route.** atc and impz each expose only `/mcp`. The owner's script
+  runs on the PC, which is on the tailnet, so the internet reaches only MCP and sign-in, and the
+  script needs no browser sign-in.
+- **Each listener takes one kind of credential, and each service caller lists its listeners.** A
+  leaked boxxy token is useless from the tailnet, a leaked owner token is useless from a pod, and
+  neither works on the public route. The tailnet listener checks the client address too, so the PC's
+  token works from the PC alone.
+- **The tailnet route is plain HTTP.** WireGuard encrypts the tailnet and proves each peer, as for
+  Grafana's NodePort, so TLS adds a certificate to keep and no protection.
+- **Service tokens come from a callers file that the API reloads.** The API shares its pod with the
+  host, so a revocation by rollout would stop the host. The file holds only digests, so a read of
+  the API's Secret opens nothing.
 - **The API has one scope, `read`.** The API has no write, and `write` arrives with the first write
   route, as [Scopes](./pepys/auth.md#scopes) sets out.
+- **No agent session in an imp gets a token until scopes split by plug-in.** A session would reach
+  the API through impz's credential broker. Until a scope can name one plug-in, a session that reads
+  GitHub data would read mail too.
+- **`auth.db` has no backup.** A lost `auth.db` costs one passkey enrolment and one sign-in per
+  client.
 
 ## Builder decides
 
 - The names of internal functions and files.
-- How the public routes mount on Elysia beside better-auth's handler.
+- How the routes mount on Elysia beside better-auth's handler, and how the API reads a connection's
+  client address.
 - The wording of every page and error.
 - Whether the bearer check reuses better-auth's MCP helper or reads the token table directly.
+- How the API watches the callers file's folder.
 - The better-auth version, within the
   [dependency rule](../../.claude/skills/ci-design/SKILL.md#dependency-exceptions). `@pepys/api` is
   public, so better-auth ships as its dependency and type-checks with the kit's compiler options.
@@ -385,28 +472,4 @@ release that requires tokens: that release exits 1 with no tokens set.
   the first write route.
 - The change feed's stream checks: the change feed is not built yet.
 - Enrichment's internal port: enrichment is not built yet.
-- A token for agent sessions in imps. The API serves no agent session.
-
-## Open questions
-
-The owner settles each one. Until then, the code follows the recommendation.
-
-- **Passkey or approval code?** atc signs the owner in with a passkey. impz shows a code, and the
-  owner approves it with one of impz's own API tokens. Recommendation: the passkey, because pepys
-  has no API tokens of its own for the owner, and a passkey works from each of the owner's devices.
-- **Shared tunnel or a TLS front on the server?** The tunnel with Access on the browser paths
-  matches atc's gateway. impz uses a TLS front on the server instead, because that front holds a
-  long event stream open. Recommendation: the shared tunnel, because the MCP route answers each post
-  with JSON and opens no stream. The change feed's design settles it again. atc's gateway has a
-  tunnel of its own, in a sidecar, so that it can trust the client address that the tunnel forwards.
-  pepys's API shares its pod with the host, so on the shared tunnel its security events record that
-  address as unverified, and every limit counts per client and grant.
-- **`/rpc` on the public route?** atc and impz each expose only `/mcp`. Recommendation: expose
-  `/rpc` behind the same check, because a dashboard or a script on the owner's PC reads oRPC.
-- **A backup of `auth.db`?** atc backs its auth database up nightly. Recommendation: no backup,
-  because a lost `auth.db` costs one passkey enrolment and one sign-in per client.
-- **Port atc's server or share a package?** atc and impz each hold a copy. Recommendation: port
-  atc's code into `@pepys/api` now, and move the three copies to one package as separate work.
-- **Agent sessions in imps?** A session would reach the API through impz's credential broker, which
-  adds a service token to each request. Recommendation: give no session a token until scopes split
-  by plug-in, so a session that reads GitHub data never reads mail.
+- Scopes split by plug-in.
