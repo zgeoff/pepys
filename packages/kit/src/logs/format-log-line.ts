@@ -12,10 +12,12 @@ export function formatLogLine(level: LogLevel, message: string, detail: unknown)
   }
 }
 
-// `JSON.stringify` writes an Error as `{}` and throws on a bigint.
+// `JSON.stringify` writes an Error as its own enumerable fields alone, such as the `status` of an
+// S2 error, and throws on a bigint.
 function toJSONValue(_key: string, value: unknown): unknown {
   if (value instanceof Error) {
     return {
+      ...Object.fromEntries(Object.entries(value)),
       name: value.name,
       message: value.message,
       stack: value.stack,

@@ -187,7 +187,8 @@ dropped first, and a restart loses them.
 Ingest writes each failure and each warning to stderr as one JSON object per line, such as
 `{"level":"error","message":"an append to facts.github.pull_request failed","detail":{"kind":"not-stored","attempts":5}}`.
 The `level` is `error` or `warn`, and a line with no detail leaves `detail` out. An error in
-`detail` keeps its name, message, stack and cause.
+`detail` keeps its name, message, stack and cause, and its own fields, such as the `status` and
+`code` of an S2 error.
 
 Ingest passes its logger to your source's `read` and `pull`, in the `log` field of their context.
 Log through `log`, never through `console`, so your lines reach stderr in the same shape as

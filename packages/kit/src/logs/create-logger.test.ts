@@ -54,6 +54,52 @@ test('it writes the name, message and cause of an error detail', () => {
   ]);
 });
 
+test('it writes the own fields of an error detail and of its cause, beside the name and message', () => {
+  const ctx = setupTest();
+
+  class QuayError extends Error {
+    readonly status = 503;
+
+    readonly code = 'quay_closed';
+
+    readonly attempt = 9_007_199_254_740_993n;
+
+    constructor(message: string, options: ErrorOptions) {
+      super(message, options);
+
+      this.name = 'QuayError';
+    }
+  }
+
+  ctx.logger.error(
+    'an append has an unknown outcome',
+    new QuayError('the quay is closed', { cause: new QuayError('the gate jammed', {}) }),
+  );
+
+  expect(ctx.readLogged()).toStrictEqual([
+    {
+      level: 'error',
+      message: 'an append has an unknown outcome',
+      detail: {
+        status: 503,
+        code: 'quay_closed',
+        attempt: '9007199254740993',
+        name: 'QuayError',
+        message: 'the quay is closed',
+        stack: expect.stringContaining('the quay is closed'),
+        cause: {
+          status: 503,
+          code: 'quay_closed',
+          attempt: '9007199254740993',
+          name: 'QuayError',
+          message: 'the gate jammed',
+          stack: expect.stringContaining('the gate jammed'),
+        },
+      },
+    },
+  ]);
+});
+
 test('it writes a bigint in a detail as its digits', () => {
   const ctx = setupTest();
 
