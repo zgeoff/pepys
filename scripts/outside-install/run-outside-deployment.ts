@@ -1,6 +1,6 @@
-// Installs every public `@pepys/*` package into a new folder outside the repo, builds a stub
-// deployment's consumers there, and runs a host with `run --up` on s2-lite until each is current.
-// AGENTS.md lists the variables that pick the packages and the host.
+// Installs every public `@pepys/*` package outside the repo, builds a stub deployment's consumers,
+// runs `passkeys` on its compiled API, and runs a host with `run --up` on s2-lite until each
+// consumer is current. AGENTS.md lists the variables that pick the packages and the host.
 import { existsSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -60,6 +60,16 @@ try {
     '--out',
     'build',
   ]);
+
+  await runStep(project, [process.execPath, 'compile-api.ts']);
+
+  for (const binary of ['pepys-api', 'pepys-api-minified']) {
+    // `passkeys` opens the OAuth server's database, so it loads every module the API serves with
+    await runStep(project, [join(project, 'build/api', binary), 'passkeys'], {
+      PEPYS_AUTH_DIR: join(directory, binary, 'auth'),
+      PEPYS_STORE_DIR: join(directory, binary, 'store'),
+    });
+  }
 
   const host = await readHost(hostSource, join(directory, 'host'));
 

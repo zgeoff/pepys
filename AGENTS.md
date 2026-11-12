@@ -133,7 +133,8 @@ docs/
   needs Docker, `cargo-nextest` and the consumers built. The `e2e` job runs it after the Bun lane.
   It then runs `bun run test:e2e:outside`.
 - `bun run test:e2e:outside` checks a deployment outside the repo. In an empty folder it installs
-  every public package as `check:outside-install` does, runs `pepys build` on a stub deployment, and
+  every public package as `check:outside-install` does, runs `pepys build` on a stub deployment,
+  compiles the deployment's API entry plain and minified and runs `passkeys` on each binary, and
   starts a host with `run --up` on s2-lite until each consumer is current. It needs Docker and the
   two tool variables. The host is `target/debug/pepys` by default, the binary at
   `PEPYS_OUTSIDE_HOST`, or, with `PEPYS_OUTSIDE_HOST_TAG=v<version>`, the release's
