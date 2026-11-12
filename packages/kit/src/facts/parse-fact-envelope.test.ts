@@ -6,13 +6,30 @@ import type { ClientID, RequestID } from '../ids/types.ts';
 import { buildManualFactID } from './build-manual-fact-id.ts';
 import { parseFactEnvelope } from './parse-fact-envelope.ts';
 
-// The host's envelope check runs the same cases, so the two checks cannot drift apart unseen.
-test.each(envelopeCases.cases.map((envelopeCase) => [envelopeCase.title, envelopeCase] as const))(
-  'it %s, in the shared envelope cases',
-  (_title, envelopeCase) => {
-    expect(parseFactEnvelope(envelopeCase.envelope).ok).toBe(envelopeCase.isValid);
-  },
-);
+// The host's envelope check runs the same cases, so the two checks cannot drift apart unseen. Only
+// this test checks the issue path of a refused case: the host's check names no field.
+test.each(
+  envelopeCases.cases
+    .filter((envelopeCase) => envelopeCase.isValid)
+    .map((envelopeCase) => [envelopeCase.title, envelopeCase] as const),
+)('it %s, in the shared envelope cases', (_title, envelopeCase) => {
+  expect(parseFactEnvelope(envelopeCase.envelope).ok).toBe(true);
+});
+
+test.each(
+  envelopeCases.cases
+    .filter((envelopeCase) => !envelopeCase.isValid)
+    .map((envelopeCase) => [envelopeCase.title, envelopeCase] as const),
+)('it %s, at its issue path, in the shared envelope cases', (_title, envelopeCase) => {
+  const result = parseFactEnvelope(envelopeCase.envelope);
+
+  invariant(!result.ok);
+  invariant(envelopeCase.issuePath !== undefined);
+
+  expect(result.failure.issues.map((issue) => issue.path)).toStrictEqual(
+    result.failure.issues.map(() => envelopeCase.issuePath),
+  );
+});
 
 test('it accepts an envelope with every field', () => {
   const envelope = {
@@ -97,7 +114,11 @@ test('it rejects an unknown envelope key', () => {
 
   invariant(!result.ok);
 
-  expect(result.failure.issues).toPartiallyContain({ code: 'unrecognized_keys', keys: ['extra'] });
+  expect(result.failure.issues).toPartiallyContain({
+    code: 'unrecognized_keys',
+    keys: ['extra'],
+    path: [],
+  });
 });
 
 test('it rejects a fact ID of no known kind', () => {
@@ -197,5 +218,9 @@ test('it rejects an envelope with no payload', () => {
 });
 
 test('it rejects a value that is not an object', () => {
-  expect(parseFactEnvelope('webhook:github:d-4f1c').ok).toBe(false);
+  const result = parseFactEnvelope('webhook:github:d-4f1c');
+
+  invariant(!result.ok);
+
+  expect(result.failure.issues).toPartiallyContain({ code: 'invalid_type', path: [] });
 });

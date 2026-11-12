@@ -1,4 +1,5 @@
 {
+  "issuePathNote": "Each refused case gives issuePath, the path of the field that the parser refuses. Only the Bun test checks it: the host's check says whether an envelope is valid and names no field.",
   "cases": [
     {
       "title": "accepts a webhook fact ID",
@@ -134,6 +135,7 @@
     },
     {
       "title": "refuses an ID of no fact kind",
+      "issuePath": ["id"],
       "envelope": {
         "id": "not-a-fact-id",
         "type": "github.pull_request.opened",
@@ -147,6 +149,7 @@
     },
     {
       "title": "refuses a manual fact ID with a short hash",
+      "issuePath": ["id"],
       "envelope": {
         "id": "manual:abc",
         "type": "github.pull_request.opened",
@@ -160,6 +163,7 @@
     },
     {
       "title": "refuses a webhook fact ID with an upper-case source",
+      "issuePath": ["id"],
       "envelope": {
         "id": "webhook:GitHub:d-1",
         "type": "github.pull_request.opened",
@@ -173,6 +177,7 @@
     },
     {
       "title": "refuses a webhook fact ID with a line feed",
+      "issuePath": ["id"],
       "envelope": {
         "id": "webhook:github:d\n1",
         "type": "github.pull_request.opened",
@@ -186,6 +191,7 @@
     },
     {
       "title": "refuses a webhook fact ID with a carriage return",
+      "issuePath": ["id"],
       "envelope": {
         "id": "webhook:github:d\r1",
         "type": "github.pull_request.opened",
@@ -199,6 +205,7 @@
     },
     {
       "title": "refuses a webhook fact ID with a line separator",
+      "issuePath": ["id"],
       "envelope": {
         "id": "webhook:github:d\u20281",
         "type": "github.pull_request.opened",
@@ -212,6 +219,7 @@
     },
     {
       "title": "refuses a webhook fact ID with a paragraph separator",
+      "issuePath": ["id"],
       "envelope": {
         "id": "webhook:github:d\u20291",
         "type": "github.pull_request.opened",
@@ -225,6 +233,7 @@
     },
     {
       "title": "refuses an event fact ID with no event ID",
+      "issuePath": ["id"],
       "envelope": {
         "id": "event:boxxy:",
         "type": "boxxy.attempt.started",
@@ -238,6 +247,7 @@
     },
     {
       "title": "refuses an event fact ID with an upper-case source",
+      "issuePath": ["id"],
       "envelope": {
         "id": "event:Boxxy:evt-0001",
         "type": "boxxy.attempt.started",
@@ -251,6 +261,7 @@
     },
     {
       "title": "refuses an empty type",
+      "issuePath": ["type"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "",
@@ -264,6 +275,7 @@
     },
     {
       "title": "refuses an envelope version other than 1",
+      "issuePath": ["v"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -277,6 +289,7 @@
     },
     {
       "title": "refuses an api that is not text",
+      "issuePath": ["api"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -290,6 +303,7 @@
     },
     {
       "title": "refuses an entity ID with no kind",
+      "issuePath": ["entity"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -303,6 +317,7 @@
     },
     {
       "title": "refuses an entity ID whose source is a fact kind",
+      "issuePath": ["entity"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -316,6 +331,7 @@
     },
     {
       "title": "refuses an entity ID whose source is the event fact kind",
+      "issuePath": ["entity"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -329,6 +345,7 @@
     },
     {
       "title": "refuses an actor that is an event fact ID",
+      "issuePath": ["actor"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -356,6 +373,7 @@
     },
     {
       "title": "refuses an actor that is not an entity ID",
+      "issuePath": ["actor"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -370,6 +388,7 @@
     },
     {
       "title": "refuses a time with no seconds",
+      "issuePath": ["at"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -383,6 +402,7 @@
     },
     {
       "title": "refuses a time with an offset",
+      "issuePath": ["at"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -396,6 +416,7 @@
     },
     {
       "title": "refuses a day the calendar lacks",
+      "issuePath": ["at"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -409,6 +430,7 @@
     },
     {
       "title": "refuses the hour 24",
+      "issuePath": ["at"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -422,6 +444,7 @@
     },
     {
       "title": "refuses a cursor that is not text",
+      "issuePath": ["cursor"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -436,6 +459,7 @@
     },
     {
       "title": "refuses a field the envelope lacks",
+      "issuePath": [],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
@@ -450,6 +474,7 @@
     },
     {
       "title": "refuses an envelope without a payload",
+      "issuePath": ["payload"],
       "envelope": {
         "id": "webhook:github:d-1",
         "type": "github.pull_request.opened",
