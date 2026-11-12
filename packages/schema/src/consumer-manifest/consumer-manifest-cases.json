@@ -2644,6 +2644,69 @@
       "isValid": false
     },
     {
+      "title": "refuses a table named link_effective, which the host reserves",
+      "issuePath": ["consumers", 0, "manifest", "tables", "link_effective"],
+      "file": {
+        "kit": 1,
+        "deployment": "harbour",
+        "consumers": [
+          {
+            "name": "tide_log",
+            "module": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path": "tide_log/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wasm",
+            "pins": {},
+            "version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "manifest": {
+              "name": "tide_log",
+              "input": {
+                "mode": "fact",
+                "streams": ["facts.harbour.tide"]
+              },
+              "exports": {
+                "init": "tide_log_init",
+                "apply": "tide_log_apply_fact"
+              },
+              "imports": [
+                {
+                  "kind": "row",
+                  "table": "link_effective",
+                  "length": "readTideReadingLength",
+                  "into": "readTideReadingInto"
+                }
+              ],
+              "tables": {
+                "link_effective": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "height_cm": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "note": {
+                      "kind": "text",
+                      "nullable": true
+                    },
+                    "read_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": [["read_at"]]
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"tide_reading\" (\n  \"id\" TEXT NOT NULL\n);\n"
+            }
+          }
+        ]
+      },
+      "isValid": false
+    },
+    {
       "title": "refuses a table named scope_fact, which the host reserves",
       "issuePath": ["consumers", 0, "manifest", "tables", "scope_fact"],
       "file": {

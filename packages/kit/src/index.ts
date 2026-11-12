@@ -15,6 +15,7 @@ export { defineQuery } from './queries/define-query.ts';
 export { defineSource } from './sources/define-source.ts';
 export { defineTable } from './tables/define-table.ts';
 export { findLinkProblem } from './links/find-link-problem.ts';
+export { hostTableNames } from './constants.ts';
 export { isDeliveryAuthentic } from './delivery-checks/is-delivery-authentic.ts';
 export { entityIDSchema } from './entity-ids/entity-id-schema.ts';
 export { isEntityID } from './entity-ids/is-entity-id.ts';

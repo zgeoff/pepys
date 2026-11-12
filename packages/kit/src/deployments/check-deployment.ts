@@ -1,4 +1,4 @@
-import { kitVersion } from '../constants.ts';
+import { hostTableNames, kitVersion } from '../constants.ts';
 import type { ConsumerDeclaration } from '../consumers/types.ts';
 import { factKinds } from '../entity-ids/fact-kinds.ts';
 import { collectCoercedFields } from '../generators/collect-coerced-fields.ts';
@@ -263,18 +263,7 @@ function isDuplicateOf(text: string): text is DuplicateOf {
 }
 
 const coreQueryNames: ReadonlySet<string> = new Set(['get_entity', 'neighbourhood']);
-
-// the host's own tables and views in every consumer file
-const hostTableNames: ReadonlySet<string> = new Set([
-  'link',
-  'link_effective',
-  'entity',
-  'offsets',
-  'change_log',
-  'applied_facts',
-  'scope_row',
-  'scope_fact',
-]);
+const reservedTableNames: ReadonlySet<string> = new Set(hostTableNames);
 
 function collectReservedNames(
   plugins: readonly Plugin[],
@@ -298,7 +287,7 @@ function collectReservedNames(
 
   for (const owned of parts.consumers) {
     for (const table of Object.keys(owned.item.tables)) {
-      if (hostTableNames.has(table)) {
+      if (reservedTableNames.has(table)) {
         failures.push({ kind: 'reserved-table-name', table, consumer: owned.item.name });
       }
     }

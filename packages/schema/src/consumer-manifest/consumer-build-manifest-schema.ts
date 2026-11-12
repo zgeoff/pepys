@@ -1,3 +1,4 @@
+import { hostTableNames } from '@pepys/kit';
 import type { VersionHash } from '@pepys/kit';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
@@ -8,16 +9,7 @@ import type {
   ManifestTable,
 } from './types.ts';
 
-// The host keeps these tables in every consumer's file.
-const reservedTableNames = new Set([
-  'link',
-  'entity',
-  'offsets',
-  'change_log',
-  'applied_facts',
-  'scope_row',
-  'scope_fact',
-]);
+const reservedTableNames: ReadonlySet<string> = new Set(hostTableNames);
 
 const hashSchema = z.custom<VersionHash>(
   (value) => typeof value === 'string' && /^[0-9a-f]{64}$/u.test(value),

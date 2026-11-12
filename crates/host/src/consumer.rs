@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::durable::write_durably;
 use crate::error::HostError;
 
-/// The tables the host keeps in every consumer file, which no consumer may declare.
-pub const RESERVED_TABLES: [&str; 7] = [
+/// The tables and views the host keeps in every consumer file, which no consumer may declare.
+pub const RESERVED_TABLES: [&str; 8] = [
     "link",
+    "link_effective",
     "entity",
     "offsets",
     "change_log",
