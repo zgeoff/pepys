@@ -27,6 +27,9 @@ bun add @pepys/source-github
 
 - `githubPlugin`: the plug-in, to add to a deployment.
 - `githubPullRequestConsumer`: the consumer of pull request facts, with its SQL schema.
+- `githubDelivery`: what a query of another plug-in needs to read when each pull request merged,
+  released and deployed. Pass `consumers` as the query's `reads`, run `select(input).execute(db)`,
+  and give the result's `rows` to `parse`.
 
 ## Documentation
 
