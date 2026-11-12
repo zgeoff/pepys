@@ -1,23 +1,26 @@
 # Ingest
 
-Ingest is the process that puts facts into pepys. A deployment is the set of plug-ins one owner runs
-together, and each plug-in brings its sources, such as GitHub. One ingest process serves every
-source of a deployment. It answers a sender with success only when the fact log holds every fact of
-the delivery, and a sender that gets any other answer sends the same delivery again.
+Send facts into pepys through ingest: a sender posts a delivery to one of its routes, or ingest
+pulls facts from a source's API on a timer. One ingest process serves every source of a deployment,
+the set of plug-ins that one owner runs together, where each plug-in brings its sources, such as
+GitHub. Ingest answers a sender with success only when the fact log holds every fact of the
+delivery. A sender that gets any other answer sends the same delivery again.
+
+Each source declares its paths as data, in up to four slots:
+
+- A receive path is a POST route that a sender posts to.
+- A pull path is a timer that calls the source's API.
+
+| Slot     | Kind of path    | What the path is for                               | Filled in this repo by                            |
+| -------- | --------------- | -------------------------------------------------- | ------------------------------------------------- |
+| live     | receive or pull | the source's own stream of new data                | the GitHub webhook; the telemetry OTLP logs route |
+| recovery | pull            | the data that the live path missed                 | the GitHub pull of failed deliveries              |
+| backfill | pull            | history from before the source was connected       | none                                              |
+| resync   | pull            | a fresh read of each object whose row may be stale | the GitHub pull of marked objects                 |
 
 Ingest does every step of a delivery itself, with one exception. The source writes the receive
-path's `read` function, which turns the delivery into a batch of facts with no I/O of its own. It
-writes only to the logger that ingest passes it.
-
-Each source declares its paths as data, in up to four slots. A receive path is a POST route that a
-sender posts to. A pull path is a timer that calls the source's API.
-
-| Slot     | Kind of path    | Filled in this repo by                                      |
-| -------- | --------------- | ----------------------------------------------------------- |
-| live     | receive or pull | the GitHub webhook; the telemetry OTLP logs route           |
-| recovery | pull            | the GitHub pull of failed deliveries                        |
-| backfill | pull            | none                                                        |
-| resync   | pull            | the GitHub pull that rereads objects whose row may be stale |
+path's `read` function, which turns the delivery into a batch of facts. `read` does no I/O. Its only
+output besides the batch is the lines it writes to the logger that ingest passes it.
 
 [The fact log](./fact-log.md) covers the appends that ingest makes.
 [The GitHub plug-in](../plug-ins/github.md) and [the telemetry plug-in](../plug-ins/telemetry.md)
@@ -46,8 +49,8 @@ Each step either answers and stops, or passes the delivery on:
 2. Ingest runs the delivery check on the bytes as sent, before any code of the source runs. The
    check is an HMAC-SHA256 signature of the body, or a token in a header. A delivery that fails the
    check gets 401.
-3. When the path needs a proven sender, ingest asks the [sender proof](#the-sender-proof). A
-   delivery gets 401 when the proof finds no sender or throws.
+3. When the path needs a proven sender, ingest asks the [sender proof](#the-sender-proof). Ingest
+   answers 401 when the proof finds no sender or throws.
 4. When the path stored the same body in the last hour, ingest gives the answer it gave the first
    time, and appends nothing.
 5. Ingest decodes the body. An encoding the path does not take gets 415, a decoded body over the
@@ -75,15 +78,15 @@ An OTLP exporter expects the `empty` form.
 
 ## The answers
 
-Ingest tries each append up to 5 times when the log gives no acknowledgement, and waits longer
-before each new try than before the last one, by the same step each time. The answer then depends on
-what the log holds:
+Ingest tries each append up to 5 times when the log gives no acknowledgement. It waits 200 ms before
+the second try, and 200 ms longer before each try after that: 400, 600, then 800 ms. The answer then
+depends on what the log holds:
 
-| Case                                               | The log holds                                    | Status | `retry-after` |
-| -------------------------------------------------- | ------------------------------------------------ | ------ | ------------- |
-| every append is acknowledged                       | every fact                                       | 200    | none          |
-| an append has no acknowledgement after its 5 tries | the appends before it on that stream, perhaps it | 503    | 1             |
-| the log refuses an append, or an append throws     | the appends before it on that stream             | 500    | none          |
+| Case                                               | The log holds                                                             | Status | `retry-after` |
+| -------------------------------------------------- | ------------------------------------------------------------------------- | ------ | ------------- |
+| every append is acknowledged                       | every fact                                                                | 200    | none          |
+| an append has no acknowledgement after its 5 tries | the earlier appends on that stream, and perhaps the unacknowledged append | 503    | 1             |
+| the log refuses an append, or an append throws     | the earlier appends on that stream                                        | 500    | none          |
 
 503 means "send the same delivery again, unchanged". The resend fills in what the first delivery
 left out, because the [host](../consumers/host.md#a-fact-mode-batch) skips a fact whose ID it
@@ -96,23 +99,25 @@ can therefore leave its facts on one stream and not on another.
 
 ## Why a fact ID comes from the signed body
 
-A source builds every fact ID of a receive path from the body, never from a header. Neither delivery
-check signs a time, so a captured delivery passes its check again at any later time. A replayed body
-then carries the fact IDs of the first delivery. Each consumer drops a fact whose ID it already has,
-so a replay changes no row of a consumer's tables and no link between entities.
+A source builds every fact ID of a receive path from the body, never from a header. The delivery
+checks never sign a time, so a captured delivery passes its check again at any later time. A
+replayed body then carries the fact IDs of the first delivery. Each consumer drops a fact whose ID
+it already has, so a replay changes no row of a consumer's tables and no link between entities.
 
-- The kit's fact batch reader serves a path that takes signed fact batches: bodies of facts that a
-  deployment's own tool sends, such as `@pepys/kit/send`. Each fact in the body holds an event ID,
-  and the reader makes the fact ID `event:<source>:<event ID>`.
+- `receiveFactBatch` from `@pepys/kit` makes a path that takes signed fact batches: bodies of facts
+  that a deployment's own tool sends, such as a sender that `createFactBatchSender` from
+  `@pepys/kit/send` makes. Each fact in the body holds an event ID, and the path's `read` makes the
+  fact ID `event:<source>:<event ID>`.
 - GitHub puts the delivery's ID in a header that GitHub never signs, so the GitHub source hashes the
   body instead.
 
-The recent-body step only slows how fast replays grow the log, and the fact IDs keep the rows right.
-For each receive path, ingest keeps a SHA-256 of each body that got a 200 stored answer, in memory,
-for one hour, and at most 10,000 of them. A body that got any other answer is never kept, so its
-resend runs every step again. On a path with a sender proof, the proven sender is part of the key,
-so the same body from two senders counts as two bodies. A replay after the hour, or after a restart,
-adds one more copy of its facts to the log, and the copy changes no row.
+The fact IDs keep the rows right. The recent-body step does less: it slows how fast replays grow the
+log. For each receive path, ingest keeps a SHA-256 of each body that it stored, in memory, for one
+hour, and at most 10,000 of them. That holds on a path whose `answer` is `empty` too, where the
+stored answer is 200 `{}`. A body that ingest ignored or refused is never kept, so its resend runs
+every step again. On a path with a sender proof, the proven sender is part of the key, so the same
+body from two senders counts as two bodies. A replay after the hour, or after a restart, adds one
+more copy of its facts to the log, and the copy changes no row.
 
 ## The sender proof
 
@@ -128,9 +133,10 @@ from the 401 answers. When ingest cannot read the folder, or a trust document fa
 ingest exits at start.
 
 The sender proof is an interface with one adapter in use. That adapter checks the signed identity
-token in the `imp-identity` header, which the worker machine that runs the sender gets from its
-token broker. The adapter checks the token with `@impz/client/identity`, against the trust documents
-and the audience.
+token in the `imp-identity` header. The sender runs in an imp, one of the small virtual machines in
+which impz runs the owner's coding agents, and impz gives each imp its token.
+[The api-auth design](../../design/api-auth/README.md) describes impz. The adapter checks the token
+with `@impz/client/identity`, against the trust documents and the audience.
 
 Ingest passes the proven issuer and subject to the source's `read`. Each `read` in this repo stores
 them as `origin` in each fact's payload, over any `origin` the body held, so the origin is the one
@@ -141,19 +147,20 @@ so gets every delivery a 401.
 
 ## Pull paths
 
-Ingest starts one timer for each pull path that sets an interval. A pull path with no interval never
-runs. A run never overlaps the one before it on the same timer. Each timer keeps its cursor, the
-source's position, in memory, so the first run after a start reads from no cursor. A pull that
-reports its cursor expired starts again from none. On any other failure, ingest logs the error and
-keeps the cursor for the next run.
+Ingest starts one timer for each pull path that sets an interval. Ingest never runs a pull path with
+no interval. Only code that holds the result of `createIngest` can run such a path, through
+`runPull`, as the tests do. A run never overlaps the one before it on the same timer. Each timer
+keeps its cursor, the source's position, in memory, so the first run after a start reads from no
+cursor. A pull that reports its cursor expired starts again from none. On any other failure, ingest
+logs the error and keeps the cursor for the next run.
 
 A pull's batch goes through the same batch checks and appends as a delivery. When a pull returns a
 fact with a blob, ingest appends nothing from that run, logs the error, and keeps the cursor.
 
-A resync pull reads the resync marks that the receive paths of the same process set, one per entity
-whose row may be stale. Ingest removes each mark only after the run's whole batch is stored, so a
-failed run keeps every mark for the next one. The marks live in memory, at most 10,000 per source
-with the oldest dropped first, and a restart loses them.
+The receive paths of an ingest process set resync marks, one per entity whose row may be stale, and
+a resync pull of the same process reads them. Ingest removes each mark only after the run's whole
+batch is stored, so a failed run keeps every mark for the next one. The marks live in memory, at
+most 10,000 per source with the oldest dropped first, and a restart loses them.
 [The resync pull](../plug-ins/github.md#the-resync-pull) lists when a receive path sets a mark.
 
 ## Log lines
@@ -163,14 +170,14 @@ Ingest writes each failure and each warning to stderr as one JSON object per lin
 The `level` is `error` or `warn`, and a line with no detail leaves `detail` out. An error in
 `detail` keeps its name, message, stack and cause.
 
-Ingest's own lines hold no token and no secret. Ingest logs an error that a source's `read` or
-`pull` throws whole, so a plug-in keeps tokens and secrets out of those errors and out of what it
-passes to `log`.
+Ingest's own lines hold no token and no secret. When a source's `read` or `pull` throws, ingest logs
+the whole error, with its message and stack. A plug-in therefore keeps tokens and secrets out of the
+errors it throws, and out of what it passes to `log`.
 
-A source's `read` and `pull` get the same logger as `log` in their context. A plug-in logs through
-`log`, never through `console`, so its lines reach the same stream in the same shape. `createLogger`
-from `@pepys/kit` builds a logger that writes to any destination with a `write` method, such as an
-array of lines in a test.
+Ingest passes its logger to a source's `read` and `pull`, in the `log` field of their context. A
+plug-in logs through `log`, never through `console`, so its lines reach stderr in the same shape as
+ingest's. `createLogger` from `@pepys/kit` builds a logger that writes to any destination with a
+`write` method, such as an array of lines in a test.
 
 ## Settings and start
 
