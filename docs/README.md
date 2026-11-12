@@ -71,4 +71,4 @@
 - [0025: The API runs its own OAuth server, and the owner signs in with a passkey](./decisions/0025-own-oauth-server-with-passkey.md)
 - [0026: Each credential works only on the listeners it is bound to](./decisions/0026-credentials-bound-to-listeners.md)
 - [0027: Only MCP and sign-in are public, and /rpc stays on the tailnet](./decisions/0027-rpc-stays-off-the-public-route.md)
-- [0028: auth.db has no backup](./decisions/0028-no-backup-of-auth-db.md)
+- [0028: mcp-auth.db has no backup](./decisions/0028-no-backup-of-auth-db.md)

@@ -44,23 +44,22 @@ origin.
 | ------------------ | ------ | ---------- | --------------------------------------------------------- |
 | authorization code | opaque | 10 minutes | single use; a second exchange revokes what the first made |
 | access token       | opaque | 1 hour     | checked against the auth database on every request        |
-| refresh token      | opaque | 30 days    | rotates on every use; reuse revokes its grant             |
+| refresh token      | opaque | 30 days    | rotates on every use; reuse revokes the client's tokens   |
 
 Tokens are opaque, with better-auth's JWT plugin off, so every request checks its token against the
 database and a revoked grant fails on its next request. The database stores a hash of each token,
 never the token.
 
-better-auth's refresh rotation is not atomic: two refreshes that overlap can both succeed. The API
-therefore runs each refresh as one transaction in the auth database, `auth.db`
-([where the state lives](#where-the-state-lives)), that consumes the old refresh token by compare
-and swap, so a reused refresh token revokes its grant even across processes
-([tokens and grants](../api-auth/oauth.md#tokens-and-grants)).
+better-auth rotates a refresh token with one SQL update that marks it used only while it is still
+unused, so of two refreshes that overlap, one fails. A reused refresh token revokes every token of
+its client. [Tokens and grants](../api-auth/oauth.md#tokens-and-grants) gives the gap between that
+update and the write of the new pair.
 
 A change feed stream outlives a single request. The API checks the stream's token against the
 database before it sends each batch, and closes the stream when the token has expired or its grant
-is revoked. The reader reconnects from its offset with a fresh token. `grants revoke <client>`
-revokes every grant of one client, and `clients remove <client>` revokes them and removes the
-client.
+is revoked. The reader reconnects from its offset with a fresh token. `grants --revoke=<grant_id>`
+revokes one grant, and `clients remove <client_id>` revokes every grant of one client and removes
+the client.
 
 ## Scopes
 
@@ -94,14 +93,14 @@ attacker who replays one, writes the same fact again, and consumers drop the dup
 
 ## Where the state lives
 
-The auth database is a SQLite file, `auth.db`, on the API's own volume, readable only by the API's
-user. It holds the clients, the passkeys' public keys, short-lived owner sessions, and token hashes.
-The API never writes the store, and the host never opens `auth.db`.
+The auth database is a SQLite file, `mcp-auth.db`, on the API's own volume, readable only by the
+API's user. It holds the clients, the passkeys' public keys, short-lived owner sessions, and token
+hashes. The API never writes the store, and the host never opens `mcp-auth.db`.
 
 1Password holds the service tokens, one item per credential, and nothing for OAuth. better-auth's
 secret is generated at random at each start, which ends the sign-ins in progress and keeps every
-grant. Losing `auth.db` ends every grant, and the owner approves each client again, so `auth.db` has
-no backup.
+grant. Losing `mcp-auth.db` ends every grant, and the owner approves each client again, so
+`mcp-auth.db` has no backup.
 
 ## Network
 
