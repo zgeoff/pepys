@@ -112,18 +112,18 @@ log.
 
 `run` refuses to start when a consumer has no current version, or when two current versions own one
 table. It runs one task per consumer. Each task polls the consumer's streams on a short timer. On
-each pass, it takes the consumer's writer lock, repairs the `current` link, and applies what is new.
-On its next pass after a swap, it opens the new version's folder. The writer lock is an OS file
-lock, so the kernel releases it when the process that holds it exits, and one `up` and one `run` of
-the same consumer never write one file at once.
+each pass, it takes the consumer's writer lock, repairs the `current` link, opens the new version's
+folder after a swap, and applies what is new. The writer lock is an OS file lock, so an `up` and a
+`run` of one consumer never write a file at once, and the kernel frees it when its holder exits.
 
 The host reads each stream in batches, in both modes. A batch is one read of one stream, of at most
 100 facts, and the host applies it as one transaction, so a crash or an error never leaves half a
 batch in the file.
 
-A failed batch rolls back and stops that consumer's task. The host prints the error, and the other
-tasks keep running. The stopped task stays stopped until the process restarts. When every task has
-stopped, `run` exits 1. When `consumers.json` lists no consumer, `run` waits for SIGINT or SIGTERM.
+A failed batch rolls back and stops that consumer's task until the process restarts. The host prints
+the error, and the other tasks keep running. When every task has stopped, `run` exits 1. SIGINT or
+SIGTERM stops `run` with exit 0 at any point, the `up` of `--up` too, and the next `up` resumes a
+stopped `up`. When `consumers.json` lists no consumer, `run` waits for one of the two signals.
 
 ## The module boundary
 

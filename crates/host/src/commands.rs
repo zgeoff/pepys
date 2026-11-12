@@ -365,16 +365,21 @@ fn find_shared_table<'a, V>(
     tables.keys().find(|table| others.contains_key(*table))
 }
 
-async fn wait_for_stop() -> Result<(), HostError> {
+/// Installs the SIGTERM and SIGINT handlers now, and returns a future that ends at the first of
+/// the two signals.
+///
+/// # Errors
+/// Fails when a handler cannot be installed.
+fn wait_for_stop() -> Result<impl Future<Output = ()>, HostError> {
     let mut terminate = signal(SignalKind::terminate())?;
     let mut interrupt = signal(SignalKind::interrupt())?;
 
-    tokio::select! {
-        _ = terminate.recv() => {}
-        _ = interrupt.recv() => {}
-    }
-
-    Ok(())
+    Ok(async move {
+        tokio::select! {
+            _ = terminate.recv() => {}
+            _ = interrupt.recv() => {}
+        }
+    })
 }
 
 /// Runs every consumer that `consumers.json` lists, one task each, until SIGINT or SIGTERM. With
@@ -385,27 +390,45 @@ async fn wait_for_stop() -> Result<(), HostError> {
 /// current version, or two current versions own one table. Fails after every task has stopped
 /// with an error.
 pub async fn run(config: &HostConfig, up_first: bool) -> Result<(), HostError> {
+    let stop = wait_for_stop()?;
     let log = S2Log::connect(&config.s2)?;
-    let file = start_run(config, &log, up_first).await?;
-    let stop = wait_for_stop();
-    let mut tasks = JoinSet::new();
 
+    run_until(config, &log, up_first, stop).await
+}
+
+/// `run` with the stop as an argument: it returns `Ok` when `stop` ends, during the start or
+/// once the tasks run.
+async fn run_until(
+    config: &HostConfig,
+    log: &impl FactLog,
+    up_first: bool,
+    stop: impl Future<Output = ()>,
+) -> Result<(), HostError> {
     tokio::pin!(stop);
+
+    // A stop during the `up` drops it: each step of a swap leaves a state the next start resumes.
+    let file = tokio::select! {
+        () = &mut stop => return Ok(()),
+        file = start_run(config, log, up_first) => file?,
+    };
+    let mut tasks = JoinSet::new();
 
     for listed in &file.consumers {
         tasks.spawn(run_consumer(config.clone(), listed.name.clone()));
     }
 
     if tasks.is_empty() {
-        return stop.await;
+        stop.await;
+
+        return Ok(());
     }
 
     loop {
         tokio::select! {
-            result = &mut stop => {
+            () = &mut stop => {
                 tasks.abort_all();
 
-                return result;
+                return Ok(());
             }
             joined = tasks.join_next() => match joined {
                 Some(Ok(Err(error))) => eprintln!("pepys: {error}"),
@@ -944,6 +967,55 @@ mod tests {
 
     fn version_hash(digit: char) -> String {
         std::iter::repeat_n(digit, 64).collect()
+    }
+
+    /// A log whose every call waits forever, so an `up` on it never ends.
+    struct StalledLog;
+
+    impl FactLog for StalledLog {
+        async fn append_batch(
+            &self,
+            _stream: &str,
+            _bodies: &[String],
+            _expected_tail: u64,
+        ) -> Result<crate::fact_log::AppendOutcome, HostError> {
+            std::future::pending().await
+        }
+
+        async fn read(
+            &self,
+            _stream: &str,
+            _from: u64,
+            _count: usize,
+        ) -> Result<Vec<crate::fact_log::StoredFact>, HostError> {
+            std::future::pending().await
+        }
+
+        async fn read_tail(&self, _stream: &str) -> Result<u64, HostError> {
+            std::future::pending().await
+        }
+    }
+
+    #[tokio::test]
+    async fn it_stops_cleanly_when_the_stop_comes_during_the_up() {
+        let ctx = setup_test();
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+
+        write_build(&ctx.config, &[(listed.clone(), bytes)]);
+
+        let stopped = tokio::time::timeout(
+            Duration::from_secs(2),
+            run_until(&ctx.config, &StalledLog, true, std::future::ready(())),
+        )
+        .await
+        .expect("a run that ends before its up does");
+
+        stopped.expect("a clean stop");
+        assert!(
+            read_current_version(&ctx.config, &listed.name)
+                .expect("a readable store")
+                .is_none()
+        );
     }
 
     #[tokio::test]
