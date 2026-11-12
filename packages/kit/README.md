@@ -14,9 +14,11 @@
 
 Declare a pepys plug-in or deployment as plain data.
 
-A plug-in names its fact families, sources, consumers, tables, links and queries with the kit's
-`define*` functions. The kit checks a deployment, generates each consumer's glue and SQL schema, and
-signs and sends a fact batch. The package ships its TypeScript source and runs on Bun.
+A plug-in brings one source of data to pepys. It declares the facts the source sends, the consumers
+that turn those facts into table rows, and the queries that read the rows. A deployment lists the
+plug-ins that one pepys install runs. You declare each part with a `define*` function of the kit,
+and [pepys v1](../../docs/design/v1.md) defines each part. The package ships its TypeScript source
+and runs on Bun.
 
 ## Install
 
@@ -34,19 +36,20 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 
 ## Features
 
-- `@pepys/kit`: the `define*` declarations, the deployment check, and the
-  [entity ID checks](#entity-ids). `toStreamName` and `toStreamOffset` give a family's `stream` and
-  a number as the branded types that a fact log takes.
-- `@pepys/kit/generators`: the SQL schema and glue generators.
-- `@pepys/kit/send`: the client that signs and sends a fact batch.
+- `@pepys/kit` holds the `define*` functions, the [entity ID checks](#entity-ids), and
+  `checkDeployment`, which returns each fault in a deployment, such as two plug-ins with one stream.
+  For the fact log, `toStreamName` types a stream name and `toStreamOffset` types an offset.
+- `@pepys/kit/generators` builds a consumer's SQL schema, and its boundary file: the TypeScript
+  types of the consumer's rows and operations.
+- `@pepys/kit/send` holds `createFactBatchSender`, which signs a batch of facts with the source's
+  secret and sends it to the source's ingest route.
 
 ## Entity IDs
 
 An entity ID is text of the form `<source>:<kind>:<id>`, such as `github:pull_request:9001`. The kit
 types it as `EntityID`. Check text from outside a consumer with one of these:
 
-- `isEntityID(text)`: a type guard that returns true for an entity ID and narrows the text to
-  `EntityID`.
+- `isEntityID(text)`: a type guard that narrows an entity ID to `EntityID`.
 - `entityIDSchema`: a zod schema that refuses any other text. Use it for each ID field in the input
   and output of a query. The API also serves each query as an MCP tool, and the tool's JSON Schema
   shows the field as a plain string.
