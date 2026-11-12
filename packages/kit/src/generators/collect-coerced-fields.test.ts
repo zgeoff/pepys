@@ -15,7 +15,31 @@ test.each<{ row: string; field: z.ZodType; paths: string[] }>([
   { row: 'an optional coerced number', field: z.coerce.number().optional(), paths: ['tally'] },
   { row: 'a coerced number with a default', field: z.coerce.number().default(0), paths: ['tally'] },
   { row: 'a list of coerced numbers', field: z.array(z.coerce.number()), paths: ['tally[]'] },
-  { row: 'a coerced number in a union', field: z.union([z.coerce.number(), z.null()]), paths: [] },
+  {
+    row: 'a coerced number in a union',
+    field: z.union([z.coerce.number(), z.null()]),
+    paths: ['tally'],
+  },
+  {
+    row: 'a record of coerced numbers',
+    field: z.record(z.string(), z.coerce.number()),
+    paths: ['tally.*'],
+  },
+  {
+    row: 'a tuple with a coerced item',
+    field: z.tuple([z.string(), z.coerce.number()]),
+    paths: ['tally[1]'],
+  },
+  {
+    row: 'a tuple with coerced rest items',
+    field: z.tuple([z.string()], z.coerce.boolean()),
+    paths: ['tally[]'],
+  },
+  {
+    row: 'an intersection with a coerced side',
+    field: z.intersection(z.string(), z.coerce.string()),
+    paths: ['tally'],
+  },
   { row: 'a coerced date', field: z.coerce.date(), paths: [] },
   { row: 'a transform', field: z.string().transform(Number), paths: [] },
 ])('it finds $paths in $row', (row) => {

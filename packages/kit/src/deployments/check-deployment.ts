@@ -308,15 +308,17 @@ function collectReservedNames(
 }
 
 function collectCoercedFieldFailures(parts: DeploymentParts): DeploymentFailure[] {
-  return parts.families.flatMap((owned) =>
-    Object.entries(owned.item.types).flatMap(([factType, schema]) =>
-      collectCoercedFields(schema, '').map((field) => ({
-        kind: 'coerced-payload-field' as const,
-        plugin: owned.plugin,
-        factType,
-        field,
-      })),
-    ),
+  return parts.sources.flatMap((owned) =>
+    owned.item.families
+      .flatMap((family) => Object.entries(family.types))
+      .flatMap(([factType, schema]) =>
+        collectCoercedFields(schema, '').map((field) => ({
+          kind: 'coerced-payload-field' as const,
+          source: owned.item.name,
+          factType,
+          field,
+        })),
+      ),
   );
 }
 

@@ -145,7 +145,7 @@ test('it refuses a payload field that coerces what ingest stores as sent', () =>
 
   const plugin = definePlugin({
     name: 'ledger',
-    sources: [defineSource({ name: 'ledger', families: [family] })],
+    sources: [defineSource({ name: 'till', families: [family] })],
   });
 
   expect(checkDeployment({ name: 'harbour', plugins: [plugin] })).toStrictEqual({
@@ -153,12 +153,35 @@ test('it refuses a payload field that coerces what ingest stores as sent', () =>
     failure: [
       {
         kind: 'coerced-payload-field',
-        plugin: 'ledger',
+        source: 'till',
         factType: 'ledger.till.counted',
         field: 'total',
       },
     ],
   });
+});
+
+test.each([
+  { row: 'a transform', field: z.string().transform((text) => text.length) },
+  { row: 'a default', field: z.number().default(0) },
+])('it accepts a payload field with $row', (row) => {
+  const counted = z.object({ total: row.field });
+
+  const family = defineFactFamily({
+    stream: 'facts.ledger.till',
+    api: 'ledger/1',
+    entityKind: 'ledger:till',
+    types: { 'ledger.till.counted': counted },
+  });
+
+  const plugin = definePlugin({
+    name: 'ledger',
+    sources: [defineSource({ name: 'till', families: [family] })],
+  });
+
+  const checked = checkDeployment({ name: 'harbour', plugins: [plugin] });
+
+  expect(checked.ok).toBeTrue();
 });
 
 test('it fills a setting the deployment leaves out with its default', () => {

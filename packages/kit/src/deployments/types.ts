@@ -103,7 +103,7 @@ export type DeploymentFailure =
 
   // `field` is a path such as `drawers[].label`; ingest stores the uncoerced value, which the
   // consumer's decoder refuses
-  | { kind: 'coerced-payload-field'; plugin: string; factType: string; field: string }
+  | { kind: 'coerced-payload-field'; source: string; factType: string; field: string }
 
   // a row whose key holds null never matches the host's lookup or delete by key
   | { kind: 'nullable-key-column'; consumer: string; table: string; column: string };
