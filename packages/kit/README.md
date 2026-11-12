@@ -34,12 +34,22 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
 
 ## Features
 
-- `@pepys/kit`: the `define*` declarations and the deployment check. `toStreamName` and
-  `toStreamOffset` give a family's `stream` and a number as the branded types that a fact log takes.
-  `isEntityID` and `entityIDSchema` check text as an entity ID and brand it as `EntityID`. Use
-  `entityIDSchema` for an ID in a query's input or output: its JSON Schema is a plain string.
+- `@pepys/kit`: the `define*` declarations, the deployment check, and the
+  [entity ID checks](#entity-ids). `toStreamName` and `toStreamOffset` give a family's `stream` and
+  a number as the branded types that a fact log takes.
 - `@pepys/kit/generators`: the SQL schema and glue generators.
 - `@pepys/kit/send`: the client that signs and sends a fact batch.
+
+## Entity IDs
+
+An entity ID is text of the form `<source>:<kind>:<id>`, such as `github:pull_request:9001`. The kit
+types it as `EntityID`. Check text from outside a consumer with one of these:
+
+- `isEntityID(text)`: a type guard that returns true for an entity ID and narrows the text to
+  `EntityID`.
+- `entityIDSchema`: a zod schema that refuses any other text. Use it for each ID field in the input
+  and output of a query. The API also serves each query as an MCP tool, and the tool's JSON Schema
+  shows the field as a plain string.
 
 ## Configuration
 
