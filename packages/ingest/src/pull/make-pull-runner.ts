@@ -1,7 +1,6 @@
 import type { CheckedDeployment, PullPath, Pulled, SourceDefinition } from '@pepys/kit';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
-import { findBatchProblem } from '../receive/find-batch-problem.ts';
-import { planBatch } from '../receive/plan-batch.ts';
+import { pickBatchPlan } from '../receive/pick-batch-plan.ts';
 import type { ResyncMarks } from '../receive/resync-marks/create-resync-marks.ts';
 import { writeBatch } from '../receive/write-batch.ts';
 import type { StreamTurns } from '../receive/write-batch.ts';
@@ -61,20 +60,10 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       return pulled;
     }
 
-    const problem = findBatchProblem(source, pulled.batch);
-
-    if (problem !== undefined) {
-      return { kind: 'refused', reason: problem };
-    }
-
-    if (pulled.batch.facts.some((pending) => pending.blobs.length > 0)) {
-      return { kind: 'refused', reason: 'ingest has no blob store' };
-    }
-
-    const plan = planBatch(pulled.batch);
+    const plan = pickBatchPlan(source, pulled.batch);
 
     if (!plan.ok) {
-      return { kind: 'refused', reason: 'one fact is larger than one append of the log takes' };
+      return { kind: 'refused', reason: plan.failure.reason };
     }
 
     const outcome = await writeBatch(plan.value, dependencies);

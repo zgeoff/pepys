@@ -12,8 +12,7 @@ import { match } from 'ts-pattern';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
 import { buildFailureAnswer, buildRetryAnswer } from './answers/build-failure-answer.ts';
 import { buildSuccessAnswer } from './answers/build-success-answer.ts';
-import { findBatchProblem } from './find-batch-problem.ts';
-import { planBatch } from './plan-batch.ts';
+import { pickReceivedStep } from './pick-received-step.ts';
 import { readDecodedBody } from './read-decoded-body.ts';
 import { readSentBody } from './read-sent-body.ts';
 import type { RecentBodies } from './recent-bodies/create-recent-bodies.ts';
@@ -83,31 +82,17 @@ export function makeReceiveHandler(
       ...(checked.sender === undefined ? {} : { sender: checked.sender }),
     });
 
-    if (received === 'threw') {
-      return buildFailureAnswer(500, 'the source could not read the delivery');
+    const step = pickReceivedStep(source, received, factLimit);
+
+    if (step.kind === 'refuse') {
+      return buildFailureAnswer(step.status, step.reason);
     }
 
-    if (received.kind === 'refused') {
-      return buildFailureAnswer(received.status, received.reason);
-    }
-
-    if (received.kind === 'ignored' || received.batch.facts.length === 0) {
+    if (step.kind === 'ignore') {
       return buildSuccessAnswer(path, 'ignored', 0);
     }
 
-    const facts = received.batch.facts;
-
-    if (facts.length > factLimit) {
-      return buildFailureAnswer(413, `a batch holds ${factLimit} facts at most`);
-    }
-
-    const problem = findBatchProblem(source, received.batch);
-
-    if (problem !== undefined) {
-      return buildFailureAnswer(422, problem);
-    }
-
-    if (facts.some((pending) => pending.blobs.length > 0)) {
+    if (step.kind === 'has-blob') {
       console.error(
         `the source ${source.name} read a fact with a blob, and ingest has no blob store`,
       );
@@ -115,13 +100,9 @@ export function makeReceiveHandler(
       return buildFailureAnswer(500, 'ingest has no blob store');
     }
 
-    const plan = planBatch(received.batch);
+    const facts = step.facts;
 
-    if (!plan.ok) {
-      return buildFailureAnswer(413, 'one fact is larger than one append of the log takes');
-    }
-
-    const outcome = await writeBatch(plan.value, dependencies);
+    const outcome = await writeBatch(step.plan, dependencies);
 
     if (outcome === 'not-stored') {
       return buildRetryAnswer();
