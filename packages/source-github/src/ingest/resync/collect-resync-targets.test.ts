@@ -14,6 +14,7 @@ test.each([
         entity: 'github:pull_request:77',
         repository: 'acme/harbour',
         path: '/repos/acme/harbour/pulls/3',
+        lastBodyDigest: 'a1b2',
       },
     ],
   },
@@ -27,6 +28,7 @@ test.each([
         entity: 'github:release:5',
         repository: 'acme/harbour',
         path: '/repos/acme/harbour/releases/5',
+        lastBodyDigest: 'a1b2',
       },
     ],
   },
@@ -45,7 +47,7 @@ test.each([
   },
 ])('it gives the target of $row', (row) => {
   const targets: unknown = collectResyncTargets([
-    { entity: toTagged<EntityID>(row.entity), locator: row.locator },
+    { entity: toTagged<EntityID>(row.entity), locator: row.locator, lastBodyDigest: 'a1b2' },
   ]);
 
   expect(targets).toStrictEqual(row.targets);

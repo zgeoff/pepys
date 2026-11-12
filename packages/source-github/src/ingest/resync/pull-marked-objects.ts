@@ -1,6 +1,7 @@
 import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
+import type { GithubFactOrigin } from '../build-github-fact.ts';
 import { findAppJWT } from '../github-app/find-app-jwt.ts';
 import { pickPullFailure } from '../github-app/pick-pull-failure.ts';
 import { readInstallationToken } from '../github-app/read-installation-token.ts';
@@ -97,13 +98,11 @@ async function readObject(target: ResyncTarget, token: string): Promise<ReadObje
     return { kind: 'failed', status: answer.status };
   }
 
+  const origin: GithubFactOrigin = { kind: 'observation', lastBodyDigest: target.lastBodyDigest };
+
   if (target.kind === 'pull_request') {
     return toReadObject(
-      buildGithubFact(
-        'pull_request',
-        { action: 'resynced', pull_request: answer.body },
-        'observation',
-      ),
+      buildGithubFact('pull_request', { action: 'resynced', pull_request: answer.body }, origin),
     );
   }
 
@@ -122,7 +121,7 @@ async function readObject(target: ResyncTarget, token: string): Promise<ReadObje
     repository: { id: parsed.data.id, full_name: parsed.data.full_name },
   };
 
-  return toReadObject(buildGithubFact('release', body, 'observation'));
+  return toReadObject(buildGithubFact('release', body, origin));
 }
 
 function toReadObject(fact: PendingFact | 'ignored' | 'invalid'): ReadObject {

@@ -154,11 +154,15 @@ an object in two cases:
 
 For each marked pull request or release, the resync pull reads the object from the GitHub API and
 writes one fact, of type `github.<family>.resynced`, with the object's own update time and an
-`observation:` ID that is a hash of its payload. The payload has the shape of a webhook body, and a
-release's payload carries the repository's ID and full name, which the release API leaves out. The
-fact arrives after the deliveries, so it wins a tie and sets the row to GitHub's current state. Two
-reads that get the same answer are one fact. A replay cannot set a row through the resync: the fact
-holds what the API returns at that time, so a replay can cause one API read and nothing more.
+`observation:` ID that is a hash of its payload and of the last body ingest stored for the object.
+The payload has the shape of a webhook body, and a release's payload carries the repository's ID and
+full name, which the release API leaves out. The fact arrives after the deliveries, so it wins a tie
+and sets the row to GitHub's current state.
+
+Two reads that get the same answer after the same stored body are one fact. A read after a newer
+stored body is a new fact, so a resync sets the row back after a later tied delivery even when
+GitHub's answer has not changed. A replay cannot set a row through the resync: the fact holds what
+the API returns at that time, so a replay can cause one API read and nothing more.
 
 The webhook route keeps each fact's API path beside its mark, and the pull reads that path. The pull
 skips three kinds of mark, and ingest removes them with the rest:

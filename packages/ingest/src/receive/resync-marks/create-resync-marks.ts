@@ -86,7 +86,8 @@ export function createResyncMarks(options: ResyncMarksOptions): ResyncMarkStore 
   };
 }
 
-// The locator comes from the last body stored for the entity, which the caller has noted first.
+// The locator and digest come from the last body stored for the entity, which the caller has noted
+// first.
 // Each call makes a new mark object, which `remove` tells apart from the one a pull was given.
 function addMarks(
   state: SourceState,
@@ -94,8 +95,10 @@ function addMarks(
   options: ResyncMarksOptions,
 ): void {
   for (const entity of entities) {
+    const last = state.lastBodies.get(entity);
+
     state.marks.delete(entity);
-    state.marks.set(entity, { entity, locator: state.lastBodies.get(entity)?.locator });
+    state.marks.set(entity, { entity, locator: last?.locator, lastBodyDigest: last?.digest });
   }
 
   trimToCapacity(state.marks, options.capacity);

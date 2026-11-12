@@ -130,10 +130,12 @@ export interface PullContext {
 }
 
 // An entity whose row may be behind the source, with the locator of the last fact ingest stored
-// for it, if that fact had one.
+// for it, if that fact had one, and the SHA-256 of that fact's body as ingest received it. A resync
+// fact ID that hashes the digest changes when a new body is stored, so the host applies it.
 export interface ResyncMark {
   entity: EntityID;
   locator: string | undefined;
+  lastBodyDigest: string | undefined;
 }
 
 export type Pulled =

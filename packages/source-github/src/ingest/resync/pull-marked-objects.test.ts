@@ -287,6 +287,68 @@ test('it sets the pull request row to the API state after two bodies with one ti
   ]);
 });
 
+test('it sets the pull request row to the unchanged API state again after a later tied body', async () => {
+  const ctx = await setupTest();
+
+  const pullRequest = {
+    id: 92,
+    number: 7,
+    state: 'open',
+    url: 'https://api.github.com/repos/acme/harbour/pulls/7',
+    html_url: 'https://github.example/acme/harbour/pull/7',
+    user: { id: 4401, type: 'User' },
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-08T09:00:00Z',
+    updated_at: '2026-10-08T09:00:00Z',
+  };
+
+  await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
+
+  await githubPullRequests.create({
+    repository: 'acme/harbour',
+    number: 7,
+    record: { ...pullRequest, title: 'Sort the buoy log' },
+  });
+
+  await ctx.send(
+    'pull_request',
+    'd-1',
+    JSON.stringify({
+      action: 'opened',
+      pull_request: { ...pullRequest, title: 'Sort the buoy log' },
+    }),
+  );
+
+  await ctx.send(
+    'pull_request',
+    'd-2',
+    JSON.stringify({ action: 'edited', pull_request: { ...pullRequest, title: 'Sort buoys' } }),
+  );
+
+  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.applyStored('facts.github.pull_request');
+
+  await ctx.send(
+    'pull_request',
+    'd-3',
+    JSON.stringify({ action: 'edited', pull_request: { ...pullRequest, title: 'Buoy log' } }),
+  );
+
+  await ctx.applyStored('facts.github.pull_request');
+
+  const marks = ctx.ingest.resyncMarks.list('github');
+
+  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.applyStored('facts.github.pull_request');
+
+  const rows = await ctx.store.readRows('github_pull_request');
+
+  expect({ marks, rows }).toStrictEqual({
+    marks: [expect.objectContaining({ entity: 'github:pull_request:92' })],
+    rows: [expect.objectContaining({ id: 'github:pull_request:92', title: 'Sort the buoy log' })],
+  });
+});
+
 test('it calls no API and stores nothing when no entity is marked', async () => {
   const ctx = await setupTest();
 
@@ -344,6 +406,12 @@ test('it keeps every mark when the API is unavailable', async () => {
 
   expect({ run, marks }).toStrictEqual({
     run: { kind: 'unavailable', retryAfterMs: 60_000 },
-    marks: [{ entity: 'github:release:8', locator: '/repos/acme/harbour/releases/8' }],
+    marks: [
+      {
+        entity: 'github:release:8',
+        locator: '/repos/acme/harbour/releases/8',
+        lastBodyDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      },
+    ],
   });
 });

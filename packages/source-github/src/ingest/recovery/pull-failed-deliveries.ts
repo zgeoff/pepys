@@ -44,7 +44,9 @@ export async function pullFailedDeliveries(
       return pickPullFailure(answer.status);
     }
 
-    const fact = buildGithubFact(detail.data.event, detail.data.request.payload, 'delivery');
+    const fact = buildGithubFact(detail.data.event, detail.data.request.payload, {
+      kind: 'delivery',
+    });
 
     if (fact === 'ignored' || fact === 'invalid') {
       continue;

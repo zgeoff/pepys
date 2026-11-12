@@ -1,11 +1,13 @@
 import type { ResyncMark } from '@pepys/kit';
 
-// One marked object that the resync pull reads again: its repository, `owner/name`, and its API path.
+// One marked object that the resync pull reads again: its repository, `owner/name`, its API path,
+// and the digest of the last body ingest stored for it.
 export interface ResyncTarget {
   kind: 'pull_request' | 'release';
   entity: string;
   repository: string;
   path: string;
+  lastBodyDigest: string | undefined;
 }
 
 const locatorPatterns = [
@@ -24,7 +26,15 @@ export function collectResyncTargets(marks: readonly ResyncMark[]): ResyncTarget
       const kind = locatorPattern.kind;
 
       if (repository !== undefined && mark.entity.startsWith(`github:${kind}:`)) {
-        return [{ kind, entity: mark.entity, repository, path: locator }];
+        return [
+          {
+            kind,
+            entity: mark.entity,
+            repository,
+            path: locator,
+            lastBodyDigest: mark.lastBodyDigest,
+          },
+        ];
       }
     }
 

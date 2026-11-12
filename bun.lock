@@ -182,6 +182,7 @@
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
         "kysely": "catalog:",
+        "ts-pattern": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {

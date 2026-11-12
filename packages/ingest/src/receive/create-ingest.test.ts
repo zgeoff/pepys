@@ -778,12 +778,24 @@ test.each([
   {
     row: 'a return to an earlier body',
     events: ['first', 'second', 'first'],
-    marks: [{ entity: 'ledger:till:7', locator: undefined }],
+    marks: [
+      {
+        entity: 'ledger:till:7',
+        locator: undefined,
+        lastBodyDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      },
+    ],
   },
   {
     row: 'two bodies with one time',
     events: ['first', 'same-time'],
-    marks: [{ entity: 'ledger:till:7', locator: undefined }],
+    marks: [
+      {
+        entity: 'ledger:till:7',
+        locator: undefined,
+        lastBodyDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      },
+    ],
   },
   { row: 'a body sent twice in a row', events: ['first', 'first'], marks: [] },
   { row: 'bodies with new times', events: ['first', 'second'], marks: [] },

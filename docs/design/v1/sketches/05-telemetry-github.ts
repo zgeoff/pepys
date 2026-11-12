@@ -832,9 +832,9 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 //   `github.<family>.resynced`, the same entity, `at` = the object's `updated_at`, the payload
 //   in the shape of a webhook body (`{ action: 'resynced', <object> }`, and for a release the
 //   `repository` with its ID and full name, which the release API leaves out), ID
-//   `observation:<sha256 of the canonical payload>`. It arrives after the deliveries, so by the
+//   `observation:<sha256 of the canonical payload and the last stored body's digest>`. It arrives after the deliveries, so by the
 //   tie rule (part 4) it wins a tie and sets the row to GitHub's current state. Two resyncs
-//   of one unchanged state are one fact. A 404 writes nothing: GitHub deletes no pull request,
+//   of one unchanged state after one stored body are one fact. A 404 writes nothing: GitHub deletes no pull request,
 //   and shows a draft release only to a token that can push, so a 404 proves no delete. A
 //   deleted release's own `deleted` delivery sets its tombstone. The pull also skips a mark with
 //   no locator and a repository with no App installation; ingest removes those marks. Each family's `types` gains `github.<family>.resynced`.

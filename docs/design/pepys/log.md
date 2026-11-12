@@ -55,13 +55,13 @@ consumer reads `api` and handles each shape it knows, then replays.
 A fact's ID derives from its content, so the same fact written twice has the same ID and consumers
 drop the duplicate.
 
-| Fact kind         | ID                                                                                                                                                                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| webhook           | `webhook:<source>:<key>`, where the key comes from the signed body, such as a hash of the body for GitHub                                                         |
-| source event      | `event:<source>:<source event ID>`, such as `event:gmail:<history id>:<message id>:<change>` for Gmail, or the event ID that a sender puts in a signed fact batch |
-| observation       | a hash of what was observed: the source, the entity and the source update time, or the whole observed payload for a resync                                        |
-| enrichment result | a hash of the job, the job version and the input hash                                                                                                             |
-| manual assertion  | a hash of the client ID and the request ID the client sends                                                                                                       |
+| Fact kind         | ID                                                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| webhook           | `webhook:<source>:<key>`, where the key comes from the signed body, such as a hash of the body for GitHub                                                          |
+| source event      | `event:<source>:<source event ID>`, such as `event:gmail:<history id>:<message id>:<change>` for Gmail, or the event ID that a sender puts in a signed fact batch  |
+| observation       | a hash of what was observed: the source, the entity and the source update time, or for a resync the whole observed payload and the last body stored for the entity |
+| enrichment result | a hash of the job, the job version and the input hash                                                                                                              |
+| manual assertion  | a hash of the client ID and the request ID the client sends                                                                                                        |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
 webhooks repeat, and neither needs to prevent it at write time.
