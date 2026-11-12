@@ -231,6 +231,9 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - **A failed passkey sign-in locks nothing.** Nobody can guess a passkey assertion, so a lock adds
   no protection. A process on the cluster's node reaches the public listener without Access, and a
   lock would let it lock the owner out.
+- **The API checks no Cloudflare Access header.** The passkey already stops a sign-in from a process
+  on the cluster's node, and the check would need the API to reach the internet for Access's keys.
+  When pepys gains a second sign-in method, the API checks the Access header on the browser paths.
 - **Every grant is bound to `<public_origin>/mcp`.** Only `/mcp` takes an OAuth token, so the API
   serves one resource.
 - **`auth.db` has no backup.** A lost `auth.db` costs one passkey enrolment and one sign-in per

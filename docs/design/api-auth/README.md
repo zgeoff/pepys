@@ -144,7 +144,7 @@ type Listener = 'public' | 'tailnet' | 'cluster';
   `fd7a:115c:a1e0::/48`.
 - A NodePort pointed at the cluster port by mistake then fails closed when its
   `externalTrafficPolicy` is `Local`, which keeps the client's tailnet address. With the default
-  `Cluster`, kube-proxy swaps in a node address, so the check in step 6 of
+  `Cluster`, kube-proxy swaps in a node address, so the NodePort check in
   [deployment changes](#deployment-changes) catches that NodePort instead.
 - Every listener needs a credential on every query, whatever address it binds, loopback included.
   Tests and local runs write a callers file and send a token, so every API client sends a
@@ -240,8 +240,19 @@ deployment makes these changes there. The repo's exposure registry lists every p
 of the owner's servers, and other projects share it, so the owner's coordinator agent makes its
 entries.
 
-Do step 8 before the deployment moves to the release that requires tokens. That release exits 1 with
-no callers file.
+Before the build, run two checks on this k3s cluster. Each one tests a fact this design relies on:
+
+1. Send a request from the PC to a NodePort Service with `externalTrafficPolicy: Local`. Expect: the
+   pod sees the PC's tailnet address as the client address. If the pod sees another address, the
+   tailnet listener relies on the token alone. Then rewrite the tailnet rules in this design to say
+   so.
+2. Change the data of a Secret through the cloud repo's Pulumi program, and keep its name fixed.
+   Expect: the kubelet writes the change into a pod's folder mount, and the pod keeps running. If
+   the mount never changes or the pod restarts, a revocation restarts the pod and the host. Then
+   rewrite [service tokens](#service-tokens) in this design to say so.
+
+Do step 8 below before the deployment moves to the release that requires tokens. That release exits
+1 with no callers file.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel to the public listener's ClusterIP
    Service, with the paths [the OAuth server's paths](./oauth.md#public-paths) list. Put the browser
@@ -286,6 +297,9 @@ no callers file.
   leaked boxxy token opens nothing from the tailnet, a leaked owner token opens nothing from a pod,
   and neither works on the public route. The tailnet listener checks the client address too, so the
   PC's token works from the PC alone.
+- **Pods get a listener of their own.** The boxxy server can't sign in with a passkey and doesn't
+  come from the PC's tailnet address, so it can't use the public or the tailnet listener. The
+  cluster listener also serves `/mcp`, so the in-cluster tests reach MCP with a service token.
 - **The tailnet route is plain HTTP.** WireGuard encrypts the tailnet and proves each peer, so TLS
   adds a certificate to keep and no protection. Grafana's NodePort on the same server runs the same
   way.
@@ -303,8 +317,9 @@ no callers file.
 - The names of internal functions and files.
 - How the listeners mount on Elysia.
 - How the API watches the callers file's folder.
-- The body and wording of every error.- How tests give the tailnet listener a client address, and
-  whether `@pepys/testing` ships a helper that writes a test callers file.
+- The body and wording of every error.
+- How tests give the tailnet listener a client address, and whether `@pepys/testing` ships a helper
+  that writes a test callers file.
 
 ## Out of scope
 

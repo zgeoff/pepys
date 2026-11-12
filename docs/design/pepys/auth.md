@@ -74,6 +74,9 @@ A grant holds `read`, or `read` and `write`. Each route and each MCP tool needs 
 A request without the scope it needs gets HTTP 403 with `insufficient_scope` and the missing scope,
 so a client learns what to ask for.
 
+The API offers only `read` for now. `write` arrives with the first write route, and the owner then
+approves it for each client.
+
 ## Manual writes
 
 The API builds each manual fact's client record from the verified token: the client's ID and name,
