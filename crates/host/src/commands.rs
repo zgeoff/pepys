@@ -301,16 +301,19 @@ async fn reconcile_current(
     consumer: &str,
 ) -> Result<Option<String>, HostError> {
     let recorded = state.find_hash(consumer, VersionState::Current).await?;
+    let linked = std::fs::read_link(consumer_dir.join(CURRENT_LINK)).ok();
 
-    if let Some(version) = &recorded {
-        let linked = std::fs::read_link(consumer_dir.join(CURRENT_LINK)).ok();
-
-        if linked.as_deref() != Some(Path::new(version)) {
-            repoint_current(consumer_dir, version)?;
-        }
+    if let Some(version) = pick_link_target(recorded.as_deref(), linked.as_deref()) {
+        repoint_current(consumer_dir, version)?;
     }
 
     Ok(recorded)
+}
+
+/// The version that `current` must be repointed at: the recorded current version, when the link
+/// follows anything else.
+fn pick_link_target<'a>(recorded: Option<&'a str>, linked: Option<&Path>) -> Option<&'a str> {
+    recorded.filter(|version| linked != Some(Path::new(version)))
 }
 
 /// The current version of a consumer, read from its `version.json`.
@@ -479,7 +482,7 @@ async fn run_pass(
     let directory = current_version_dir(consumer_dir)?;
     let name = name_of(&directory);
 
-    if opened.as_ref().is_none_or(|(open, _)| *open != name) {
+    if should_open_version(opened.as_ref().map(|(open, _)| open.as_str()), &name) {
         let version = read_version(&directory)?;
 
         *opened = Some((name, open_version(&directory, &version).await?));
@@ -490,6 +493,11 @@ async fn run_pass(
     }
 
     Ok(())
+}
+
+/// Whether a pass opens the current version again: when none is open, or the open one is not it.
+fn should_open_version(opened: Option<&str>, current: &str) -> bool {
+    opened != Some(current)
 }
 
 /// Deploys the listed version of `consumer`, or with no name every listed consumer in file order,
@@ -1489,6 +1497,62 @@ mod tests {
             result,
             Err(HostError::Up { source, .. }) if matches!(*source, HostError::BadManifest { .. })
         ));
+    }
+
+    #[test]
+    fn it_picks_the_recorded_version_as_the_link_target_only_when_the_link_follows_another() {
+        let cases = [
+            ("no recorded version and no link", None, None),
+            ("no recorded version and a link", None, Some("old123")),
+            ("a recorded version and no link", Some("new456"), None),
+            ("a link to an older version", Some("new456"), Some("old123")),
+            (
+                "a link to the recorded version",
+                Some("new456"),
+                Some("new456"),
+            ),
+        ];
+
+        let picked: Vec<(&str, Option<&str>)> = cases
+            .into_iter()
+            .map(|(case, recorded, linked)| {
+                (case, pick_link_target(recorded, linked.map(Path::new)))
+            })
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                ("no recorded version and no link", None),
+                ("no recorded version and a link", None),
+                ("a recorded version and no link", Some("new456")),
+                ("a link to an older version", Some("new456")),
+                ("a link to the recorded version", None),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_opens_the_current_version_again_unless_it_is_the_open_one() {
+        let cases = [
+            ("no open version", None),
+            ("another open version", Some("old123")),
+            ("the current version open", Some("new456")),
+        ];
+
+        let opened: Vec<(&str, bool)> = cases
+            .into_iter()
+            .map(|(case, open)| (case, should_open_version(open, "new456")))
+            .collect();
+
+        assert_eq!(
+            opened,
+            vec![
+                ("no open version", true),
+                ("another open version", true),
+                ("the current version open", false),
+            ]
+        );
     }
 
     #[test]
