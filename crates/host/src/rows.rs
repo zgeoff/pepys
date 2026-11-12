@@ -268,11 +268,15 @@ pub fn key_of_read(table: &str, info: &TableInfo, argument: &str) -> Result<Stri
                 .map_err(|_| bad_row(table, format!("{argument} is no integer key")))?
                 .into(),
         ),
+        ColumnKind::Boolean => Value::Bool(
+            argument
+                .parse::<bool>()
+                .map_err(|_| bad_row(table, format!("{argument} is no boolean key")))?,
+        ),
         ColumnKind::Text
         | ColumnKind::EntityId
         | ColumnKind::Timestamp
         | ColumnKind::Real
-        | ColumnKind::Boolean
         | ColumnKind::Json => Value::String(argument.to_owned()),
     };
 
@@ -743,6 +747,18 @@ mod tests {
     }
 
     #[test]
+    fn it_refuses_a_row_read_of_a_boolean_key_that_is_neither_true_nor_false() {
+        let mut info = ledger();
+
+        info.primary_key = vec!["is_open".to_owned()];
+
+        assert_eq!(
+            key_of_read("ledger_entry", &info, "1").map_err(|error| error.to_string()),
+            Err(bad_row("ledger_entry", "1 is no boolean key".to_owned()).to_string())
+        );
+    }
+
+    #[test]
     fn it_reads_the_json_list_of_a_key_of_several_columns_from_a_row_read() {
         assert_eq!(
             key_of_read("ledger_entry", &ledger(), r#"["ledger:entry:1", 3]"#).expect("a key"),
@@ -794,6 +810,76 @@ mod tests {
                 "id": "ledger:entry:1", "day": 3, "amount": 2.0, "is_open": true, "note": null,
                 "extra": {"a": "x", "b": [1]}
             }))
+        );
+    }
+
+    /// Writes a row of a table keyed by one column of `kind`, then loads it by the key a module's
+    /// row read passes as `argument`.
+    async fn load_by_row_read(
+        kind: &str,
+        declared: &str,
+        key: Value,
+        argument: &str,
+    ) -> Option<Row> {
+        let directory = tempfile::tempdir().expect("a directory");
+        let store = open_store(&directory.path().join("rows.db"))
+            .await
+            .expect("a store");
+        let info: TableInfo = serde_json::from_value(json!({
+            "columns": {
+                "key": {"kind": kind, "nullable": false},
+                "note": {"kind": "text", "nullable": false},
+            },
+            "primaryKey": ["key"],
+            "indexes": [],
+        }))
+        .expect("a table");
+
+        store
+            .connection
+            .execute_batch(&format!(
+                "CREATE TABLE tide_mark (\"key\" {declared} NOT NULL, \"note\" TEXT NOT NULL, \
+                 PRIMARY KEY (\"key\"))"
+            ))
+            .await
+            .expect("a table");
+        write_row(
+            &store.connection,
+            "tide_mark",
+            &info,
+            &row(json!({"key": key, "note": "Spring tide"})),
+        )
+        .await
+        .expect("a written row");
+
+        let read = key_of_read("tide_mark", &info, argument).expect("a key");
+
+        load_row(&store.connection, "tide_mark", &info, &read)
+            .await
+            .expect("a load")
+    }
+
+    #[tokio::test]
+    async fn it_loads_the_row_of_a_true_boolean_key_from_a_row_read() {
+        assert_eq!(
+            load_by_row_read("boolean", "INTEGER", json!(true), "true").await,
+            Some(row(json!({"key": true, "note": "Spring tide"})))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_loads_the_row_of_a_false_boolean_key_from_a_row_read() {
+        assert_eq!(
+            load_by_row_read("boolean", "INTEGER", json!(false), "false").await,
+            Some(row(json!({"key": false, "note": "Spring tide"})))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_loads_the_row_of_a_real_key_from_a_row_read() {
+        assert_eq!(
+            load_by_row_read("real", "REAL", json!(2.5), "2.5").await,
+            Some(row(json!({"key": 2.5, "note": "Spring tide"})))
         );
     }
 }
