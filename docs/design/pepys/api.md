@@ -1,11 +1,12 @@
 # API
 
 The API is the only way into pepys for tools and agents. It is one Bun process running Elysia v2,
-oRPC for typed routes, and an MCP server over streamable HTTP. Tools and agents reach it on the
-owner's tailnet only, and enrichment reads the change feed and search on a cluster-internal port
-([runtime](./runtime.md#network)). Every query and write is one procedure of an oRPC contract, so
-one definition gives a typed route, an MCP tool and a test. The API reads the store and never writes
-it: every write from a person or an agent becomes a manual fact in the log.
+oRPC for typed routes, and an MCP server over streamable HTTP. Agents reach MCP on a public route
+behind OAuth, tools reach oRPC on the owner's tailnet with a service token
+([auth for the API](../api-auth/README.md)), and enrichment reads the change feed and search on a
+cluster-internal port ([runtime](./runtime.md#network)). Every query and write is one procedure of
+an oRPC contract, so one definition gives a typed route, an MCP tool and a test. The API reads the
+store and never writes it: every write from a person or an agent becomes a manual fact in the log.
 
 [pepys v1](../v1.md#the-store-api) builds `get_entity`, `neighbourhood` and each plug-in's queries,
 as oRPC routes and MCP tools. It has no search, no entity history, no write, no deployment catalog

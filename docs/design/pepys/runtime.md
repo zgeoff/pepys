@@ -64,21 +64,17 @@ oRPC client built from the admin contract in `@pepys/contract`.
 `<consumer>` is a consumer's declared name, and `<job>` is an enrichment job's name. The design doc
 in the last column defines each command.
 
-| Command                                         | Served by  | Reached at                        | Defined in                                                |
-| ----------------------------------------------- | ---------- | --------------------------------- | --------------------------------------------------------- |
-| `pepys preview <consumer>`                      | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
-| `pepys up <consumer>`                           | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
-| `pepys rebuild <consumer>`                      | the host   | a port on 127.0.0.1 in the pod    | [history](./history.md#the-lake)                          |
-| `pepys clients add <name> --redirect-uri <uri>` | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys clients remove <client>`                 | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys passkeys enroll`                         | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys grants revoke <client>`                  | the API    | a port on 127.0.0.1 in the pod    | [auth](./auth.md)                                         |
-| `pepys preview enrich <job>`                    | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
-| `pepys up enrich <job>`                         | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
-| `pepys sample enrich <job>`                     | enrichment | the admin port of its k3s Service | [architecture](./architecture.md#champion-and-challenger) |
-| `pepys ingest backfill <source>`                | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
-| `pepys ingest recover <source>`                 | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
-| `pepys ingest resync <source>`                  | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| Command                          | Served by  | Reached at                        | Defined in                                                |
+| -------------------------------- | ---------- | --------------------------------- | --------------------------------------------------------- |
+| `pepys preview <consumer>`       | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
+| `pepys up <consumer>`            | the host   | a port on 127.0.0.1 in the pod    | [host](./host.md#preview-and-up)                          |
+| `pepys rebuild <consumer>`       | the host   | a port on 127.0.0.1 in the pod    | [history](./history.md#the-lake)                          |
+| `pepys preview enrich <job>`     | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
+| `pepys up enrich <job>`          | enrichment | the admin port of its k3s Service | [enrichment](./enrichment.md#job-versions)                |
+| `pepys sample enrich <job>`      | enrichment | the admin port of its k3s Service | [architecture](./architecture.md#champion-and-challenger) |
+| `pepys ingest backfill <source>` | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| `pepys ingest recover <source>`  | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
+| `pepys ingest resync <source>`   | ingest     | the admin port of its k3s Service | [ingest](./ingest.md#what-every-source-does)              |
 
 The host is Rust, so it serves its admin routes as JSON over HTTP, at the method and path each
 procedure in the contract declares. The CLI calls them through oRPC's `OpenAPILink`, which calls any
@@ -86,10 +82,13 @@ OpenAPI server from a contract. Whoever builds the host's admin routes writes th
 hand, and a contract test runs the CLI's client against the host, so a route that drifts from the
 contract fails the test.
 
-The admin routes never check a token. Only a process inside the pod reaches the API's admin port,
-and an operator gets inside the pod only with the cluster credentials that `kubectl exec` needs. The
-host's admin port, enrichment's admin port and ingest's admin port each admit one other pod, as
-[network](#network) lists.
+The API's own admin commands, such as `clients add` and `passkeys enroll`, run through the API's
+entry in its container, not through the CLI, as
+[the OAuth server](../api-auth/oauth.md#the-api-process) sets out.
+
+The admin routes never check a token. An operator gets inside the pod only with the cluster
+credentials that `kubectl exec` needs. The host's admin port, enrichment's admin port and ingest's
+admin port each admit one other pod, as [network](#network) lists.
 
 ## Secrets
 
@@ -100,14 +99,16 @@ Kubernetes Secret that only its process mounts, as every geoff.cloud workload re
 job refuses a reference to any other vault, so the `pepys` vault holds only the copies that
 development on the owner's machine reads. Each item in the table is named `pepys-<item>` in `cloud`.
 
-| Item                | Fields                                        | Mounted by   |
-| ------------------- | --------------------------------------------- | ------------ |
-| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest       |
-| `github-read-token` | `token`                                       | enrichment   |
-| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest       |
-| `jev`               | `credential`                                  | enrichment   |
-| `owner-identity`    | `emails`, `github-user-id`                    | ingest       |
-| `garage-<service>`  | the access key and secret of one service      | that service |
+| Item                | Fields                                        | Mounted by                                                    |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest                                                        |
+| `github-read-token` | `token`                                       | enrichment                                                    |
+| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest                                                        |
+| `jev`               | `credential`                                  | enrichment                                                    |
+| `api-owner-pc`      | `token`                                       | the API, as its digest; the owner's script reads it on the PC |
+| `api-boxxy`         | `token`                                       | the API, as its digest; the boxxy server                      |
+| `owner-identity`    | `emails`, `github-user-id`                    | ingest                                                        |
+| `garage-<service>`  | the access key and secret of one service      | that service                                                  |
 
 The owner creates each Garage key once with the Garage CLI, scoped to the buckets in the
 [storage](./storage.md#buckets-and-keys) table, and stores it in `cloud` as
@@ -120,17 +121,19 @@ stays with ingest alone. The owner creates and rotates the token by hand.
 
 ## Network
 
-Every pepys port is cluster-only except two routes.
+Every pepys port is cluster-only except three routes.
 
 - **The GitHub webhook** enters through the cloud repository's shared Cloudflare tunnel. The tunnel
   rule matches the one path `/webhook/github` on `pepys-webhook.geoff.cloud` and sends it to
   ingest's Service. The route's exposure registry entry names its auth layer: ingest checks the
   webhook signature before it writes anything ([ingest](./ingest.md#github)).
-- **The API** answers on the tailnet only, at `pepys.geoff.cloud`, a name that points at the
-  geoff.cloud server's tailnet address, through the cluster's shared tailnet Traefik, which also
-  serves nixie
-  ([nixie](https://github.com/zgeoff/cloud/blob/main/docs/architecture/workloads/nixie.md)). pepys
-  has its own Ingress there. The owner's devices reach it as tailnet members.
+- **The API's public listener** serves `/mcp` and the sign-in pages through the same tunnel, behind
+  the API's own OAuth server, with a Cloudflare Access login in front of the sign-in pages.
+- **The API's tailnet listener** serves `/rpc` on a NodePort that answers on the server's tailnet
+  address only, to the owner's PC with a service token.
+
+[Auth for the API](../api-auth/README.md#deployment-changes) lists the Services, NetworkPolicies and
+exposure registry entries of the two API routes.
 
 Inside the namespace, enrichment and the pod that runs the host and the API call each other on three
 internal ports. No internal route checks a token, as with the CLI's admin routes.
@@ -145,7 +148,8 @@ NetworkPolicies in the namespace refuse every other path in:
 
 - s2-lite admits only its five clients, as the [log](./log.md) requires.
 - Garage's S3 port admits only pepys's own pods.
-- The API admits the Traefik ingress, and the enrichment pod on its internal port.
+- The API admits cloudflared on its public port, the owner's PC on its tailnet port, the boxxy
+  server on its cluster port, and the enrichment pod on its internal port.
 - The host admits only the enrichment pod, on its admin port.
 - Enrichment admits only the pod that runs the host and the API, on its admin port and its internal
   port.
