@@ -409,20 +409,35 @@ fn check_reads(manifest: &ConsumerManifest) -> Result<(), HostError> {
                     Read::ScopeFacts { .. } => {
                         return Err(bad("manifest.imports", &"a fact consumer reads rows only"));
                     }
-                    Read::Row { table, .. } if !manifest.tables.contains_key(table) => {
-                        return Err(bad(
-                            "manifest.imports",
-                            &format!(
-                                "the row read names {table}, which is no table of the consumer"
-                            ),
-                        ));
-                    }
-                    Read::Row { .. } => {}
+                    Read::Row { table, .. } => check_row_read(manifest, table)?,
                 }
             }
 
             Ok(())
         }
+    }
+}
+
+/// Refuses a row read of a table the consumer lacks, or of one keyed on a json column: the module
+/// passes a one-column key as text, which cannot tell the JSON `3` from `"3"`.
+fn check_row_read(manifest: &ConsumerManifest, table: &str) -> Result<(), HostError> {
+    let Some(info) = manifest.tables.get(table) else {
+        return Err(bad(
+            "manifest.imports",
+            &format!("the row read names {table}, which is no table of the consumer"),
+        ));
+    };
+
+    match info.primary_key.iter().find(|column| {
+        info.columns
+            .get(*column)
+            .is_some_and(|column| column.kind == ColumnKind::Json)
+    }) {
+        Some(column) => Err(bad(
+            "manifest.imports",
+            &format!("the row read of {table} has the json key column {column}"),
+        )),
+        None => Ok(()),
     }
 }
 

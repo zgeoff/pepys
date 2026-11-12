@@ -106,7 +106,10 @@ export type DeploymentFailure =
   | { kind: 'coerced-payload-field'; source: string; factType: string; field: string }
 
   // a row whose key holds null never matches the host's lookup or delete by key
-  | { kind: 'nullable-key-column'; consumer: string; table: string; column: string };
+  | { kind: 'nullable-key-column'; consumer: string; table: string; column: string }
+
+  // a module's row read passes a one-column key as text, which cannot tell the JSON 3 from "3"
+  | { kind: 'json-key-read'; consumer: string; table: string; column: string };
 
 export interface ReceiveRoute {
   source: string;

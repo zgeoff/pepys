@@ -33,7 +33,8 @@ Both parsers refuse a file that breaks one of these rules:
 2. An entry's `name` equals its manifest's `name`. A module, version and pin hash is 64 lowercase
    hex digits. A module path is relative and has no `..` part.
 3. A fact consumer has only `row` reads, each of a table of its own. A scope consumer has exactly
-   one read, of kind `scope_facts`.
+   one read, of kind `scope_facts`. No `row` read names a table with a `json` key column, because
+   the module passes a one-column key as text, and text cannot tell the JSON `3` from `"3"`.
 4. `input.streams` is not empty, and each stream is `facts.<source>.<family>`.
 5. No link type name is declared twice, and each link type has a `from` kind and a `to` kind.
 6. No export or read symbol is empty or used twice.

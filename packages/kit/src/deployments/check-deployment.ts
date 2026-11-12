@@ -414,6 +414,16 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
     failures.push({ kind: 'unknown-table', consumer: consumer.name, table, usedBy: 'reads' });
   }
 
+  for (const table of consumer.reads.filter((name) => Object.hasOwn(consumer.tables, name))) {
+    const declaration = consumer.tables[table];
+
+    for (const column of declaration?.primaryKey ?? []) {
+      if (declaration?.columns[column]?.kind === 'json') {
+        failures.push({ kind: 'json-key-read', consumer: consumer.name, table, column });
+      }
+    }
+  }
+
   for (const view of consumer.entityViews) {
     if (Object.hasOwn(consumer.tables, view.table)) {
       const columns = [view.id, view.title, view.url, view.actor, view.updatedAt];

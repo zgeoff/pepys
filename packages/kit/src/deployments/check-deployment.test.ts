@@ -761,6 +761,31 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
     { kind: 'nullable-key-column', consumer: 'ledger_till', table: 'till', column: 'drawer' },
   ],
   [
+    'a row read of a table keyed on a json column',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'ledger',
+          consumers: [
+            buildStubConsumer({
+              name: 'ledger_till',
+              tables: {
+                till: {
+                  columns: { float: { kind: 'json' }, note: { kind: 'text' } },
+                  primaryKey: ['float'],
+                  indexes: [],
+                },
+              },
+              reads: ['till'],
+            }),
+          ],
+        }),
+      ],
+    }),
+    { kind: 'json-key-read', consumer: 'ledger_till', table: 'till', column: 'float' },
+  ],
+  [
     'an index column the table does not declare',
     () => ({
       name: 'harbour',

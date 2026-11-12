@@ -148,11 +148,19 @@ function collectReadProblems(manifest: ConsumerManifest): string[] {
       manifest.imports.flatMap((read) =>
         match(read)
           .with({ kind: 'scope_facts' }, () => ['a fact consumer reads rows only'])
-          .with({ kind: 'row' }, (row) =>
-            Object.hasOwn(manifest.tables, row.table)
-              ? []
-              : [`the row read names ${row.table}, which is no table of the consumer`],
-          )
+          .with({ kind: 'row' }, (row) => {
+            const table = Object.hasOwn(manifest.tables, row.table)
+              ? manifest.tables[row.table]
+              : undefined;
+
+            return table === undefined
+              ? [`the row read names ${row.table}, which is no table of the consumer`]
+              : table.primaryKey
+                  .filter((column) => table.columns[column]?.kind === 'json')
+                  .map(
+                    (column) => `the row read of ${row.table} has the json key column ${column}`,
+                  );
+          })
           .exhaustive(),
       ),
     )
