@@ -175,11 +175,9 @@ async fn replay_to(
             .await?
             .map_or(0, |offset| offset + 1);
 
-        if next >= stop {
+        let Some(count) = pick_read_count(next, stop) else {
             return Ok(applied);
-        }
-
-        let count = usize::try_from(stop - next).map_or(BATCH_SIZE, |left| left.min(BATCH_SIZE));
+        };
         let facts = log.read(stream, next, count).await?;
 
         if facts.is_empty() {
@@ -211,6 +209,16 @@ async fn replay_to(
         }
         applied += facts.len() as u64;
     }
+}
+
+/// How many records to read from `next` toward `stop`, at most one batch, or none once `next`
+/// reaches `stop`.
+fn pick_read_count(next: u64, stop: u64) -> Option<usize> {
+    if next >= stop {
+        return None;
+    }
+
+    Some(usize::try_from(stop - next).map_or(BATCH_SIZE, |left| left.min(BATCH_SIZE)))
 }
 
 type TableRows = BTreeMap<String, Vec<Row>>;
@@ -1481,6 +1489,33 @@ mod tests {
             result,
             Err(HostError::Up { source, .. }) if matches!(*source, HostError::BadManifest { .. })
         ));
+    }
+
+    #[test]
+    fn it_picks_a_read_count_of_at_most_one_batch_until_the_stop() {
+        let cases = [
+            ("next past the stop", 9, 4),
+            ("next at the stop", 4, 4),
+            ("one record left", 3, 4),
+            ("one batch left", 0, 100),
+            ("more than one batch left", 0, 250),
+        ];
+
+        let picked: Vec<(&str, Option<usize>)> = cases
+            .into_iter()
+            .map(|(case, next, stop)| (case, pick_read_count(next, stop)))
+            .collect();
+
+        assert_eq!(
+            picked,
+            vec![
+                ("next past the stop", None),
+                ("next at the stop", None),
+                ("one record left", Some(1)),
+                ("one batch left", Some(100)),
+                ("more than one batch left", Some(100)),
+            ]
+        );
     }
 
     #[test]
