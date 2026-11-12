@@ -798,8 +798,9 @@ function readModelRequest(product: ProductName, event: string, payload: LogRecor
 // name. The column is nullable because the claim rests on that report, not on a captured record.
 //
 // Codex token counts (readCodexModelRequest): Codex writes some counts as text and some as
-// integers, and counts the cached tokens inside its input count. `input_tokens` is
-// `max(input_token_count - cached_token_count, 0)`.
+// integers, and counts the cached and cache-write tokens inside its input count. `input_tokens`
+// is `max(input_token_count - cached_token_count - cache_write_token_count, 0)`, and
+// `cache_creation_tokens` is `cache_write_token_count`.
 
 // ── 3. One GitHub delivery becomes one fact (ingest) ───────────────────────────────────────────
 //
