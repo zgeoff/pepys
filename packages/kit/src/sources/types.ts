@@ -126,7 +126,7 @@ export interface PullContext {
   // The time in milliseconds since the epoch, from the clock that ingest runs on.
   now: () => number;
 
-  // For a `resync' pull, the source's marked entities when the pull starts; empty for any other
+  // For a `resync` pull, the source's marked entities when the pull starts; empty for any other
   // pull. Ingest removes each of these marks that no delivery set again once the batch the pull
   // returns is stored, so a pull that cannot read every marked entity answers `unavailable`.
   marks: readonly ResyncMark[];
