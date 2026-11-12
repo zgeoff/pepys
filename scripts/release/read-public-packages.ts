@@ -56,7 +56,7 @@ function collectEntries(name: string, exports: unknown): string[] {
     return [name];
   }
 
-  return Object.keys(exports).map((subpath) =>
-    subpath === '.' ? name : `${name}/${subpath.slice(2)}`,
-  );
+  return Object.keys(exports)
+    .filter((subpath) => !subpath.includes('*'))
+    .map((subpath) => (subpath === '.' ? name : `${name}/${subpath.slice(2)}`));
 }

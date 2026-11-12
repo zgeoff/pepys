@@ -34,6 +34,28 @@ test('#collectPublicPackages gives each subpath of an exports map as an import p
   ]);
 });
 
+test('#collectPublicPackages leaves out a subpath pattern, which names no one module', () => {
+  const manifests = [
+    {
+      folder: '/repo/packages/lantern',
+      manifest: {
+        name: '@pepys/lantern',
+        version: '2.1.0',
+        exports: { '.': './src/index.ts', './test-utils/*': './src/test-utils/*.ts' },
+      },
+    },
+  ];
+
+  expect(collectPublicPackages(manifests)).toStrictEqual([
+    {
+      name: '@pepys/lantern',
+      version: '2.1.0',
+      folder: '/repo/packages/lantern',
+      entries: ['@pepys/lantern'],
+    },
+  ]);
+});
+
 test('#collectPublicPackages gives a package with one export its name as the import path', () => {
   const manifests = [
     {
