@@ -1,4 +1,3 @@
-import { parseEntityID } from '@pepys/kit';
 import type { ConsumerDeclaration, FactID } from '@pepys/kit';
 import invariant from 'tiny-invariant';
 import { buildReadFunctions } from '../consumer-entries/build-read-functions.ts';
@@ -11,7 +10,8 @@ import { parseOperations } from '../operations/parse-operations.ts';
 import { replaceScope } from '../scope-replace/replace-scope.ts';
 import type { StoreDatabase } from '../store-database/types.ts';
 import { ApplyError } from '../utils/apply-error.ts';
-import { compareCodePoints } from '../utils/compare-code-points.ts';
+import { collectDirtyScopes } from './collect-dirty-scopes.ts';
+import { collectNewFacts } from './collect-new-facts.ts';
 
 // The fact IDs each fact-mode consumer has applied, by consumer name.
 export type AppliedFactIDs = ReadonlyMap<string, ReadonlySet<FactID>>;
@@ -59,15 +59,7 @@ async function runFactConsumer(
   facts: readonly LoggedFact[],
   applied: ReadonlySet<FactID>,
 ): Promise<ReadonlySet<FactID>> {
-  const seen = new Set(applied);
-
-  for (const record of facts) {
-    if (seen.has(record.envelope.id)) {
-      continue;
-    }
-
-    seen.add(record.envelope.id);
-
+  for (const record of collectNewFacts(facts, applied)) {
     const host = await readRowFunctions(db, consumer);
     const output = await runEntry(consumer, 'applyFact', JSON.stringify(record.envelope), host);
 
@@ -80,11 +72,9 @@ async function runFactConsumer(
     await applyFactOperations(db, consumer, operations.value);
   }
 
-  return seen;
+  return new Set([...applied, ...facts.map((record) => record.envelope.id)]);
 }
 
-// The dirty scopes are the entities of the batch's facts that have the scope kind, each once, in
-// sorted order. A copy of a fact marks its scope dirty too, and the replace then finds no change.
 async function runScopeConsumer(
   db: StoreDatabase,
   consumer: ConsumerDeclaration,
@@ -93,21 +83,7 @@ async function runScopeConsumer(
 ): Promise<void> {
   invariant(consumer.input.mode === 'scope', 'only a scope consumer has a scope kind');
 
-  const scopeKind = consumer.input.scopeKind;
-
-  const scopes = [
-    ...new Set(
-      facts
-        .map((record) => record.envelope.entity)
-        .filter((entity) => {
-          const parsed = parseEntityID(entity);
-
-          return parsed.ok && `${parsed.value.source}:${parsed.value.kind}` === scopeKind;
-        }),
-    ),
-  ].toSorted(compareCodePoints);
-
-  for (const scope of scopes) {
+  for (const scope of collectDirtyScopes(facts, consumer.input.scopeKind)) {
     const scopeFacts = JSON.stringify(collectScopeFacts(index, scope, consumer.input.streams));
     const host = buildReadFunctions('readScopeFacts', new Map([[scope, scopeFacts]]), 'trap');
 
