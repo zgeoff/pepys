@@ -23,8 +23,8 @@ export function buildGeneratedFiles(): GeneratedFiles {
     return { ok: false, failures: target.failure };
   }
 
-  // The e2e deployment holds the stub's plug-ins and more, so only the glue of its consumers under
-  // `e2e/` comes from it.
+  // The e2e deployment holds the stub's plug-ins and more, so only the glue of its other consumers
+  // comes from it.
   const laneTarget = checkBuildTarget({ kind: 'deployment', deployment: e2eDeployment });
 
   if (!laneTarget.ok) {
@@ -34,9 +34,15 @@ export function buildGeneratedFiles(): GeneratedFiles {
   const consumers = target.value.checked.consumers;
 
   // the glue files come from the same code as `pepys build`
+  const stubGlue = collectGlueFiles({ target: target.value, packageRoot: join(root, 'packages') });
+
+  const stubPaths = new Set(stubGlue.map((file) => file.path));
+
   const glue = [
-    ...collectGlueFiles({ target: target.value, packageRoot: join(root, 'packages') }),
-    ...collectGlueFiles({ target: laneTarget.value, packageRoot: join(root, 'e2e') }),
+    ...stubGlue,
+    ...collectGlueFiles({ target: laneTarget.value, packageRoot: root }).filter(
+      (file) => !stubPaths.has(file.path),
+    ),
   ];
 
   return {
