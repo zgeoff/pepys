@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test';
 import { createHash, generateKeyPairSync } from 'node:crypto';
-import { githubDeliveries } from '../../test-utils/github-api-handlers.ts';
+import { HttpResponse, http } from 'msw';
+import { mockNetwork } from '../../../../../scripts/test-preload/mock-network.ts';
+import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
 function setupTest() {
@@ -11,6 +13,7 @@ function setupTest() {
       PEPYS_GITHUB_APP_ID: '4242',
       PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: 'pkcs1', format: 'pem' }),
     },
+    now: () => 1_800_000_000_000,
     marks: [],
   };
 
@@ -181,11 +184,35 @@ test('it leaves out a delivery at or before a cursor above 2^53 that differs onl
 test('it rejects the pull when the App private key cannot sign', async () => {
   const pulled = await pullFailedDeliveries(null, {
     env: { PEPYS_GITHUB_APP_ID: '4242', PEPYS_GITHUB_APP_PRIVATE_KEY: 'not a key' },
+    now: () => 1_800_000_000_000,
     marks: [],
   });
 
   expect(pulled).toStrictEqual({
     kind: 'rejected',
     reason: 'the GitHub App private key cannot sign a token',
+  });
+});
+
+test('it signs the App JWT with issue and expiry times from the context clock', async () => {
+  const ctx = setupTest();
+  const authorizations: (string | null)[] = [];
+
+  mockNetwork.use(
+    http.get(`${GITHUB_API_URL}/app/hook/deliveries`, (info) => {
+      authorizations.push(info.request.headers.get('authorization'));
+
+      return HttpResponse.json([]);
+    }),
+  );
+
+  await ctx.pull(null);
+
+  const [, claims] = (authorizations[0] ?? '').replace(/^Bearer /u, '').split('.');
+
+  expect(JSON.parse(Buffer.from(claims ?? '', 'base64url').toString('utf8'))).toStrictEqual({
+    iat: 1_799_999_940,
+    exp: 1_800_000_540,
+    iss: '4242',
   });
 });

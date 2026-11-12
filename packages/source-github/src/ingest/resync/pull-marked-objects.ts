@@ -23,7 +23,7 @@ export async function pullMarkedObjects(
     return { kind: 'batch', batch: { facts: [] }, cursor: 'resynced', isDone: true };
   }
 
-  const appJWT = findAppJWT(context.env, Date.now());
+  const appJWT = findAppJWT(context.env, context.now());
 
   if (appJWT === undefined) {
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };

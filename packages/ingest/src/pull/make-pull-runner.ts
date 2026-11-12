@@ -30,6 +30,7 @@ interface PullRunnerDependencies {
   append: BatchAppender;
   turns: StreamTurns;
   resyncMarks: ResyncMarks;
+  now: () => number;
 }
 
 // For a resync pull, removes each mark it was given that no tie set again since. A pull's fact is
@@ -54,7 +55,7 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       env[name] = dependencies.secrets[name] ?? '';
     }
 
-    const pulled = await path.pull(cursor, { env, marks });
+    const pulled = await path.pull(cursor, { env, marks, now: dependencies.now });
 
     if (pulled.kind !== 'batch') {
       return pulled;

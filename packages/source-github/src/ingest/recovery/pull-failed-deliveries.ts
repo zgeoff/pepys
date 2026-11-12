@@ -19,7 +19,7 @@ export async function pullFailedDeliveries(
   cursor: string | null,
   context: PullContext,
 ): Promise<Pulled> {
-  const appJWT = findAppJWT(context.env, Date.now());
+  const appJWT = findAppJWT(context.env, context.now());
 
   if (appJWT === undefined) {
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };

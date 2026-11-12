@@ -98,6 +98,7 @@ export function createIngest(options: IngestOptions): Ingest {
       append,
       turns,
       resyncMarks: resync.marks,
+      now: options.now,
     }),
   };
 }

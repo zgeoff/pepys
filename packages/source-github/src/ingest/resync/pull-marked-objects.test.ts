@@ -40,7 +40,7 @@ async function setupTest() {
     log,
     senderProof: noSenderProof,
     appendRetry: { maxAttempts: 2, retryDelayMs: 0 },
-    now: () => 0,
+    now: () => 1_800_000_000_000,
   });
 
   const store = await createTestStore({ plugins: [githubPlugin] });
@@ -413,5 +413,58 @@ test('it keeps every mark when the API is unavailable', async () => {
         lastBodyDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
       },
     ],
+  });
+});
+
+test('it signs the App JWT with issue and expiry times from the ingest clock', async () => {
+  const ctx = await setupTest();
+
+  const authorizations: (string | null)[] = [];
+
+  await githubRepositories.create({ id: 902, fullName: 'acme/harbour', installationID: 31 });
+
+  const release = {
+    id: 7,
+    tag_name: 'v2.2.0',
+    target_commitish: 'beef004',
+    name: 'Harbour 2.2.0',
+    url: 'https://api.github.com/repos/acme/harbour/releases/7',
+    html_url: 'https://github.example/acme/harbour/releases/tag/v2.2.0',
+    draft: false,
+    prerelease: false,
+    created_at: '2026-10-05T09:00:00Z',
+    updated_at: '2026-10-05T09:00:00Z',
+  };
+
+  const repository = { id: 902, full_name: 'acme/harbour' };
+
+  await ctx.send(
+    'release',
+    'd-1',
+    JSON.stringify({ action: 'published', release: { ...release, name: 'One' }, repository }),
+  );
+
+  await ctx.send(
+    'release',
+    'd-2',
+    JSON.stringify({ action: 'edited', release: { ...release, name: 'Two' }, repository }),
+  );
+
+  mockNetwork.use(
+    http.get(`${GITHUB_API_URL}/repos/acme/harbour/installation`, (info) => {
+      authorizations.push(info.request.headers.get('authorization'));
+
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 });
+    }),
+  );
+
+  await ctx.ingest.runPull('github', 'resync', null);
+
+  const [, claims] = (authorizations[0] ?? '').replace(/^Bearer /u, '').split('.');
+
+  expect(JSON.parse(Buffer.from(claims ?? '', 'base64url').toString('utf8'))).toStrictEqual({
+    iat: 1_799_999_940,
+    exp: 1_800_000_540,
+    iss: '4242',
   });
 });
