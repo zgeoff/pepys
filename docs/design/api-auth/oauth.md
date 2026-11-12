@@ -40,14 +40,14 @@ flowchart LR
 A deployment's API entry passes its arguments to `serveAPI`. With no arguments, `serveAPI` serves
 the listeners. With an admin command, it runs that command against `auth.db` and exits. The owner
 runs each command with `kubectl exec` in the API's container, where `auth.db` lives. A command reads
-only `PEPYS_AUTH_DIR` and `PEPYS_API_PUBLIC_URL`, and runs beside the server, which keeps serving.
+only `PEPYS_AUTH_DIR`, needs no public URL, and runs beside the server, which keeps serving.
 
 ```ts
 // a deployment's API entry
 serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) });
 // argv [] → serves the listeners
 // argv ['clients', 'add', 'Claude Code', '--redirect-uri', 'http://localhost:33418/callback']
-//   → prints 'client 9f3k2m…' and exits 0
+//   → prints 'Added Claude Code. Its client ID is 9f3k2m…' and exits 0
 ```
 
 ```ts
@@ -68,7 +68,7 @@ interface ServeAPIOptions {
 | `passkeys`                                                   | lists the passkeys                                        |
 | `passkeys remove <passkey_id>`                               | removes one passkey                                       |
 | `grants`                                                     | lists the live grants                                     |
-| `grants revoke <client_id>`                                  | revokes every grant of one client                         |
+| `grants --revoke=<grant_id>`                                 | revokes one grant                                         |
 
 An admin command skips `checkDeployment`, the check of the deployment's plug-ins that the server
 runs at start. An unknown command or a bad argument exits 2 with the usage.
@@ -87,6 +87,7 @@ straight to the listener.
 | `/consent`                                  | the owner's browser | Access login  |
 | `/error`                                    | the owner's browser | Access login  |
 | `/mcp`                                      | an MCP client       | straight in   |
+| `/`, `POST` only                            | an MCP client       | straight in   |
 | `/oauth2/token`                             | an MCP client       | straight in   |
 | `/oauth2/revoke`                            | an MCP client       | straight in   |
 | `/.well-known/oauth-authorization-server`   | an MCP client       | straight in   |
@@ -98,11 +99,12 @@ POST /mcp HTTP/1.1
 Host: <public_host>
 
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer resource_metadata="<public_origin>/.well-known/oauth-protected-resource/mcp", scope="read"
+WWW-Authenticate: Bearer resource_metadata="<public_origin>/.well-known/oauth-protected-resource/mcp"
 ```
 
+A `POST /` is the same MCP endpoint as `POST /mcp`, takes the same token, and answers the same 401.
 `GET /.well-known/oauth-protected-resource/mcp` and `GET /.well-known/oauth-protected-resource` both
-answer:
+answer with better-auth's metadata, less its introspection and DPoP fields:
 
 ```json
 {
@@ -133,11 +135,11 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - It forces a fresh passkey sign-in for each authorization.
 - When an authorization request names no resource, it sets `<public_origin>/mcp` before better-auth
   sees the request.
-- It adds `iss` to the redirect that carries a code (RFC 9207), and sets
-  `authorization_response_iss_parameter_supported` to `true` in the authorization server metadata,
-  as the MCP spec asks.
-- It runs the refresh in [Tokens and grants](#tokens-and-grants), because better-auth's own refresh
-  rotation is not atomic.
+- It passes better-auth's authorization server metadata through, less its introspection and DPoP
+  fields, and sets `token_endpoint_auth_methods_supported` and
+  `revocation_endpoint_auth_methods_supported` to `["none"]`. better-auth adds `iss` to the redirect
+  that carries a code (RFC 9207), and advertises it.
+- It locks a sign-in after failed passkey checks, as [Requests](#requests) says.
 
 ### Tokens and grants
 
@@ -148,16 +150,13 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - An authorization code lasts 10 minutes and works once. A second exchange revokes what the first
   made.
 - An access token is opaque, lasts 1 hour, and is checked against `auth.db` on every request.
-- A refresh token lasts 30 days and rotates on each use.
-- A refresh runs as one `auth.db` transaction that consumes the old refresh token by compare and
-  swap: it marks the token used only when the token is still unused and its grant still exists, and
-  issues the new pair in the same transaction. When the swap changes no row, the refresh fails and
-  issues nothing. The refresh takes no in-memory lock, so the rule holds across processes.
-- A refresh that presents a consumed refresh token revokes that token's grant, in the same
-  transaction.
-- The server and an admin command open `auth.db` in WAL mode with a busy timeout. When
-  `grants revoke` or `clients remove` races a refresh of the same client, every token of that client
-  fails once the command has returned. A test runs the two at once.
+- A refresh token lasts 30 days and rotates on each use. better-auth runs the rotation: one SQL
+  update marks the old refresh token used only while it is still unused, and the refresh fails when
+  that update changes no row. better-auth then writes the new pair in separate statements, outside
+  any transaction.
+- A refresh that presents a used refresh token revokes every refresh token and access token that the
+  client holds.
+- The server and an admin command open `auth.db` in WAL mode with a busy timeout of 5 seconds.
 - The API runs only in the StatefulSet pod that owns `auth.db`'s volume, never in a Kubernetes
   Deployment.
 - `auth.db` stores a hash of each token, code and enrolment token, never the value.
@@ -170,28 +169,28 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
 - The passkey's relying party ID is `<public_host>`.
 - Each authorization needs a fresh passkey sign-in for that one request. One sign-in approves one
   authorization.
-- An enrolment token lasts 10 minutes and enrols one passkey.
+- An enrolment token lasts 15 minutes and enrols one passkey.
 - Three short-lived records belong to one sign-in. A ceremony is one WebAuthn exchange with the
   owner's authenticator, for sign-in or for enrolment. An owner session runs from the passkey check
   to the consent page. A pending approval is the authorization that waits on the consent page.
-- `auth.db` holds the owner's generation, a number. Each ceremony, enrolment, owner session and
-  pending approval records the generation it began under, and the API refuses to complete one whose
-  generation is not the current one.
-- `passkeys enroll --reset` runs as one transaction: it deletes every passkey, every unused
-  enrolment token and every owner session, raises the generation, and stores the new enrolment
-  token's hash. A ceremony or approval begun before the reset then fails, and an older enrolment
-  token adds no passkey. Grants and their tokens survive the reset.
-- `passkeys remove` deletes every owner session and raises the generation in the same transaction.
+- `passkeys enroll --reset` deletes every passkey, every unused enrolment token and every owner
+  session in one transaction, then stores the new enrolment token's hash. An older enrolment token
+  then adds no passkey. Grants and their tokens survive the reset.
+- `passkeys remove` deletes the passkey and every owner session in one transaction.
+- Once a passkey check passes and better-auth starts the owner session, the API checks in one
+  transaction that the passkey and the session both still exist, and deletes the session when either
+  is gone. A sign-in that a reset or a remove overtook then fails.
 - The consent page lists the scopes the client asked for, with `read` ticked. The owner may untick
   it, and a consent with no scope ticked is denied.
 
 ### Requests
 
-- The public listener answers only a request whose `Host` is `<public_host>`, and answers 403 to any
-  other. The [tailnet and cluster listeners](./README.md#the-listeners) check no `Host` and no
-  `Origin`.
+- The public listener answers only a request whose `Host` is `<public_host>`, its own loopback
+  address and port, or a host in `PEPYS_API_ALLOWED_HOSTS`, and answers 403 to any other. The
+  [tailnet and cluster listeners](./README.md#the-listeners) check no `Host` and no `Origin`.
 - A form post to `/login`, `/enroll` or `/consent`, and an MCP request with an `Origin` header, must
-  come from `<public_origin>`. The API answers any other with 403.
+  come from `<public_origin>` or the listener's own loopback origin. The API answers any other
+  with 403.
 - The sign-in, enrolment, consent and error pages carry the headers below, shown as `/login` sends
   them. `<passkey_script_hash>` is the SHA-256 of the passkey script, and `<redirect_origin>` is the
   origin of the client's redirect URI. On `/login` and `/enroll`, `script-src` lists the passkey
@@ -207,9 +206,12 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
   ```
 
 - The public listener sees cloudflared's address, never the caller's network address, so no limit
-  counts per network address. The limit on authorizations started counts per OAuth client. The API
-  never locks sign-in after failed passkey sign-ins. The API leaves the network address out of every
-  security event.
+  counts per network address. The API holds at most 16 pending approvals, and at most 3 for one
+  client: a new one ends the oldest. It refuses an eleventh authorization started within a minute.
+- After 5 failed passkey checks for one pending approval, the API ends that approval and writes an
+  `owner_auth` event with reason `locked`. The owner starts again from the client.
+- A security event records the socket's peer address, and the `CF-Connecting-IP` header's address
+  with the mark `trusted` when the peer is in `PEPYS_API_TRUST_FORWARDED_FROM`, else `unverified`.
 - pepys turns better-auth's telemetry off, whatever the environment sets.
 - The API generates better-auth's secret at random on each start. A restart ends the sign-ins in
   progress and keeps every grant. A test restarts the API with a new secret and refreshes a grant
@@ -229,15 +231,16 @@ a rule, pepys enforces the rule in its own code, as atc does. pepys's own code d
   pre-registration. Client ID metadata documents and dynamic registration would let any client start
   a sign-in. ([0025](../../decisions/0025-own-oauth-server-with-passkey.md))
 - **The public route runs through the shared Cloudflare tunnel.** A route that holds a long event
-  stream open needs a TLS front on the server, as impz has. The MCP route answers each post with
-  JSON and opens no stream, so the shared tunnel serves it, as it serves atc's gateway.
-  ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
+  stream open needs a TLS front on the server, as impz has. The MCP route answers each post with one
+  message, as JSON or as an event stream that ends after it, so the shared tunnel serves it, as it
+  serves atc's gateway. ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
 - **Cloudflare Access and the passkey both guard sign-in.** Access adds a login in front of the
   sign-in pages, and only the owner's passkey approves a grant, so neither one alone lets a stranger
   in.
-- **A failed passkey sign-in locks nothing.** Nobody can guess a passkey assertion, so a lock adds
-  no protection. A process on the cluster's node reaches the public listener without Access, and a
-  lock would let it lock the owner out.
+- **Failed passkey checks lock one approval, never the owner.** Nobody can guess a passkey
+  assertion, so the lock only ends a request that keeps failing. A process on the cluster's node
+  reaches the public listener without Access, and a lock on the owner would let it lock the owner
+  out.
 - **The API checks no Cloudflare Access header.** The passkey already stops a sign-in from a process
   on the cluster's node, and the check would need the API to reach the internet for Access's keys.
   When pepys gains a second sign-in method, the API checks the Access header on the browser paths.

@@ -4,10 +4,10 @@ Date: 2026-11-12
 
 ## Decision
 
-pepys's API serves two kinds of route: MCP at `/mcp`, for agents such as Claude Code, and typed oRPC
-routes under `/rpc`, for scripts.
+pepys's API serves two kinds of route: MCP at `/mcp`, and at `POST /` for a client that drops the
+path, for agents such as Claude Code, and typed oRPC routes under `/rpc`, for scripts.
 
-- The public route carries only `/mcp` and the OAuth and sign-in paths that
+- The public route carries only MCP and the OAuth and sign-in paths that
   [the OAuth server](./0025-own-oauth-server-with-passkey.md) needs. It runs through the Cloudflare
   tunnel that the owner's other servers share.
 - `/rpc` is never public. The owner's PC reaches `/rpc` over the owner's Tailscale network, the
@@ -16,11 +16,11 @@ routes under `/rpc`, for scripts.
 
 ## Rejected alternatives
 
-| Option                                                                    | Why not                                                                                                                                   |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `/rpc` on the public route, with OAuth tokens                             | a script on the PC then needs a browser sign-in                                                                                           |
-| `/rpc` on the public route, with service tokens                           | a leaked service token then works from anywhere on the internet                                                                           |
-| MCP on a public port with its own TLS certificate, in place of the tunnel | MCP answers each request with JSON and holds no long stream open, so the tunnel carries it, and a certificate adds one more thing to keep |
+| Option                                                                    | Why not                                                                                                                                          |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/rpc` on the public route, with OAuth tokens                             | a script on the PC then needs a browser sign-in                                                                                                  |
+| `/rpc` on the public route, with service tokens                           | a leaked service token then works from anywhere on the internet                                                                                  |
+| MCP on a public port with its own TLS certificate, in place of the tunnel | MCP answers each request with one message and holds no long stream open, so the tunnel carries it, and a certificate adds one more thing to keep |
 
 ## Why
 

@@ -135,7 +135,10 @@ docs/
   `PEPYS_OUTSIDE_HOST`, or, with `PEPYS_OUTSIDE_HOST_TAG=v<version>`, the release's
   `pepys-host-linux-x64`, which the check downloads and checks against the release's `SHA256SUMS`.
   To check a release, set `PEPYS_OUTSIDE_VERSION=<version>` and `PEPYS_OUTSIDE_HOST_TAG=v<version>`.
-- `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`
-  and MCP at `/mcp`. It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which
-  defaults to 127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081.
+- `bun packages/source-github/src/api/serve-api.ts` starts the API, which serves oRPC under `/rpc`.
+  It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which defaults to
+  127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081. With `PEPYS_API_PUBLIC_URL` and
+  `PEPYS_AUTH_DIR` set, it also serves MCP at `/mcp` behind the OAuth server in
+  [OAuth server](docs/design/api-auth/oauth.md). Given `passkeys`, `clients` or `grants`, it runs
+  that admin command on the OAuth server's database and exits.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

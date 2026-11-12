@@ -77,7 +77,12 @@ PEPYS_API_PUBLIC_URL       <public_origin>, an https origin with no path;
                            unset: no public listener and no OAuth
 PEPYS_API_PUBLIC_HOST      the public listener's bind address; default 127.0.0.1
 PEPYS_API_PUBLIC_PORT      the public listener's port; default 8082
-PEPYS_AUTH_DIR             the folder that holds auth.db; needed when PEPYS_API_PUBLIC_URL is set
+PEPYS_AUTH_DIR             the folder that holds auth.db, as the file mcp-auth.db with mode 0600;
+                           needed when PEPYS_API_PUBLIC_URL is set
+PEPYS_API_ALLOWED_HOSTS    more Host values the public listener answers, split by commas, for a
+                           proxy that rewrites Host; default none
+PEPYS_API_TRUST_FORWARDED_FROM  the peer addresses whose CF-Connecting-IP header a security
+                           event marks trusted, split by commas; default none
 ```
 
 ```ts
@@ -173,7 +178,7 @@ interface SecurityEvent {
   kind:
     | 'authorize_started' // outcome accepted | rejected; reason 'rate_limited'
     | 'authorize_invalid' // rejected; better-auth's error code, 'bad_host', 'bad_origin' or 'other'
-    | 'owner_auth' // succeeded | failed; 'assertion_failed', 'expired', 'not_enrolled', 'invalid_token'
+    | 'owner_auth' // succeeded | failed; 'assertion_failed', 'locked', 'expired', 'not_enrolled', 'invalid_token'
     | 'consent' // allowed | denied; 'none_ticked'
     | 'token_exchange' // rejected; better-auth's error code or 'other'
     | 'bearer' // rejected; 'malformed', 'invalid_token' or 'source_not_allowed'
@@ -189,7 +194,13 @@ interface SecurityEvent {
   service?: { name: string; credentialID: string }; // only for a service caller
   redirectHost?: string; // only after better-auth validated the redirect URI
   correlationID?: string; // random, joins one authorization's events
-  userAgent?: string; // cut to 200 characters, control characters removed
+  peer?: { address: string; provenance: 'socket' }; // the socket's peer address
+  forwarded?: {
+    address: string; // from CF-Connecting-IP
+    header: 'cf-connecting-ip';
+    provenance: 'trusted' | 'unverified'; // trusted only from a peer in PEPYS_API_TRUST_FORWARDED_FROM
+  };
+  userAgent?: { summary: string; provenance: 'client' }; // cut to 60 characters, control characters removed
 }
 ```
 
