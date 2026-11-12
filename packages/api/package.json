@@ -37,6 +37,7 @@
     "ts-pattern": "catalog:",
     "type-fest": "catalog:",
     "typebox": "catalog:",
+    "xstate": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -54,6 +54,7 @@
       "type-fest": "5.10.0",
       "typebox": "1.4.4",
       "typescript": "7.0.2",
+      "xstate": "5.33.3",
       "zod": "4.6.7"
     }
   },

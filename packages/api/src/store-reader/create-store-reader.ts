@@ -5,9 +5,12 @@ import { createTursoDialect } from '@pepys/kysely-turso';
 import { connect } from '@tursodatabase/database';
 import type { Database } from '@tursodatabase/database';
 import { Kysely } from 'kysely';
+import { createActor } from 'xstate';
+import type { Actor } from 'xstate';
 import { buildSharedViewsPlugin } from './build-shared-views-plugin.ts';
 import { pickAttachedFiles } from './pick-attached-files.ts';
 import type { AttachedFile, CurrentFile } from './pick-attached-files.ts';
+import { storeFileMachine } from './store-file-machine.ts';
 
 interface StoreReaderOptions {
   storeDirectory: string;
@@ -21,21 +24,30 @@ interface FileKeeper {
   consumer: string;
   path: string;
   opened: Promise<OpenedFile>;
-  readers: number;
+  lifecycle: Actor<typeof storeFileMachine>;
 }
 
 // The Turso adapter of the store reader port. Each call opens one connection on an empty
 // in-memory database, attaches the current file of each consumer read-only under the consumer's
 // name, and runs the work in one transaction, which holds one snapshot of each file.
 export function createStoreReader(options: StoreReaderOptions): StoreReader {
-  const keepers = new Map<string, FileKeeper>();
-  const retired = new Set<FileKeeper>();
+  const current = new Map<string, FileKeeper>();
+  const unclosed = new Set<FileKeeper>();
+
+  // The current file leaves the map when it retires, so the next call opens the path again.
+  const retireKeeper = (keeper: FileKeeper): void => {
+    if (current.get(keeper.consumer) === keeper) {
+      current.delete(keeper.consumer);
+    }
+
+    keeper.lifecycle.send({ type: 'retire' });
+  };
 
   const holdKeeper = (file: AttachedFile): FileKeeper => {
-    const held = keepers.get(file.consumer.name);
+    const held = current.get(file.consumer.name);
 
     if (held?.path === file.path) {
-      held.readers += 1;
+      held.lifecycle.send({ type: 'hold' });
 
       return held;
     }
@@ -44,36 +56,36 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       consumer: file.consumer.name,
       path: file.path,
       opened: openFile(file.path),
-      readers: 1,
+      lifecycle: createActor(storeFileMachine).start(),
     };
 
-    keepers.set(file.consumer.name, keeper);
+    keeper.lifecycle.send({ type: 'hold' });
+    current.set(file.consumer.name, keeper);
+    unclosed.add(keeper);
 
     // the host swapped the version: the old file closes once its last call ends
     if (held !== undefined) {
-      retired.add(held);
+      retireKeeper(held);
     }
 
     return keeper;
   };
 
   // A retired file may have had no call open when the host swapped it, so each call that ends
-  // closes every retired file left with no readers, not only the files it held.
+  // closes every idle retired file, not only the files it held.
   const releaseKeepers = async (held: readonly FileKeeper[]): Promise<void> => {
     for (const keeper of held) {
-      keeper.readers -= 1;
+      keeper.lifecycle.send({ type: 'release' });
     }
 
-    const idle = [...retired].filter((keeper) => keeper.readers === 0);
-
-    for (const keeper of idle) {
-      retired.delete(keeper);
-    }
+    const idle = [...unclosed].filter((keeper) =>
+      keeper.lifecycle.getSnapshot().matches('retiredIdle'),
+    );
 
     await Promise.all(idle.map((keeper) => closeKeeper(keeper)));
   };
 
-  // A file that fails to open leaves the map, so the next call opens the path again.
+  // A file that fails to open retires, and closes once the calls that hold it end.
   const readOpenedFiles = async (held: readonly FileKeeper[]): Promise<void> => {
     const opened = await Promise.all(
       held.map(async (keeper) => ({ keeper, file: await keeper.opened })),
@@ -84,15 +96,26 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
         return [];
       }
 
-      if (keepers.get(entry.keeper.consumer) === entry.keeper) {
-        keepers.delete(entry.keeper.consumer);
-      }
+      retireKeeper(entry.keeper);
 
       return [entry.file.error];
     });
 
     if (errors.length > 0) {
       throw errors[0];
+    }
+  };
+
+  // The file leaves the set before its database closes, so two sweeps never close it twice.
+  const closeKeeper = async (keeper: FileKeeper): Promise<void> => {
+    keeper.lifecycle.send({ type: 'close' });
+    unclosed.delete(keeper);
+
+    const file = await keeper.opened;
+
+    // a file that failed to open has nothing to close, and its call already threw the error
+    if (file.ok) {
+      await file.database.close();
     }
   };
 
@@ -159,12 +182,9 @@ export function createStoreReader(options: StoreReaderOptions): StoreReader {
       }
     },
     close: async () => {
-      const open = [...keepers.values(), ...retired];
+      current.clear();
 
-      keepers.clear();
-      retired.clear();
-
-      await Promise.all(open.map((keeper) => closeKeeper(keeper)));
+      await Promise.all([...unclosed].map((keeper) => closeKeeper(keeper)));
     },
   };
 }
@@ -176,15 +196,6 @@ async function openFile(path: string): Promise<OpenedFile> {
     return { ok: true, database };
   } catch (error: unknown) {
     return { ok: false, error };
-  }
-}
-
-// A file that failed to open has nothing to close, and its call already threw the error.
-async function closeKeeper(keeper: FileKeeper): Promise<void> {
-  const file = await keeper.opened;
-
-  if (file.ok) {
-    await file.database.close();
   }
 }
 
