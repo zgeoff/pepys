@@ -145,6 +145,18 @@ test('it answers 404 for an entity no row holds', async () => {
   expect(ctx.statuses).toStrictEqual([404]);
 });
 
+test('it answers 400 for a neighbourhood whose depth limit fails the input schema', async () => {
+  const ctx = await setupTest();
+
+  const error = await ctx.client.neighbourhood({ id: 'harbour:voyage:12', depthLimit: 0 }).then(
+    () => null,
+    (error_: unknown) => error_,
+  );
+
+  expect(error).toMatchObject({ code: 'BAD_REQUEST' });
+  expect(ctx.statuses).toStrictEqual([400]);
+});
+
 test('it answers 503 for a plug-in query whose consumer has no current version', async () => {
   const ctx = await setupTest();
 
