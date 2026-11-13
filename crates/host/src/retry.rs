@@ -36,6 +36,7 @@ fn is_store_error(error: &HostError) -> bool {
         HostError::Module(_)
         | HostError::Json(_)
         | HostError::Io(_)
+        | HostError::NoRuntime(_)
         | HostError::UnknownStream(_)
         | HostError::MissingBlob(_)
         | HostError::NotOwned { .. }

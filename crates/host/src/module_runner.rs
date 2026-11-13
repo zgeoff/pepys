@@ -352,7 +352,7 @@ mod tests {
 
         let result = runner.apply_scope(
             "ledger:account:a",
-            Arc::new(IndexFacts::new(&store, "ledger:account:a")),
+            Arc::new(IndexFacts::new(&store, "ledger:account:a").expect("a runtime")),
         );
 
         assert_eq!(

@@ -12,6 +12,8 @@ pub enum HostError {
     Json(#[from] serde_json::Error),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("no tokio runtime: {0}")]
+    NoRuntime(#[from] tokio::runtime::TryCurrentError),
     #[error("s2: {0}")]
     Stream(String),
     #[error("the log has no stream {0}")]

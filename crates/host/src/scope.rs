@@ -49,14 +49,15 @@ pub struct IndexFacts {
 }
 
 impl IndexFacts {
-    #[must_use]
-    pub fn new(store: &Store, scope: &str) -> Self {
-        Self {
+    /// # Errors
+    /// Fails when it is called outside a tokio runtime.
+    pub fn new(store: &Store, scope: &str) -> Result<Self, HostError> {
+        Ok(Self {
             connection: store.connection.clone(),
             scope: scope.to_owned(),
-            handle: Handle::current(),
+            handle: Handle::try_current()?,
             read: Mutex::new(None),
-        }
+        })
     }
 }
 
@@ -132,7 +133,7 @@ async fn write_scope_batch(
     let mut changes = Vec::new();
 
     for scope in collect_dirty_scopes(scope_kind, facts) {
-        let source: Arc<dyn FactSource> = Arc::new(IndexFacts::new(store, &scope));
+        let source: Arc<dyn FactSource> = Arc::new(IndexFacts::new(store, &scope)?);
         let output = runner.apply_scope(&scope, source)?;
 
         changes.extend(replace_scope(&store.connection, manifest, &scope, &output).await?);

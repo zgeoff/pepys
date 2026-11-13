@@ -504,6 +504,7 @@ mod tests {
             | HostError::Module(_)
             | HostError::Json(_)
             | HostError::Io(_)
+            | HostError::NoRuntime(_)
             | HostError::Stream(_)
             | HostError::UnknownStream(_)
             | HostError::MissingBlob(_)

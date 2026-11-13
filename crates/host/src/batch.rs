@@ -31,13 +31,14 @@ pub struct StoreRows {
 }
 
 impl StoreRows {
-    #[must_use]
-    pub fn new(store: &Store, manifest: Arc<ConsumerManifest>) -> Self {
-        Self {
+    /// # Errors
+    /// Fails when it is called outside a tokio runtime.
+    pub fn new(store: &Store, manifest: Arc<ConsumerManifest>) -> Result<Self, HostError> {
+        Ok(Self {
             connection: store.connection.clone(),
             manifest,
-            handle: Handle::current(),
-        }
+            handle: Handle::try_current()?,
+        })
     }
 }
 
@@ -93,7 +94,7 @@ async fn write_batch(
     facts: &[StoredFact],
     last_seq_num: u64,
 ) -> Result<(), HostError> {
-    let rows: Arc<dyn RowSource> = Arc::new(StoreRows::new(store, Arc::clone(manifest)));
+    let rows: Arc<dyn RowSource> = Arc::new(StoreRows::new(store, Arc::clone(manifest))?);
     let mut changes: Vec<Value> = Vec::new();
 
     for fact in facts {
@@ -1361,7 +1362,7 @@ mod tests {
             .await
             .expect("the batch applies");
 
-        let rows = StoreRows::new(&store, Arc::clone(&manifest));
+        let rows = StoreRows::new(&store, Arc::clone(&manifest)).expect("a runtime");
         let read = (
             rows.read_row("github_pull_request", "github:pull_request:1")
                 .expect("a read"),
