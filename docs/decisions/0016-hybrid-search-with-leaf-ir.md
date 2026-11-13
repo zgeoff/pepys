@@ -1,6 +1,8 @@
 # 0016: Hybrid search with local LEAF-IR embeddings
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [search](../design/pepys/search.md)
 
 ## Decision
 

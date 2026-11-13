@@ -1,6 +1,8 @@
 # 0027: Only MCP and the OAuth paths are public, and /rpc stays off the internet
 
-Date: 2026-11-12
+- Date: 2026-11-12
+- Status: decided
+- Design: [the OAuth server](../architecture/queries/oauth-server.md)
 
 ## Decision
 

@@ -1,6 +1,8 @@
 # 0011: Per-source entity tables with a shared view
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [entities and links](../architecture/queries/entities-and-links.md)
 
 ## Decision
 

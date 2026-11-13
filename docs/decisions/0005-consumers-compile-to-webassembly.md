@@ -1,6 +1,9 @@
 # 0005: Consumers compile to WebAssembly with scriptc
 
-Date: 2026-10-22 Updated: 2026-10-24
+- Date: 2026-10-22
+- Updated: 2026-10-24
+- Status: decided
+- Design: [plug-ins and the build](../architecture/consumers/plug-ins-and-build.md)
 
 ## Decision
 

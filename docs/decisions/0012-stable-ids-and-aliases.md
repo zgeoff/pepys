@@ -1,6 +1,8 @@
 # 0012: Stable IDs from source database IDs, with aliases
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [entities and links](../architecture/queries/entities-and-links.md)
 
 ## Decision
 

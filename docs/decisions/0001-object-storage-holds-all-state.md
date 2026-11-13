@@ -1,6 +1,8 @@
 # 0001: Object storage holds all durable state
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [storage](../design/pepys/storage.md)
 
 ## Decision
 

@@ -1,6 +1,9 @@
 # 0028: mcp-auth.db has no backup
 
-Date: 2026-11-12
+- Date: 2026-11-12
+- Status: decided
+- Design:
+  [the OAuth server](../architecture/queries/oauth-server.md#the-database-and-the-admin-commands)
 
 ## Decision
 

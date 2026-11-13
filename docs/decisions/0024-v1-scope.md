@@ -1,6 +1,8 @@
 # 0024: The scope of v1
 
-Date: 2026-11-12
+- Date: 2026-11-12
+- Status: decided
+- Design: [the architecture overview](../architecture/overview.md)
 
 ## Decision
 

@@ -1,6 +1,8 @@
 # 0008: No workflow engine
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [the host](../architecture/consumers/host.md)
 
 ## Decision
 

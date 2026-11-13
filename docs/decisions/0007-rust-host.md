@@ -1,6 +1,8 @@
 # 0007: The host is written in Rust, everything else in TypeScript
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [the architecture overview](../architecture/overview.md)
 
 ## Decision
 

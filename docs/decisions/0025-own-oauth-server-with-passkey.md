@@ -1,6 +1,8 @@
 # 0025: The API runs its own OAuth server, and the owner signs in with a passkey
 
-Date: 2026-11-12
+- Date: 2026-11-12
+- Status: decided
+- Design: [the OAuth server](../architecture/queries/oauth-server.md)
 
 ## Decision
 

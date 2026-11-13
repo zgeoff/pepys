@@ -1,6 +1,8 @@
 # 0023: Contracts follow ports, strategies and champion-challenger
 
-Date: 2026-11-04
+- Date: 2026-11-04
+- Status: decided
+- Design: [the architecture overview](../architecture/overview.md)
 
 ## Decision
 

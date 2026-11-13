@@ -1,6 +1,8 @@
 # 0019: The lake is plain Parquet
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [storage](../design/pepys/storage.md)
 
 ## Decision
 

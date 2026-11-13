@@ -1,6 +1,7 @@
 # 0021: Rust tooling
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
 
 ## Decision
 

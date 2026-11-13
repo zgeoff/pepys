@@ -1,8 +1,9 @@
 # 0020: One API process on Elysia v2, oRPC and MCP
 
-Date: 2026-10-22
-
-Updated: 2026-11-12
+- Date: 2026-10-22
+- Updated: 2026-11-12
+- Status: decided
+- Design: [the API](../architecture/queries/api.md)
 
 ## Decision
 

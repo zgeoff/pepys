@@ -1,6 +1,8 @@
 # 0002: s2-lite runs the log
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [the fact log](../architecture/ingest/fact-log.md)
 
 ## Decision
 

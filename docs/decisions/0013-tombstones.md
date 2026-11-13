@@ -1,6 +1,8 @@
 # 0013: Deletions become tombstones
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [entities](../design/pepys/entities.md#deletions)
 
 ## Decision
 

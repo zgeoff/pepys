@@ -1,6 +1,8 @@
 # 0015: Enrichment runs in TypeScript and calls hosted models
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [enrichment](../design/pepys/enrichment.md)
 
 ## Decision
 

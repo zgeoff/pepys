@@ -1,6 +1,8 @@
 # 0014: Link consumers split by extraction method
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [links](../design/pepys/links.md)
 
 ## Decision
 

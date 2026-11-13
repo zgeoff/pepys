@@ -1,6 +1,8 @@
 # 0017: The change feed lives in the store and speaks Durable Streams
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [change feed](../design/pepys/change-feed.md)
 
 ## Decision
 

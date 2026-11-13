@@ -1,6 +1,8 @@
 # 0004: Events first, observations as the fallback
 
-Date: 2026-10-22
+- Date: 2026-10-22
+- Status: decided
+- Design: [the fact log](../architecture/ingest/fact-log.md)
 
 ## Decision
 
