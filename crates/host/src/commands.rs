@@ -1596,6 +1596,7 @@ mod tests {
             .expect("the current rows");
         repoint_current(&consumer_dir, &version_hash('a')).expect("a current link");
         manifest.tables.remove("github_pull_request");
+        manifest.tables.remove("github_pull_request_alias");
         manifest.imports.clear();
         manifest.schema = "CREATE TABLE \"github_release_bump\" (\"pull_request_id\" TEXT NOT \
                            NULL, \"release_repository\" TEXT NOT NULL, \"release_tag\" TEXT NOT \
