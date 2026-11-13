@@ -1,10 +1,11 @@
 # API
 
 The built API serves `get_entity`, `neighbourhood` and each plug-in's queries as oRPC routes and MCP
-tools, reads the store, and checks no token, as [the API](../../architecture/queries/api.md)
-describes. This design adds the core writes, the search and history queries, the deployment catalog,
-and the callers that reach the API with a credential. The API still never writes the store: every
-write from a person or an agent becomes a manual fact in the log, and the host applies it.
+tools, reads the store, checks no token on `/rpc`, and checks an access token on `/mcp`, as
+[the API](../../architecture/queries/api.md) describes. This design adds the core writes, the search
+and history queries, the deployment catalog, and the callers that reach the API with a credential.
+The API still never writes the store: every write from a person or an agent becomes a manual fact in
+the log, and the host applies it.
 
 ## Callers
 

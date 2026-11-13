@@ -93,8 +93,9 @@ disk: the host writes it, and the API reads it.
 
 pepys publishes no container image. The deployment's repo builds its own images and sets its own
 network rules. Each source module marks each of its routes public or private, and a route it leaves
-unmarked is private. The GitHub webhook is the only public route. The API checks no token, so the
-deployment's network rules must keep the API off the public network.
+unmarked is private. The GitHub webhook is the only public route. The API checks no token on `/rpc`,
+so the deployment's network rules must keep the API off the public network.
+[The API](./queries/api.md) covers the access tokens that `/mcp` checks.
 
 [Deploying pepys](../runbooks/deploying.md) gives the steps and the settings of each process.
 
