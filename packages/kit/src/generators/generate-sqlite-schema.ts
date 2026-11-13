@@ -1,7 +1,7 @@
 import { match } from 'ts-pattern';
 import type { ConsumerDeclaration, EntityViewDeclaration } from '../consumers/types.ts';
 import type { ColumnDeclaration } from '../types.ts';
-import { quoteSqlIdentifier } from './quote-sql-identifier.ts';
+import { formatSQLIdentifier } from './format-sql-identifier.ts';
 
 export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
   const statements: string[] = [];
@@ -10,10 +10,10 @@ export function generateSqliteSchema(consumer: ConsumerDeclaration): string {
     statements.push(formatCreateTable(name, table.columns, table.primaryKey));
 
     for (const index of table.indexes) {
-      const indexName = quoteSqlIdentifier(`${name}_${index.columns.join('_')}_idx`);
-      const columns = index.columns.map((column) => quoteSqlIdentifier(column)).join(', ');
+      const indexName = formatSQLIdentifier(`${name}_${index.columns.join('_')}_idx`);
+      const columns = index.columns.map((column) => formatSQLIdentifier(column)).join(', ');
 
-      statements.push(`CREATE INDEX ${indexName} ON ${quoteSqlIdentifier(name)} (${columns});`);
+      statements.push(`CREATE INDEX ${indexName} ON ${formatSQLIdentifier(name)} (${columns});`);
     }
   }
 
@@ -32,14 +32,14 @@ function formatCreateTable(
   const definitions = Object.entries(columns).map(([columnName, column]) => {
     const isNotNull = column.nullable !== true || primaryKey.includes(columnName);
 
-    return `  ${quoteSqlIdentifier(columnName)} ${toSqliteType(column)}${isNotNull ? ' NOT NULL' : ''}`;
+    return `  ${formatSQLIdentifier(columnName)} ${toSqliteType(column)}${isNotNull ? ' NOT NULL' : ''}`;
   });
 
   return [
-    `CREATE TABLE ${quoteSqlIdentifier(name)} (`,
+    `CREATE TABLE ${formatSQLIdentifier(name)} (`,
     [
       ...definitions,
-      `  PRIMARY KEY (${primaryKey.map((column) => quoteSqlIdentifier(column)).join(', ')})`,
+      `  PRIMARY KEY (${primaryKey.map((column) => formatSQLIdentifier(column)).join(', ')})`,
     ].join(',\n'),
     ');',
   ].join('\n');
@@ -63,22 +63,22 @@ function formatEntitySelect(view: EntityViewDeclaration): string {
   const kind = `'${view.kind.replaceAll("'", "''")}'`;
 
   const selections = [
-    `${quoteSqlIdentifier(view.id)} AS "id"`,
+    `${formatSQLIdentifier(view.id)} AS "id"`,
     `${kind} AS "kind"`,
-    `${quoteSqlIdentifier(view.title)} AS "title"`,
+    `${formatSQLIdentifier(view.title)} AS "title"`,
     `${formatOptionalColumn(view.url)} AS "url"`,
     `${formatOptionalColumn(view.actor)} AS "actor"`,
-    `${quoteSqlIdentifier(view.updatedAt)} AS "updated_at"`,
+    `${formatSQLIdentifier(view.updatedAt)} AS "updated_at"`,
   ].map((selection) => `  ${selection}`);
 
-  const from = `FROM ${quoteSqlIdentifier(view.table)}`;
+  const from = `FROM ${formatSQLIdentifier(view.table)}`;
 
   const where =
-    view.deletedAt === undefined ? [] : [`WHERE ${quoteSqlIdentifier(view.deletedAt)} IS NULL`];
+    view.deletedAt === undefined ? [] : [`WHERE ${formatSQLIdentifier(view.deletedAt)} IS NULL`];
 
   return ['SELECT', selections.join(',\n'), from, ...where].join('\n');
 }
 
 function formatOptionalColumn(column: string | null): string {
-  return column === null ? 'NULL' : quoteSqlIdentifier(column);
+  return column === null ? 'NULL' : formatSQLIdentifier(column);
 }
