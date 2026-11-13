@@ -34,9 +34,9 @@ scopes set what each one may do.
    token bound to that resource.
 
 Before the first grant, the owner runs `passkeys enroll` in the API's container. It prints a
-one-time enrolment token that expires in 10 minutes, and the owner types it on the API's `/enroll`
-page. The passkey's relying party is the API's public host name, so a passkey works only at that
-origin.
+one-time enrollment token, and the owner types it on the API's `/enroll` page.
+[The owner](../api-auth/oauth.md#the-owner) gives the token's rules. The passkey's relying party is
+the API's public host name, so a passkey works only at that origin.
 
 ## Tokens
 
