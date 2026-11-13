@@ -1,4 +1,3 @@
-import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
 import type { OAuthClientID, OAuthGrantID } from './types.ts';
@@ -36,14 +35,10 @@ export async function readTokenViews(db: Kysely<MCPAuthSchema>): Promise<TokenVi
 }
 
 interface TokenRow {
-  readonly clientId: string;
-  readonly authorizationCodeId: string | null;
+  readonly clientId: OAuthClientID;
+  readonly authorizationCodeId: OAuthGrantID | null;
 }
 
 function toTokenView(row: TokenRow): TokenView {
-  return {
-    clientID: toTagged<OAuthClientID>(row.clientId),
-    grantID:
-      row.authorizationCodeId === null ? null : toTagged<OAuthGrantID>(row.authorizationCodeId),
-  };
+  return { clientID: row.clientId, grantID: row.authorizationCodeId };
 }

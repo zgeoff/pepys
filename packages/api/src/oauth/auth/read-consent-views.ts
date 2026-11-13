@@ -1,4 +1,3 @@
-import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
 import type { OAuthClientID } from './types.ts';
@@ -15,5 +14,5 @@ export async function readConsentViews(db: Kysely<MCPAuthSchema>): Promise<reado
     .orderBy('id')
     .execute();
 
-  return rows.map((row) => ({ clientID: toTagged<OAuthClientID>(row.clientId) }));
+  return rows.map((row) => ({ clientID: row.clientId }));
 }

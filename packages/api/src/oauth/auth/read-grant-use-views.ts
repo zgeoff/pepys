@@ -1,4 +1,3 @@
-import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
 import type { OAuthGrantID } from './types.ts';
@@ -19,7 +18,7 @@ export async function readGrantUseViews(
     .execute();
 
   return rows.map((row) => ({
-    grantID: toTagged<OAuthGrantID>(row.grant_id),
+    grantID: row.grant_id,
     lastUsedAt: row.last_used_at,
   }));
 }

@@ -10,7 +10,7 @@ import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readClientViews } from './read-client-views.ts';
-import { readEnrollmentToken } from './read-enrollment-token.ts';
+import { readEnrollmentTokenHashes } from './read-enrollment-token-hashes.ts';
 import { readOwnerSessionViews } from './read-owner-session-views.ts';
 import { readPasskeyViews } from './read-passkey-views.ts';
 import { resetPasskeys } from './reset-passkeys.ts';
@@ -41,7 +41,7 @@ test('it removes every passkey, enrollment token, and browser sign-in', async ()
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
 
-  const enrollment = await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
+  await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.auth.api.signInOwner({ body: {} });
 
@@ -55,13 +55,9 @@ test('it removes every passkey, enrollment token, and browser sign-in', async ()
 
   expect(passkeys).toBeEmpty();
 
-  const token = await readEnrollmentToken(
-    ctx.db,
-    enrollment.token,
-    Date.UTC(2026, 9, 14, 12, 0, 0),
-  );
+  const tokenHashes = await readEnrollmentTokenHashes(ctx.db);
 
-  expect(token).toBeNull();
+  expect(tokenHashes).toBeEmpty();
 
   const sessions = await readOwnerSessionViews(ctx.db);
 
