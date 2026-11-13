@@ -84,7 +84,7 @@ The ID of a GitHub fact is `webhook:github:h-<hash>`. The hash is the SHA-256 of
 of the delivery body: its keys sorted at every depth, with no white space. GitHub signs the body and
 never signs the delivery ID header, so the plug-in builds the ID from the body alone. A redelivery,
 or a captured body sent again under any header, gets the same ID. The recovery pull hashes the same
-canonical form. Ingest writes the delivery ID to its log line, and never puts it in a fact.
+canonical form. The plug-in never puts the delivery ID in a fact.
 
 A repeated body changes no row. When ingest stored the same body in the last hour, it drops the
 repeat, gives the answer it gave the first time, and appends nothing, as
