@@ -3,6 +3,7 @@ import { applyFact } from './github-pull-request.ts';
 
 function setupTest() {
   const rows = new Map<string, string>();
+  const aliasRows = new Map<string, string>();
 
   Object.assign(globalThis, {
     readGithubPullRequestLength: (key: string): number => {
@@ -13,14 +14,24 @@ function setupTest() {
     readGithubPullRequestInto: (key: string, buffer: Uint8Array): void => {
       buffer.set(new TextEncoder().encode(rows.get(key) ?? ''));
     },
+    readGithubPullRequestAliasLength: (key: string): number => {
+      const row = aliasRows.get(key);
+
+      return row === undefined ? -1 : new TextEncoder().encode(row).length;
+    },
+    readGithubPullRequestAliasInto: (key: string, buffer: Uint8Array): void => {
+      buffer.set(new TextEncoder().encode(aliasRows.get(key) ?? ''));
+    },
   });
 
   onTestFinished(() => {
     Reflect.deleteProperty(globalThis, 'readGithubPullRequestLength');
     Reflect.deleteProperty(globalThis, 'readGithubPullRequestInto');
+    Reflect.deleteProperty(globalThis, 'readGithubPullRequestAliasLength');
+    Reflect.deleteProperty(globalThis, 'readGithubPullRequestAliasInto');
   });
 
-  return { rows };
+  return { rows, aliasRows };
 }
 
 test('it upserts the row of an opened pull request', () => {
@@ -1000,6 +1011,242 @@ test('it adds the aliases of a renamed repository and deletes none', () => {
         github_pull_request_alias: {
           alias: 'acme/quay#3',
           entity_id: 'github:pull_request:77',
+        },
+      },
+    },
+  ]);
+});
+
+test.each([['2026-10-01T09:00:00Z'], ['2026-10-02T09:00:00Z']])(
+  'it moves an alias from a pull request whose update time %p is no newer than the fact',
+  (holderUpdatedAt) => {
+    const ctx = setupTest();
+
+    ctx.rows.set(
+      'github:pull_request:202',
+      JSON.stringify({
+        id: 'github:pull_request:202',
+        number: 3,
+        repository_id: 'github:repo:977',
+        title: 'Open the new harbour',
+        state: 'open',
+        is_draft: false,
+        is_merged: false,
+        author_id: null,
+        url: 'https://github.example/acme/harbour/pull/3',
+        merge_commit_sha: null,
+        created_at: '2026-10-01T09:00:00Z',
+        updated_at: holderUpdatedAt,
+        closed_at: null,
+        merged_at: null,
+        payload: {},
+      }),
+    );
+
+    ctx.aliasRows.set(
+      'acme/harbour#3',
+      JSON.stringify({ alias: 'acme/harbour#3', entity_id: 'github:pull_request:202' }),
+    );
+
+    const pullRequest = {
+      id: 101,
+      number: 3,
+      title: 'Fix the tide table',
+      state: 'open',
+      html_url: 'https://github.example/acme/harbour/pull/3',
+      base: { repo: { id: 902 } },
+      created_at: '2026-10-01T09:00:00Z',
+      updated_at: '2026-10-02T09:00:00Z',
+    };
+
+    const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+    expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+      {
+        upsert: {
+          github_pull_request: {
+            id: 'github:pull_request:101',
+            number: 3,
+            repository_id: 'github:repo:902',
+            title: 'Fix the tide table',
+            state: 'open',
+            is_draft: false,
+            is_merged: false,
+            author_id: null,
+            url: 'https://github.example/acme/harbour/pull/3',
+            merge_commit_sha: null,
+            created_at: '2026-10-01T09:00:00Z',
+            updated_at: '2026-10-02T09:00:00Z',
+            closed_at: null,
+            merged_at: null,
+            payload: pullRequest,
+          },
+        },
+      },
+      {
+        upsert: {
+          github_pull_request_alias: {
+            alias: 'https://github.example/acme/harbour/pull/3',
+            entity_id: 'github:pull_request:101',
+          },
+        },
+      },
+      {
+        upsert: {
+          github_pull_request_alias: {
+            alias: 'acme/harbour#3',
+            entity_id: 'github:pull_request:101',
+          },
+        },
+      },
+    ]);
+  },
+);
+
+test('it writes no alias that the pull request already holds', () => {
+  const ctx = setupTest();
+
+  ctx.aliasRows.set(
+    'acme/harbour#3',
+    JSON.stringify({ alias: 'acme/harbour#3', entity_id: 'github:pull_request:101' }),
+  );
+
+  const pullRequest = {
+    id: 101,
+    number: 3,
+    title: 'Fix the tide table',
+    state: 'open',
+    html_url: 'https://github.example/acme/harbour/pull/3',
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-02T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:101',
+          number: 3,
+          repository_id: 'github:repo:902',
+          title: 'Fix the tide table',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/acme/harbour/pull/3',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-02T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/3',
+          entity_id: 'github:pull_request:101',
+        },
+      },
+    },
+  ]);
+});
+
+test('it leaves an alias with the pull request of a newer fact that took the repository name', () => {
+  const ctx = setupTest();
+
+  ctx.rows.set(
+    'github:pull_request:101',
+    JSON.stringify({
+      id: 'github:pull_request:101',
+      number: 3,
+      repository_id: 'github:repo:902',
+      title: 'Fix the tide table',
+      state: 'open',
+      is_draft: false,
+      is_merged: false,
+      author_id: null,
+      url: 'https://github.example/acme/harbour/pull/3',
+      merge_commit_sha: null,
+      created_at: '2026-10-01T09:00:00Z',
+      updated_at: '2026-10-01T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: {},
+    }),
+  );
+
+  ctx.rows.set(
+    'github:pull_request:202',
+    JSON.stringify({
+      id: 'github:pull_request:202',
+      number: 3,
+      repository_id: 'github:repo:977',
+      title: 'Open the new harbour',
+      state: 'open',
+      is_draft: false,
+      is_merged: false,
+      author_id: null,
+      url: 'https://github.example/acme/harbour/pull/3',
+      merge_commit_sha: null,
+      created_at: '2026-10-05T09:00:00Z',
+      updated_at: '2026-10-05T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: {},
+    }),
+  );
+
+  ctx.aliasRows.set(
+    'https://github.example/acme/harbour/pull/3',
+    JSON.stringify({
+      alias: 'https://github.example/acme/harbour/pull/3',
+      entity_id: 'github:pull_request:202',
+    }),
+  );
+
+  ctx.aliasRows.set(
+    'acme/harbour#3',
+    JSON.stringify({ alias: 'acme/harbour#3', entity_id: 'github:pull_request:202' }),
+  );
+
+  const pullRequest = {
+    id: 101,
+    number: 3,
+    title: 'Fix the tide table',
+    state: 'closed',
+    html_url: 'https://github.example/acme/harbour/pull/3',
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-02T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:101',
+          number: 3,
+          repository_id: 'github:repo:902',
+          title: 'Fix the tide table',
+          state: 'closed',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/acme/harbour/pull/3',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-02T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
         },
       },
     },

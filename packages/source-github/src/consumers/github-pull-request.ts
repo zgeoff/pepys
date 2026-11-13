@@ -1,5 +1,6 @@
 import {
   initGithubPullRequestModel,
+  readGithubPullRequestAliasRow,
   readGithubPullRequestRow,
   toGithubPullRequestID,
   updateGithubPullRequestModel,
@@ -65,9 +66,16 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
     .filter((bump) => !replacedKeys.has(JSON.stringify(bump)))
     .map((bump) => ({ upsert: { github_release_bump: bump } }));
 
-  const aliases: GithubPullRequestOperation[] = collectAliases(row).map((alias) => ({
-    upsert: { github_pull_request_alias: alias },
-  }));
+  const aliases: GithubPullRequestOperation[] = collectAliases(row)
+    .filter((alias) => {
+      const holding = readGithubPullRequestAliasRow(alias.alias);
+
+      const holder =
+        holding === undefined ? undefined : readGithubPullRequestRow(holding.entity_id);
+
+      return shouldTakeAlias(row, holding, holder);
+    })
+    .map((alias) => ({ upsert: { github_pull_request_alias: alias } }));
 
   return [{ upsert: { github_pull_request: row } }, ...aliases, ...removed, ...added];
 }
@@ -104,6 +112,25 @@ function collectAliases(row: GithubPullRequestRow): GithubPullRequestAliasRow[] 
 
 function trimTrailingSlash(text: string): string {
   return text.endsWith('/') ? text.slice(0, -1) : text;
+}
+
+// After a rename, a new repository can take the old name, and its pull request the old aliases. A
+// late fact of the renamed repository's pull request then still carries them, so an alias moves
+// only to the pull request with the newer update time, and a tie goes to the later fact.
+function shouldTakeAlias(
+  row: GithubPullRequestRow,
+  holding: GithubPullRequestAliasRow | undefined,
+  holder: GithubPullRequestRow | undefined,
+): boolean {
+  if (holding === undefined) {
+    return true;
+  }
+
+  if (holding.entity_id === row.id) {
+    return false;
+  }
+
+  return (holder?.updated_at ?? '') <= row.updated_at;
 }
 
 const releaseURLStart = 'https://github.com/';

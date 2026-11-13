@@ -9,10 +9,10 @@
         "consumers": [
           {
             "name": "github_pull_request",
-            "module": "547213d27b8d7eb84e92d2d9a76924052f4c32e9ad6e1e1d69458f9ca3142f03",
-            "path": "github_pull_request/547213d27b8d7eb84e92d2d9a76924052f4c32e9ad6e1e1d69458f9ca3142f03.wasm",
+            "module": "0740764033fa262a0aa9abfff0a75d419469ead298a455ccc75f470b517c601e",
+            "path": "github_pull_request/0740764033fa262a0aa9abfff0a75d419469ead298a455ccc75f470b517c601e.wasm",
             "pins": {},
-            "version": "f8d4b6a3d1ff9f1b4fc6fc2fba30555abe908d02d0c011073e6cffd67626587b",
+            "version": "8f1fccceba70af0e8a7d1afab4d335cac5fa0f52041bae9b806207973b83c850",
             "manifest": {
               "name": "github_pull_request",
               "input": {
@@ -29,6 +29,12 @@
                   "table": "github_pull_request",
                   "length": "readGithubPullRequestLength",
                   "into": "readGithubPullRequestInto"
+                },
+                {
+                  "kind": "row",
+                  "table": "github_pull_request_alias",
+                  "length": "readGithubPullRequestAliasLength",
+                  "into": "readGithubPullRequestAliasInto"
                 }
               ],
               "tables": {

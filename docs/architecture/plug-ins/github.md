@@ -30,9 +30,8 @@ Ingest exits at start when one or more of these environment variables is missing
 | `PEPYS_GITHUB_APP_PRIVATE_KEY` | the App's private key in PEM, with line breaks or with `\n` in their place |
 
 The plug-in also has one build-time [setting](../consumers/plug-ins-and-build.md#settings),
-`deployTagPattern`. The deployment file sets it under the plug-in's name, as
-`settings: { github: { deployTagPattern: '<pattern>' } }`. [Deploys](#deploys) covers the tags it
-matches.
+`deployTagPattern`, set as `settings: { github: { deployTagPattern: '<pattern>' } }`.
+[Deploys](#deploys) covers the tags it matches.
 
 Ingest answers a delivery with 200 when it stores the delivery's fact.
 [A delivery, step by step](../ingest/ingest.md#a-delivery-step-by-step) covers the answers every
@@ -76,7 +75,8 @@ repository to use a release of another repository, as a dependency update bot do
 
 A winning fact adds its `html_url` and `<owner>/<repo>#<number>`, in lowercase, to
 `github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). No alias is ever
-deleted, so a renamed repository's old forms still work.
+deleted, so a renamed repository's old forms still work. When a new repository takes the old name,
+an alias moves only to the pull request updated last.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.

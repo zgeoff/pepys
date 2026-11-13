@@ -308,6 +308,40 @@ export function readGithubPullRequestRow(key: string): GithubPullRequestRow | un
   };
 }
 
+declare function readGithubPullRequestAliasLength(key: string): number;
+declare function readGithubPullRequestAliasInto(key: string, row: Uint8Array): void;
+
+export function readGithubPullRequestAliasRow(key: string): GithubPullRequestAliasRow | undefined {
+  const length = readGithubPullRequestAliasLength(key);
+
+  if (length < 0) {
+    return undefined;
+  }
+
+  const row = new Uint8Array(length);
+
+  readGithubPullRequestAliasInto(key, row);
+
+  const parsed: unknown = JSON.parse(new TextDecoder().decode(row));
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+
+  if (!('alias' in parsed) || (typeof parsed.alias !== 'string')) {
+    return undefined;
+  }
+
+  if (!('entity_id' in parsed) || (!isEntityID(parsed.entity_id))) {
+    return undefined;
+  }
+
+  return {
+    alias: parsed.alias,
+    entity_id: parsed.entity_id,
+  };
+}
+
 function isEntityID(value: unknown): value is EntityID {
   return typeof value === 'string';
 }

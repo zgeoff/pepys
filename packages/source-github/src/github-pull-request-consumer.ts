@@ -29,7 +29,8 @@ export const githubPullRequestConsumer = defineConsumer({
     }),
 
     // Each form a person writes for a pull request: its URL and `<owner>/<repo>#<number>`, in
-    // lowercase. A rename adds the new forms and keeps the old ones.
+    // lowercase. A rename adds the new forms and keeps the old ones. A form that another pull
+    // request holds moves only to the pull request with the newer update time.
     github_pull_request_alias: defineTable({
       columns: {
         alias: { kind: 'text' },
@@ -62,6 +63,6 @@ export const githubPullRequestConsumer = defineConsumer({
       updatedAt: 'updated_at',
     },
   ],
-  reads: ['github_pull_request'],
+  reads: ['github_pull_request', 'github_pull_request_alias'],
   links: [],
 });

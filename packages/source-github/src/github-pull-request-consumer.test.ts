@@ -102,8 +102,11 @@ test('it maps the entity view to the title, URL, author and update time', () => 
   ]);
 });
 
-test('it reads its own table, so a fact older than the stored row changes nothing', () => {
-  expect(githubPullRequestConsumer.reads).toStrictEqual(['github_pull_request']);
+test('it reads its own pull request and alias tables, to drop an older fact and keep a newer alias holder', () => {
+  expect(githubPullRequestConsumer.reads).toStrictEqual([
+    'github_pull_request',
+    'github_pull_request_alias',
+  ]);
 });
 
 test.each([
