@@ -11,6 +11,7 @@
   "files": [
     "src",
     "!src/**/*.test.ts",
+    "!src/**/*.test-d.ts",
     "!src/**/test-utils"
   ],
   "type": "module",
