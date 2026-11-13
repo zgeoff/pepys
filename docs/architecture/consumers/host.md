@@ -123,9 +123,10 @@ batch in the file.
 A failed batch rolls back, and the task then picks one of two outcomes by the error:
 
 - After a store or log error, such as a Turso error or a failed S2 read, the task prints the error,
-  waits, reopens the version and runs the pass again from the committed offsets. The wait starts at
-  200 ms and doubles up to 30 s. A pass that succeeds resets it. After 10 failed passes in a row,
-  the task stops.
+  waits, reopens the version and runs the pass again from the committed offsets. The wait doubles
+  after each failed pass, up to a cap, and a pass that succeeds resets it. After a set number of
+  failed passes in a row, the task stops. [`retry.rs`](../../../crates/host/src/retry.rs) holds the
+  first wait, the cap and the limit.
 - After any other error, the task stops at once, because the same facts fail the same way again.
   Examples are output the host refuses, a trap in the module and a module file with the wrong hash.
 
@@ -248,8 +249,8 @@ the package plug-ins build on, and each check must report the problem kind that 
   failure, while ingest keeps appending facts.
 - A batch that fails on another scope's row or link stops its consumer until a new version of the
   module is up.
-- A store or log outage of more than about 80 s, the sum of the retry waits, stops every task that
-  reads during it, and the tasks stay stopped until the process restarts.
+- A store or log outage that outlasts the sum of the retry waits stops every task that reads during
+  it, and the tasks stay stopped until the process restarts.
 - The host never deletes an old version's folder, so each swap leaves one more folder in the store.
 - Each version of a scope consumer stores its own copy of its streams' facts, and a new version
   indexes them again as it replays.
