@@ -4,10 +4,12 @@ import { createStubHostRead } from './create-stub-host-read.ts';
 test('it puts the two host functions of the read on globalThis under their import names', () => {
   const hostRead = createStubHostRead('TideReading', new Map());
 
-  expect({
+  const globals: { readonly readLength: unknown; readonly readInto: unknown } = {
     readLength: Reflect.get(globalThis, 'readTideReadingLength'),
     readInto: Reflect.get(globalThis, 'readTideReadingInto'),
-  }).toStrictEqual({ readLength: hostRead.readLength, readInto: hostRead.readInto });
+  };
+
+  expect(globals).toStrictEqual({ readLength: hostRead.readLength, readInto: hostRead.readInto });
 });
 
 test('it answers the length of a row in UTF-8 bytes', () => {
