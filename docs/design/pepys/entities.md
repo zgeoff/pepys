@@ -67,10 +67,10 @@ guess. The repository is public, so the IDs never sit in code: ingest reads them
 and a replay gives the same people. Most email senders never match a GitHub account, and they stay
 as a person with an email alias only.
 
-A plug-in sets the hub flag on each link type it declares, never on an entity kind
-([links](../../architecture/queries/entities-and-links.md#links)). A person is linked to thousands
-of other entities, so each link type that joins a person sets the flag, and the neighbourhood walk
-follows those types only when the query asks for them.
+The hub flag belongs to a link type, and an entity kind has none
+([the core queries](../../architecture/queries/api.md#the-core-queries)). A person is linked to
+thousands of entities, so the plug-in that declares a link type to a person sets the hub flag on it,
+and the `neighbourhood` query follows that type only when its caller sets `includeHubs`.
 
 ## Deletions
 
