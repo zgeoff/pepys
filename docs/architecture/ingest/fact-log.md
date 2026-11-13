@@ -1,11 +1,12 @@
 # The fact log
 
 The fact log holds every fact pepys has, and it is the one store that nothing can rebuild. Ingest is
-its only writer: ingest turns each delivery from a source into facts and appends them. The host is
-its only reader: the host runs each consumer, the code that builds a consumer's tables from facts,
-on the streams that the consumer declares. This doc covers the streams, the envelope of a fact, and
-how one append lands once. [The ingest doc](./ingest.md) covers the deliveries, and
-[the host doc](../consumers/host.md) covers the consumers.
+its only writer: ingest turns each delivery from a source into facts and appends them, and reads the
+log only to guard and settle its own appends. The host reads the log to run each consumer, the code
+that builds a consumer's tables from facts, on the streams that the consumer declares. This doc
+covers the streams, the envelope of a fact, and how one append lands once.
+[The ingest doc](./ingest.md) covers the deliveries, and [the host doc](../consumers/host.md) covers
+the consumers.
 
 The log keeps every record forever and never rewrites one. A copy of a fact is harmless: every fact
 has a deterministic ID, so a fact written twice has the same ID both times, and the host applies
@@ -126,10 +127,10 @@ pepys reaches each outside system through a port: an interface with one adapter 
 `@pepys/ingest` holds the TypeScript adapters of two storage ports, and the host holds the Rust
 ones.
 
-| Port       | TypeScript adapters  | Rust adapters        | Used in a deployment by       |
-| ---------- | -------------------- | -------------------- | ----------------------------- |
-| fact log   | S2, memory           | S2, memory           | ingest writes, the host reads |
-| blob store | Garage, local folder | Garage, local folder | nothing                       |
+| Port       | TypeScript adapters  | Rust adapters        | Used in a deployment by                 |
+| ---------- | -------------------- | -------------------- | --------------------------------------- |
+| fact log   | S2, memory           | S2, memory           | ingest writes, ingest and the host read |
+| blob store | Garage, local folder | Garage, local folder | nothing                                 |
 
 Every fact log adapter refuses the appends that s2-lite refuses, each as too large: an empty run, a
 run over the record cap, and a run over the byte cap.
