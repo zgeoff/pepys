@@ -7,17 +7,10 @@ import { defineConsumer } from '../consumers/define-consumer.ts';
 import { defineLinkType } from '../link-types/define-link-type.ts';
 import { defineFactFamily } from '../sources/define-fact-family.ts';
 import { defineTable } from '../tables/define-table.ts';
+import { createStubHostRead } from '../test-utils/create-stub-host-read.ts';
 import { generateBoundaryGlue } from './generate-boundary-glue.ts';
 
 function setupTest() {
-  const hostFunctions: string[] = [];
-
-  onTestFinished(() => {
-    for (const name of hostFunctions) {
-      Reflect.deleteProperty(globalThis, name);
-    }
-  });
-
   let loads = 0;
 
   return {
@@ -179,21 +172,6 @@ function setupTest() {
       const result: unknown = Reflect.apply(exported, undefined, args);
 
       return result;
-    },
-
-    // The two host functions of a read, which the module imports, answering with the given JSON.
-    serveRead: (name: string, answers: Readonly<Record<string, unknown>>): void => {
-      const encoder = new TextEncoder();
-
-      hostFunctions.push(`read${name}Length`, `read${name}Into`);
-
-      Reflect.set(globalThis, `read${name}Length`, (key: string): number =>
-        key in answers ? encoder.encode(JSON.stringify(answers[key])).length : -1,
-      );
-
-      Reflect.set(globalThis, `read${name}Into`, (key: string, buffer: Uint8Array): void => {
-        buffer.set(encoder.encode(JSON.stringify(answers[key])));
-      });
     },
   };
 }
@@ -506,14 +484,20 @@ test('it reads the facts of the scope in the host order and leaves out what does
   const at = '2026-11-01T08:00:00.000Z';
   const entity = 'archive:shelf:s';
 
-  ctx.serveRead('ScopeFacts', {
-    [entity]: [
-      { id: 'f-2', type: 'archive.shelf.filled', entity, at, payload: { box: 'b' } },
-      { id: 'f-1', type: 'archive.shelf.filled', entity, at, payload: {} },
-      { id: 'f-3', type: 'archive.shelf.moved', entity, at, payload: {} },
-      { id: 'f-4', type: 'archive.shelf.emptied', entity, at, payload: {} },
-    ],
-  });
+  createStubHostRead(
+    'ScopeFacts',
+    new Map([
+      [
+        entity,
+        JSON.stringify([
+          { id: 'f-2', type: 'archive.shelf.filled', entity, at, payload: { box: 'b' } },
+          { id: 'f-1', type: 'archive.shelf.filled', entity, at, payload: {} },
+          { id: 'f-3', type: 'archive.shelf.moved', entity, at, payload: {} },
+          { id: 'f-4', type: 'archive.shelf.emptied', entity, at, payload: {} },
+        ]),
+      ],
+    ]),
+  );
 
   expect(ctx.call(glue, 'readScopeFacts', entity)).toStrictEqual([
     { id: 'f-2', type: 'archive.shelf.filled', entity, at, payload: { box: 'b' } },
@@ -616,7 +600,7 @@ test('it reads a row of a table in reads, and answers no row for -1', async () =
     detail: { lines: 2 },
   };
 
-  ctx.serveRead('LedgerEntry', { [row.id]: row });
+  createStubHostRead('LedgerEntry', new Map([[row.id, JSON.stringify(row)]]));
 
   const results = [
     ctx.call(glue, 'readLedgerEntryRow', 'ledger:entry:e-1'),
@@ -631,15 +615,21 @@ test('it reads no row whose ID is of another kind than the entity view', async (
 
   const glue = await ctx.loadGlue(ctx.generateLedgerGlue());
 
-  ctx.serveRead('LedgerEntry', {
-    'ledger:entry:e-1': {
-      id: 'ledger:total:e-1',
-      amount: 1,
-      memo: null,
-      'posted-on': '2026-11-01T08:00:00.000Z',
-      detail: null,
-    },
-  });
+  createStubHostRead(
+    'LedgerEntry',
+    new Map([
+      [
+        'ledger:entry:e-1',
+        JSON.stringify({
+          id: 'ledger:total:e-1',
+          amount: 1,
+          memo: null,
+          'posted-on': '2026-11-01T08:00:00.000Z',
+          detail: null,
+        }),
+      ],
+    ]),
+  );
 
   expect(ctx.call(glue, 'readLedgerEntryRow', 'ledger:entry:e-1')).toBeUndefined();
 });

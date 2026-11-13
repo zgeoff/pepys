@@ -1,24 +1,11 @@
-import { expect, onTestFinished, test } from 'bun:test';
+import { expect, test } from 'bun:test';
+import { createStubHostRead } from '@pepys/kit/test-utils/create-stub-host-read';
 import { applyFact } from './github-deploy.ts';
 
 function setupTest() {
   const rows = new Map<string, string>();
 
-  Object.assign(globalThis, {
-    readGithubDeployLength: (key: string): number => {
-      const row = rows.get(key);
-
-      return row === undefined ? -1 : new TextEncoder().encode(row).length;
-    },
-    readGithubDeployInto: (key: string, buffer: Uint8Array): void => {
-      buffer.set(new TextEncoder().encode(rows.get(key) ?? ''));
-    },
-  });
-
-  onTestFinished(() => {
-    Reflect.deleteProperty(globalThis, 'readGithubDeployLength');
-    Reflect.deleteProperty(globalThis, 'readGithubDeployInto');
-  });
+  createStubHostRead('GithubDeploy', rows);
 
   return { rows, apply: (fact: unknown): unknown => JSON.parse(applyFact(JSON.stringify(fact))) };
 }

@@ -1,24 +1,11 @@
-import { expect, onTestFinished, test } from 'bun:test';
+import { expect, test } from 'bun:test';
+import { createStubHostRead } from '@pepys/kit/test-utils/create-stub-host-read';
 import { applyFact } from './github-release.ts';
 
 function setupTest() {
   const rows = new Map<string, string>();
 
-  Object.assign(globalThis, {
-    readGithubReleaseLength: (key: string): number => {
-      const row = rows.get(key);
-
-      return row === undefined ? -1 : new TextEncoder().encode(row).length;
-    },
-    readGithubReleaseInto: (key: string, buffer: Uint8Array): void => {
-      buffer.set(new TextEncoder().encode(rows.get(key) ?? ''));
-    },
-  });
-
-  onTestFinished(() => {
-    Reflect.deleteProperty(globalThis, 'readGithubReleaseLength');
-    Reflect.deleteProperty(globalThis, 'readGithubReleaseInto');
-  });
+  createStubHostRead('GithubRelease', rows);
 
   return {
     rows,

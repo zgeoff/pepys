@@ -1,35 +1,13 @@
-import { expect, onTestFinished, test } from 'bun:test';
+import { expect, test } from 'bun:test';
+import { createStubHostRead } from '@pepys/kit/test-utils/create-stub-host-read';
 import { applyFact } from './github-pull-request.ts';
 
 function setupTest() {
   const rows = new Map<string, string>();
   const aliasRows = new Map<string, string>();
 
-  Object.assign(globalThis, {
-    readGithubPullRequestLength: (key: string): number => {
-      const row = rows.get(key);
-
-      return row === undefined ? -1 : new TextEncoder().encode(row).length;
-    },
-    readGithubPullRequestInto: (key: string, buffer: Uint8Array): void => {
-      buffer.set(new TextEncoder().encode(rows.get(key) ?? ''));
-    },
-    readGithubPullRequestAliasLength: (key: string): number => {
-      const row = aliasRows.get(key);
-
-      return row === undefined ? -1 : new TextEncoder().encode(row).length;
-    },
-    readGithubPullRequestAliasInto: (key: string, buffer: Uint8Array): void => {
-      buffer.set(new TextEncoder().encode(aliasRows.get(key) ?? ''));
-    },
-  });
-
-  onTestFinished(() => {
-    Reflect.deleteProperty(globalThis, 'readGithubPullRequestLength');
-    Reflect.deleteProperty(globalThis, 'readGithubPullRequestInto');
-    Reflect.deleteProperty(globalThis, 'readGithubPullRequestAliasLength');
-    Reflect.deleteProperty(globalThis, 'readGithubPullRequestAliasInto');
-  });
+  createStubHostRead('GithubPullRequest', rows);
+  createStubHostRead('GithubPullRequestAlias', aliasRows);
 
   return { rows, aliasRows };
 }
