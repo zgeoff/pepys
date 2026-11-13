@@ -5,7 +5,7 @@ import { createSecurityEventLog } from './create-security-event-log.ts';
 // A log on a clock that moves only when the test advances it, with every
 // line it prints collected.
 function setupTest() {
-  const clock = buildStubClock(Date.UTC(2026, 9, 14, 12, 0, 0));
+  const clock = buildStubClock();
   const lines: string[] = [];
 
   const log = createSecurityEventLog({
@@ -20,6 +20,8 @@ function setupTest() {
 
 test('it prints each event as an pepys security line', () => {
   const ctx = setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   ctx.log.record({
     kind: 'authorize_invalid',
@@ -36,6 +38,8 @@ test('it prints each event as an pepys security line', () => {
 
 test('it prints one suppressed event with the count once a burst past the cap ends its window', () => {
   const ctx = setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   for (let index = 0; index < 27; index++) {
     ctx.log.record({
@@ -60,6 +64,8 @@ test('it prints one suppressed event with the count once a burst past the cap en
 test('it prints no suppressed event for a window that dropped nothing', () => {
   const ctx = setupTest();
 
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
+
   for (let index = 0; index < 20; index++) {
     ctx.log.record({
       kind: 'owner_auth',
@@ -79,6 +85,8 @@ test('it prints no suppressed event for a window that dropped nothing', () => {
 
 test('it caps each kind on its own', () => {
   const ctx = setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   for (let index = 0; index < 25; index++) {
     ctx.log.record({
@@ -104,6 +112,8 @@ test('it caps each kind on its own', () => {
 
 test('it prints events of a kind again once its window ends', () => {
   const ctx = setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   for (let index = 0; index < 21; index++) {
     ctx.log.record({
@@ -131,6 +141,8 @@ test('it prints events of a kind again once its window ends', () => {
 
 test('it prints the pending suppressed count when drained before the window ends', () => {
   const ctx = setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   for (let index = 0; index < 23; index++) {
     ctx.log.record({

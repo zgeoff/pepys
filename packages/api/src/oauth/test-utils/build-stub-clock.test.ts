@@ -1,21 +1,50 @@
 import { expect, test } from 'bun:test';
 import { buildStubClock } from './build-stub-clock.ts';
 
-test('it reads the time it starts at', () => {
-  expect(buildStubClock(1000).now()).toBe(1000);
+test('it reads the time the test sets', () => {
+  const clock = buildStubClock();
+
+  clock.setTime(1000);
+
+  expect(clock.now()).toBe(1000);
+});
+
+test('it throws when the code reads the time before the test sets it', () => {
+  const clock = buildStubClock();
+
+  expect(() => clock.now()).toThrow();
+});
+
+test('it throws when the code schedules a callback before the test sets the time', () => {
+  const clock = buildStubClock();
+
+  expect(() => clock.schedule(() => {}, 100)).toThrow();
+});
+
+test('it throws when the test sets the time a second time', () => {
+  const clock = buildStubClock();
+
+  clock.setTime(1000);
+
+  expect(() => {
+    clock.setTime(2000);
+  }).toThrow();
 });
 
 test('it moves the time by the step it advances', () => {
-  const clock = buildStubClock(1000);
+  const clock = buildStubClock();
 
+  clock.setTime(1000);
   clock.advance(250);
 
   expect(clock.now()).toBe(1250);
 });
 
 test('it runs no callback before its delay passes', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
   const calls: number[] = [];
+
+  clock.setTime(0);
 
   clock.schedule(() => {
     calls.push(clock.now());
@@ -27,8 +56,10 @@ test('it runs no callback before its delay passes', () => {
 });
 
 test('it runs due callbacks in due order at their due time', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
   const calls: [string, number][] = [];
+
+  clock.setTime(0);
 
   clock.schedule(() => {
     calls.push(['late', clock.now()]);
@@ -47,8 +78,10 @@ test('it runs due callbacks in due order at their due time', () => {
 });
 
 test('it runs a callback that a due callback schedules within the same step', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
   const calls: number[] = [];
+
+  clock.setTime(0);
 
   clock.schedule(() => {
     clock.schedule(() => {
@@ -62,8 +95,10 @@ test('it runs a callback that a due callback schedules within the same step', ()
 });
 
 test('it never runs a cancelled callback', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
   const calls: number[] = [];
+
+  clock.setTime(0);
 
   const cancel = clock.schedule(() => {
     calls.push(clock.now());
@@ -77,8 +112,9 @@ test('it never runs a cancelled callback', () => {
 });
 
 test('it collects the time left on each callback still waiting in due order', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
 
+  clock.setTime(0);
   clock.schedule(() => {}, 500);
   clock.schedule(() => {}, 100);
   clock.schedule(() => {}, 300);
@@ -88,8 +124,9 @@ test('it collects the time left on each callback still waiting in due order', ()
 });
 
 test('it collects the delay of every callback scheduled in the order it was scheduled', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
 
+  clock.setTime(0);
   clock.schedule(() => {}, 500);
 
   const cancel = clock.schedule(() => {}, 100);
@@ -104,7 +141,10 @@ test('it collects the delay of every callback scheduled in the order it was sche
 });
 
 test('it leaves the other waiting callbacks alone when a callback that ran is cancelled', () => {
-  const clock = buildStubClock(0);
+  const clock = buildStubClock();
+
+  clock.setTime(0);
+
   const cancel = clock.schedule(() => {}, 100);
 
   clock.advance(100);

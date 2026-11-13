@@ -20,11 +20,13 @@ async function setupTest() {
 
   registerTestCleanup(() => store.close());
 
-  return { db: store.db, clock: buildStubClock(Date.UTC(2026, 9, 14, 12, 0, 0)) };
+  return { db: store.db, clock: buildStubClock() };
 }
 
 test('it writes a passkey enrolled at the clock time, and spends the token it enrolled with', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await seedPasskey(ctx, { id: toTagged<PasskeyID>('cred-phone') });
 

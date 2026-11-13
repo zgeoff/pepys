@@ -26,13 +26,15 @@ async function setupTest() {
 
   registerTestCleanup(() => store.close());
 
-  const deps = { db: store.db, clock: buildStubClock(Date.UTC(2026, 9, 14, 12, 0, 0)) };
+  const deps = { db: store.db, clock: buildStubClock() };
 
   return { ...deps, auth: store.auth, seed: buildSeeder(deps) };
 }
 
 test('it keeps a session whose signing passkey is still enrolled', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
   await ctx.auth.api.signInOwner({ body: {} });
@@ -55,6 +57,8 @@ test('it keeps a session whose signing passkey is still enrolled', async () => {
 
 test('it removes a session created after a reset deleted its signing passkey', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
 
@@ -80,6 +84,8 @@ test('it removes a session created after a reset deleted its signing passkey', a
 
 test('it refuses a session deleted before the check while its passkey stays enrolled', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
   await ctx.auth.api.signInOwner({ body: {} });

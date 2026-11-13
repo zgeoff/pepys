@@ -1,3 +1,4 @@
+import invariant from 'tiny-invariant';
 import type { Clock } from '../auth/system-clock.ts';
 
 interface StubTimer {
@@ -5,9 +6,15 @@ interface StubTimer {
   readonly callback: () => void;
 }
 
-export function buildStubClock(startMs: number) {
-  let time = startMs;
+export function buildStubClock() {
+  let time: number | null = null;
   let nextID = 0;
+
+  const getTime = (): number => {
+    invariant(time !== null, "set the stub clock's time in the test before the code reads it");
+
+    return time;
+  };
 
   const timers = new Map<number, StubTimer>();
 
@@ -26,12 +33,12 @@ export function buildStubClock(startMs: number) {
   };
 
   const clock: Clock = {
-    now: () => time,
+    now: getTime,
     schedule: (callback, delayMs) => {
       const id = nextID++;
 
       delays.push(delayMs);
-      timers.set(id, { dueAt: time + Math.max(0, delayMs), callback });
+      timers.set(id, { dueAt: getTime() + Math.max(0, delayMs), callback });
 
       return () => {
         timers.delete(id);
@@ -41,8 +48,13 @@ export function buildStubClock(startMs: number) {
 
   return {
     ...clock,
+    setTime(timeMs: number): void {
+      invariant(time === null, "the stub clock's time is set already, so advance it instead");
+
+      time = timeMs;
+    },
     advance(durationMs: number): void {
-      const until = time + durationMs;
+      const until = getTime() + durationMs;
 
       for (let due = findDue(until); due !== null; due = findDue(until)) {
         timers.delete(due[0]);
@@ -54,10 +66,13 @@ export function buildStubClock(startMs: number) {
 
       time = until;
     },
-    collectPending: (): number[] =>
-      [...timers.values()]
-        .map((timer) => timer.dueAt - time)
-        .toSorted((left, right) => left - right),
+    collectPending: (): number[] => {
+      const now = getTime();
+
+      return [...timers.values()]
+        .map((timer) => timer.dueAt - now)
+        .toSorted((left, right) => left - right);
+    },
     collectDelays: (): number[] => [...delays],
   };
 }

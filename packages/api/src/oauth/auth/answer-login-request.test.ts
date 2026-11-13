@@ -18,7 +18,7 @@ async function setupTest() {
   const dbPath = join(temporaryDirectory.path, 'mcp-auth.db');
   const requests: string[] = [];
   const security: string[] = [];
-  const clock = buildStubClock(Date.now());
+  const clock = buildStubClock();
 
   const server = await startHarbourMCPServer({
     dbPath,
@@ -49,6 +49,8 @@ async function setupTest() {
 
 test('it signs the owner in with the enrolled passkey and sends the browser on to consent', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -84,6 +86,8 @@ test('it signs the owner in with the enrolled passkey and sends the browser on t
 
 test('it refuses the assertion of a passkey that was never enrolled', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -129,6 +133,8 @@ test('it refuses the assertion of a passkey that was never enrolled', async () =
 test('it offers no sign-in and refuses a posted assertion while no passkey is enrolled', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
   });
@@ -167,6 +173,8 @@ test('it offers no sign-in and refuses a posted assertion while no passkey is en
 
 test('it signs nobody in when a reset commits after the assertion verifies and before the session exists', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -213,6 +221,8 @@ test('it signs nobody in when a reset commits after the assertion verifies and b
 
 test('it refuses an assertion posted a second time once it signed in', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -265,6 +275,8 @@ test('it refuses an assertion posted a second time once it signed in', async () 
 
 test('it refuses an assertion whose challenge a failed sign-in already took', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -319,6 +331,8 @@ test('it refuses an assertion whose challenge a failed sign-in already took', as
 
 test('it refuses an assertion signed more than five minutes after its page as expired', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -377,6 +391,8 @@ test.each([
 ])('it refuses an assertion made for %s', async (_label, ceremony) => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
@@ -407,6 +423,8 @@ test.each([
 
 test("it refuses an assertion signed for one request's page when posted for another request", async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -469,6 +487,8 @@ test("it refuses an assertion signed for one request's page when posted for anot
 test('it refuses the assertion of an earlier tab once a later tab opened the same login page', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
@@ -516,6 +536,8 @@ test('it refuses the assertion of an earlier tab once a later tab opened the sam
 
 test('it shows the page with a fresh challenge after a failed sign-in and ends the request at the fifth', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -567,6 +589,8 @@ test('it shows the page with a fresh challenge after a failed sign-in and ends t
 
 test('it refuses the enrolled passkey once five failed sign-ins ended the request', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -630,6 +654,8 @@ test('it refuses the enrolled passkey once five failed sign-ins ended the reques
 test('it signs nobody in with an approval code, whatever the code', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
@@ -667,6 +693,8 @@ test('it signs nobody in with an approval code, whatever the code', async () => 
 
 test('it signs nobody in with any value its request lines and security events hold', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
@@ -733,6 +761,8 @@ test('it signs nobody in with any value its request lines and security events ho
 test('it writes a failed sign-in as a failed passkey owner sign-in with the start correlation id', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
@@ -784,6 +814,8 @@ test('it writes a failed sign-in as a failed passkey owner sign-in with the star
 
 test('it writes the fifth failed sign-in as a locked passkey owner sign-in', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 

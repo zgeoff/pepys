@@ -19,7 +19,7 @@ async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-answer-enroll-');
   const dbPath = join(temporaryDirectory.path, 'mcp-auth.db');
   const security: string[] = [];
-  const clock = buildStubClock(Date.now());
+  const clock = buildStubClock();
 
   const server = await startHarbourMCPServer({
     dbPath,
@@ -39,6 +39,8 @@ async function setupTest() {
 
 test('it enrolls a passkey with a minted token and signs nobody in doing so', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   const authenticator = buildStubAuthenticator();
 
@@ -79,6 +81,9 @@ test('it enrolls a passkey with a minted token and signs nobody in doing so', as
 
 test('it asks for a passkey that requires user verification and is discoverable, for its own RP ID', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   const asked = await fetch(`${ctx.url}/enroll`, {
@@ -107,6 +112,8 @@ test('it asks for a passkey that requires user verification and is discoverable,
 test('it refuses a token it never minted and writes an invalid_token event', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   const asked = await fetch(`${ctx.url}/enroll`, {
     method: 'POST',
     headers: { origin: ctx.url, 'content-type': 'application/x-www-form-urlencoded' },
@@ -131,6 +138,8 @@ test('it refuses a token it never minted and writes an invalid_token event', asy
 test('it refuses a registration posted without a token, storing no passkey', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   const authenticator = buildStubAuthenticator();
 
   const registration = await authenticator.create(
@@ -153,6 +162,9 @@ test('it refuses a registration posted without a token, storing no passkey', asy
 
 test('it refuses a token that already enrolled a passkey', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   await runPasskeyEnrollment(ctx, enrollment.token, buildStubAuthenticator());
@@ -167,6 +179,9 @@ test('it refuses a token that already enrolled a passkey', async () => {
 
 test('it refuses a token past its 15 minutes', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now() - 900_000);
 
   const asked = await fetch(`${ctx.url}/enroll`, {
@@ -180,6 +195,9 @@ test('it refuses a token past its 15 minutes', async () => {
 
 test('it refuses a token minted before a reset', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   await resetPasskeys(ctx.store.db);
@@ -198,6 +216,9 @@ test.each([
   ['an unverified user', { userVerified: false }],
 ])('it refuses a registration made for %s', async (_label, override) => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   const asked = await fetch(`${ctx.url}/enroll`, {
@@ -236,6 +257,9 @@ test.each([
 
 test('it keeps a token usable after it refused a registration made with it', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   const asked = await fetch(`${ctx.url}/enroll`, {
@@ -272,6 +296,9 @@ test('it keeps a token usable after it refused a registration made with it', asy
 
 test("it refuses a registration signed for another token's challenge", async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const mine = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
   const other = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
@@ -312,6 +339,9 @@ test("it refuses a registration signed for another token's challenge", async () 
 
 test('it refuses a registration signed more than five minutes after its page', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   const asked = await fetch(`${ctx.url}/enroll`, {
@@ -350,6 +380,8 @@ test('it refuses a registration signed more than five minutes after its page', a
 
 test('it lets each of two enrolled passkeys sign in, so a second device covers a lost one', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   const phone = buildStubAuthenticator();
   const laptop = buildStubAuthenticator();
@@ -407,6 +439,8 @@ test.each([
 ])('it offers no route at %s %s that changes passkeys', async (method, path) => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   const authenticator = buildStubAuthenticator();
 
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
@@ -429,6 +463,9 @@ test.each([
 
 test('it refuses an enrollment form posted from another origin', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
+
   const enrollment = await createEnrollmentToken(ctx.store.db, ctx.clock.now());
 
   const asked = await fetch(`${ctx.url}/enroll`, {

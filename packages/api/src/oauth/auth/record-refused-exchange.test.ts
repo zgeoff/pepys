@@ -11,7 +11,7 @@ import { recordRefusedExchange } from './record-refused-exchange.ts';
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-refused-exchange-');
   const lines: string[] = [];
-  const clock = buildStubClock(Date.now());
+  const clock = buildStubClock();
 
   const store = await openMCPAuth({
     dbPath: join(temporaryDirectory.path, 'mcp-auth.db'),
@@ -43,6 +43,8 @@ test.each([
 ])('it records the error code %p as the reason %p', async (code, reason) => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.now());
+
   await recordRefusedExchange(ctx, {
     contentType: null,
     body: '',
@@ -68,6 +70,8 @@ test.each([
 
 test('it records an error code outside the fixed list as other and keeps the code out of the event', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   await recordRefusedExchange(ctx, {
     contentType: null,

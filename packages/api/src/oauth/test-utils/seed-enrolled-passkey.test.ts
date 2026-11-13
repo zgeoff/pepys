@@ -12,7 +12,7 @@ import { setupTempDir } from './setup-temp-dir.ts';
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-seed-enrolled-passkey-');
   const dbPath = join(temporaryDirectory.path, 'mcp-auth.db');
-  const clock = buildStubClock(Date.now());
+  const clock = buildStubClock();
 
   const server = await startHarbourMCPServer({
     dbPath,
@@ -29,6 +29,8 @@ async function setupTest() {
 
 test('it writes the passkey of the authenticator, and spends the token it enrolled with', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.now());
 
   const authenticator = buildStubAuthenticator();
 

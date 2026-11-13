@@ -40,7 +40,7 @@ async function setupTest() {
 
   invariant(registered !== null, 'the passkey did not register');
 
-  const deps = { db: store.db, clock: buildStubClock(Date.UTC(2026, 9, 14, 12)) };
+  const deps = { db: store.db, clock: buildStubClock() };
 
   return {
     ...deps,
@@ -56,6 +56,8 @@ async function setupTest() {
 
 test('it returns the id of the enrolled passkey an assertion verifies against and stores its counter and use', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey(ctx.credential);
 
@@ -90,6 +92,8 @@ test.each([
 ])('it refuses an assertion made for %s', async (_label, expected, ceremony) => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
+
   await ctx.seed.passkey(ctx.credential);
 
   const assertion = await ctx.authenticator.signAssertion(
@@ -111,6 +115,8 @@ test.each([
 
 test('it refuses an assertion from a passkey that is not enrolled', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey(ctx.credential);
 
@@ -139,6 +145,8 @@ test('it refuses an assertion from a passkey that is not enrolled', async () => 
 
 test("it refuses an assertion signed by another key under the enrolled passkey's id", async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey(ctx.credential);
 
@@ -172,6 +180,8 @@ test("it refuses an assertion signed by another key under the enrolled passkey's
 test('it refuses an assertion whose counter does not pass the stored one', async () => {
   const ctx = await setupTest();
 
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
+
   await ctx.seed.passkey({ ...ctx.credential, counter: 5 });
 
   const assertion = await ctx.authenticator.signAssertion(
@@ -195,6 +205,8 @@ test.each([['not json'], ['{}'], ['{"id":"x","rawId":"x","type":"public-key","re
   async (credential) => {
     const ctx = await setupTest();
 
+    ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
+
     await ctx.seed.passkey(ctx.credential);
 
     const verified = await verifyPasskeyAssertion(ctx.db, {
@@ -211,6 +223,8 @@ test.each([['not json'], ['{}'], ['{"id":"x","rawId":"x","type":"public-key","re
 
 test('it passes only one of two assertions checked at once against the same stored counter', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey(ctx.credential);
 

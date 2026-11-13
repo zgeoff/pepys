@@ -24,13 +24,15 @@ async function setupTest() {
 
   registerTestCleanup(() => store.close());
 
-  const deps = { db: store.db, clock: buildStubClock(Date.UTC(2026, 9, 14, 12, 0, 0)) };
+  const deps = { db: store.db, clock: buildStubClock() };
 
   return { ...deps, auth: store.auth, seed: buildSeeder(deps) };
 }
 
 test('it lists the passkeys oldest first', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey({
     id: toTagged<PasskeyID>('cred-new'),

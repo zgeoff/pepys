@@ -25,13 +25,15 @@ async function setupTest() {
 
   registerTestCleanup(() => store.close());
 
-  const deps = { db: store.db, clock: buildStubClock(Date.UTC(2026, 9, 14, 12, 0, 0)) };
+  const deps = { db: store.db, clock: buildStubClock() };
 
   return { ...deps, auth: store.auth, seed: buildSeeder(deps) };
 }
 
 test('it removes every passkey, enrollment token, and browser sign-in', async () => {
   const ctx = await setupTest();
+
+  ctx.clock.setTime(Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
 
