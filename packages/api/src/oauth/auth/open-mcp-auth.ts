@@ -90,7 +90,7 @@ export async function openMCPAuth(options: MCPAuthOptions) {
 
     // The provider's own endpoint types do not satisfy the plugin type under
     // exactOptionalPropertyTypes, so the API reaches them over HTTP-shaped requests.
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- copied from atc; better-auth plugin type under exactOptionalPropertyTypes
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- better-auth plugin type under exactOptionalPropertyTypes
     plugins: [provider as BetterAuthPlugin, createOwnerPlugin()],
   });
 
