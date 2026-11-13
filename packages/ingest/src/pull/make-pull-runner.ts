@@ -4,11 +4,14 @@ import type { ResyncMarks } from '../receive/resync-marks/create-resync-marks.ts
 import { writeBatch } from '../receive/write-batch.ts';
 import type { StreamTurns } from '../receive/write-batch.ts';
 import { pickBatchPlan } from '../utils/pick-batch-plan.ts';
+import { buildCursorRecord } from './cursors/build-cursor-record.ts';
+import { cursorStream } from './cursors/cursor-stream.ts';
 
 export type PullPathName = 'live' | 'recovery' | 'backfill' | 'resync';
 
-// `stored`: the batch is in the log, and the next run starts from `cursor`. `not-stored`: an append
-// failed, so the next run starts from the same cursor. Any other answer is the pull's own.
+// `stored`: the batch and then the cursor record are in the log, and the next run starts from
+// `cursor`. `not-stored`: an append failed, so the next run starts from the same cursor. Any other
+// answer is the pull's own.
 export type PullRun =
   | { kind: 'stored'; stored: number; cursor: string; isDone: boolean }
   | { kind: 'not-stored' }
@@ -80,6 +83,24 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       return outcome === 'not-stored'
         ? { kind: 'not-stored' }
         : { kind: 'refused', reason: 'the log refused the batch' };
+    }
+
+    // A run that leaves the cursor where it was has nothing to save.
+    if (pulled.cursor !== cursor) {
+      const record = buildCursorRecord({
+        source: source.name,
+        path: pathName,
+        cursor: pulled.cursor,
+        nowMs: dependencies.now(),
+      });
+
+      const saved = await writeBatch(new Map([[cursorStream, [[record]]]]), dependencies);
+
+      if (saved !== 'stored') {
+        return saved === 'not-stored'
+          ? { kind: 'not-stored' }
+          : { kind: 'refused', reason: 'the log refused the cursor record' };
+      }
     }
 
     for (const mark of marks) {

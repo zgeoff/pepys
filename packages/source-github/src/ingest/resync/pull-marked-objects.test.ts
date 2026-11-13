@@ -1,6 +1,6 @@
 import { expect, mock, onTestFinished, test } from 'bun:test';
 import { createHmac, generateKeyPairSync } from 'node:crypto';
-import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
+import { createIngest, createMemoryFactLog, cursorStream, noSenderProof } from '@pepys/ingest';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { mockNetwork } from '@pepys/mock-network';
@@ -20,7 +20,7 @@ import { toAppliedFact } from '../../test-utils/to-applied-fact.ts';
 
 async function setupTest() {
   const streams = githubSource.families.map((family) => toTagged<StreamName>(family.stream));
-  const log = createMemoryFactLog(streams);
+  const log = createMemoryFactLog([...streams, cursorStream]);
 
   const deployment = checkDeployment(
     defineDeployment({ name: 'harbour', plugins: [githubPlugin] }),

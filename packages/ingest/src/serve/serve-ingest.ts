@@ -4,6 +4,10 @@ import { makeShutdownHandler } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
 import { readIngestConfig } from '../config/read-ingest-config.ts';
 import { createS2FactLog } from '../fact-log/s2/create-s2-fact-log.ts';
+import { collectTimedPulls } from '../pull/collect-timed-pulls.ts';
+import { cursorStream } from '../pull/cursors/cursor-stream.ts';
+import { formatPullStart } from '../pull/cursors/format-pull-start.ts';
+import { readSavedCursors } from '../pull/cursors/read-saved-cursors.ts';
 import { createIngest } from '../receive/create-ingest.ts';
 import { readImpIdentitySenderProof } from '../sender-proof/imp-identity/read-imp-identity-sender-proof.ts';
 import { startPullTimers } from './start-pull-timers.ts';
@@ -51,9 +55,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
   // The S2 adapter creates the basin and each missing stream, so no setup command creates streams.
   const log = await createS2FactLog({
     ...config.value.s2,
-    streams: collectStreams(sources),
+    streams: [...collectStreams(sources), cursorStream],
     logger,
   });
+
+  const pulls = await readSavedCursors(log, collectTimedPulls(sources));
 
   const ingest = createIngest({
     deployment: checked.value,
@@ -76,7 +82,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
     fetch: ingest.handleRequest,
   });
 
-  const stopPulls = startPullTimers(sources, ingest.runPull, logger);
+  for (const pull of pulls) {
+    console.log(formatPullStart(pull));
+  }
+
+  const stopPulls = startPullTimers(pulls, ingest.runPull, logger);
 
   console.log(`ingest listening on ${server.hostname}:${server.port}`);
 

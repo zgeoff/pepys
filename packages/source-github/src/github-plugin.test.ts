@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { createHmac, generateKeyPairSync } from 'node:crypto';
-import { createIngest, createMemoryFactLog, noSenderProof } from '@pepys/ingest';
+import { createIngest, createMemoryFactLog, cursorStream, noSenderProof } from '@pepys/ingest';
 import { checkDeployment, createLogger, defineDeployment } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { applyInBothOrders, createTestStore } from '@pepys/testing';
@@ -16,7 +16,7 @@ import { toAppliedFact } from './test-utils/to-applied-fact.ts';
 async function setupTest() {
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const streams = githubSource.families.map((family) => toTagged<StreamName>(family.stream));
-  const log = createMemoryFactLog(streams);
+  const log = createMemoryFactLog([...streams, cursorStream]);
 
   const deployment = checkDeployment(
     defineDeployment({ name: 'harbour', plugins: [githubPlugin] }),

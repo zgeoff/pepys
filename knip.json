@@ -48,7 +48,7 @@
       "bun": false
     },
     "packages/ingest": {
-      "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "e2e/fixtures/serve-stub-ingest.ts"],
       "bun": false
     },
     "packages/mock-network": {

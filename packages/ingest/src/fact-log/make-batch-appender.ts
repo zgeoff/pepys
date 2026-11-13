@@ -1,10 +1,10 @@
 import type { FactEnvelope, Logger, Result, StreamName, StreamOffset } from '@pepys/kit';
-import { toTagged } from '@zgeoff/std';
-import type { FactLog, StoredFact } from './fact-log.ts';
+import type { FactLog } from './fact-log.ts';
 import { pickAttemptStep } from './pick-attempt-step.ts';
 import type { AttemptResult } from './pick-attempt-step.ts';
 import { pickRetryStep } from './pick-retry-step.ts';
 import { pickSettledAttempt } from './pick-settled-attempt.ts';
+import { readRun } from './read-run.ts';
 
 interface BatchAppenderOptions {
   log: FactLog;
@@ -110,35 +110,4 @@ async function settleAttempt(
     facts.map((fact) => fact.id),
     tail,
   );
-}
-
-// A read can end before `count` records, so it repeats from the next offset until it has them all
-// or the stream ends.
-async function readRun(
-  log: FactLog,
-  stream: StreamName,
-  from: StreamOffset,
-  count: number,
-): Promise<Result<readonly StoredFact[], { reason: 'unknown-stream' }>> {
-  const records: StoredFact[] = [];
-
-  while (records.length < count) {
-    const read = await log.read(
-      stream,
-      toTagged<StreamOffset>(from + records.length),
-      count - records.length,
-    );
-
-    if (!read.ok) {
-      return read;
-    }
-
-    if (read.value.length === 0) {
-      break;
-    }
-
-    records.push(...read.value);
-  }
-
-  return { ok: true, value: records };
 }

@@ -1,12 +1,12 @@
 # The fact log
 
 The fact log holds every fact pepys has, and it is the one store that nothing can rebuild. Ingest is
-its only writer: ingest turns each delivery from a source into facts and appends them, and reads the
-log only to guard and settle its own appends. The host reads the log to run each consumer, the code
-that builds a consumer's tables from facts, on the streams that the consumer declares. This doc
-covers the streams, the envelope of a fact, and how one append lands once.
-[The ingest doc](./ingest.md) covers the deliveries, and [the host doc](../consumers/host.md) covers
-the consumers.
+its only writer: ingest turns each delivery from a source into facts and appends them. Ingest reads
+the log only to guard and settle its own appends, and to read its saved cursors at start. The host
+reads the log to run each consumer, the code that builds a consumer's tables from facts, on the
+streams that the consumer declares. This doc covers the streams, the envelope of a fact, and how one
+append lands once. [The ingest doc](./ingest.md) covers the deliveries, and
+[the host doc](../consumers/host.md) covers the consumers.
 
 The log keeps every record forever and never rewrites one. A copy of a fact is harmless: every fact
 has a deterministic ID, so a fact written twice has the same ID both times, and the host applies
@@ -33,6 +33,30 @@ as [decision 0003](../../decisions/0003-one-stream-per-fact-family.md) sets out.
 Ingest creates each stream at start with infinite retention, because s2-lite keeps a record for a
 limited time by default.
 
+### The cursor stream
+
+The `facts.cursors` stream belongs to no fact family. It holds the position of each
+[pull path](./ingest.md#cursors) in its source, one record per run that moved the position. The
+position has a stream of its own because one pull path can write several fact streams, and two pull
+paths can write the same one, so the last record of a fact stream gives no pull path's position.
+
+A cursor record has the [envelope of a fact](#the-fact-envelope), so ingest appends it as it appends
+a fact:
+
+| Field     | Holds                                                                 |
+| --------- | --------------------------------------------------------------------- |
+| `id`      | `observation:` and a hash of the source, the pull path and the cursor |
+| `type`    | `ingest.cursor.saved`                                                 |
+| `api`     | `ingest/1`                                                            |
+| `entity`  | `<source>:pull_path:<slot>`, such as `github:pull_path:recovery`      |
+| `at`      | the time on ingest's clock when it built the record                   |
+| `cursor`  | the cursor                                                            |
+| `payload` | `{}`                                                                  |
+
+No consumer reads the stream. A family's stream name has three parts, and the host refuses a
+consumer that lists a stream of any other form, so no consumer can list `facts.cursors`. The host
+reads only the streams that its consumers list.
+
 ## The fact envelope
 
 Every fact has one envelope around the payload the source sent:
@@ -46,7 +70,7 @@ Every fact has one envelope around the payload the source sent:
 | `entity`  | the [entity ID](../queries/entities-and-links.md#entity-ids) the fact is about |
 | `actor`   | the entity ID of the actor, when the source names one                          |
 | `at`      | the source time, as an ISO date and time                                       |
-| `cursor`  | the source position, when a [pull timer](./ingest.md#pull-paths) sets one      |
+| `cursor`  | the position of a pull path, in a [cursor record](#the-cursor-stream) only     |
 | `payload` | the source object, whole                                                       |
 
 Ingest refuses an envelope with any other field. Ingest keeps the payload whole, because some source

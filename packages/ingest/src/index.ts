@@ -11,6 +11,7 @@ export { planAppends } from './utils/plan-appends.ts';
 export { createS2FactLog } from './fact-log/s2/create-s2-fact-log.ts';
 export { createIngest } from './receive/create-ingest.ts';
 export type { Ingest, IngestOptions } from './receive/create-ingest.ts';
+export { cursorStream } from './pull/cursors/cursor-stream.ts';
 export type { PullPathName, PullRun, PullRunner } from './pull/make-pull-runner.ts';
 export type { ResyncMarks } from './receive/resync-marks/create-resync-marks.ts';
 export { createFakeSenderProof } from './sender-proof/fake/create-fake-sender-proof.ts';

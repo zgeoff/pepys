@@ -167,11 +167,6 @@ Ingest starts one timer for each pull path that sets an interval. Ingest never r
 no interval on its own. Code that holds the result of `createIngest` can run such a path once
 through `runPull`, as the tests do. A run never overlaps the one before it on the same timer.
 
-Each timer keeps its cursor, the source's position, in memory, so the first run after a start passes
-the pull no cursor. When a pull reports that its cursor expired, ingest drops the cursor, and the
-next run passes no cursor too. On any other failure, ingest logs the error and keeps the cursor for
-the next run.
-
 A pull's batch goes through the same batch checks and appends as a delivery. When a pull returns a
 fact with a blob, ingest appends nothing from that run, logs the error, and keeps the cursor.
 
@@ -181,6 +176,30 @@ set a mark, and the resync pull of the same ingest process reads the marks.
 Ingest removes each mark only after the run's whole batch is stored, so a failed run keeps every
 mark for the next one. Ingest keeps the marks in memory, at most 10,000 per source with the oldest
 dropped first, and a restart loses them.
+
+### Cursors
+
+A cursor is a pull path's position in its source. A run passes the pull its cursor, and a batch
+brings the next one. After a run's facts are stored, ingest appends one
+[cursor record](./fact-log.md#the-cursor-stream) to the `facts.cursors` stream, and only then counts
+the run as stored. A run that ends on the cursor it started from appends no record.
+
+When an append of the facts fails, ingest appends no cursor record. When the append of the cursor
+record fails, or ingest stops before it, the next run starts from the old cursor and pulls the same
+facts again. The host skips the copies.
+
+At start, ingest reads the newest cursor record of each timer's pull path, and the timer's first run
+passes that cursor. For each timer, ingest prints one line to stdout, such as
+`pull github recovery {"source":"github","path":"recovery","cursor":"saved"}`, where `cursor` is
+`saved` or `none`. Ingest never prints the cursor itself, because a source chooses what its cursor
+holds.
+
+When a pull reports that its cursor expired, the timer drops the cursor, and the next run passes
+none. No record marks the drop, so a restart before the next stored run passes the expired cursor
+once more. On any other failure, ingest logs the error and keeps the cursor.
+
+A caller of `runPull` passes the cursor itself, and a stored run appends its cursor record in the
+same way.
 
 ## Log lines
 
@@ -214,10 +233,11 @@ first, and exits 1 on a failure. It then reads these variables:
 When any of them is unset or empty, ingest names every missing variable at once and exits 1. Ingest
 listens on `PEPYS_INGEST_HOST`, 127.0.0.1 by default, and `PEPYS_INGEST_PORT`, 8080 by default.
 
-Before it listens, ingest creates the S2 basin, the namespace that holds every stream, and the
-stream of each fact family. It gives each stream infinite retention, and sets infinite retention on
-a stream that already exists. s2-lite, the S2 server a deployment runs, drops old records from a
-stream that has the default retention.
+Before it listens, ingest creates the S2 basin, the namespace that holds every stream, the stream of
+each fact family, and the `facts.cursors` stream. It gives each stream infinite retention, and sets
+infinite retention on a stream that already exists. s2-lite, the S2 server a deployment runs, drops
+old records from a stream that has the default retention. Ingest then reads the
+[saved cursors](#cursors).
 
 Ingest takes no lock across processes. Two processes of one deployment would each keep their own
 recent bodies, timers and resync marks, so a deployment runs one.

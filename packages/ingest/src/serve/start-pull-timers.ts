@@ -1,70 +1,59 @@
-import type { Logger, SourceDefinition } from '@pepys/kit';
+import type { Logger } from '@pepys/kit';
 import { match } from 'ts-pattern';
-import type { PullPathName, PullRun, PullRunner } from '../pull/make-pull-runner.ts';
+import type { ResumedPull } from '../pull/cursors/read-saved-cursors.ts';
+import type { PullRun, PullRunner } from '../pull/make-pull-runner.ts';
 
-const pullPathNames: readonly PullPathName[] = ['live', 'recovery', 'backfill', 'resync'];
-
-// One timer per pull path with an interval. The cursor lives in memory, so a restart starts each
-// pull from no cursor. A run never overlaps the one before it. Returns the function that stops them:
-// it aborts each run in flight and settles once every run has ended.
+// One timer per pull, whose first run starts from the pull's saved cursor. A run never overlaps the
+// one before it on the same timer. Returns the function that stops the timers: it aborts each run
+// in flight and settles once every run has ended.
 export function startPullTimers(
-  sources: readonly SourceDefinition[],
+  pulls: readonly ResumedPull[],
   runPull: PullRunner,
   logger: Logger,
 ): () => Promise<void> {
   const controller = new AbortController();
   const activeRuns = new Set<Promise<void>>();
 
-  const timers = sources.flatMap((source) =>
-    pullPathNames.flatMap((pathName) => {
-      const path = source[pathName];
+  const timers = pulls.map((pull) => {
+    let cursor = pull.cursor;
+    let isRunning = false;
 
-      if (path?.kind !== 'pull' || path.intervalMs === null) {
-        return [];
+    const runOnce = async (): Promise<void> => {
+      if (isRunning || controller.signal.aborted) {
+        return;
       }
 
-      let cursor: string | null = null;
-      let isRunning = false;
+      isRunning = true;
 
-      const runOnce = async (): Promise<void> => {
-        if (isRunning || controller.signal.aborted) {
-          return;
+      const ended = Promise.withResolvers<void>();
+
+      activeRuns.add(ended.promise);
+
+      try {
+        const run = await runPull(pull.source, pull.path, cursor, controller.signal);
+
+        cursor = pickNextCursor(run, cursor);
+
+        // a run that the stop cut short is no failure
+        if (run.kind !== 'stored' && !controller.signal.aborted) {
+          logger.error(`the ${pull.path} pull of ${pull.source} did not store`, run);
         }
-
-        isRunning = true;
-
-        const ended = Promise.withResolvers<void>();
-
-        activeRuns.add(ended.promise);
-
-        try {
-          const run = await runPull(source.name, pathName, cursor, controller.signal);
-
-          cursor = pickNextCursor(run, cursor);
-
-          // a run that the stop cut short is no failure
-          if (run.kind !== 'stored' && !controller.signal.aborted) {
-            logger.error(`the ${pathName} pull of ${source.name} did not store`, run);
-          }
-        } catch (error: unknown) {
-          if (!controller.signal.aborted) {
-            logger.error(`the ${pathName} pull of ${source.name} threw`, error);
-          }
-        } finally {
-          isRunning = false;
-
-          activeRuns.delete(ended.promise);
-          ended.resolve();
+      } catch (error: unknown) {
+        if (!controller.signal.aborted) {
+          logger.error(`the ${pull.path} pull of ${pull.source} threw`, error);
         }
-      };
+      } finally {
+        isRunning = false;
 
-      return [
-        setInterval(() => {
-          void runOnce();
-        }, path.intervalMs),
-      ];
-    }),
-  );
+        activeRuns.delete(ended.promise);
+        ended.resolve();
+      }
+    };
+
+    return setInterval(() => {
+      void runOnce();
+    }, pull.intervalMs);
+  });
 
   return async () => {
     for (const timer of timers) {

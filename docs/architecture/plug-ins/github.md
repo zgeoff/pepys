@@ -123,9 +123,9 @@ webhook route does. Some of those deliveries did reach the log, such as one that
 answered too late for GitHub. Their facts get the ID of the stored fact. The pull's facts skip the
 receive route's drop of repeated bodies, so ingest appends them, and the host skips them.
 
-The pull keeps its cursor in memory, so the first run after a start reads every delivery that GitHub
-still keeps. When one delivery's fact is too large for one append to the fact log, the pull logs the
-delivery ID and skips it.
+Ingest [saves the pull's cursor](../ingest/ingest.md#cursors), so a restart goes on from it. The
+first run with no saved cursor reads every delivery that GitHub still keeps. When one delivery's
+fact is too large for one append to the fact log, the pull logs the delivery ID and skips it.
 
 ## The resync pull
 

@@ -7,6 +7,7 @@ import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import type { FactLog } from '../fact-log/fact-log.ts';
 import { createMemoryFactLog } from '../fact-log/memory/create-memory-fact-log.ts';
+import { cursorStream } from '../pull/cursors/cursor-stream.ts';
 import { createFakeSenderProof } from '../sender-proof/fake/create-fake-sender-proof.ts';
 import { noSenderProof } from '../sender-proof/none/no-sender-proof.ts';
 import { buildStubFactLog } from '../test-utils/build-stub-fact-log.ts';
@@ -42,7 +43,13 @@ function setupTest() {
   const clock = { nowMs: 0 };
 
   const createLog = () =>
-    createMemoryFactLog([streams.till, streams.lamp, streams.stray, streams.strayMark]);
+    createMemoryFactLog([
+      streams.till,
+      streams.lamp,
+      streams.stray,
+      streams.strayMark,
+      cursorStream,
+    ]);
 
   const lines: string[] = [];
   const logger = createLogger({ write: (line) => lines.push(line) });
@@ -931,7 +938,7 @@ test('it keeps no marks for a source with no resync pull', async () => {
 
 test('it stores the facts of a resync pull and then removes the marks it was given', async () => {
   const ctx = setupTest();
-  const log = createMemoryFactLog([ctx.streams.till]);
+  const log = createMemoryFactLog([ctx.streams.till, cursorStream]);
   const ingest = ctx.createIngestOver({ log });
 
   for (const event of ['first', 'tied']) {

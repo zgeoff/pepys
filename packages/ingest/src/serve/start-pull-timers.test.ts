@@ -1,61 +1,44 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import {
-  checkDeployment,
-  createLogger,
-  defineDeployment,
-  defineFactFamily,
-  definePlugin,
-  defineSource,
-} from '@pepys/kit';
+import { createLogger, toStreamName } from '@pepys/kit';
 import type { PullPath } from '@pepys/kit';
 import { waitFor } from '@zgeoff/testing/helpers';
-import invariant from 'tiny-invariant';
-import { z } from 'zod';
 import { createMemoryFactLog } from '../fact-log/memory/create-memory-fact-log.ts';
+import { collectTimedPulls } from '../pull/collect-timed-pulls.ts';
+import { cursorStream } from '../pull/cursors/cursor-stream.ts';
+import { readSavedCursors } from '../pull/cursors/read-saved-cursors.ts';
 import { createIngest } from '../receive/create-ingest.ts';
 import { noSenderProof } from '../sender-proof/none/no-sender-proof.ts';
+import { buildStubPullDeployment } from '../test-utils/build-stub-pull-deployment.ts';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { startPullTimers } from './start-pull-timers.ts';
 
 function setupTest() {
   const lines: string[] = [];
   const logger = createLogger({ write: (line) => lines.push(line) });
+  const tide = toStreamName('facts.almanac.tide');
+  const log = createMemoryFactLog([tide, cursorStream]);
 
   return {
+    tide,
     readLogged: () => lines.map((line): unknown => JSON.parse(line)),
-    startTimers: (pull: PullPath['pull']) => {
-      const source = defineSource({
-        name: 'almanac',
-        families: [
-          defineFactFamily({
-            stream: 'facts.almanac.tide',
-            api: 'almanac/1',
-            entityKind: 'almanac:tide',
-            types: { 'almanac.tide.turned': z.object({}) },
-          }),
-        ],
-        live: { kind: 'pull', name: 'tides', intervalMs: 1, pull },
-      });
 
-      const deployment = checkDeployment(
-        defineDeployment({
-          name: 'quay',
-          plugins: [definePlugin({ name: 'almanac', sources: [source] })],
-        }),
-      );
-
-      invariant(deployment.ok, 'the deployment passes the check');
+    // one ingest over the test's log, as a start of the process makes one
+    startTimers: async (pull: PullPath['pull']) => {
+      const deployment = buildStubPullDeployment({ almanac: { live: { intervalMs: 1, pull } } });
 
       const ingest = createIngest({
-        deployment: deployment.value,
+        deployment,
         secrets: {},
-        log: createMemoryFactLog([]),
+        log,
         senderProof: noSenderProof,
         appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
         now: () => 0,
         logger,
       });
 
-      const stop = startPullTimers(deployment.value.sources, ingest.runPull, logger);
+      const pulls = await readSavedCursors(log, collectTimedPulls(deployment.sources));
+
+      const stop = startPullTimers(pulls, ingest.runPull, logger);
 
       onTestFinished(stop);
 
@@ -64,10 +47,74 @@ function setupTest() {
   };
 }
 
+test('it passes the first run after a restart the cursor that the last stored run saved', async () => {
+  const ctx = setupTest();
+  const stored = Promise.withResolvers<void>();
+
+  const stopFirst = await ctx.startTimers(() => {
+    stored.resolve();
+
+    return Promise.resolve({
+      kind: 'batch',
+      batch: {
+        facts: [{ stream: ctx.tide, blobs: [], fact: buildTestFact('event:almanac:tide-1') }],
+      },
+      cursor: 'tide-41',
+      isDone: true,
+    });
+  });
+
+  await stored.promise;
+  await stopFirst();
+
+  const seen: (string | null)[] = [];
+
+  await ctx.startTimers((cursor) => {
+    seen.push(cursor);
+
+    return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+  });
+
+  await waitFor(() => {
+    expect(seen[0]).toBe('tide-41');
+  });
+});
+
+test('it starts the pull from no cursor after the pull reports its saved cursor expired', async () => {
+  const ctx = setupTest();
+  const stored = Promise.withResolvers<void>();
+
+  const stopFirst = await ctx.startTimers(() => {
+    stored.resolve();
+
+    return Promise.resolve({
+      kind: 'batch',
+      batch: { facts: [] },
+      cursor: 'tide-41',
+      isDone: true,
+    });
+  });
+
+  await stored.promise;
+  await stopFirst();
+
+  const seen: (string | null)[] = [];
+
+  await ctx.startTimers((cursor) => {
+    seen.push(cursor);
+
+    return Promise.resolve({ kind: 'expired' });
+  });
+
+  await waitFor(() => {
+    expect(seen.slice(0, 2)).toStrictEqual(['tide-41', null]);
+  });
+});
+
 test('it logs a timed pull that stores nothing, with what the pull answered', async () => {
   const ctx = setupTest();
 
-  ctx.startTimers(() => Promise.resolve({ kind: 'unavailable', retryAfterMs: 30_000 }));
+  await ctx.startTimers(() => Promise.resolve({ kind: 'unavailable', retryAfterMs: 30_000 }));
 
   await waitFor(() => {
     expect(ctx.readLogged()[0]).toStrictEqual({
@@ -81,7 +128,7 @@ test('it logs a timed pull that stores nothing, with what the pull answered', as
 test('it logs a timed pull that throws, with its error', async () => {
   const ctx = setupTest();
 
-  ctx.startTimers(() => Promise.reject(new Error('the tide table is offline')));
+  await ctx.startTimers(() => Promise.reject(new Error('the tide table is offline')));
 
   await waitFor(() => {
     expect(ctx.readLogged()[0]).toStrictEqual({
@@ -97,7 +144,7 @@ test('it aborts a pull in flight on stop, and settles once the pull ends', async
   const seen = Promise.withResolvers<AbortSignal>();
   const ended: string[] = [];
 
-  const stop = ctx.startTimers(async (_cursor, context) => {
+  const stop = await ctx.startTimers(async (_cursor, context) => {
     seen.resolve(context.signal);
 
     await new Promise((resolve) => {
@@ -120,7 +167,7 @@ test('it logs no failure for a pull that the stop cut short', async () => {
   const ctx = setupTest();
   const seen = Promise.withResolvers<void>();
 
-  const stop = ctx.startTimers(async (_cursor, context) => {
+  const stop = await ctx.startTimers(async (_cursor, context) => {
     seen.resolve();
 
     await new Promise((resolve) => {
@@ -140,7 +187,7 @@ test('it logs no failure for a pull that throws once the stop aborted it', async
   const ctx = setupTest();
   const seen = Promise.withResolvers<void>();
 
-  const stop = ctx.startTimers(async (_cursor, context) => {
+  const stop = await ctx.startTimers(async (_cursor, context) => {
     seen.resolve();
 
     await new Promise((resolve) => {
