@@ -59,6 +59,10 @@ Their IDs appear in column values, such as a pull request's `repository_id`, and
 field of a fact. `get_entity` returns not found for each, and `neighbourhood` lists each one it
 reaches in `unresolved`.
 
+The kind `<source>:pull_path`, such as `github:pull_path:recovery`, names a pull path of a source.
+It appears only in a [cursor record](../ingest/fact-log.md#the-cursor-stream), which no consumer
+reads.
+
 ## The entity view
 
 Each consumer declares one entity view per table whose rows are entities. `pepys build` writes those

@@ -53,9 +53,9 @@ a fact:
 | `cursor`  | the cursor                                                            |
 | `payload` | `{}`                                                                  |
 
-No consumer reads the stream. A family's stream name has three parts, and the host refuses a
-consumer that lists a stream of any other form, so no consumer can list `facts.cursors`. The host
-reads only the streams that its consumers list.
+No consumer reads the stream. The host reads only the streams that its consumers list, and it
+refuses a consumer that lists a stream with no `.` after `facts.<source>`, so no consumer can list
+`facts.cursors`.
 
 ## The fact envelope
 
