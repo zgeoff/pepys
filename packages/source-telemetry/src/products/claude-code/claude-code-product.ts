@@ -25,8 +25,8 @@ export const claudeCodeProduct = defineTelemetryProduct({
   },
 });
 
-// Neither the scope name nor the event name's prefix on the wire is checked against a capture, so
-// either one marks a record as Claude Code's, and the event is the name without the prefix.
+// Claude Code writes the event with no prefix in `event.name`, under its own scope. A name with the
+// prefix also marks a record as Claude Code's, under any scope.
 function findClaudeCodeEvent(record: LogRecord): string | undefined {
   const name = findAttributeText(record, 'event.name');
 

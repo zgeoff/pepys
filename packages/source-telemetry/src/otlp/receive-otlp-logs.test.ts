@@ -95,11 +95,11 @@ test('it answers 200 with {} to a gzip export, and stores each record whole with
         at: '2026-11-11T02:21:30.000Z',
         payload: {
           resource: { attributes: [{ key: 'atc.session.id', value: { stringValue: 's-9' } }] },
-          scope: { name: 'codex_otel' },
+          scope: { name: 'codex_otel.log_only' },
           logRecord: {
             timeUnixNano: '1794370800000000000',
             observedTimeUnixNano: '1794370800500000000',
-            body: { stringValue: 'event' },
+            body: {},
             attributes: [
               { key: 'event.name', value: { stringValue: 'codex.turn_cost' } },
               { key: 'event.timestamp', value: { stringValue: '2026-11-11T02:21:30.000Z' } },
@@ -123,7 +123,7 @@ test('it stores the origin from the proof, never one that the export or a header
         origin: { issuer: 'forged-host', subject: 'imp-9999' },
         scopeLogs: [
           {
-            scope: { name: 'codex_otel' },
+            scope: { name: 'codex_otel.log_only' },
             logRecords: [
               {
                 timeUnixNano: '1794370800000000000',

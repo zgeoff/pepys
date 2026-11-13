@@ -48,6 +48,12 @@ An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only w
 right shape, the source's `read` function, which turns the export into facts, skips each resource,
 scope, log record or attribute of the wrong shape, and keeps the rest.
 
+Set each exporter to send JSON, because ingest answers 400 to OTLP protobuf: `http/json` as the
+protocol of Claude Code, and `json` as the protocol of Codex's `otlp-http` exporter. Claude Code
+sends gzip when `OTEL_EXPORTER_OTLP_COMPRESSION` is `gzip`, and Codex sends no gzip. Each exporter
+sends at most 512 records in one export by default, and a record is about 2 kB to 3 kB, so a full
+export is under both limits.
+
 ## The checks
 
 1. Ingest checks the shared token, `PEPYS_TELEMETRY_TOKEN`, in the `authorization` header, bare or
@@ -142,8 +148,8 @@ counts nothing twice.
 - The model request consumer skips a record that lacks a model or token counts.
 - The turn cost consumer needs only the cost. Codex's estimate can come without a model, so the
   consumer writes that turn with a null model.
-- Each consumer reads a number from a JSON number or from decimal text, so it takes either form from
-  an exporter.
+- Each consumer reads a number from a JSON number or from decimal text. Claude Code writes a count
+  as a JSON number, and Codex writes a count as decimal text.
 
 The consumers import no ingest code, so they keep their own list of product names, in
 [`consumers/products/types.ts`](../../../packages/source-telemetry/src/consumers/products/types.ts).
@@ -185,3 +191,11 @@ that machine from outside this plug-in.
   product as the subagent of a request.
 - The log keeps every record of a known product, tool and hook events included, though only model
   requests and turn costs become rows.
+- Codex signed in with a ChatGPT account sends no `turn_cost` event, so its sessions have no cost in
+  either table. Whether Codex with an API key sends one is not checked.
+- Codex's exporter sends each export once. When ingest answers 503, Claude Code sends the same
+  export again, and Codex never does, so that export's records are lost.
+- Codex writes `atc.session.id` on the resource only, and its `api_request` records carry no
+  `conversation.id`. Without `atc.session.id`, `read` drops those records.
+- One Codex turn can send several `response.completed` events, such as one for the model that
+  reviews a command. Each one becomes a model request row.

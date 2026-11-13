@@ -23,7 +23,7 @@ test('it skips each part of the wrong shape and keeps the rest of the record as 
         scopeLogs: [
           { scope: { name: 7 }, logRecords: 'none' },
           {
-            scope: { name: 'codex_otel', version: '0.9.0' },
+            scope: { name: 'codex_otel.log_only', version: '0.9.0' },
             logRecords: [
               null,
               {
@@ -48,7 +48,7 @@ test('it skips each part of the wrong shape and keeps the rest of the record as 
         scopeLogs: [
           { scope: { name: '' }, logRecords: [] },
           {
-            scope: { name: 'codex_otel', version: '0.9.0' },
+            scope: { name: 'codex_otel.log_only', version: '0.9.0' },
             logRecords: [
               {
                 timeUnixNano: 1_794_370_800_000_000_000,

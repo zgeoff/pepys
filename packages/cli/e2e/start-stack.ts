@@ -369,7 +369,7 @@ async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
     expiresAtSeconds: nowSeconds + 50,
   });
 
-  // OTLP JSON as Claude Code's exporter writes it: a 64-bit integer is decimal text
+  // OTLP JSON as Claude Code's exporter writes it: an integer is a JSON number
   const body = {
     resourceLogs: [
       {
@@ -381,7 +381,7 @@ async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
               {
                 timeUnixNano: '1794370800000000000',
                 observedTimeUnixNano: '1794370800500000000',
-                body: { stringValue: 'event' },
+                body: { stringValue: 'claude_code.api_request' },
                 attributes: [
                   { key: 'event.name', value: { stringValue: 'api_request' } },
                   { key: 'session.id', value: { stringValue: 'c-harbour' } },
@@ -389,11 +389,11 @@ async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
                   { key: 'request_id', value: { stringValue: 'req_harbour_01' } },
                   { key: 'model', value: { stringValue: 'model-large' } },
                   { key: 'cost_usd', value: { doubleValue: 0.4 } },
-                  { key: 'input_tokens', value: { intValue: '12' } },
-                  { key: 'cache_read_tokens', value: { intValue: '900' } },
-                  { key: 'cache_creation_tokens', value: { intValue: '30' } },
-                  { key: 'output_tokens', value: { intValue: '210' } },
-                  { key: 'duration_ms', value: { intValue: '4100' } },
+                  { key: 'input_tokens', value: { intValue: 12 } },
+                  { key: 'cache_read_tokens', value: { intValue: 900 } },
+                  { key: 'cache_creation_tokens', value: { intValue: 30 } },
+                  { key: 'output_tokens', value: { intValue: 210 } },
+                  { key: 'duration_ms', value: { intValue: 4100 } },
                 ],
               },
             ],

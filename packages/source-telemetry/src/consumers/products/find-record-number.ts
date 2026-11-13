@@ -1,6 +1,6 @@
 import type { KeyValue, StoredRecord } from './types.ts';
 
-// Whether an exporter writes a count as a number or as decimal text is not checked, so both count.
+// Claude Code writes a count as a JSON number, and Codex writes it as decimal text, so both count.
 export function findRecordNumber(record: StoredRecord, name: string): number | undefined {
   const value = findRecordAttribute(record, name);
 

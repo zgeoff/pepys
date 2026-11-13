@@ -36,7 +36,7 @@ test('it stores a listed event under its type, keyed by the event key, with the 
           logRecord: {
             timeUnixNano: '1794370800000000000',
             observedTimeUnixNano: '1794370800500000000',
-            body: { stringValue: 'event' },
+            body: { stringValue: 'claude_code.api_request' },
             attributes: [
               { key: 'event.name', value: { stringValue: 'api_request' } },
               { key: 'session.id', value: { stringValue: 'c-1' } },
@@ -100,7 +100,7 @@ test.each([
   {
     row: 'a tool result, by its session and tool use ID',
     record: {
-      'event.name': 'claude_code.tool_result',
+      'event.name': 'tool_result',
       'event.sequence': 12,
       tool_use_id: 'toolu_04',
       tool_name: 'Bash',
@@ -109,22 +109,22 @@ test.each([
   },
   {
     row: 'a user prompt, by its session and sequence',
-    record: { 'event.name': 'claude_code.user_prompt', 'event.sequence': 3, prompt_length: '18' },
+    record: { 'event.name': 'user_prompt', 'event.sequence': 3, prompt_length: '18' },
     fact: ['telemetry.claude_code.user_prompt', 'claude_code.user_prompt:s-c-1:3'],
   },
   {
     row: 'a tool decision, by its session and sequence',
-    record: { 'event.name': 'claude_code.tool_decision', 'event.sequence': 11, tool_name: 'Bash' },
+    record: { 'event.name': 'tool_decision', 'event.sequence': 11, tool_name: 'Bash' },
     fact: ['telemetry.claude_code.tool_decision', 'claude_code.tool_decision:s-c-1:11'],
   },
   {
     row: 'an unlisted event, by its session and sequence',
-    record: { 'event.name': 'claude_code.hook_registered', 'event.sequence': 0 },
+    record: { 'event.name': 'hook_registered', 'event.sequence': 0 },
     fact: ['telemetry.claude_code.unlisted', 'claude_code.hook_registered:s-c-1:0'],
   },
   {
     row: 'a request with no request ID, by its session and sequence',
-    record: { 'event.name': 'claude_code.api_request', 'event.sequence': 5, model: 'opus' },
+    record: { 'event.name': 'api_request', 'event.sequence': 5, model: 'opus' },
     fact: ['telemetry.claude_code.api_request', 'claude_code.api_request:s-c-1:5'],
   },
 ])('it keys $row', (row) => {
@@ -139,18 +139,49 @@ test.each([
   ]);
 });
 
+test('it reads a Claude Code event from a prefixed name under another scope', () => {
+  const ctx = setupTest();
+
+  const body: LogsExport = {
+    resourceLogs: [
+      {
+        resource: { attributes: [] },
+        scopeLogs: [
+          {
+            scope: { name: 'relay' },
+            logRecords: [
+              {
+                timeUnixNano: '1794370800000000000',
+                attributes: [
+                  { key: 'event.name', value: { stringValue: 'claude_code.api_request' } },
+                  { key: 'session.id', value: { stringValue: 'c-1' } },
+                  { key: 'request_id', value: { stringValue: 'req_07' } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  expect(ctx.read(body).facts.map((fact) => [fact.type, fact.event])).toStrictEqual([
+    ['telemetry.claude_code.api_request', 'claude_code.api_request:req_07'],
+  ]);
+});
+
 test('it keeps two tool results apart when two sessions share a tool use ID', () => {
   const ctx = setupTest();
 
   const body = buildLogsExport('claude_code', {}, [
     {
-      'event.name': 'claude_code.tool_result',
+      'event.name': 'tool_result',
       'session.id': 'c-1',
       'event.timestamp': '2026-11-11T02:20:00Z',
       tool_use_id: 'toolu_07',
     },
     {
-      'event.name': 'claude_code.tool_result',
+      'event.name': 'tool_result',
       'session.id': 'c-2',
       'event.timestamp': '2026-11-11T02:20:00Z',
       tool_use_id: 'toolu_07',
@@ -167,7 +198,7 @@ test('it keeps one fact ID for a record delivered twice', () => {
   const ctx = setupTest();
 
   const record = {
-    'event.name': 'claude_code.user_prompt',
+    'event.name': 'user_prompt',
     'session.id': 'c-1',
     'event.sequence': 3,
     'event.timestamp': '2026-11-11T02:20:00Z',
@@ -183,14 +214,14 @@ test('it keeps both a request and its error when they share a request ID', () =>
 
   const body = buildLogsExport('claude_code', {}, [
     {
-      'event.name': 'claude_code.api_request',
+      'event.name': 'api_request',
       'session.id': 'c-1',
       'event.sequence': 7,
       'event.timestamp': '2026-11-11T02:20:00Z',
       request_id: 'req_05',
     },
     {
-      'event.name': 'claude_code.api_error',
+      'event.name': 'api_error',
       'session.id': 'c-1',
       'event.sequence': 8,
       'event.timestamp': '2026-11-11T02:20:01Z',
@@ -229,7 +260,7 @@ test('it gives one ID to a record that a sink forwards with a new resource and o
         resource: forwarded.resourceLogs[0]?.resource ?? { attributes: [] },
         scopeLogs: [
           {
-            scope: { name: 'codex_otel' },
+            scope: { name: 'codex_otel.log_only' },
             logRecords: [{ ...raw, observedTimeUnixNano: '1794370900000000000' }],
           },
         ],
@@ -296,7 +327,7 @@ test.each([
         resource: { attributes: [] },
         scopeLogs: [
           {
-            scope: { name: 'codex_otel' },
+            scope: { name: 'codex_otel.log_only' },
             logRecords: [
               {
                 timeUnixNano: row.timeUnixNano,
@@ -324,7 +355,7 @@ test('it drops a record of no known product, with no session, or with no time, a
         resource: { attributes: [] },
         scopeLogs: [
           {
-            scope: { name: 'codex_otel' },
+            scope: { name: 'codex_otel.log_only' },
             logRecords: [
               { attributes: [{ key: 'event.name', value: { stringValue: 'gitpod.start' } }] },
               {
