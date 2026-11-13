@@ -1,19 +1,17 @@
 # The host
 
 The host is one Rust process, and the only process that writes the tables a deployment serves. Each
-consumer of the deployment is a pure function from facts to rows, compiled by `pepys build` to a
-WebAssembly module and listed in `consumers.json`. The host reads each consumer's streams from the
-[fact log](../ingest/fact-log.md), runs the module on the new facts, and writes the operations the
-module returns into the consumer's own database file. To deploy a new version of a consumer, the
-host builds a new file beside the live one by replaying the log, then swaps it in, so a reader never
-sees a half-built table. The host's code never hardcodes a source, a table or a consumer: the host
-reads each of them from `consumers.json`.
+consumer is a pure function from facts to rows, which `pepys build` compiles to a WebAssembly module
+and lists in `consumers.json`. The host reads each consumer's streams from the
+[fact log](../ingest/fact-log.md), runs the module on new facts, and writes the returned operations
+into the consumer's own database file. To deploy a new version, the host builds a new file beside
+the live one by replaying the log, then swaps it in, so a reader never sees a half-built table. The
+host hardcodes no source, table or consumer: it reads each from `consumers.json`.
 
-[Plug-ins and the build](./plug-ins-and-build.md) covers `consumers.json`, the manifest each
-consumer entry holds, and the modules. [The API](../queries/api.md) covers the reader of the files
-the host writes. [Decision 0006](../../decisions/0006-consumers-return-operations.md) records why a
-consumer returns operations, and [decision 0018](../../decisions/0018-preview-and-up.md) records
-`preview` and `up`.
+[Plug-ins and the build](./plug-ins-and-build.md) covers `consumers.json`, the manifest of each
+entry, and the modules. [The API](../queries/api.md) covers the reader of the host's files.
+[Decision 0006](../../decisions/0006-consumers-return-operations.md) records why a consumer returns
+operations, and [decision 0018](../../decisions/0018-preview-and-up.md) records `preview` and `up`.
 
 ## Commands and the store folder
 
@@ -42,8 +40,7 @@ The store folder holds one folder per consumer, and one folder per version insid
 <store>/<consumer>/preview-<pid>/        a preview's replay, deleted when it ends
 ```
 
-Everything the host writes for one version lives in its `consumer.db`: the consumer's own tables,
-and these bookkeeping tables, which the later sections use by name:
+A version's `consumer.db` holds everything the host writes for it: the consumer's tables, and these:
 
 - `offsets`, the last sequence number the version read on each stream;
 - `applied_facts`, the ID of each fact the version applied;
@@ -52,11 +49,10 @@ and these bookkeeping tables, which the later sections use by name:
 - in a scope consumer's file, `scope_fact`, the fact index, and `scope_row`, the scope that owns
   each row and link.
 
-Because one file holds all of them, a batch's rows, links and offsets commit in one transaction,
-with no transaction across files. The host and the API open each file with Turso, a Rust rewrite of
-SQLite that keeps SQLite's file and WAL format. Every connection opens with Turso's multi-process
-WAL option, because a writer that opens the file without it locks the file, and the API can then not
-read it.
+One file holds all of them, so a batch's rows, links and offsets commit in one transaction, and no
+transaction spans files. The host and the API open each file with Turso, a Rust rewrite of SQLite
+that keeps its file and WAL format. Every connection opens with Turso's multi-process WAL option: a
+writer that opens the file without it locks the file, and the API cannot read it.
 
 ## Versions
 
@@ -69,10 +65,9 @@ stateDiagram-v2
 ```
 
 A version is one build of a consumer, named by the hash in its `consumers.json` entry, and the
-commands move it along the edges above. The host never computes the hash: it takes the version as a
-name. `host.db` records the state of each version, and when `host.db` and the `current` link
-disagree, `host.db` is right. The state table in `host.db` also allows `previewed` and `removed`,
-but the commands never move a version into either state.
+commands move it along the edges above. The host takes the hash as a name and never computes it.
+`host.db` records each version's state, and is right when it and the `current` link disagree. Its
+state table also allows `previewed` and `removed`, but no command moves a version into either.
 
 Every command starts from the same two steps. It repairs the `current` link from `host.db`, and then
 opens the version: it checks that the SHA-256 of `module.wasm` equals the entry's `module` digest,
@@ -81,9 +76,8 @@ before it reads a fact.
 
 `up` then runs in this order:
 
-1. It checks that no other consumer's current version owns one of the version's tables. When the
-   version folder already holds a `version.json`, that file must hold the same entry, because one
-   version name never covers two different builds.
+1. It checks that no other consumer's current version owns one of its tables, and that any
+   `version.json` in the folder holds the same entry, as one name never covers two builds.
 2. It takes the build lock of the version, so two `up` runs of one version, such as `run --up` and
    `up` in two shells, never build it at once.
 3. It writes `module.wasm` and `version.json` to the version folder, and opens the new file.
@@ -93,32 +87,29 @@ before it reads a fact.
 6. It records the swap in `host.db`, then writes the new link as `current.tmp` and renames it over
    `current`.
 
-The host swaps a link and never renames a database file, because SQLite finds a file's WAL files by
-its path, and a renamed file can pick up a stale WAL. When the host crashes between the two writes
-of step 6, `current` points at the old version while `host.db` records the new one, and the next
-command repairs the link.
+The host swaps a link and never renames a database file: SQLite finds a file's WAL files by its
+path, so a renamed file can pick up a stale WAL. After a crash between the two writes of step 6,
+`current` names the old version and `host.db` the new one, and the next command repairs the link.
 
 An `up` of the version that is already current only applies the new facts. An `up` that finds an
 unfinished build deletes it and builds it again from the start of the log. The old version's folder
 stays on disk, and `up <consumer> --version <version>` applies to it the facts that arrived since it
 was current, from its own offsets, and swaps it back in.
 
-`preview` replays the listed version into `preview-<pid>/` up to the current version's offsets,
-prints the JSON row diff, and deletes the folder. Both versions have then read the same facts, so
-the diff shows only what the new code changes. With no current version, `preview` replays the whole
-log.
+`preview` replays the listed version into `preview-<pid>/` up to the current version's offsets, or
+the whole log with no current version, prints the JSON row diff, and deletes the folder. Both
+versions have then read the same facts, so the diff shows only what the new code changes.
 
 ## Running consumers
 
 `run` refuses to start when a consumer has no current version, or when two current versions own one
-table. It runs one task per consumer. Each task polls the consumer's streams on a short timer. On
-each pass, it takes the consumer's writer lock, repairs the `current` link, opens the new version's
-folder after a swap, and applies what is new. The writer lock is an OS file lock, so an `up` and a
-`run` of one consumer never write a file at once, and the kernel frees it when its holder exits.
+table. It runs one task per consumer, which polls the consumer's streams on a short timer. Each pass
+takes the consumer's writer lock, repairs the `current` link, opens the new version's folder after a
+swap, and applies what is new. The writer lock is an OS file lock, so an `up` and a `run` of one
+consumer never write a file at once, and the kernel frees it when its holder exits.
 
-The host reads each stream in batches, in both modes. A batch is one read of one stream, of at most
-100 facts, and the host applies it as one transaction, so a crash or an error never leaves half a
-batch in the file.
+In both modes, the host reads each stream in batches: one read of at most 100 facts, applied as one
+transaction, so a crash or an error never leaves half a batch in the file.
 
 A failed batch rolls back, and the task then picks one of two outcomes by the error:
 
@@ -142,10 +133,9 @@ same operations, and a replay rebuilds every row. The host enforces this. It lin
 preview 1 set, binds the wall clock and the monotonic clock to 0, and gives a module no environment,
 files or network. It sets no fuel or time limit on a module.
 
-The host creates a new instance of the module for each fact and each scope. It links the module's
-read imports by the symbols in the manifest, and calls the export the manifest lists. The module
-returns the text of one JSON list of operations, and each operation has exactly one verb: upsert,
-delete, link or unlink.
+The host creates a new module instance for each fact and each scope, links its read imports by the
+manifest's symbols, and calls the export the manifest lists. The module returns the text of one JSON
+list of operations, each with exactly one verb: upsert, delete, link or unlink.
 
 A consumer has two reads: a row of its own tables by primary key, and, in scope mode, the facts of
 its scope. A row read returns `-1` when no row has that key. The module passes a key of one column
@@ -174,13 +164,13 @@ each other fact, checks and writes every operation the module returned, and reco
 It then writes the stream's offset, and one `change_log` row when any row or link changed.
 
 The host refuses the output, and the batch fails, when it is not a JSON list, when an operation has
-no verb or more than one, or when an upsert writes to a table the consumer does not own. A link that
-fails [the link check](#the-link-check) fails the batch too.
+no verb or more than one, when an upsert writes to a table the consumer does not own, or when a link
+fails [the link check](#the-link-check).
 
-An upsert equal to the stored row changes nothing, and so does a delete of a row that is not stored.
-Neither adds a change entry. The host writes each link as a `link` row with no scope, and with the
-consumer's name as its origin. An unlink takes no link check, and an unlink of a link that is not
-stored changes nothing. The module decides whether an older fact may overwrite a newer row; the host
+An upsert equal to the stored row, and a delete of a row that is not stored, change nothing and add
+no change entry. The host writes each link as a `link` row with no scope, and with the consumer's
+name as its origin. An unlink takes no link check, and an unlink of a link that is not stored
+changes nothing. The module decides whether an older fact may overwrite a newer row; the host
 compares no times.
 
 ## A scope-mode batch
@@ -222,16 +212,15 @@ link belongs to another scope, the batch fails. A second copy of a fact in the l
 the index holds one row for it, the module returns the same result, and the diff is empty.
 
 The test store, the in-memory store that plug-in tests run consumers on, has its own TypeScript
-replace. Both it and the host's Rust replace run every case in `scope-replace-cases.json` in
-`@pepys/testing`, which lists stored links, batches of module output, and the change entries or the
-refusal that each batch gives. The host reads each number as the double that `JSON.parse` gives,
-compares a `REAL` column and a link's confidence as floats, and stores a JSON column with each
-object's keys sorted, so a replay never rewrites an equal value.
+replace. It and the host's Rust replace both run every case in `scope-replace-cases.json` in
+`@pepys/testing`: stored links, batches of module output, and the change entries or refusal of each
+batch. The host reads each number as the double that `JSON.parse` gives, compares a `REAL` column
+and a link's confidence as floats, and stores a JSON column with each object's keys sorted, so a
+replay never rewrites an equal value.
 
 ## The link check
 
-The host checks each link a module returns, in both modes, against the manifest alone. A link passes
-when:
+In both modes, the host checks each returned link against the manifest alone. A link passes when:
 
 1. its type is one the consumer declares;
 2. each end is an entity ID of a kind that the type allows;
@@ -245,12 +234,11 @@ the package plug-ins build on, and each check must report the problem kind that 
 
 ## Known limits
 
-- One failed `up` stops `run --up`, so every consumer's tables stop updating until someone fixes the
-  failure, while ingest keeps appending facts.
-- A batch that fails on another scope's row or link stops its consumer until a new version of the
-  module is up.
-- A store or log outage that outlasts the sum of the retry waits stops every task that reads during
-  it, and the tasks stay stopped until the process restarts.
+- One failed `up` stops `run --up`, so no consumer's tables update until someone fixes it, while
+  ingest keeps appending facts.
+- A batch that fails on another scope's row or link stops its consumer until a new module is up.
+- A store or log outage longer than the sum of the retry waits stops every task that reads during
+  it, until the process restarts.
 - The host never deletes an old version's folder, so each swap leaves one more folder in the store.
 - Each version of a scope consumer stores its own copy of its streams' facts, and a new version
   indexes them again as it replays.
