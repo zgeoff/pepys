@@ -50,12 +50,12 @@ before the package. The API writes no other file. The host writes the consumer f
 reads, and never opens `mcp-auth.db`.
 
 The owner changes `mcp-auth.db` through the admin commands, which are the API's entry file run with
-arguments: `clients add`, `clients remove <name>`, `passkeys enroll`, `passkeys remove`, `grants`,
-and `grants --revoke`, among others. A command opens `mcp-auth.db` while the server runs, and exits.
-The server and each command open the file in WAL mode with a busy timeout, so the two share it. A
-command skips the deployment check, the check of the deployment's plug-ins that the server runs
-before it listens. A revoke from a command reaches the server at the token's next request, because
-the server checks each token against the file.
+arguments: `clients add`, `clients remove <name>` or `--id <client_id>`, `passkeys enroll`,
+`passkeys remove`, `grants`, and `grants --revoke`, among others. A command opens `mcp-auth.db`
+while the server runs, and exits. The server and each command open the file in WAL mode with a busy
+timeout, so the two share it. A command skips the deployment check, the check of the deployment's
+plug-ins that the server runs before it listens. A revoke from a command reaches the server at the
+token's next request, because the server checks each token against the file.
 
 Each serving API process needs the `mcp-auth.db` that issued a token to accept it. Two serving
 processes behind one public route, each with its own `mcp-auth.db`, therefore refuse each other's

@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import type { Result } from '@pepys/kit';
-import type { GrantID, PasskeyID } from '@zgeoff/mcp-auth';
+import type { GrantID, OAuthClientID, PasskeyID } from '@zgeoff/mcp-auth';
 import { toTagged } from '@zgeoff/std';
 import type { ClientsAction } from '../oauth/admin/run-clients.ts';
 import type { PasskeysAction } from '../oauth/admin/run-passkeys.ts';
@@ -21,6 +21,7 @@ const usage = [
   '       <entry> clients [list]                    list the clients',
   '       <entry> clients add <name> --redirect-uri <uri> [--redirect-uri <uri>...]',
   '       <entry> clients remove <name>             remove a client and revoke its grants',
+  '       <entry> clients remove --id <client_id>   the same, for the client with that ID',
   '       <entry> grants [--revoke=<grant_id>]      list the grants, or revoke one',
 ].join('\n');
 
@@ -99,12 +100,28 @@ function parseClients(args: readonly string[]): Result<APICommand, string> {
   const parsed = parseArgs({
     args: [...args],
     allowPositionals: true,
-    options: { 'redirect-uri': { type: 'string', multiple: true } },
+    options: { 'redirect-uri': { type: 'string', multiple: true }, id: { type: 'string' } },
   });
 
   const [action, ...positionals] = parsed.positionals;
   const redirectURIs = parsed.values['redirect-uri'] ?? [];
+  const clientID = parsed.values.id;
   const [operand, ...extra] = positionals;
+
+  if (clientID !== undefined) {
+    return action === 'remove' && positionals.length === 0 && redirectURIs.length === 0
+      ? {
+          ok: true,
+          value: {
+            kind: 'clients',
+            action: {
+              kind: 'remove',
+              client: { by: 'id', clientID: toTagged<OAuthClientID>(clientID) },
+            },
+          },
+        }
+      : { ok: false, failure: usage };
+  }
 
   if ((action === undefined || action === 'list') && positionals.length === 0) {
     return redirectURIs.length === 0
@@ -125,7 +142,7 @@ function parseClients(args: readonly string[]): Result<APICommand, string> {
           ok: true,
           value: {
             kind: 'clients',
-            action: { kind: 'remove', name: operand },
+            action: { kind: 'remove', client: { by: 'name', name: operand } },
           },
         }
       : { ok: false, failure: usage };

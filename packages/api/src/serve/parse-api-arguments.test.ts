@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { GrantID, PasskeyID } from '@zgeoff/mcp-auth';
+import type { GrantID, OAuthClientID, PasskeyID } from '@zgeoff/mcp-auth';
 import { toTagged } from '@zgeoff/std';
 import { parseAPIArguments } from './parse-api-arguments.ts';
 import type { APICommand } from './parse-api-arguments.ts';
@@ -42,7 +42,17 @@ test.each<[readonly string[], APICommand]>([
   ],
   [
     ['clients', 'remove', 'Claude'],
-    { kind: 'clients', action: { kind: 'remove', name: 'Claude' } },
+    { kind: 'clients', action: { kind: 'remove', client: { by: 'name', name: 'Claude' } } },
+  ],
+  [
+    ['clients', 'remove', '--id', 'client-1'],
+    {
+      kind: 'clients',
+      action: {
+        kind: 'remove',
+        client: { by: 'id', clientID: toTagged<OAuthClientID>('client-1') },
+      },
+    },
   ],
   [['grants'], { kind: 'grants', revoke: null }],
   [['grants', '--revoke=grant-1'], { kind: 'grants', revoke: toTagged<GrantID>('grant-1') }],
@@ -58,6 +68,9 @@ test.each([
   [['clients', 'add']],
   [['clients', 'list', '--redirect-uri', 'https://assistant.example.com/callback']],
   [['clients', 'remove', 'client-1', '--redirect-uri', 'https://assistant.example.com/callback']],
+  [['clients', 'remove', 'Claude', '--id', 'client-1']],
+  [['clients', 'add', 'Claude', '--id', 'client-1']],
+  [['clients', '--id', 'client-1']],
   [['grants', 'extra']],
   [['grants', '--unknown']],
 ])('it refuses %p with the usage', (args) => {

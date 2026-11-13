@@ -131,7 +131,9 @@ unknown command prints the usage of every command and exits 2.
 - To end every grant of a client and remove the client:
   1. Run `bun <api_entry> clients`. Expect: each client, with its ID and its name.
   2. Run `bun <api_entry> clients remove <name>`. Expect: the count of grants it revoked, and the
-     client's tokens fail on their next request.
+     client's tokens fail on their next request. When two clients have names that read the same, the
+     command removes neither and lists their IDs. Run
+     `bun <api_entry> clients remove --id <client_id>` with the ID of the one to remove.
 - To replace a lost or stolen passkey:
   1. Run `bun <api_entry> passkeys enroll --reset`. Expect: a new enrollment token. The command
      deletes every passkey, and keeps every grant.
