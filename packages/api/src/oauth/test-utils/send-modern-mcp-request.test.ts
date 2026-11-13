@@ -49,7 +49,19 @@ test('it sends a request the server serves in the stateless revision', async () 
   const answer = await sendModernMCPRequest(ctx.url, grant.accessToken, 'server/discover');
 
   expect(answer.status).toBe(200);
-  expect(answer.body).toMatchObject({ result: { supportedVersions: ['2026-07-28'] } });
+
+  expect(answer.body).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: {
+      resultType: 'complete',
+      supportedVersions: ['2026-07-28'],
+      capabilities: { tools: { listChanged: true } },
+      cacheScope: 'private',
+      ttlMs: 0,
+      _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'pepys-harbour', version: '1.0.0' } },
+    },
+  });
 });
 
 test('it names the tool of a tool call in its headers, as the stateless revision requires', async () => {
@@ -72,5 +84,15 @@ test('it names the tool of a tool call in its headers, as the stateless revision
   });
 
   expect(answer.status).toBe(200);
-  expect(answer.body).toMatchObject({ result: { resultType: 'complete' } });
+
+  expect(answer.body).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: {
+      resultType: 'complete',
+      content: [{ type: 'text', text: '{"count":0}' }],
+      structuredContent: { count: 0 },
+      _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'pepys-harbour', version: '1.0.0' } },
+    },
+  });
 });

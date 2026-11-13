@@ -17,13 +17,12 @@ test('it returns the passkey a verified registration creates', async () => {
     rpID: 'pepys.example',
   });
 
-  expect(registered).toMatchObject({
+  expect(registered).toStrictEqual({
     id: authenticator.credentialID,
+    publicKey: expect.any(Uint8Array),
     counter: 0,
     transports: ['internal'],
   });
-
-  expect(registered?.publicKey).toBeInstanceOf(Uint8Array);
 });
 
 test.each([

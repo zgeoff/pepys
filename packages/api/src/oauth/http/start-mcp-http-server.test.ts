@@ -91,25 +91,46 @@ test('it advertises public clients with PKCE, issuer responses, and no registrat
   const answered = await fetch(`${ctx.url}/.well-known/oauth-authorization-server`);
   const metadata = await readJSONRecord(answered);
 
-  expect(metadata).toMatchObject({
+  expect(metadata).toStrictEqual({
     issuer: ctx.origin,
     authorization_endpoint: `${ctx.origin}/oauth2/authorize`,
     token_endpoint: `${ctx.origin}/oauth2/token`,
     revocation_endpoint: `${ctx.origin}/oauth2/revoke`,
     scopes_supported: ['read', 'offline_access'],
     response_types_supported: ['code'],
+    response_modes_supported: ['query'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
+    token_endpoint_auth_signing_alg_values_supported: [
+      'RS256',
+      'RS384',
+      'RS512',
+      'PS256',
+      'PS384',
+      'PS512',
+      'ES256',
+      'ES384',
+      'ES512',
+      'EdDSA',
+    ],
+    revocation_endpoint_auth_methods_supported: ['none'],
+    revocation_endpoint_auth_signing_alg_values_supported: [
+      'RS256',
+      'RS384',
+      'RS512',
+      'PS256',
+      'PS384',
+      'PS512',
+      'ES256',
+      'ES384',
+      'ES512',
+      'EdDSA',
+    ],
     authorization_response_iss_parameter_supported: true,
+    backchannel_logout_supported: false,
+    backchannel_logout_session_supported: false,
   });
-
-  expect(Object.keys(metadata)).not.toIncludeAnyMembers([
-    'registration_endpoint',
-    'introspection_endpoint',
-  ]);
-
-  expect(Object.keys(metadata)).toSatisfyAll((key: string) => !key.startsWith('dpop_'));
 });
 
 test.each([
@@ -120,13 +141,12 @@ test.each([
   const answered = await fetch(`${ctx.url}${path}`);
   const metadata = await readJSONRecord(answered);
 
-  expect(metadata).toMatchObject({
+  expect(metadata).toStrictEqual({
     resource: `${ctx.origin}/mcp`,
     authorization_servers: [ctx.origin],
     scopes_supported: ['read'],
+    bearer_methods_supported: ['header'],
   });
-
-  expect(Object.keys(metadata)).toSatisfyAll((key: string) => !key.startsWith('dpop_'));
 });
 
 test('it challenges a request without a token with where to find the resource metadata', async () => {
@@ -400,9 +420,12 @@ test('it serves a tool call in the stateless revision with the result type it re
     arguments: { vessel: 'harbour:vessel:7' },
   });
 
-  expect(answer.body).toMatchObject({
+  expect(answer.body).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
     result: {
       resultType: 'complete',
+      content: [{ type: 'text', text: '{"count":0}' }],
       structuredContent: { count: 0 },
       _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'pepys-harbour', version: '1.0.0' } },
     },
@@ -3482,7 +3505,14 @@ test('it refreshes a grant issued before a restart', async () => {
 
   const body = await readJSONRecord(refreshed);
 
-  expect(body).toMatchObject({ scope: 'read offline_access' });
+  expect(body).toStrictEqual({
+    access_token: expect.any(String),
+    token_type: 'Bearer',
+    expires_in: 3600,
+    expires_at: expect.any(Number),
+    refresh_token: expect.any(String),
+    scope: 'read offline_access',
+  });
 });
 
 test('it serves an MCP request with an access token issued before a restart', async () => {
