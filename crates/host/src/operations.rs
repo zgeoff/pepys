@@ -163,7 +163,6 @@ fn parse_body<T: serde::de::DeserializeOwned>(verb: &str, body: Value) -> Result
         .map_err(|error| HostError::BadOperation(format!("{verb}: {error}")))
 }
 
-// One table name, one row, of a table the consumer owns.
 fn parse_table_body(manifest: &ConsumerManifest, body: Value) -> Result<(String, Row), HostError> {
     let Value::Object(tables) = body else {
         return Err(HostError::BadOperation(format!(

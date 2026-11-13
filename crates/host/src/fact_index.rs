@@ -102,7 +102,6 @@ pub fn sort_key_of(at: &str) -> String {
     format!("{}.{fraction}{zone}", &at[..end])
 }
 
-// `T<hh>:<mm>:<ss>`, with any digits.
 fn is_time_at(bytes: &[u8]) -> bool {
     matches!(
         bytes,

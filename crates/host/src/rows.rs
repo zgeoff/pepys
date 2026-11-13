@@ -202,7 +202,6 @@ fn pick_shortest_digits(magnitude: f64) -> (String, i32) {
     }
 }
 
-// "1.25e3" as ("125", 3).
 fn to_digits_and_exponent(scientific: &str) -> (String, i32) {
     let (mantissa, exponent) = scientific.split_once('e').unwrap_or((scientific, "0"));
 
@@ -212,7 +211,6 @@ fn to_digits_and_exponent(scientific: &str) -> (String, i32) {
     )
 }
 
-// The decimal digits plus one in the last place, such as "129" to "130" and "99" to "100".
 fn increment_digits(digits: &str) -> String {
     let mut bytes = digits.as_bytes().to_vec();
 
