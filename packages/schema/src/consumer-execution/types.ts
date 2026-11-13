@@ -31,7 +31,7 @@ export type ReadRequest =
 export type ReadLimit = { mode: 'fact'; before: StreamOffset } | { mode: 'scope'; scope: ScopeID };
 
 export interface ConsumerReads<Row> {
-  getRow: (table: string, key: string) => Row | undefined;
+  findRow: (table: string, key: string) => Row | undefined;
   scanTable: (table: string, index: string, prefix: readonly string[]) => readonly Row[];
   readEntityFacts: (entity: EntityID) => readonly FactEnvelope<unknown>[];
   readBlob: (hash: BlobHash) => Uint8Array | undefined;
