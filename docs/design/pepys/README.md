@@ -1,11 +1,10 @@
 # pepys design
 
-This folder holds the design of the parts of pepys that are not built yet: the Gmail source and
-backfill, enrichment, search, entity history, the change feed, the link extractors, manual links,
-agent writes, the API's OAuth server, and the k3s runtime with its buckets and backups.
-[The architecture overview](../../architecture/overview.md) describes the part that is built, and
-defines the terms these docs use, such as fact, consumer, scope, plug-in and deployment. Where a
-design here and an architecture doc differ about the built part, the architecture doc is right.
+This folder holds the design of the parts of pepys that are not built yet, one doc per part, as
+[Design docs](#design-docs) lists. [The architecture overview](../../architecture/overview.md)
+describes the part that is built, and defines the terms these docs use, such as fact, consumer,
+scope, plug-in and deployment. Where a design here and an architecture doc differ about the built
+part, the architecture doc is right.
 
 The question pepys exists to answer is "what is waiting on me, across everything?". Every part below
 keeps the split that the built part keeps: facts are kept forever and never change, and everything

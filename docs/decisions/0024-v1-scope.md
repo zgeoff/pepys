@@ -1,6 +1,7 @@
 # 0024: The scope of v1
 
 - Date: 2026-11-12
+- Updated: 2026-11-12
 - Status: decided
 
 ## Decision
@@ -28,9 +29,10 @@ source, consumer and deployment. This record lists the parts of that design that
   [core packages](../architecture/overview.md#concerns-that-cut-across-the-system) import nothing
   from boxxy and hold no boxxy name.
 - pepys publishes what a plug-in outside this repo builds against. Its packages go to npm, with the
-  kit and the testing package first. The `pepys` CLI has one command, which compiles a deployment's
-  consumers. Each release carries the host binary, which deploys a consumer version itself. pepys
-  publishes no container image: the repo that holds a deployment builds its own images.
+  kit and the testing package first. The [`pepys` CLI](../../packages/cli/README.md) compiles a
+  deployment's consumers, and runs a whole deployment from one command. Each release carries the
+  host binary, which deploys a consumer version itself. pepys publishes no container image: the repo
+  that holds a deployment builds its own images.
 - [Links](../design/pepys/links.md) are in v1 in part. v1 has the link types that each consumer
   declares, the link tables, the host's check that a link joins the entity kinds its type allows,
   and the [structural links](../design/pepys/links.md#structural-links) that a consumer writes for
@@ -42,11 +44,12 @@ source, consumer and deployment. This record lists the parts of that design that
   and as an MCP tool ([oRPC and MCP](../architecture/queries/api.md#the-router)).
   [The core catalog](../architecture/queries/api.md#the-core-queries) in v1 holds two queries: get
   entity, and neighbourhood, which walks the links around one entity. The API takes no write in v1.
-- The v1 API checks no token. The owner's private network and the cluster's network policies decide
-  who reaches the API. Each ingest route checks its delivery, the GitHub webhook is the one route
-  that the public internet reaches, and the telemetry route also needs a proven sender. The
-  [auth design](../design/pepys/auth.md) is not in v1, and no source of personal data, such as mail,
-  joins a deployment before auth is built.
+- The v1 API checks an OAuth access token on each MCP request, from
+  [its own OAuth server](./0025-own-oauth-server-with-passkey.md), and checks no token on `/rpc`.
+  The owner's private network and the cluster's network policies decide who reaches `/rpc`. Each
+  ingest route checks its delivery, and the telemetry route also needs a proven sender. The rest of
+  the [auth design](../design/pepys/auth.md) is not in v1, and a source of personal data, such as
+  mail, never joins a deployment before the rest of the auth design is built.
 - The v1 deployment runs five of the seven [processes](../design/pepys/runtime.md#processes):
   Garage, s2-lite, ingest, the host with the API, and the bucket backup. Enrichment and compaction
   are not in v1.
@@ -68,7 +71,8 @@ source, consumer and deployment. This record lists the parts of that design that
 | v1 with no links                                                       | without links, one query can still join boxxy's tables to the telemetry tables, but that join stays private to the query: a second query or an MCP tool can't follow it from a pull request to the attempts and the spend behind it        |
 | the "waiting on me" query as part of pepys                             | the query lists what waits on the owner across every source, and it belongs to a deployment, which builds it on top of pepys; it needs the link extractors and the owner's identity, which v1 leaves out                                   |
 | the Gmail source in v1                                                 | boxxy's facts, GitHub and telemetry answer every question that v1 is built for, and mail adds nothing to them                                                                                                                              |
-| the auth design in v1                                                  | each agent that boxxy starts runs on a fresh machine with no token, so each one needs a sign-in by the owner or a token broker that does not exist; v1 holds GitHub data, boxxy's facts and telemetry, which those agents can already read |
+| an API that checks no token, with MCP on the private network too       | the owner's agents run on devices and in places outside the private network, so MCP has to be public, and a public route needs a token                                                                                                     |
+| the rest of the auth design in v1                                      | each agent that boxxy starts runs on a fresh machine with no token, so each one needs a sign-in by the owner or a token broker that does not exist; v1 holds GitHub data, boxxy's facts and telemetry, which those agents can already read |
 | the change feed in v1                                                  | each v1 reader asks a query when it wants an answer, and has no use for a live stream of changes                                                                                                                                           |
 | one cost row per model request for every agent                         | one agent reports no cost for a request and an estimate for a turn, so a cost per request would be a figure that pepys made up; a second table holds the cost per turn                                                                     |
 | tables for issues and reviews in v1                                    | no v1 query reads them; their facts are stored from the first day, because GitHub redelivers only 3 days back, and a later consumer replays them                                                                                           |
@@ -83,3 +87,9 @@ neighbourhood query. Each part of the design that v1 leaves out builds on the sa
 boxxy is the first source that this repo does not own. Building boxxy as a plug-in proves that the
 kit is enough for an outside package, and upholds the rule that a core package never imports a
 source package ([packages](../architecture/overview.md#concerns-that-cut-across-the-system)).
+
+## Changes
+
+- 2026-11-12: MCP checks an OAuth access token from the API's own server, after
+  [0025](./0025-own-oauth-server-with-passkey.md), and the CLI runs a whole deployment with
+  `pepys start`.
