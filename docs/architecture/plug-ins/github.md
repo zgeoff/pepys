@@ -39,8 +39,7 @@ route gives, such as 401 for a bad signature. The GitHub route adds these:
 
 - 400 when the delivery ID header is missing or the body is not JSON;
 - 422 when the body does not fit its event;
-- 202, with nothing stored, when the event has no row in
-  [Families and consumers](#families-and-consumers);
+- 202, storing nothing, for an event not in [Families and consumers](#families-and-consumers);
 - 202, with nothing stored, when the event's family has no fact type for the delivery's `action`.
   Each family lists its fact types in `packages/source-github/src/families/`.
 
@@ -60,10 +59,9 @@ route gives, such as 401 for a bad signature. The GitHub route adds these:
 | `issue_comment`                       | `issue_comment`       | `github:issue_comment:<comment ID>`       | nothing: the facts are stored |
 | `repository`                          | `repository`          | `github:repo:<id>`                        | nothing: the facts are stored |
 
-Each family has its own stream, `facts.github.<family>`. GitHub redelivers a webhook only within the
-window that its
-[redelivery docs](https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks),
-so the plug-in stores the families no consumer builds, for a later consumer to replay.
+Each family has its own stream, `facts.github.<family>`. The plug-in stores the families no consumer
+builds, for a later consumer to replay, because GitHub redelivers a webhook only within a fixed
+[window](https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks).
 
 The `github_release`, `github_deploy` and `github_pull_request` consumers each write a table of
 their own name. The `github_ref` consumer writes only `github_commit`, one row per commit of a push.
@@ -74,9 +72,8 @@ repository to use a release of another repository, as a dependency update bot do
 [The delivery query](#the-delivery-query) follows a bump to a deploy.
 
 A winning fact adds its `html_url` and `<owner>/<repo>#<number>`, in lowercase, to
-`github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). No alias is ever
-deleted, so a renamed repository's old forms still work. When a new repository takes the old name,
-an alias goes to the newest fact that names it.
+`github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). Old forms stay
+after a rename, and each alias goes to the newest fact that names it.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.
@@ -105,8 +102,7 @@ same winner.
 A pull request's time is its `updated_at`. A release's time is the first of `updated_at`,
 `published_at` and `created_at` that holds a value.
 
-The `github_deploy` consumer follows a rule of its own, in [Deploys](#deploys). The two consumers
-above also follow these rules:
+[Deploys](#deploys) holds the `github_deploy` rule. The two consumers above also follow these:
 
 - A release that GitHub deleted keeps its row, with the time of the delete in `deleted_at`. A later
   fact never clears `deleted_at`, because GitHub never gives a release ID to another release. The
