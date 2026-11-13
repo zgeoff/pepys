@@ -2,6 +2,10 @@
   <h1>pepys</h1>
 
   <p>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+  </p>
+
+  <p>
     <a href="./docs/README.md">Documentation</a> •
     <a href="./AGENTS.md">Agent Guidelines</a>
   </p>
