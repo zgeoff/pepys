@@ -47,20 +47,24 @@ route gives, such as 401 for a bad signature. The GitHub route adds these:
 
 ## Families and consumers
 
-| Webhook event                         | Family                | Built by                      |
-| ------------------------------------- | --------------------- | ----------------------------- |
-| `pull_request`                        | `pull_request`        | `github_pull_request`         |
-| `release`                             | `release`             | `github_release`              |
-| `push` to the default branch or a tag | `ref`                 | `github_ref`, `github_deploy` |
-| `deployment`, `deployment_status`     | `deployment`          | `github_deploy`               |
-| `workflow_run`                        | `workflow_run`        | nothing: the facts are stored |
-| `issues`                              | `issue`               | nothing: the facts are stored |
-| `pull_request_review`                 | `pull_request_review` | nothing: the facts are stored |
+| Webhook event                         | Family                | Entity                                    | Built by                      |
+| ------------------------------------- | --------------------- | ----------------------------------------- | ----------------------------- |
+| `pull_request`                        | `pull_request`        | `github:pull_request:<id>`                | `github_pull_request`         |
+| `release`                             | `release`             | `github:release:<id>`                     | `github_release`              |
+| `push` to the default branch or a tag | `ref`                 | `github:ref:<repository ID>:<ref>`        | `github_ref`, `github_deploy` |
+| `deployment`, `deployment_status`     | `deployment`          | `github:deployment:<id>`                  | `github_deploy`               |
+| `workflow_run`                        | `workflow_run`        | `github:workflow_run:<id>`                | nothing: the facts are stored |
+| `issues`                              | `issue`               | `github:issue:<id>`                       | nothing: the facts are stored |
+| `pull_request_review`                 | `pull_request_review` | `github:pull_request_review:<id>`         | nothing: the facts are stored |
+| `pull_request_review_comment`         | `review_comment`      | `github:review_comment:<comment ID>`      | nothing: the facts are stored |
+| `pull_request_review_thread`          | `review_thread`       | `github:review_thread:<first comment ID>` | nothing: the facts are stored |
+| `issue_comment`                       | `issue_comment`       | `github:issue_comment:<comment ID>`       | nothing: the facts are stored |
+| `repository`                          | `repository`          | `github:repo:<id>`                        | nothing: the facts are stored |
 
-GitHub redelivers a webhook only within the window its
-[redelivery docs](https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks)
-give. The plug-in therefore stores the last three families with no consumer, so a later consumer can
-replay their full history from the log.
+Each family has its own stream, `facts.github.<family>`. GitHub redelivers a webhook only within the
+window that its
+[redelivery docs](https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks),
+so the plug-in stores the families no consumer builds, for a later consumer to replay.
 
 The `github_release`, `github_deploy` and `github_pull_request` consumers each write a table of
 their own name. The `github_ref` consumer writes only `github_commit`, one row per commit of a push.

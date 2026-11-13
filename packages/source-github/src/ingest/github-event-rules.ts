@@ -1,11 +1,15 @@
 import type { FactFamily } from '@pepys/kit';
 import { z } from 'zod';
 import { deploymentFamily } from '../families/deployment-family.ts';
+import { issueCommentFamily } from '../families/issue-comment-family.ts';
 import { issueFamily } from '../families/issue-family.ts';
 import { pullRequestFamily } from '../families/pull-request-family.ts';
 import { pullRequestReviewFamily } from '../families/pull-request-review-family.ts';
 import { refFamily } from '../families/ref-family.ts';
 import { releaseFamily } from '../families/release-family.ts';
+import { repositoryFamily } from '../families/repository-family.ts';
+import { reviewCommentFamily } from '../families/review-comment-family.ts';
+import { reviewThreadFamily } from '../families/review-thread-family.ts';
 import { workflowRunFamily } from '../families/workflow-run-family.ts';
 
 // What a rule reads from one delivery body. `locator` is the API path the resync pull reads the
@@ -92,6 +96,35 @@ const reviewBodySchema = z.looseObject({
   action: z.string().min(1),
   review: z.looseObject({ id: z.number().int(), submitted_at: timeSchema.nullish() }),
   pull_request: z.looseObject({ updated_at: timeSchema }),
+  sender: senderSchema,
+});
+
+const commentBodySchema = z.looseObject({
+  action: z.string().min(1),
+  comment: z.looseObject({ id: z.number().int(), updated_at: timeSchema }),
+  sender: senderSchema,
+});
+
+const threadCommentSchema = z.looseObject({
+  id: z.number().int(),
+  in_reply_to_id: z.number().int().nullish(),
+});
+
+const reviewThreadBodySchema = z.looseObject({
+  action: z.string().min(1),
+  thread: z.looseObject({ comments: z.array(threadCommentSchema) }),
+  updated_at: timeSchema.nullish(),
+  pull_request: z.looseObject({ updated_at: timeSchema }),
+  sender: senderSchema,
+});
+
+const repositoryBodySchema = z.looseObject({
+  action: z.string().min(1),
+  repository: z.looseObject({
+    id: z.number().int(),
+    created_at: timeSchema.nullish(),
+    updated_at: timeSchema.nullish(),
+  }),
   sender: senderSchema,
 });
 
@@ -261,6 +294,82 @@ export const githubEventRules: Readonly<Record<string, GithubEventRule>> = {
       );
     },
   },
+  pull_request_review_comment: {
+    family: reviewCommentFamily,
+    read: (body) => {
+      const parsed = commentBodySchema.safeParse(body);
+
+      if (!parsed.success) {
+        return 'invalid';
+      }
+
+      return pickFields(reviewCommentFamily, `github.review_comment.${parsed.data.action}`, {
+        entity: `github:review_comment:${parsed.data.comment.id}`,
+        actor: parsed.data.sender,
+        time: parsed.data.comment.updated_at,
+        locator: undefined,
+      });
+    },
+  },
+  pull_request_review_thread: {
+    family: reviewThreadFamily,
+    read: (body) => {
+      const parsed = reviewThreadBodySchema.safeParse(body);
+
+      if (!parsed.success) {
+        return 'invalid';
+      }
+
+      const firstCommentID = findFirstCommentID(parsed.data.thread.comments);
+
+      if (firstCommentID === undefined) {
+        return 'invalid';
+      }
+
+      return pickFields(reviewThreadFamily, `github.review_thread.${parsed.data.action}`, {
+        entity: `github:review_thread:${firstCommentID}`,
+        actor: parsed.data.sender,
+        time: parsed.data.updated_at ?? parsed.data.pull_request.updated_at,
+        locator: undefined,
+      });
+    },
+  },
+  issue_comment: {
+    family: issueCommentFamily,
+    read: (body) => {
+      const parsed = commentBodySchema.safeParse(body);
+
+      if (!parsed.success) {
+        return 'invalid';
+      }
+
+      return pickFields(issueCommentFamily, `github.issue_comment.${parsed.data.action}`, {
+        entity: `github:issue_comment:${parsed.data.comment.id}`,
+        actor: parsed.data.sender,
+        time: parsed.data.comment.updated_at,
+        locator: undefined,
+      });
+    },
+  },
+  repository: {
+    family: repositoryFamily,
+    read: (body) => {
+      const parsed = repositoryBodySchema.safeParse(body);
+
+      if (!parsed.success) {
+        return 'invalid';
+      }
+
+      const repository = parsed.data.repository;
+
+      return pickFields(repositoryFamily, `github.repository.${parsed.data.action}`, {
+        entity: `github:repo:${repository.id}`,
+        actor: parsed.data.sender,
+        time: repository.updated_at ?? repository.created_at,
+        locator: undefined,
+      });
+    },
+  },
 };
 
 interface RuleValues {
@@ -321,4 +430,16 @@ function toAPIPath(url: string | undefined): string | undefined {
   const path = new URL(url).pathname;
 
   return path.startsWith('/repos/') ? path : undefined;
+}
+
+// GitHub points every reply at the first comment of its thread, so a thread whose first comment
+// was deleted still gives that comment's ID.
+function findFirstCommentID(
+  comments: readonly z.infer<typeof threadCommentSchema>[],
+): number | undefined {
+  const first = comments.find(
+    (comment) => comment.in_reply_to_id === undefined || comment.in_reply_to_id === null,
+  );
+
+  return first?.id ?? comments[0]?.in_reply_to_id ?? undefined;
 }

@@ -1,10 +1,14 @@
 import { defineSource } from '@pepys/kit';
 import { deploymentFamily } from './families/deployment-family.ts';
+import { issueCommentFamily } from './families/issue-comment-family.ts';
 import { issueFamily } from './families/issue-family.ts';
 import { pullRequestFamily } from './families/pull-request-family.ts';
 import { pullRequestReviewFamily } from './families/pull-request-review-family.ts';
 import { refFamily } from './families/ref-family.ts';
 import { releaseFamily } from './families/release-family.ts';
+import { repositoryFamily } from './families/repository-family.ts';
+import { reviewCommentFamily } from './families/review-comment-family.ts';
+import { reviewThreadFamily } from './families/review-thread-family.ts';
 import { workflowRunFamily } from './families/workflow-run-family.ts';
 import { readGithubDelivery } from './ingest/read-github-delivery.ts';
 import { pullFailedDeliveries } from './ingest/recovery/pull-failed-deliveries.ts';
@@ -13,7 +17,7 @@ import { pullMarkedObjects } from './ingest/resync/pull-marked-objects.ts';
 // The GitHub App that both pulls call the API as.
 const appEnv = ['PEPYS_GITHUB_APP_ID', 'PEPYS_GITHUB_APP_PRIVATE_KEY'];
 
-// One webhook route, checked by GitHub's signature, for seven families. The recovery pull reads
+// One webhook route, checked by GitHub's signature, for eleven families. The recovery pull reads
 // each failed delivery every hour; the resync pull reads each marked object every minute.
 export const githubSource = defineSource({
   name: 'github',
@@ -25,6 +29,10 @@ export const githubSource = defineSource({
     workflowRunFamily,
     issueFamily,
     pullRequestReviewFamily,
+    reviewCommentFamily,
+    reviewThreadFamily,
+    issueCommentFamily,
+    repositoryFamily,
   ],
   live: {
     kind: 'receive',

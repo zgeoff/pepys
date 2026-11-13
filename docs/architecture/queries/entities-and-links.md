@@ -35,6 +35,7 @@ A kind with no database ID builds its last part from other fields:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `github:ref`                                     | `<repository ID>:<ref>`                                                                                 | `github:ref:902:refs/heads/main`                           |
 | `github:deploy`                                  | `<repository ID>:<environment>:<signal>:<sha>`, with `:<target>` added when the deploy tag has a target | `github:deploy:902:production:tag:4f1c2a9e`                |
+| `github:review_thread`                           | the database ID of the thread's first comment, which each reply's `in_reply_to_id` gives                | `github:review_thread:5101`                                |
 | `telemetry:session`                              | the session ID of an agent session, as the telemetry plug-in reads it from a log record                 | `telemetry:session:5b0e7d1c`                               |
 | `telemetry:model_request`, `telemetry:turn_cost` | the ID of the fact the row comes from, with its `event:telemetry:` prefix removed                       | `telemetry:model_request:claude_code.api_request:req_8812` |
 
@@ -52,9 +53,11 @@ therefore write a link to a pull request before the pull request's row exists. A
 the link to `entity` returns the row once the pull request's consumer writes it.
 
 Some kinds have IDs and no entity view, because no consumer keeps a row for them: `github:repo`,
-`github:user` and `telemetry:session`. Their IDs appear in column values, such as a pull request's
-`repository_id`, and in the `entity` field of a fact. `get_entity` returns not found for each, and
-`neighbourhood` lists each one it reaches in `unresolved`.
+`github:user`, `telemetry:session`, and the kinds of the GitHub families that
+[no consumer builds](../plug-ins/github.md#families-and-consumers), such as `github:issue_comment`.
+Their IDs appear in column values, such as a pull request's `repository_id`, and in the `entity`
+field of a fact. `get_entity` returns not found for each, and `neighbourhood` lists each one it
+reaches in `unresolved`.
 
 ## The entity view
 

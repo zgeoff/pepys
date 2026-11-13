@@ -36,8 +36,7 @@ and a view joins the two, so a replay of either consumer leaves the other's data
 | `issue`               | `facts.github.issue`               | issue webhooks and timeline backfill                  |
 | `workflow_run`        | `facts.github.workflow_run`        | workflow run webhooks                                 |
 
-The issue, review and workflow run streams already hold facts, so their consumers replay them from
-the log.
+Each of these streams already holds facts, so its consumer replays them from the log.
 
 A review thread takes the ID of its first comment. Every reply carries the ID of the comment it
 answers, so following those IDs back finds the first comment without another API call.
