@@ -22,6 +22,7 @@ use crate::fact_log::FactLog;
 use crate::fact_log::s2::{S2Log, S2Settings};
 use crate::lock::WriterLock;
 use crate::module_runner::{ModuleRunner, hash_module};
+use crate::retry::{Recovery, pick_recovery};
 use crate::rows::{Row, load_all_rows};
 use crate::schema_check::check_schema;
 use crate::scope::{ScopeRunner, apply_scope_batch};
@@ -476,22 +477,62 @@ async fn start_run(
     Ok(file)
 }
 
-/// One consumer's task: on each pass, take the writer lock, open the current version when it
-/// changed, and catch up. A failed batch stops this task alone.
+/// One consumer's task on the S2 log, which prints each retry. A failed pass stops this task
+/// alone.
 async fn run_consumer(config: HostConfig, consumer: String) -> Result<(), HostError> {
     let wrap = |error| HostError::Stopped {
         consumer: consumer.clone(),
         source: Box::new(error),
     };
     let log = S2Log::connect(&config.s2).map_err(wrap)?;
-    let consumer_dir = config.consumer_dir(&consumer);
+
+    run_task(&config, &log, &consumer, |error, delay| {
+        eprintln!(
+            "pepys: {consumer} retries in {} ms after a store error: {error}",
+            delay.as_millis()
+        );
+    })
+    .await
+    .map_err(wrap)
+}
+
+/// On each pass, take the writer lock, open the current version when it changed, and catch up.
+/// After a store or log error the batch has rolled back, so the task reopens the version and runs
+/// the pass again from the committed offsets, as [`pick_recovery`] decides. Any other error ends
+/// the task.
+async fn run_task(
+    config: &HostConfig,
+    log: &impl FactLog,
+    consumer: &str,
+    mut on_retry: impl FnMut(&HostError, Duration),
+) -> Result<(), HostError> {
+    let consumer_dir = config.consumer_dir(consumer);
     let mut opened: Option<(String, Version)> = None;
+    let mut failures = 0;
 
     loop {
-        run_pass(&config, &log, &consumer, &consumer_dir, &mut opened)
-            .await
-            .map_err(wrap)?;
-        tokio::time::sleep(POLL_INTERVAL).await;
+        let delay = match run_pass(config, log, consumer, &consumer_dir, &mut opened).await {
+            Ok(()) => {
+                failures = 0;
+
+                POLL_INTERVAL
+            }
+            Err(error) => {
+                failures += 1;
+
+                let Recovery::Retry(delay) = pick_recovery(&error, failures) else {
+                    return Err(error);
+                };
+
+                // A rollback that failed can leave the connection inside the transaction.
+                opened = None;
+                on_retry(&error, delay);
+
+                delay
+            }
+        };
+
+        tokio::time::sleep(delay).await;
     }
 }
 
@@ -1347,6 +1388,117 @@ mod tests {
                     .to_owned()
             )
         );
+    }
+
+    /// Ups the stub consumer with a module that returns `output` on a log with no facts, and opens
+    /// its current file.
+    async fn up_with_no_facts(config: &HostConfig, output: &str) -> (Store, BuildManifest) {
+        let (listed, bytes) = build_listed(&version_hash('a'), output);
+        let file = write_build(config, &[(listed, bytes)]);
+
+        up_listed(config, &MemoryLog::seeded(STREAM, &[]), &file, None)
+            .await
+            .expect("an up");
+
+        let directory = current_version_dir(&config.consumer_dir("github_pull_request"))
+            .expect("a current version");
+        let store = open_store(&directory.join(DATABASE_FILE))
+            .await
+            .expect("the store");
+
+        (store, file)
+    }
+
+    #[tokio::test]
+    async fn it_runs_a_batch_again_after_a_store_error_and_applies_it() {
+        let ctx = setup_test();
+        let (store, file) =
+            up_with_no_facts(&ctx.config, &upsert_json("github:pull_request:7", "Tides")).await;
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+
+        store
+            .connection
+            .execute("DROP TABLE change_log", ())
+            .await
+            .expect("the drop");
+
+        let task = run_task(&ctx.config, &log, "github_pull_request", |error, _| {
+            drop(sender.send(error.to_string()));
+        });
+        let repair = async {
+            let first = receiver.recv().await;
+
+            store
+                .connection
+                .execute(
+                    "CREATE TABLE change_log (batch INTEGER NOT NULL PRIMARY KEY, changes TEXT NOT NULL)",
+                    (),
+                )
+                .await
+                .expect("the table again");
+
+            while read_offset(&store, STREAM)
+                .await
+                .expect("an offset")
+                .is_none()
+            {
+                tokio::time::sleep(POLL_INTERVAL).await;
+            }
+
+            first
+        };
+        let first_retry = tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::select! {
+                ended = task => Err(ended.map_err(|error| error.to_string())),
+                first = repair => Ok(first),
+            }
+        })
+        .await
+        .expect("a retry that applies the batch within 5 s");
+
+        assert_eq!(
+            first_retry,
+            Ok(Some(
+                "database: Parse error: no such table: change_log".to_owned()
+            ))
+        );
+        assert_eq!(
+            read_all_tables(&store, &file.consumers[0].manifest)
+                .await
+                .expect("the rows")["github_pull_request"]
+                .iter()
+                .map(|row| row["title"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("Tides")]
+        );
+    }
+
+    #[tokio::test]
+    async fn it_ends_the_task_with_no_retry_when_the_host_refuses_the_consumers_output() {
+        let ctx = setup_test();
+        let (store, _) = up_with_no_facts(&ctx.config, "{}").await;
+        let mut retries: Vec<String> = Vec::new();
+
+        let result = run_task(
+            &ctx.config,
+            &MemoryLog::seeded(STREAM, &["a"]),
+            "github_pull_request",
+            |error, _| retries.push(error.to_string()),
+        )
+        .await;
+
+        assert_eq!(
+            (result.map_err(|error| error.to_string()), retries),
+            (
+                Err(
+                    "the consumer returned an operation the host cannot read: the output is not a JSON list"
+                        .to_owned()
+                ),
+                Vec::new()
+            )
+        );
+        assert_eq!(read_offset(&store, STREAM).await.expect("an offset"), None);
     }
 
     #[tokio::test]

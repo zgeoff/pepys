@@ -18,6 +18,7 @@ pub mod links;
 pub mod lock;
 pub mod module_runner;
 pub mod operations;
+pub mod retry;
 pub mod rows;
 pub mod schema_check;
 pub mod scope;
