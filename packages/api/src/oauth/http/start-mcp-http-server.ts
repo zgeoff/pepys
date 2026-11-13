@@ -131,7 +131,7 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
   const port = server.port ?? options.port;
   const local = `http://127.0.0.1:${port}`;
   const origin = publicOrigin ?? local;
-  let opened: { readonly auth: MCPAuth<GrantScope, null>; readonly close: () => void };
+  let opened: { readonly auth: MCPAuth<GrantScope>; readonly close: () => void };
 
   try {
     opened = await openAuth(options.dbPath, origin, clock, security);
@@ -200,14 +200,19 @@ async function openAuth(
       onGrantRevoked: () => {},
     });
 
-    return { auth, close: () => sqlite.close() };
+    return {
+      auth,
+      close: () => {
+        sqlite.close();
+      },
+    };
   } catch (error) {
     sqlite.close();
     throw error;
   }
 }
 
-async function runRemoveExpired(auth: MCPAuth<GrantScope, null>): Promise<void> {
+async function runRemoveExpired(auth: MCPAuth<GrantScope>): Promise<void> {
   try {
     await auth.removeExpired();
   } catch (error) {
