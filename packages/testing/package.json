@@ -1,6 +1,6 @@
 {
   "name": "@pepys/testing",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Test a pepys plug-in on Bun: an in-memory store that runs its consumers and queries",
   "license": "MIT",
   "repository": {

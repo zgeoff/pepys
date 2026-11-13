@@ -1,6 +1,6 @@
 {
   "name": "@pepys/cli",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "The pepys command line: pepys build checks a deployment or a plug-in, writes the glue of each consumer, and compiles each consumer with scriptc, and pepys start runs a whole deployment",
   "license": "MIT",
   "repository": {
