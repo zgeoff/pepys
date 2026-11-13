@@ -120,7 +120,7 @@ A refresh runs in two steps:
 
 1. One SQL update marks the old refresh token used. The update changes the row only while the token
    is still unused, so of two refreshes at once, one fails.
-2. better-auth writes the new access token, then the new refresh token, in separate statements,
+2. better-auth writes the new refresh token, then the new access token, in separate statements,
    outside any transaction.
 
 A refresh that presents a used refresh token revokes every refresh token and access token of that
