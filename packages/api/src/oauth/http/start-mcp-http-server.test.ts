@@ -1,9 +1,11 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, setSystemTime, test } from 'bun:test';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { readMCPAnswer } from '../../test-utils/read-mcp-answer.ts';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
+import { runClients } from '../admin/run-clients.ts';
 import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { readGrantViews } from '../auth/read-grant-views.ts';
@@ -11,6 +13,7 @@ import { readOwnerSessionViews } from '../auth/read-owner-session-views.ts';
 import { removeClient } from '../auth/remove-client.ts';
 import { resetPasskeys } from '../auth/reset-passkeys.ts';
 import { revokeGrant } from '../auth/revoke-grant.ts';
+import type { OAuthClientID } from '../auth/types.ts';
 import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
@@ -1146,7 +1149,15 @@ test.each([
 
   const location = new URL(answered.headers.get('location') ?? '/', ctx.url);
 
+  const page = await fetch(location);
+  const html = await page.text();
+
   expect(`${location.origin}${location.pathname}`).toBe(`${ctx.origin}/error`);
+
+  expect(html).toInclude(
+    'pepys refused this authorization request: the redirect URI is not one the client was added with.',
+  );
+
   expect(ctx.security).toSatisfyAll((line: string) => !line.includes('"kind":"authorize_started"'));
 });
 
@@ -2406,8 +2417,13 @@ test('it shows the sentence for an unknown client on the error page', async () =
   }).toString();
 
   const authorized = await fetch(authorize, { redirect: 'manual' });
-  const page = await fetch(new URL(authorized.headers.get('location') ?? '/', ctx.url));
+
+  const location = new URL(authorized.headers.get('location') ?? '/', ctx.url);
+
+  const page = await fetch(location);
   const html = await page.text();
+
+  expect(`${location.origin}${location.pathname}`).toBe(`${ctx.origin}/error`);
 
   expect(html).toInclude(
     'pepys refused this authorization request: the client is not one added to pepys.',
@@ -4095,4 +4111,324 @@ test('it refuses a DPoP-bound access token sent as a bearer token with invalid_t
     status: 401,
     challenge: `Bearer error="invalid_token", resource_metadata="${ctx.origin}/.well-known/oauth-protected-resource/mcp"`,
   });
+});
+
+test('it shows read as the one scope on the consent page, ticked, to a client that asks for more', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const authorize = new URL(`${ctx.url}/oauth2/authorize`);
+
+  authorize.search = new URLSearchParams({
+    response_type: 'code',
+    client_id: created.clientID,
+    redirect_uri: 'https://assistant.example.com/callback',
+    scope: 'read offline_access',
+    code_challenge: createHash('sha256')
+      .update('verifier-0123456789-abcdefghijklmnopqrstuvwxyz')
+      .digest('base64url'),
+    code_challenge_method: 'S256',
+  }).toString();
+
+  const started = await fetch(authorize, { redirect: 'manual' });
+
+  const login = new URL(started.headers.get('location') ?? '/', ctx.url);
+
+  const signedIn = await runPasskeySignIn(ctx, login);
+
+  const consent = new URL(signedIn.headers.get('location') ?? '/', ctx.url);
+
+  const cookie = signedIn.headers
+    .getSetCookie()
+    .map((line) => line.split(';')[0])
+    .join('; ');
+
+  const page = await fetch(consent, { headers: { cookie } });
+  const html = await page.text();
+
+  const boxes = [
+    ...html.matchAll(
+      /<input type="checkbox" name="scope" value="(?<scope>[^"]+)"(?<checked> checked)?>/gu,
+    ),
+  ].map((box) => ({
+    scope: box.groups?.['scope'],
+    checked: box.groups?.['checked'] !== undefined,
+  }));
+
+  expect(boxes).toStrictEqual([{ scope: 'read', checked: true }]);
+});
+
+test('it refuses an authorization code exchanged after the approval window', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const clientID = created.clientID;
+
+  const authorized = await runMCPAuthorization(ctx, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  // better-auth reads the code's expiry from the system clock, which the
+  // test's stub clock does not move.
+  setSystemTime(new Date(Date.now() + 601_000));
+
+  onTestFinished(() => {
+    setSystemTime();
+  });
+
+  const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  const refusal = await readJSONRecord(exchanged);
+
+  expect({ status: exchanged.status, refusal }).toStrictEqual({
+    status: 400,
+    refusal: { error: 'invalid_grant', error_description: 'invalid code' },
+  });
+});
+
+test("it revokes every grant of a client once one grant's spent refresh token is replayed", async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const clientID = created.clientID;
+
+  const exchangeGrant = async (): Promise<Record<string, unknown>> => {
+    const authorized = await runMCPAuthorization(ctx, {
+      clientID,
+      redirectURI: 'https://assistant.example.com/callback',
+      scope: 'read',
+      ticked: ['read'],
+    });
+
+    const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+      method: 'POST',
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: authorized.code,
+        redirect_uri: 'https://assistant.example.com/callback',
+        client_id: clientID,
+        code_verifier: authorized.verifier,
+      }),
+    });
+
+    return readJSONRecord(exchanged);
+  };
+
+  const replayedGrant = await exchangeGrant();
+  const otherGrant = await exchangeGrant();
+
+  const rotated = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: String(replayedGrant['refresh_token']),
+      client_id: clientID,
+    }),
+  });
+
+  invariant(rotated.status === 200, 'the first refresh failed');
+
+  await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: String(replayedGrant['refresh_token']),
+      client_id: clientID,
+    }),
+  });
+
+  const pinged = await fetch(`${ctx.url}/mcp`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${String(otherGrant['access_token'])}`,
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+  });
+
+  const refreshed = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: String(otherGrant['refresh_token']),
+      client_id: clientID,
+    }),
+  });
+
+  const grants = await readGrantViews(ctx.store.db);
+
+  expect(pinged.status).toBe(401);
+  expect(refreshed.status).toBe(400);
+  expect(grants).toStrictEqual([]);
+});
+
+test('it lets one of two refreshes that present the same token at once succeed', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const clientID = created.clientID;
+
+  const authorized = await runMCPAuthorization(ctx, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  const tokens = await readJSONRecord(exchanged);
+
+  const refresh = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: String(tokens['refresh_token']),
+    client_id: clientID,
+  });
+
+  const answers = await Promise.all([
+    fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh }),
+    fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh }),
+  ]);
+
+  expect(answers.map((answer) => answer.status).toSorted()).toStrictEqual([200, 400]);
+});
+
+test('it lets a client that clients add added get a token', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const printed: string[] = [];
+
+  await runClients(
+    { kind: 'add', name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+    { dbPath: ctx.dbPath, command: 'clients' },
+    {
+      print: (line) => {
+        printed.push(line);
+      },
+      printError: () => {},
+      setExitCode: () => {},
+      exit: () => {},
+    },
+  );
+
+  const clientID = /client ID is (?<id>\w+)/u.exec(printed.join('\n'))?.groups?.['id'];
+
+  invariant(clientID !== undefined, `no client ID in: ${printed.join('\n')}`);
+
+  const authorized = await runMCPAuthorization(ctx, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  expect(exchanged.status).toBe(200);
+});
+
+test('it refuses the access token of a client that clients remove removed', async () => {
+  const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
+  });
+
+  const clientID = created.clientID;
+
+  const authorized = await runMCPAuthorization(ctx, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const exchanged = await fetch(`${ctx.url}/oauth2/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorized.code,
+      redirect_uri: 'https://assistant.example.com/callback',
+      client_id: clientID,
+      code_verifier: authorized.verifier,
+    }),
+  });
+
+  const tokens = await readJSONRecord(exchanged);
+
+  await runClients(
+    { kind: 'remove', clientID: toTagged<OAuthClientID>(clientID) },
+    { dbPath: ctx.dbPath, command: 'clients' },
+    { print: () => {}, printError: () => {}, setExitCode: () => {}, exit: () => {} },
+  );
+
+  const pinged = await fetch(`${ctx.url}/mcp`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${String(tokens['access_token'])}`,
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+  });
+
+  const grants = await readGrantViews(ctx.store.db);
+
+  expect(pinged.status).toBe(401);
+  expect(grants).toStrictEqual([]);
 });
