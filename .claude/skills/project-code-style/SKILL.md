@@ -43,7 +43,14 @@ packages/example/src/
 - Put a helper that one feature imports in the smallest folder of that feature that holds every file
   that imports it. Put a helper that two or more features import in `src/utils/`, and a test helper
   that two or more features import in `src/test-utils/`.
-- No `index.ts` in a feature folder. `src/index.ts` is the only barrel.
+- No `index.ts` in a feature folder. `src/index.ts` is the only barrel, with one exception. A public
+  package may give a subpath to functions that a plug-in never imports, such as the generators that
+  only `pepys build` calls. A plug-in that imports the main entry then can't reach them. To add one:
+  - list the subpath in `exports` in `package.json`;
+  - point the subpath at a file in `src/` with the subpath's name, such as `src/generators.ts` for
+    `@pepys/kit/generators`;
+  - write only re-exports in that file. Leave the functions in their feature folders, and out of
+    `src/index.ts`.
 - Never edit a file under `src/generated/` by hand. Change what it is generated from, such as a
   `defineConsumer` declaration, then run `bun run schema:generate`.
 - Put each consumer of a source in `src/consumers/<consumer-file>.ts` of the source's package,
