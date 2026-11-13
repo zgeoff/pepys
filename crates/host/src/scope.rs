@@ -199,7 +199,7 @@ mod tests {
     impl TestScope {
         async fn apply(
             &self,
-            runner: &mut ScopeCannedRunner,
+            runner: &mut dyn ScopeRunner,
             facts: &[StoredFact],
         ) -> Result<(), HostError> {
             apply_scope_batch(
@@ -458,6 +458,126 @@ mod tests {
             (ctx.read_counts().await, runner.read.len()),
             ((0, 0, 0, 1, Some(0)), 0)
         );
+    }
+
+    /// A module whose account row takes the name and time of the last fact its scope read gives,
+    /// so the rows depend on the order of that read.
+    struct LastNameRunner;
+
+    impl ScopeRunner for LastNameRunner {
+        fn apply_scope(
+            &mut self,
+            scope: &str,
+            facts: Arc<dyn FactSource>,
+        ) -> Result<String, HostError> {
+            let read: Vec<Value> = serde_json::from_slice(&facts.read_scope_facts(scope)?)?;
+            let last = read.last().ok_or(HostError::OutOfBounds)?;
+
+            Ok(json!([{"upsert": {"ledger_account": {
+                "id": scope, "name": last["name"], "balance": read.len(), "is_closed": false,
+                "opened_at": null, "updated_at": last["at"]
+            }}}])
+            .to_string())
+        }
+    }
+
+    fn named_fact(id: &str, entity: &str, at: &str, name: &str) -> String {
+        json!({"id": id, "entity": entity, "at": at, "name": name}).to_string()
+    }
+
+    impl TestScope {
+        /// Applies each body as its own batch, numbered in the order given, and reads back every
+        /// account row as its id, name, balance and update time.
+        async fn apply_one_by_one(&self, bodies: &[String]) -> Vec<(String, String, i64, String)> {
+            for (offset, body) in (0_u64..).zip(bodies) {
+                let fact = StoredFact {
+                    offset,
+                    body: body.clone(),
+                    appended_at_ms: 0,
+                };
+
+                self.apply(&mut LastNameRunner, &[fact])
+                    .await
+                    .expect("a batch");
+            }
+
+            let mut rows = self
+                .store
+                .connection
+                .query(
+                    "SELECT id, name, balance, updated_at FROM ledger_account ORDER BY id",
+                    (),
+                )
+                .await
+                .expect("the rows");
+            let mut accounts = Vec::new();
+
+            while let Some(row) = rows.next().await.expect("a row") {
+                accounts.push((
+                    row.get(0).expect("an id"),
+                    row.get(1).expect("a name"),
+                    row.get(2).expect("a balance"),
+                    row.get(3).expect("a time"),
+                ));
+            }
+
+            accounts
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_gives_the_same_rows_for_facts_with_distinct_times_in_either_arrival_order() {
+        let given = setup_test().await;
+        let reversed = setup_test().await;
+        let facts = [
+            named_fact(
+                "event:ledger:1",
+                "ledger:account:a",
+                "2026-11-01T09:00:00Z",
+                "Harbour",
+            ),
+            named_fact(
+                "event:ledger:2",
+                "ledger:account:a",
+                "2026-11-01T09:30:00Z",
+                "Quay",
+            ),
+            named_fact(
+                "event:ledger:3",
+                "ledger:account:a",
+                "2026-11-01T09:10:00.5Z",
+                "Pier",
+            ),
+            named_fact(
+                "event:ledger:4",
+                "ledger:account:b",
+                "2026-11-01T09:05:00Z",
+                "Reef",
+            ),
+        ];
+        let backwards: Vec<String> = facts.iter().rev().cloned().collect();
+
+        let rows = (
+            given.apply_one_by_one(&facts).await,
+            reversed.apply_one_by_one(&backwards).await,
+        );
+
+        let expected = vec![
+            (
+                "ledger:account:a".to_owned(),
+                "Quay".to_owned(),
+                3,
+                "2026-11-01T09:30:00Z".to_owned(),
+            ),
+            (
+                "ledger:account:b".to_owned(),
+                "Reef".to_owned(),
+                1,
+                "2026-11-01T09:05:00Z".to_owned(),
+            ),
+        ];
+
+        assert_eq!(rows, (expected.clone(), expected));
     }
 
     #[test]
