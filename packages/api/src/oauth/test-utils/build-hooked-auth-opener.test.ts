@@ -50,6 +50,45 @@ test('it runs the armed callback once, before the first matching query', async (
   ]);
 });
 
+test('it runs a query of the same database while the armed work waits on it', async () => {
+  const ctx = setupTest();
+
+  await sql`create table note (id text)`.execute(ctx.db);
+
+  ctx.opener.armBeforeQuery(/^insert into "note"/u, async () => {
+    await sql`insert into note (id) values ('while-the-first-waits')`.execute(ctx.db);
+  });
+
+  await sql`insert into "note" (id) values ('first')`.execute(ctx.db);
+
+  const rows = await sql`select id from note order by rowid`.execute(ctx.db);
+
+  expect(rows.rows).toStrictEqual([{ id: 'while-the-first-waits' }, { id: 'first' }]);
+});
+
+test('it keeps a transaction on one connection while another query waits for it', async () => {
+  const ctx = setupTest();
+
+  await sql`create table note (id text)`.execute(ctx.db);
+
+  const committed = ctx.db.transaction().execute(async (trx) => {
+    await sql`insert into note (id) values ('in-the-transaction')`.execute(trx);
+    await sql`insert into note (id) values ('still-in-it')`.execute(trx);
+  });
+
+  const outside = sql`insert into note (id) values ('outside')`.execute(ctx.db);
+
+  await Promise.all([committed, outside]);
+
+  const rows = await sql`select id from note order by rowid`.execute(ctx.db);
+
+  expect(rows.rows).toStrictEqual([
+    { id: 'in-the-transaction' },
+    { id: 'still-in-it' },
+    { id: 'outside' },
+  ]);
+});
+
 test('it sends every query on unchanged when nothing is armed', async () => {
   const ctx = setupTest();
 

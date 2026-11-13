@@ -15,6 +15,7 @@ import { resetPasskeys } from '../auth/reset-passkeys.ts';
 import { revokeGrant } from '../auth/revoke-grant.ts';
 import type { OAuthClientID } from '../auth/types.ts';
 import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
+import { buildHookedAuthOpener } from '../test-utils/build-hooked-auth-opener.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
@@ -39,13 +40,14 @@ async function setupTest() {
   // The approval clock stands still, so every approval a test starts falls
   // inside one minute however long the test runs.
   const clock = buildStubClock(Date.now());
+  const opener = buildHookedAuthOpener(openTestAuthDatabase);
 
   const startServer = (port: number, trustForwardedFrom: readonly string[] = []) =>
     startHarbourMCPServer({
       port,
       trustForwardedFrom,
       dbPath,
-      openAuthDatabase: openTestAuthDatabase,
+      openAuthDatabase: opener.openDatabase,
       printSecurity: (line) => {
         security.push(line);
       },
@@ -69,6 +71,7 @@ async function setupTest() {
     security,
     clock,
     store,
+    armBeforeServerQuery: opener.armBeforeQuery,
     seed: {
       ...buildSeeder(deps),
       ...buildEnrolledPasskeySeeder({ ...deps, server }),
@@ -4151,16 +4154,17 @@ test('it shows read as the one scope on the consent page, ticked, to a client th
   const page = await fetch(consent, { headers: { cookie } });
   const html = await page.text();
 
-  const boxes = [
-    ...html.matchAll(
-      /<input type="checkbox" name="scope" value="(?<scope>[^"]+)"(?<checked> checked)?>/gu,
-    ),
-  ].map((box) => ({
-    scope: box.groups?.['scope'],
-    checked: box.groups?.['checked'] !== undefined,
-  }));
+  const inputs: { scope: string | null; checked: boolean }[] = [];
 
-  expect(boxes).toStrictEqual([{ scope: 'read', checked: true }]);
+  new HTMLRewriter()
+    .on('input[name="scope"]', {
+      element: (input) => {
+        inputs.push({ scope: input.getAttribute('value'), checked: input.hasAttribute('checked') });
+      },
+    })
+    .transform(html);
+
+  expect(inputs).toStrictEqual([{ scope: 'read', checked: true }]);
 });
 
 test('it refuses an authorization code exchanged after the approval window', async () => {
@@ -4327,12 +4331,31 @@ test('it lets one of two refreshes that present the same token at once succeed',
     client_id: clientID,
   });
 
-  const answers = await Promise.all([
-    fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh }),
-    fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh }),
-  ]);
+  // The first refresh waits at its spend until the second has read the
+  // unused token and reached its own spend, so both overlap.
+  const spend = /^update "oauthRefreshToken" set/u;
+  const secondAtSpend = Promise.withResolvers<void>();
+  const second = Promise.withResolvers<Response>();
 
-  expect(answers.map((answer) => answer.status).toSorted()).toStrictEqual([200, 400]);
+  ctx.armBeforeServerQuery(spend, async () => {
+    ctx.armBeforeServerQuery(spend, () => {
+      secondAtSpend.resolve();
+
+      return Promise.resolve();
+    });
+
+    second.resolve(fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh }));
+
+    await secondAtSpend.promise;
+  });
+
+  const first = await fetch(`${ctx.url}/oauth2/token`, { method: 'POST', body: refresh });
+  const answered = await second.promise;
+
+  expect({ first: first.status, second: answered.status }).toStrictEqual({
+    first: 400,
+    second: 200,
+  });
 });
 
 test('it lets a client that clients add added get a token', async () => {
