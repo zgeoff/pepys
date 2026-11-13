@@ -74,10 +74,9 @@ whose author GitHub gives the user type `Bot`. Such a pull request is a bump: it
 repository to use a release of another repository, as a dependency update bot does.
 [The delivery query](#the-delivery-query) follows a bump to a deploy.
 
-For a fact that wins, the consumer writes the pull request's `html_url` and
-`<owner>/<repo>#<number>` to `github_pull_request_alias`, in lowercase, as
-[aliases](../queries/entities-and-links.md#aliases). It never deletes an alias, so a renamed
-repository's old forms still work.
+A winning fact adds its `html_url` and `<owner>/<repo>#<number>`, in lowercase, to
+`github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). No alias is ever
+deleted, so a renamed repository's old forms still work.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.
@@ -106,7 +105,8 @@ same winner.
 A pull request's time is its `updated_at`. A release's time is the first of `updated_at`,
 `published_at` and `created_at` that holds a value.
 
-The consumers also follow these rules:
+The `github_deploy` consumer follows a rule of its own, in [Deploys](#deploys). The two consumers
+above also follow these rules:
 
 - A release that GitHub deleted keeps its row, with the time of the delete in `deleted_at`. A later
   fact never clears `deleted_at`, because GitHub never gives a release ID to another release. The
@@ -117,8 +117,6 @@ The consumers also follow these rules:
 - The bump rows of a pull request change only with its row. When a fact wins, the consumer reads the
   bump URLs of the old description from the payload stored with the row. It then deletes each bump
   row whose URL the new description drops, and adds a row for each URL the new description adds.
-
-The `github_deploy` consumer follows a rule of its own, in [Deploys](#deploys).
 
 ## The recovery pull
 
