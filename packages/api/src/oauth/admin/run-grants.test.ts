@@ -42,7 +42,10 @@ test('it lists a grant whose id starts with a dash', async () => {
     }),
   });
 
-  await ctx.seed.grantID({ clientID, grantID: '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc' });
+  await ctx.seed.grantID({
+    clientID,
+    grantID: toTagged<OAuthGrantID>('-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc'),
+  });
 
   const printed: string[] = [];
 
@@ -90,7 +93,10 @@ test('it revokes a grant so its access token stops working and it lists no grant
 
   const tokens = await readJSONRecord(exchanged);
 
-  await ctx.seed.grantID({ clientID, grantID: '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc' });
+  await ctx.seed.grantID({
+    clientID,
+    grantID: toTagged<OAuthGrantID>('-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc'),
+  });
 
   const printed: string[] = [];
   const errors: string[] = [];

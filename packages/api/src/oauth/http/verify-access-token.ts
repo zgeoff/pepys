@@ -1,8 +1,7 @@
-import { toTagged } from '@zgeoff/std';
 import { deriveTokenHash } from '../auth/derive-token-hash.ts';
 import { normalizeClientName } from '../auth/normalize-client-name.ts';
 import { readClientName } from '../auth/read-client-name.ts';
-import type { HTTPServerContext, OAuthGrantID, VerifiedAccess } from '../auth/types.ts';
+import type { HTTPServerContext, VerifiedAccess } from '../auth/types.ts';
 import { writeGrantUse } from '../auth/write-grant-use.ts';
 import { readTokenAccess } from './read-token-access.ts';
 
@@ -41,5 +40,5 @@ async function upsertGrantUse(ctx: HTTPServerContext, token: string): Promise<vo
     return;
   }
 
-  await writeGrantUse(ctx.store.db, toTagged<OAuthGrantID>(grantID), ctx.clock.now());
+  await writeGrantUse(ctx.store.db, grantID, ctx.clock.now());
 }

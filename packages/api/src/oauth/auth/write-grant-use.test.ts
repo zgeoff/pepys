@@ -29,7 +29,9 @@ test('it records when a grant was last used', async () => {
 
   const rows = await ctx.db.selectFrom('pepys_grant_use').selectAll().execute();
 
-  expect(rows).toStrictEqual([{ grant_id: 'grant-one', last_used_at: '2026-10-08T00:00:00.000Z' }]);
+  expect(rows).toStrictEqual([
+    { grant_id: toTagged<OAuthGrantID>('grant-one'), last_used_at: '2026-10-08T00:00:00.000Z' },
+  ]);
 });
 
 test('it moves the last-used time of a grant used again', async () => {
@@ -40,5 +42,7 @@ test('it moves the last-used time of a grant used again', async () => {
 
   const rows = await ctx.db.selectFrom('pepys_grant_use').selectAll().execute();
 
-  expect(rows).toStrictEqual([{ grant_id: 'grant-one', last_used_at: '2026-10-09T00:00:00.000Z' }]);
+  expect(rows).toStrictEqual([
+    { grant_id: toTagged<OAuthGrantID>('grant-one'), last_used_at: '2026-10-09T00:00:00.000Z' },
+  ]);
 });

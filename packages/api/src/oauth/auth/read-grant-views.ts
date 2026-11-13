@@ -1,4 +1,3 @@
-import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import { GRANT_SCOPES } from '../constants.ts';
 import type { GrantScope } from '../constants.ts';
@@ -46,8 +45,8 @@ export async function readGrantViews(db: Kysely<MCPAuthSchema>): Promise<readonl
     const scopes = parseJSONStrings(row.scopes) ?? [];
 
     return {
-      grantID: toTagged<OAuthGrantID>(row.authorizationCodeId),
-      clientID: toTagged<OAuthClientID>(row.clientId),
+      grantID: row.authorizationCodeId,
+      clientID: row.clientId,
       clientName: row.name ?? '',
       scopes: GRANT_SCOPES.filter((scope) => scopes.includes(scope)),
       createdAt: row.createdAt,

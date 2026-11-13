@@ -8,6 +8,15 @@ import type { Clock } from './system-clock.ts';
 // The client ID an OAuth client registered with, not the row id of its record.
 export type OAuthClientID = Tagged<string, 'OAuthClientID'>;
 
+// The row id of an OAuth client's record.
+export type OAuthClientRecordID = Tagged<string, 'OAuthClientRecordID'>;
+
+export type OAuthAccessTokenID = Tagged<string, 'OAuthAccessTokenID'>;
+
+export type OAuthRefreshTokenID = Tagged<string, 'OAuthRefreshTokenID'>;
+
+export type OAuthConsentID = Tagged<string, 'OAuthConsentID'>;
+
 // A grant is one authorization code and every token issued from it.
 export type OAuthGrantID = Tagged<string, 'OAuthGrantID'>;
 

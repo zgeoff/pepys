@@ -1,9 +1,10 @@
 import invariant from 'tiny-invariant';
+import type { OAuthClientID, OAuthGrantID } from '../auth/types.ts';
 import type { MCPAuthSeedDeps } from './types.ts';
 
 export interface GrantIDInput {
-  readonly clientID: string;
-  readonly grantID: string;
+  readonly clientID: OAuthClientID;
+  readonly grantID: OAuthGrantID;
 }
 
 export async function seedGrantID(

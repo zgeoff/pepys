@@ -37,7 +37,7 @@ export async function verifyPasskeyAssertion(
   const passkey = await db
     .selectFrom('pepys_passkey')
     .select(['id', 'public_key', 'counter', 'transports'])
-    .where('id', '=', response.id)
+    .where('id', '=', toTagged<PasskeyID>(response.id))
     .executeTakeFirst();
 
   if (passkey === undefined) {
@@ -71,16 +71,14 @@ export async function verifyPasskeyAssertion(
     return null;
   }
 
-  const passkeyID = toTagged<PasskeyID>(passkey.id);
-
   const stored = await updatePasskeyUse(db, {
-    id: passkeyID,
+    id: passkey.id,
     counter: passkey.counter,
     newCounter: verified.authenticationInfo.newCounter,
     now: check.now,
   });
 
-  return stored ? passkeyID : null;
+  return stored ? passkey.id : null;
 }
 
 const ASSERTION_REPLY = z.object({

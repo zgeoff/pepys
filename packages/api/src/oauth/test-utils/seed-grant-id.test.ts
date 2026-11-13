@@ -1,8 +1,10 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { systemClock } from '../auth/system-clock.ts';
+import type { OAuthGrantID } from '../auth/types.ts';
 import { buildEnrolledPasskeySeeder } from './build-enrolled-passkey-seeder.ts';
 import { buildStubAuthenticator } from './build-stub-authenticator.ts';
 import { openTestAuthDatabase } from './open-test-auth-database.ts';
@@ -63,13 +65,16 @@ test("it gives the client's access and refresh tokens the grant id it is passed"
     }),
   });
 
-  await seedGrantID(ctx, { clientID: created.clientID, grantID: '-dash_grant' });
+  await seedGrantID(ctx, {
+    clientID: created.clientID,
+    grantID: toTagged<OAuthGrantID>('-dash_grant'),
+  });
 
   expect(
     ctx.db.selectFrom('oauthAccessToken').select('authorizationCodeId').execute(),
-  ).resolves.toStrictEqual([{ authorizationCodeId: '-dash_grant' }]);
+  ).resolves.toStrictEqual([{ authorizationCodeId: toTagged<OAuthGrantID>('-dash_grant') }]);
 
   expect(
     ctx.db.selectFrom('oauthRefreshToken').select('authorizationCodeId').execute(),
-  ).resolves.toStrictEqual([{ authorizationCodeId: '-dash_grant' }]);
+  ).resolves.toStrictEqual([{ authorizationCodeId: toTagged<OAuthGrantID>('-dash_grant') }]);
 });

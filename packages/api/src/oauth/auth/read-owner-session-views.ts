@@ -1,4 +1,3 @@
-import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
 import type { OwnerSessionID } from './types.ts';
@@ -13,5 +12,5 @@ export async function readOwnerSessionViews(
 ): Promise<readonly OwnerSessionView[]> {
   const rows = await db.selectFrom('session').select(['id', 'expiresAt']).execute();
 
-  return rows.map((row) => ({ id: toTagged<OwnerSessionID>(row.id), expiresAt: row.expiresAt }));
+  return rows;
 }

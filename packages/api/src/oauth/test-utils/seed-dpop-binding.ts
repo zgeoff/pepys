@@ -1,8 +1,9 @@
 import invariant from 'tiny-invariant';
+import type { OAuthClientID } from '../auth/types.ts';
 import type { MCPAuthSeedDeps } from './types.ts';
 
 export interface DPoPBindingInput {
-  readonly clientID: string;
+  readonly clientID: OAuthClientID;
 
   // The thumbprint of the DPoP key the tokens are bound to.
   readonly jkt: string;
