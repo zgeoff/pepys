@@ -36,6 +36,10 @@ export interface MCPAuthSchema {
   // When each grant last reached /mcp, keyed by the grant's authorization code id.
   readonly pepys_grant_use: { readonly grant_id: string; readonly last_used_at: string };
 
+  // Each grant the grants command revoked, keyed by its authorization code id.
+  // Triggers refuse a token row that carries one of these ids.
+  readonly pepys_revoked_grant: { readonly grant_id: string };
+
   // The owner's passkeys: the credential id and its COSE public key, both
   // base64url, the signature counter the authenticator last returned, and
   // its transports as a JSON array.

@@ -102,6 +102,19 @@ export async function openMCPAuth(options: MCPAuthOptions) {
     db,
   );
 
+  await sql`create table if not exists pepys_revoked_grant (grant_id text primary key not null)`.execute(
+    db,
+  );
+
+  // better-auth writes a refresh's new tokens in statements apart from the
+  // one that spends the old token, so a revoke in another process can commit
+  // between them. These inserts then abort rather than outlive the revoke.
+  for (const table of ['oauthAccessToken', 'oauthRefreshToken']) {
+    await sql`create trigger if not exists ${sql.id(`pepys_refuse_revoked_${table}`)} before insert on ${sql.table(table)} when exists (select 1 from pepys_revoked_grant where grant_id = new."authorizationCodeId") begin select raise(abort, 'the grant is revoked'); end`.execute(
+      db,
+    );
+  }
+
   await sql`create table if not exists pepys_passkey (id text primary key not null, public_key text not null, counter integer not null, transports text not null, created_at text not null, last_used_at text)`.execute(
     db,
   );
