@@ -1,20 +1,22 @@
 import { expect, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { createApprovalState } from './create-approval-state.ts';
+import type { CorrelationID, OAuthClientID, OwnerSessionID } from './types.ts';
 
 test('it gives each pending request a random correlation id unrelated to its key', () => {
   const state = createApprovalState(600_000, () => 1000);
 
   const first = state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
 
   const second = state.createPending({
     key: 'q2',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -33,7 +35,7 @@ test("it takes a request's challenge once", () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -52,7 +54,7 @@ test('it mints a fresh 32-byte challenge for each login page and keeps only the 
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -73,7 +75,7 @@ test('it reports a challenge taken after five minutes as expired', () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -90,14 +92,14 @@ test('it keeps the challenges of two requests apart', () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
 
   state.createPending({
     key: 'q2',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -118,7 +120,7 @@ test('it locks a pending request on the fifth failed sign-in', () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -134,7 +136,7 @@ test('it removes a pending request with its challenge', () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -151,7 +153,7 @@ test('it forgets a pending request once it expires', () => {
 
   state.createPending({
     key: 'q1',
-    clientID: 'c1',
+    clientID: toTagged<OAuthClientID>('c1'),
     clientName: 'dots',
     redirectURI: 'https://dots.example/cb',
   });
@@ -167,7 +169,7 @@ test("it drops a client's oldest waiting approval when it starts a fourth", () =
   const created = ['q1', 'q2', 'q3', 'q4'].map((key) =>
     state.createPending({
       key,
-      clientID: 'c1',
+      clientID: toTagged<OAuthClientID>('c1'),
       clientName: 'dots',
       redirectURI: 'https://dots.example/cb',
     }),
@@ -187,7 +189,7 @@ test('it drops the oldest waiting approval to make room for a seventeenth', () =
 
     return state.createPending({
       key: `q${index}`,
-      clientID: `c${index}`,
+      clientID: toTagged<OAuthClientID>(`c${index}`),
       clientName: `c${index}`,
       redirectURI: 'https://dots.example/cb',
     });
@@ -204,7 +206,7 @@ test('it refuses an eleventh approval started within a minute', () => {
   const created = Array.from({ length: 11 }, (_, index) =>
     state.createPending({
       key: `q${index}`,
-      clientID: `c${index}`,
+      clientID: toTagged<OAuthClientID>(`c${index}`),
       clientName: `c${index}`,
       redirectURI: 'https://dots.example/cb',
     }),
@@ -221,7 +223,7 @@ test('it starts approvals again a minute after the limit was reached', () => {
   Array.from({ length: 10 }, (_, index) =>
     state.createPending({
       key: `q${index}`,
-      clientID: `c${index}`,
+      clientID: toTagged<OAuthClientID>(`c${index}`),
       clientName: `c${index}`,
       redirectURI: 'https://dots.example/cb',
     }),
@@ -232,7 +234,7 @@ test('it starts approvals again a minute after the limit was reached', () => {
   expect(
     state.createPending({
       key: 'q10',
-      clientID: 'c10',
+      clientID: toTagged<OAuthClientID>('c10'),
       clientName: 'c10',
       redirectURI: 'https://dots.example/cb',
     }),
@@ -242,11 +244,14 @@ test('it starts approvals again a minute after the limit was reached', () => {
 test('it holds the binding and correlation id an owner session approved', () => {
   const state = createApprovalState(600_000, () => 1000);
 
-  state.recordApproved('session-1', { binding: 'binding-1', correlationID: 'corr-1' });
-
-  expect(state.findApproved('session-1')).toStrictEqual({
+  state.recordApproved(toTagged<OwnerSessionID>('session-1'), {
     binding: 'binding-1',
-    correlationID: 'corr-1',
+    correlationID: toTagged<CorrelationID>('corr-1'),
+  });
+
+  expect(state.findApproved(toTagged<OwnerSessionID>('session-1'))).toStrictEqual({
+    binding: 'binding-1',
+    correlationID: toTagged<CorrelationID>('corr-1'),
     expiresAt: 601_000,
   });
 });
@@ -254,18 +259,24 @@ test('it holds the binding and correlation id an owner session approved', () => 
 test('it holds no binding for an owner session other than the one that approved', () => {
   const state = createApprovalState(600_000, () => 1000);
 
-  state.recordApproved('session-1', { binding: 'binding-1', correlationID: 'corr-1' });
+  state.recordApproved(toTagged<OwnerSessionID>('session-1'), {
+    binding: 'binding-1',
+    correlationID: toTagged<CorrelationID>('corr-1'),
+  });
 
-  expect(state.findApproved('session-2')).toBeNull();
+  expect(state.findApproved(toTagged<OwnerSessionID>('session-2'))).toBeNull();
 });
 
 test('it forgets an approved binding once it expires', () => {
   let now = 1000;
   const state = createApprovalState(600_000, () => now);
 
-  state.recordApproved('session-1', { binding: 'binding-1', correlationID: 'corr-1' });
+  state.recordApproved(toTagged<OwnerSessionID>('session-1'), {
+    binding: 'binding-1',
+    correlationID: toTagged<CorrelationID>('corr-1'),
+  });
 
   now = 601_000;
 
-  expect(state.findApproved('session-1')).toBeNull();
+  expect(state.findApproved(toTagged<OwnerSessionID>('session-1'))).toBeNull();
 });

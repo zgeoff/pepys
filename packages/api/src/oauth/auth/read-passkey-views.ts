@@ -1,8 +1,10 @@
+import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { PasskeyID } from './types.ts';
 
 export interface PasskeyView {
-  readonly id: string;
+  readonly id: PasskeyID;
   readonly createdAt: string;
   readonly lastUsedAt: string | null;
 }
@@ -16,7 +18,7 @@ export async function readPasskeyViews(db: Kysely<MCPAuthSchema>): Promise<reado
     .execute();
 
   return rows.map((row) => ({
-    id: row.id,
+    id: toTagged<PasskeyID>(row.id),
     createdAt: row.created_at,
     lastUsedAt: row.last_used_at,
   }));

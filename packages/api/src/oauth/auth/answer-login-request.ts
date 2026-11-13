@@ -4,7 +4,7 @@ import { buildConsentBinding } from './build-consent-binding.ts';
 import { PASSKEY_SCRIPT } from './passkey-script.ts';
 import { readOwnerSessionID } from './read-owner-session-id.ts';
 import { renderLoginPage } from './render-login-page.ts';
-import type { HTTPServerContext, OwnerAuthFailure, Requester } from './types.ts';
+import type { HTTPServerContext, OwnerAuthFailure, PasskeyID, Requester } from './types.ts';
 import { verifyPasskeyAssertion } from './verify-passkey-assertion.ts';
 import { verifySessionPasskey } from './verify-session-passkey.ts';
 
@@ -243,7 +243,7 @@ function verifyAssertion(
   ctx: HTTPServerContext,
   credential: string,
   challenge: string,
-): Promise<string | null> {
+): Promise<PasskeyID | null> {
   return verifyPasskeyAssertion(ctx.store.db, {
     credential,
     challenge,

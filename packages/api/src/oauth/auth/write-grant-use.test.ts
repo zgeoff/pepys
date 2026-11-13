@@ -1,9 +1,11 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import type { OAuthGrantID } from './types.ts';
 import { writeGrantUse } from './write-grant-use.ts';
 
 async function setupTest() {
@@ -23,7 +25,7 @@ async function setupTest() {
 test('it records when a grant was last used', async () => {
   const ctx = await setupTest();
 
-  await writeGrantUse(ctx.db, 'grant-one', Date.UTC(2026, 9, 8, 0, 0, 0));
+  await writeGrantUse(ctx.db, toTagged<OAuthGrantID>('grant-one'), Date.UTC(2026, 9, 8, 0, 0, 0));
 
   const rows = await ctx.db.selectFrom('pepys_grant_use').selectAll().execute();
 
@@ -33,8 +35,8 @@ test('it records when a grant was last used', async () => {
 test('it moves the last-used time of a grant used again', async () => {
   const ctx = await setupTest();
 
-  await writeGrantUse(ctx.db, 'grant-one', Date.UTC(2026, 9, 8, 0, 0, 0));
-  await writeGrantUse(ctx.db, 'grant-one', Date.UTC(2026, 9, 9, 0, 0, 0));
+  await writeGrantUse(ctx.db, toTagged<OAuthGrantID>('grant-one'), Date.UTC(2026, 9, 8, 0, 0, 0));
+  await writeGrantUse(ctx.db, toTagged<OAuthGrantID>('grant-one'), Date.UTC(2026, 9, 9, 0, 0, 0));
 
   const rows = await ctx.db.selectFrom('pepys_grant_use').selectAll().execute();
 

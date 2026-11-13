@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
@@ -7,6 +8,7 @@ import { readEnrollmentToken } from '../auth/read-enrollment-token.ts';
 import { readOwnerSessionViews } from '../auth/read-owner-session-views.ts';
 import { readPasskeyViews } from '../auth/read-passkey-views.ts';
 import { systemClock } from '../auth/system-clock.ts';
+import type { PasskeyID } from '../auth/types.ts';
 import { updatePasskeyUse } from '../auth/update-passkey-use.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
@@ -71,7 +73,10 @@ test('it prints an enrollment token the server accepts until it expires 15 minut
 test('it keeps the enrolled passkeys when it enrolls without reset', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-phone', now: Date.UTC(2026, 9, 14, 12, 0, 0) });
+  await ctx.seed.passkey({
+    id: toTagged<PasskeyID>('cred-phone'),
+    now: Date.UTC(2026, 9, 14, 12, 0, 0),
+  });
 
   await runPasskeys(
     { kind: 'enroll', reset: false },
@@ -82,7 +87,11 @@ test('it keeps the enrolled passkeys when it enrolls without reset', async () =>
   const passkeys = await readPasskeyViews(ctx.store.db);
 
   expect(passkeys).toStrictEqual([
-    { id: 'cred-phone', createdAt: '2026-10-14T12:00:00.000Z', lastUsedAt: null },
+    {
+      id: toTagged<PasskeyID>('cred-phone'),
+      createdAt: '2026-10-14T12:00:00.000Z',
+      lastUsedAt: null,
+    },
   ]);
 });
 
@@ -91,7 +100,7 @@ test('it removes every passkey, earlier token, and browser sign-in on reset', as
 
   const printed: string[] = [];
 
-  await ctx.seed.passkey({ id: 'cred-lost' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
 
   const earlier = await createEnrollmentToken(ctx.store.db, Date.now());
 
@@ -145,11 +154,18 @@ test('it lists each enrolled passkey with when it was enrolled and last used', a
 
   const printed: string[] = [];
 
-  await ctx.seed.passkey({ id: 'cred-phone', now: Date.UTC(2026, 9, 14, 12, 0, 0) });
-  await ctx.seed.passkey({ id: 'cred-laptop', now: Date.UTC(2026, 9, 14, 12, 30, 0) });
+  await ctx.seed.passkey({
+    id: toTagged<PasskeyID>('cred-phone'),
+    now: Date.UTC(2026, 9, 14, 12, 0, 0),
+  });
+
+  await ctx.seed.passkey({
+    id: toTagged<PasskeyID>('cred-laptop'),
+    now: Date.UTC(2026, 9, 14, 12, 30, 0),
+  });
 
   await updatePasskeyUse(ctx.store.db, {
-    id: 'cred-phone',
+    id: toTagged<PasskeyID>('cred-phone'),
     counter: 0,
     newCounter: 1,
     now: Date.UTC(2026, 9, 14, 13, 0, 0),
@@ -200,11 +216,18 @@ test('it removes one passkey and keeps the others', async () => {
 
   const printed: string[] = [];
 
-  await ctx.seed.passkey({ id: 'cred-lost', now: Date.UTC(2026, 9, 14, 12, 0, 0) });
-  await ctx.seed.passkey({ id: 'cred-kept', now: Date.UTC(2026, 9, 14, 12, 30, 0) });
+  await ctx.seed.passkey({
+    id: toTagged<PasskeyID>('cred-lost'),
+    now: Date.UTC(2026, 9, 14, 12, 0, 0),
+  });
+
+  await ctx.seed.passkey({
+    id: toTagged<PasskeyID>('cred-kept'),
+    now: Date.UTC(2026, 9, 14, 12, 30, 0),
+  });
 
   await runPasskeys(
-    { kind: 'remove', id: 'cred-lost' },
+    { kind: 'remove', id: toTagged<PasskeyID>('cred-lost') },
     { dbPath: ctx.dbPath, command: 'passkeys' },
     {
       print: (line) => {
@@ -221,7 +244,11 @@ test('it removes one passkey and keeps the others', async () => {
   const passkeys = await readPasskeyViews(ctx.store.db);
 
   expect(passkeys).toStrictEqual([
-    { id: 'cred-kept', createdAt: '2026-10-14T12:30:00.000Z', lastUsedAt: null },
+    {
+      id: toTagged<PasskeyID>('cred-kept'),
+      createdAt: '2026-10-14T12:30:00.000Z',
+      lastUsedAt: null,
+    },
   ]);
 });
 
@@ -232,7 +259,7 @@ test('it sets exit code 1 when it removes a passkey that does not exist', async 
   const codes: number[] = [];
 
   await runPasskeys(
-    { kind: 'remove', id: 'cred-missing' },
+    { kind: 'remove', id: toTagged<PasskeyID>('cred-missing') },
     { dbPath: ctx.dbPath, command: 'passkeys' },
     {
       print: () => {},

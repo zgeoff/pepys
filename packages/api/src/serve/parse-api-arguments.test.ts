@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
+import type { OAuthClientID, OAuthGrantID, PasskeyID } from '../oauth/auth/types.ts';
 import { parseAPIArguments } from './parse-api-arguments.ts';
 import type { APICommand } from './parse-api-arguments.ts';
 
@@ -11,7 +13,10 @@ test.each<[readonly string[], APICommand]>([
     ['passkeys', 'enroll', '--reset'],
     { kind: 'passkeys', action: { kind: 'enroll', reset: true } },
   ],
-  [['passkeys', 'remove', 'key-1'], { kind: 'passkeys', action: { kind: 'remove', id: 'key-1' } }],
+  [
+    ['passkeys', 'remove', 'key-1'],
+    { kind: 'passkeys', action: { kind: 'remove', id: toTagged<PasskeyID>('key-1') } },
+  ],
   [['clients'], { kind: 'clients', action: { kind: 'list' } }],
   [
     [
@@ -37,10 +42,13 @@ test.each<[readonly string[], APICommand]>([
   ],
   [
     ['clients', 'remove', 'client-1'],
-    { kind: 'clients', action: { kind: 'remove', clientID: 'client-1' } },
+    {
+      kind: 'clients',
+      action: { kind: 'remove', clientID: toTagged<OAuthClientID>('client-1') },
+    },
   ],
   [['grants'], { kind: 'grants', revoke: null }],
-  [['grants', '--revoke=grant-1'], { kind: 'grants', revoke: 'grant-1' }],
+  [['grants', '--revoke=grant-1'], { kind: 'grants', revoke: toTagged<OAuthGrantID>('grant-1') }],
 ])('it parses %p', (args, command) => {
   expect(parseAPIArguments(args)).toStrictEqual({ ok: true, value: command });
 });

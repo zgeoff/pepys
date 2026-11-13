@@ -1,4 +1,5 @@
 import { getOAuthProviderApi } from '@better-auth/oauth-provider';
+import { toTagged } from '@zgeoff/std';
 import type { BetterAuthPlugin } from 'better-auth';
 import { createAuthEndpoint } from 'better-auth/api';
 import { setSessionCookie } from 'better-auth/cookies';
@@ -6,6 +7,7 @@ import { generateRandomString } from 'better-auth/crypto';
 import { z } from 'zod';
 import { GRANT_SCOPES } from '../constants.ts';
 import { isAllowedRedirectURI } from './is-allowed-redirect-uri.ts';
+import type { OAuthClientID } from './types.ts';
 
 // pepys has one user: the owner who runs it. better-auth needs an email for
 // every user, so the owner gets one no mail ever reaches.
@@ -78,7 +80,7 @@ export function createOwnerPlugin() {
           metadata: { SERVER_ONLY: true },
         },
         async (ctx) => {
-          const clientID = generateRandomString(32, 'a-z', 'A-Z', '0-9');
+          const clientID = toTagged<OAuthClientID>(generateRandomString(32, 'a-z', 'A-Z', '0-9'));
 
           const now = new Date();
 

@@ -1,8 +1,14 @@
+import { toTagged } from '@zgeoff/std';
 import { GATEWAY_PATHS } from '../constants.ts';
 import { buildPageResponse } from '../http/build-page-response.ts';
 import { normalizeClientName } from './normalize-client-name.ts';
 import { readClientName } from './read-client-name.ts';
-import type { AuthorizeInvalidReason, HTTPServerContext, Requester } from './types.ts';
+import type {
+  AuthorizeInvalidReason,
+  HTTPServerContext,
+  OAuthClientID,
+  Requester,
+} from './types.ts';
 
 export async function answerAuthorizeRequest(
   ctx: HTTPServerContext,
@@ -46,7 +52,7 @@ export async function answerAuthorizeRequest(
     return response;
   }
 
-  const clientID = target.searchParams.get('client_id') ?? '';
+  const clientID = toTagged<OAuthClientID>(target.searchParams.get('client_id') ?? '');
   const redirectURI = target.searchParams.get('redirect_uri') ?? '';
 
   const storedName = await readClientName(ctx.store.db, clientID);
@@ -101,7 +107,8 @@ async function recordInvalidRequest(
 ): Promise<void> {
   const code = target?.searchParams.get('error') ?? null;
   const reason = isAuthorizeError(code) ? code : 'other';
-  const clientID = url.searchParams.get('client_id');
+  const clientParam = url.searchParams.get('client_id');
+  const clientID = clientParam === null ? null : toTagged<OAuthClientID>(clientParam);
   const storedName = clientID === null ? null : await readClientName(ctx.store.db, clientID);
 
   ctx.security.record({

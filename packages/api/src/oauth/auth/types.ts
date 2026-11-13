@@ -1,8 +1,22 @@
+import type { Tagged } from 'type-fest';
 import type { GrantScope } from '../constants.ts';
 import type { ApprovalState } from './create-approval-state.ts';
 import type { EnrollmentState } from './create-enrollment-state.ts';
 import type { openMCPAuth } from './open-mcp-auth.ts';
 import type { Clock } from './system-clock.ts';
+
+// The client ID an OAuth client registered with, not the row id of its record.
+export type OAuthClientID = Tagged<string, 'OAuthClientID'>;
+
+// A grant is one authorization code and every token issued from it.
+export type OAuthGrantID = Tagged<string, 'OAuthGrantID'>;
+
+export type OwnerSessionID = Tagged<string, 'OwnerSessionID'>;
+
+export type PasskeyID = Tagged<string, 'PasskeyID'>;
+
+// Matches up the security events of one authorization.
+export type CorrelationID = Tagged<string, 'CorrelationID'>;
 
 export interface Requester {
   readonly socketAddress: string | null;
@@ -78,15 +92,15 @@ export type BearerReason = 'malformed' | 'invalid_token';
 export type SecurityEvent = SecurityOutcome & {
   readonly path: string;
   readonly requester: Requester;
-  readonly client?: { readonly id: string; readonly name: string };
+  readonly client?: { readonly id: OAuthClientID; readonly name: string };
   readonly redirectHost?: string;
-  readonly correlationID?: string;
+  readonly correlationID?: CorrelationID;
 };
 
 // What a valid bearer token grants: the client it was issued to, and the
 // scopes it holds.
 export interface VerifiedAccess {
-  readonly clientID: string;
+  readonly clientID: OAuthClientID;
   readonly clientName: string;
   readonly scopes: readonly GrantScope[];
 }

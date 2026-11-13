@@ -1,9 +1,11 @@
 import { randomBytes } from 'node:crypto';
+import { toTagged } from '@zgeoff/std';
+import type { CorrelationID, OAuthClientID, OwnerSessionID } from './types.ts';
 
 interface ApprovalRequest {
   // The signed authorization query the login page carries: one per request.
   readonly key: string;
-  readonly clientID: string;
+  readonly clientID: OAuthClientID;
   readonly clientName: string;
   readonly redirectURI: string;
 }
@@ -11,7 +13,7 @@ interface ApprovalRequest {
 interface PendingApproval extends ApprovalRequest {
   // Random, minted with the approval and never taken from the request, so
   // the security events of one authorization can be matched up.
-  readonly correlationID: string;
+  readonly correlationID: CorrelationID;
   failures: number;
   readonly expiresAt: number;
 
@@ -39,7 +41,7 @@ const CHALLENGE_MS = 5 * MINUTE_MS;
 
 interface ApprovedRequest {
   readonly binding: string;
-  readonly correlationID: string;
+  readonly correlationID: CorrelationID;
   readonly expiresAt: number;
 }
 
@@ -63,21 +65,21 @@ export interface ApprovalState {
   readonly removePending: (key: string) => void;
 
   readonly recordApproved: (
-    sessionID: string,
+    sessionID: OwnerSessionID,
     approved: Omit<ApprovedRequest, 'expiresAt'>,
   ) => void;
 
   // What an owner session approved, or null once it expired or went.
-  readonly findApproved: (sessionID: string) => ApprovedRequest | null;
+  readonly findApproved: (sessionID: OwnerSessionID) => ApprovedRequest | null;
 
-  readonly removeApproved: (sessionID: string) => void;
+  readonly removeApproved: (sessionID: OwnerSessionID) => void;
 }
 
 export function createApprovalState(pendingMs: number, now: () => number): ApprovalState {
   const pending = new Map<string, PendingApproval>();
 
   // Owner session id to the binding of the request its sign-in approved.
-  const approved = new Map<string, ApprovedRequest>();
+  const approved = new Map<OwnerSessionID, ApprovedRequest>();
 
   // Approval start times within the last minute, oldest first.
   let startedAt: readonly number[] = [];
@@ -131,7 +133,7 @@ export function createApprovalState(pendingMs: number, now: () => number): Appro
 
       const approval: PendingApproval = {
         ...request,
-        correlationID: crypto.randomUUID(),
+        correlationID: toTagged<CorrelationID>(crypto.randomUUID()),
         failures: 0,
         expiresAt: current + pendingMs,
         challenge: null,

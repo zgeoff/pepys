@@ -1,6 +1,8 @@
 import type { RegistrationResponseJSON } from '@simplewebauthn/server';
+import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 import { loadWebAuthn } from './load-web-authn.ts';
+import type { PasskeyID } from './types.ts';
 
 interface RegistrationCheck {
   // The credential JSON the enrollment page posted.
@@ -13,7 +15,7 @@ interface RegistrationCheck {
 }
 
 export interface RegisteredPasskey {
-  readonly id: string;
+  readonly id: PasskeyID;
   readonly publicKey: Uint8Array;
   readonly counter: number;
   readonly transports: readonly string[];
@@ -47,7 +49,7 @@ export async function verifyPasskeyRegistration(
     const credential = verified.registrationInfo.credential;
 
     return {
-      id: credential.id,
+      id: toTagged<PasskeyID>(credential.id),
       publicKey: credential.publicKey,
       counter: credential.counter,
       transports: response.response.transports ?? [],

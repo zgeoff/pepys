@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
+import type { PasskeyID } from '../auth/types.ts';
 import { buildMockNewPasskey } from './build-mock-new-passkey.ts';
 
 test('it builds a default new passkey with no use counted', () => {
@@ -13,9 +15,11 @@ test('it builds a default new passkey with no use counted', () => {
 });
 
 test('it applies overrides on top of the defaults', () => {
-  expect(buildMockNewPasskey({ id: 'cred-phone', transports: ['usb'], now: 1000 })).toStrictEqual({
+  expect(
+    buildMockNewPasskey({ id: toTagged<PasskeyID>('cred-phone'), transports: ['usb'], now: 1000 }),
+  ).toStrictEqual({
     tokenHash: expect.toBeString(),
-    id: 'cred-phone',
+    id: toTagged<PasskeyID>('cred-phone'),
     publicKey: 'AQID',
     counter: 0,
     transports: ['usb'],

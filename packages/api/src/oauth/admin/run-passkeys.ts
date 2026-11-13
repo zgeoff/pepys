@@ -6,6 +6,7 @@ import { readPasskeyViews } from '../auth/read-passkey-views.ts';
 import { removePasskey } from '../auth/remove-passkey.ts';
 import { resetPasskeys } from '../auth/reset-passkeys.ts';
 import { systemClock } from '../auth/system-clock.ts';
+import type { PasskeyID } from '../auth/types.ts';
 import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { PROCESS_IO } from './process-io.ts';
 import type { ProcessIO } from './process-io.ts';
@@ -13,7 +14,7 @@ import type { ProcessIO } from './process-io.ts';
 export type PasskeysAction =
   | { readonly kind: 'list' }
   | { readonly kind: 'enroll'; readonly reset: boolean }
-  | { readonly kind: 'remove'; readonly id: string };
+  | { readonly kind: 'remove'; readonly id: PasskeyID };
 
 // The authorization server's database, and the command that prefixes every
 // message, such as `passkeys`.

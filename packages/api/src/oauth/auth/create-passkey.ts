@@ -1,12 +1,13 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { PasskeyID } from './types.ts';
 
 export interface NewPasskey {
   // The hash of the enrollment token the passkey was enrolled with.
   readonly tokenHash: string;
 
   // The credential id and its COSE public key, both base64url.
-  readonly id: string;
+  readonly id: PasskeyID;
   readonly publicKey: string;
   readonly counter: number;
   readonly transports: readonly string[];

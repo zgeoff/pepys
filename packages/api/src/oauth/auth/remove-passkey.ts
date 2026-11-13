@@ -1,7 +1,8 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { PasskeyID } from './types.ts';
 
-export function removePasskey(db: Kysely<MCPAuthSchema>, id: string): Promise<boolean> {
+export function removePasskey(db: Kysely<MCPAuthSchema>, id: PasskeyID): Promise<boolean> {
   return db.transaction().execute(async (trx) => {
     const removed = await trx.deleteFrom('pepys_passkey').where('id', '=', id).executeTakeFirst();
 

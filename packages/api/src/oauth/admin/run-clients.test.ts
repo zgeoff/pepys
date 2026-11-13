@@ -1,6 +1,8 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import type { OAuthClientID } from '../auth/types.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { runClients } from './run-clients.ts';
 
@@ -112,7 +114,7 @@ test('it removes a client and says it revoked every grant the client held', asyn
   const printed: string[] = [];
 
   await runClients(
-    { kind: 'remove', clientID },
+    { kind: 'remove', clientID: toTagged<OAuthClientID>(clientID) },
     { dbPath: ctx.dbPath, command: 'clients' },
     {
       print: (line) => {
@@ -149,7 +151,7 @@ test('it lists no clients and how to add one once the last client is removed', a
   invariant(clientID !== undefined, `no client ID in: ${added.join('\n')}`);
 
   await runClients(
-    { kind: 'remove', clientID },
+    { kind: 'remove', clientID: toTagged<OAuthClientID>(clientID) },
     { dbPath: ctx.dbPath, command: 'clients' },
     { print: () => {}, printError: () => {}, setExitCode: () => {}, exit: () => {} },
   );
@@ -243,7 +245,7 @@ test('it refuses to remove an unknown client', async () => {
   const exits: number[] = [];
 
   await runClients(
-    { kind: 'remove', clientID: 'unknown' },
+    { kind: 'remove', clientID: toTagged<OAuthClientID>('unknown') },
     { dbPath: ctx.dbPath, command: 'clients' },
     {
       print: () => {},
@@ -278,7 +280,7 @@ test('it sets the process exit code to 1 when it refuses a remove by default', a
   });
 
   await runClients(
-    { kind: 'remove', clientID: 'unknown' },
+    { kind: 'remove', clientID: toTagged<OAuthClientID>('unknown') },
     { dbPath: ctx.dbPath, command: 'clients' },
   );
 

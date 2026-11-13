@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
@@ -8,6 +9,7 @@ import { createPasskey } from './create-passkey.ts';
 import { deriveTokenHash } from './derive-token-hash.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readPasskeyViews } from './read-passkey-views.ts';
+import type { PasskeyID } from './types.ts';
 
 // A temp directory that holds an authorization database, opened the way
 // the server opens it.
@@ -31,7 +33,7 @@ test('it stores the passkey and spends its token', async () => {
 
   const created = await createPasskey(ctx.db, {
     tokenHash: deriveTokenHash(enrollment.token),
-    id: 'cred-1',
+    id: toTagged<PasskeyID>('cred-1'),
     publicKey: 'AQID',
     counter: 0,
     transports: ['internal', 'hybrid'],
@@ -44,7 +46,7 @@ test('it stores the passkey and spends its token', async () => {
 
   expect(passkeyRows).toStrictEqual([
     {
-      id: 'cred-1',
+      id: toTagged<PasskeyID>('cred-1'),
       public_key: 'AQID',
       counter: 0,
       transports: '["internal","hybrid"]',
@@ -63,7 +65,7 @@ test('it stores nothing for a token that is spent', async () => {
 
   const created = await createPasskey(ctx.db, {
     tokenHash: 'hash-spent',
-    id: 'cred-1',
+    id: toTagged<PasskeyID>('cred-1'),
     publicKey: 'AQID',
     counter: 0,
     transports: [],
@@ -83,7 +85,7 @@ test('it stores nothing for a token that expired', async () => {
 
   const created = await createPasskey(ctx.db, {
     tokenHash: deriveTokenHash(enrollment.token),
-    id: 'cred-1',
+    id: toTagged<PasskeyID>('cred-1'),
     publicKey: 'AQID',
     counter: 0,
     transports: [],
@@ -103,7 +105,7 @@ test('it keeps the token when the passkey is already enrolled', async () => {
   const second = await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
 
   const passkey = {
-    id: 'cred-1',
+    id: toTagged<PasskeyID>('cred-1'),
     publicKey: 'AQID',
     counter: 0,
     transports: [],

@@ -2,11 +2,13 @@ import type {
   AuthenticationResponseJSON,
   VerifiedAuthenticationResponse,
 } from '@simplewebauthn/server';
+import { toTagged } from '@zgeoff/std';
 import type { Kysely } from 'kysely';
 import { z } from 'zod';
 import { loadWebAuthn } from './load-web-authn.ts';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
 import { parseJSONStrings } from './parse-json-strings.ts';
+import type { PasskeyID } from './types.ts';
 import { updatePasskeyUse } from './update-passkey-use.ts';
 
 interface AssertionCheck {
@@ -25,7 +27,7 @@ interface AssertionCheck {
 export async function verifyPasskeyAssertion(
   db: Kysely<MCPAuthSchema>,
   check: AssertionCheck,
-): Promise<string | null> {
+): Promise<PasskeyID | null> {
   const response = parseAssertion(check.credential);
 
   if (response === null) {
@@ -69,14 +71,16 @@ export async function verifyPasskeyAssertion(
     return null;
   }
 
+  const passkeyID = toTagged<PasskeyID>(passkey.id);
+
   const stored = await updatePasskeyUse(db, {
-    id: passkey.id,
+    id: passkeyID,
     counter: passkey.counter,
     newCounter: verified.authenticationInfo.newCounter,
     now: check.now,
   });
 
-  return stored ? passkey.id : null;
+  return stored ? passkeyID : null;
 }
 
 const ASSERTION_REPLY = z.object({

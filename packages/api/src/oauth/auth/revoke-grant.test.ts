@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
@@ -14,6 +15,7 @@ import { openMCPAuth } from './open-mcp-auth.ts';
 import { readGrantViews } from './read-grant-views.ts';
 import { revokeGrant } from './revoke-grant.ts';
 import { systemClock } from './system-clock.ts';
+import type { OAuthGrantID } from './types.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-revoke-grant-');
@@ -85,7 +87,7 @@ test("it forgets the consent its client held along with the grant's tokens", asy
 
 test('it reports an unknown grant id as not revoked', async () => {
   const ctx = await setupTest();
-  const revoked = await revokeGrant(ctx.store.db, 'unknown-grant');
+  const revoked = await revokeGrant(ctx.store.db, toTagged<OAuthGrantID>('unknown-grant'));
 
   expect(revoked).toBeFalse();
 });

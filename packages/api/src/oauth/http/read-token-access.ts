@@ -1,11 +1,11 @@
-import { isRecord } from '@zgeoff/std';
+import { isRecord, toTagged } from '@zgeoff/std';
 import { isAPIError } from 'better-auth/api';
-import type { HTTPServerContext } from '../auth/types.ts';
+import type { HTTPServerContext, OAuthClientID } from '../auth/types.ts';
 import { GRANT_SCOPES } from '../constants.ts';
 import type { GrantScope } from '../constants.ts';
 
 interface TokenAccess {
-  readonly clientID: string;
+  readonly clientID: OAuthClientID;
   readonly scopes: readonly GrantScope[];
 }
 
@@ -44,5 +44,8 @@ export async function readTokenAccess(
     return null;
   }
 
-  return { clientID, scopes: GRANT_SCOPES.filter((scope) => granted.includes(scope)) };
+  return {
+    clientID: toTagged<OAuthClientID>(clientID),
+    scopes: GRANT_SCOPES.filter((scope) => granted.includes(scope)),
+  };
 }

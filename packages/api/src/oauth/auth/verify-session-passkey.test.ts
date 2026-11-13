@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
@@ -9,6 +10,7 @@ import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { removeOwnerSession } from './remove-owner-session.ts';
 import { resetPasskeys } from './reset-passkeys.ts';
+import type { OwnerSessionID, PasskeyID } from './types.ts';
 import { verifySessionPasskey } from './verify-session-passkey.ts';
 
 // A temp directory that holds an authorization database, opened the way
@@ -32,7 +34,7 @@ async function setupTest() {
 test('it keeps a session whose signing passkey is still enrolled', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-phone' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
   await ctx.auth.api.signInOwner({ body: {} });
 
   const [session] = await ctx.db.selectFrom('session').select('id').execute();
@@ -40,8 +42,8 @@ test('it keeps a session whose signing passkey is still enrolled', async () => {
   invariant(session !== undefined, 'the arrangement left no owner session');
 
   const kept = await verifySessionPasskey(ctx.db, {
-    sessionID: session.id,
-    passkeyID: 'cred-phone',
+    sessionID: toTagged<OwnerSessionID>(session.id),
+    passkeyID: toTagged<PasskeyID>('cred-phone'),
   });
 
   expect(kept).toBeTrue();
@@ -54,7 +56,7 @@ test('it keeps a session whose signing passkey is still enrolled', async () => {
 test('it removes a session created after a reset deleted its signing passkey', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-phone' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
 
   await resetPasskeys(ctx.db);
 
@@ -65,8 +67,8 @@ test('it removes a session created after a reset deleted its signing passkey', a
   invariant(session !== undefined, 'the arrangement left no owner session');
 
   const kept = await verifySessionPasskey(ctx.db, {
-    sessionID: session.id,
-    passkeyID: 'cred-phone',
+    sessionID: toTagged<OwnerSessionID>(session.id),
+    passkeyID: toTagged<PasskeyID>('cred-phone'),
   });
 
   expect(kept).toBeFalse();
@@ -79,18 +81,18 @@ test('it removes a session created after a reset deleted its signing passkey', a
 test('it refuses a session deleted before the check while its passkey stays enrolled', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-phone' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-phone') });
   await ctx.auth.api.signInOwner({ body: {} });
 
   const [session] = await ctx.db.selectFrom('session').select('id').execute();
 
   invariant(session !== undefined, 'the arrangement left no owner session');
 
-  await removeOwnerSession(ctx.db, session.id);
+  await removeOwnerSession(ctx.db, toTagged<OwnerSessionID>(session.id));
 
   const kept = await verifySessionPasskey(ctx.db, {
-    sessionID: session.id,
-    passkeyID: 'cred-phone',
+    sessionID: toTagged<OwnerSessionID>(session.id),
+    passkeyID: toTagged<PasskeyID>('cred-phone'),
   });
 
   expect(kept).toBeFalse();

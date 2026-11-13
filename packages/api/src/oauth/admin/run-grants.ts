@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { readGrantViews } from '../auth/read-grant-views.ts';
 import { revokeGrant } from '../auth/revoke-grant.ts';
+import type { OAuthGrantID } from '../auth/types.ts';
 import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { PROCESS_IO } from './process-io.ts';
 import type { ProcessIO } from './process-io.ts';
@@ -15,7 +16,7 @@ interface GrantsTarget {
 }
 
 export async function runGrants(
-  revoke: string | null,
+  revoke: OAuthGrantID | null,
   target: GrantsTarget,
   io: Pick<ProcessIO, 'print' | 'printError' | 'setExitCode'> = PROCESS_IO,
 ): Promise<void> {

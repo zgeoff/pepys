@@ -1,7 +1,7 @@
-import { isRecord } from '@zgeoff/std';
+import { isRecord, toTagged } from '@zgeoff/std';
 import { normalizeClientName } from './normalize-client-name.ts';
 import { readClientName } from './read-client-name.ts';
-import type { HTTPServerContext, Requester, TokenExchangeReason } from './types.ts';
+import type { HTTPServerContext, OAuthClientID, Requester, TokenExchangeReason } from './types.ts';
 
 interface RefusedExchange {
   // The refused request's body, read only for its client id.
@@ -63,10 +63,12 @@ function isTokenExchangeError(code: string | null): code is TokenExchangeReason 
   return code !== null && TOKEN_EXCHANGE_ERRORS.has(code);
 }
 
-function findClientID(exchange: RefusedExchange): string | null {
+function findClientID(exchange: RefusedExchange): OAuthClientID | null {
   if (exchange.contentType?.startsWith('application/x-www-form-urlencoded') !== true) {
     return null;
   }
 
-  return new URLSearchParams(exchange.body).get('client_id');
+  const clientID = new URLSearchParams(exchange.body).get('client_id');
+
+  return clientID === null ? null : toTagged<OAuthClientID>(clientID);
 }

@@ -1,12 +1,13 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { OwnerSessionID, PasskeyID } from './types.ts';
 
 interface SessionPasskey {
   // The owner session a passkey sign-in just created.
-  readonly sessionID: string;
+  readonly sessionID: OwnerSessionID;
 
   // The passkey whose assertion signed the owner in.
-  readonly passkeyID: string;
+  readonly passkeyID: PasskeyID;
 }
 
 export async function verifySessionPasskey(

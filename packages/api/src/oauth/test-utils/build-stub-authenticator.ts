@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { toTagged } from '@zgeoff/std';
+import type { PasskeyID } from '../auth/types.ts';
 
 // The parts of the creation and request options a browser passes to
 // navigator.credentials that an authenticator reads.
@@ -64,7 +66,7 @@ export function buildStubAuthenticator() {
   let counter = 0;
 
   return {
-    credentialID: credentialID.toString('base64url'),
+    credentialID: toTagged<PasskeyID>(credentialID.toString('base64url')),
     async create(options: CreationOptions, ceremony: Ceremony): Promise<StubRegistration> {
       const pair = await keys;
       const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);

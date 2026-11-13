@@ -1,7 +1,9 @@
 import { parseArgs } from 'node:util';
 import type { Result } from '@pepys/kit';
+import { toTagged } from '@zgeoff/std';
 import type { ClientsAction } from '../oauth/admin/run-clients.ts';
 import type { PasskeysAction } from '../oauth/admin/run-passkeys.ts';
+import type { OAuthClientID, OAuthGrantID, PasskeyID } from '../oauth/auth/types.ts';
 
 // What one run of the API's entry does: serve, or one admin command on the
 // OAuth server's database.
@@ -9,7 +11,7 @@ export type APICommand =
   | { readonly kind: 'serve' }
   | { readonly kind: 'passkeys'; readonly action: PasskeysAction }
   | { readonly kind: 'clients'; readonly action: ClientsAction }
-  | { readonly kind: 'grants'; readonly revoke: string | null };
+  | { readonly kind: 'grants'; readonly revoke: OAuthGrantID | null };
 
 const usage = [
   'usage: <entry>                                   serve the API',
@@ -44,7 +46,15 @@ export function parseAPIArguments(args: readonly string[]): Result<APICommand, s
         options: { revoke: { type: 'string' } },
       });
 
-      return { ok: true, value: { kind: 'grants', revoke: parsed.values.revoke ?? null } };
+      const revoke = parsed.values.revoke;
+
+      return {
+        ok: true,
+        value: {
+          kind: 'grants',
+          revoke: revoke === undefined ? null : toTagged<OAuthGrantID>(revoke),
+        },
+      };
     }
 
     return { ok: false, failure: usage };
@@ -76,7 +86,10 @@ function parsePasskeys(args: readonly string[]): Result<APICommand, string> {
   const [id, ...extra] = positionals;
 
   if (action === 'remove' && id !== undefined && extra.length === 0 && !isReset) {
-    return { ok: true, value: { kind: 'passkeys', action: { kind: 'remove', id } } };
+    return {
+      ok: true,
+      value: { kind: 'passkeys', action: { kind: 'remove', id: toTagged<PasskeyID>(id) } },
+    };
   }
 
   return { ok: false, failure: usage };
@@ -108,7 +121,13 @@ function parseClients(args: readonly string[]): Result<APICommand, string> {
 
   if (action === 'remove' && operand !== undefined && extra.length === 0) {
     return redirectURIs.length === 0
-      ? { ok: true, value: { kind: 'clients', action: { kind: 'remove', clientID: operand } } }
+      ? {
+          ok: true,
+          value: {
+            kind: 'clients',
+            action: { kind: 'remove', clientID: toTagged<OAuthClientID>(operand) },
+          },
+        }
       : { ok: false, failure: usage };
   }
 

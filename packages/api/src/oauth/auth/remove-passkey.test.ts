@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
@@ -8,6 +9,7 @@ import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { removePasskey } from './remove-passkey.ts';
+import type { PasskeyID } from './types.ts';
 
 // A temp directory that holds an authorization database, opened the way
 // the server opens it.
@@ -30,21 +32,21 @@ async function setupTest() {
 test('it removes the passkey and every browser sign-in', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-lost' });
-  await ctx.seed.passkey({ id: 'cred-kept' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-kept') });
   await ctx.auth.api.signInOwner({ body: {} });
 
   const signedInBefore = await ctx.db.selectFrom('session').select('id').execute();
 
   invariant(signedInBefore.length === 1, 'the arrangement left no browser sign-in');
 
-  const removed = await removePasskey(ctx.db, 'cred-lost');
+  const removed = await removePasskey(ctx.db, toTagged<PasskeyID>('cred-lost'));
 
   expect(removed).toBeTrue();
 
   const passkeyRows = await ctx.db.selectFrom('pepys_passkey').select('id').execute();
 
-  expect(passkeyRows).toStrictEqual([{ id: 'cred-kept' }]);
+  expect(passkeyRows).toStrictEqual([{ id: toTagged<PasskeyID>('cred-kept') }]);
 
   const sessions = await ctx.db.selectFrom('session').select('id').execute();
 
@@ -56,7 +58,7 @@ test('it removes nothing and keeps every browser sign-in for an unknown passkey'
 
   await ctx.auth.api.signInOwner({ body: {} });
 
-  const removed = await removePasskey(ctx.db, 'cred-missing');
+  const removed = await removePasskey(ctx.db, toTagged<PasskeyID>('cred-missing'));
 
   expect(removed).toBeFalse();
 

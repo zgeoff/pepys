@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
 import { formatSecurityEvent } from './format-security-event.ts';
+import type { CorrelationID, OAuthClientID } from './types.ts';
 
 test('it formats an event with every field as one prefixed JSON line', () => {
   const line = formatSecurityEvent(
@@ -13,9 +15,9 @@ test('it formats an event with every field as one prefixed JSON line', () => {
         connectingIP: { address: '203.0.113.9', provenance: 'unverified' },
         userAgent: 'Mozilla/5.0',
       },
-      client: { id: 'client-1', name: 'Claude' },
+      client: { id: toTagged<OAuthClientID>('client-1'), name: 'Claude' },
       redirectHost: 'assistant.example.com',
-      correlationID: '6f1c2a4e-0000-4000-8000-000000000000',
+      correlationID: toTagged<CorrelationID>('6f1c2a4e-0000-4000-8000-000000000000'),
     },
     Date.UTC(2026, 9, 14, 12, 0, 0),
   );
@@ -102,7 +104,10 @@ test('it drops control and format characters from client strings and cuts their 
         connectingIP: { address: '203.0.113.9\nforged', provenance: 'unverified' },
         userAgent: `ua‮${'x'.repeat(100)}`,
       },
-      client: { id: `id\u0007${'i'.repeat(100)}`, name: `name‍${'n'.repeat(150)}` },
+      client: {
+        id: toTagged<OAuthClientID>(`id\u0007${'i'.repeat(100)}`),
+        name: `name‍${'n'.repeat(150)}`,
+      },
       redirectHost: `host\r${'h'.repeat(300)}`,
     },
     0,

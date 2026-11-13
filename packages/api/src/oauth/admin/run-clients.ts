@@ -5,6 +5,7 @@ import { normalizeClientName } from '../auth/normalize-client-name.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
 import { readClientViews } from '../auth/read-client-views.ts';
 import { removeClient } from '../auth/remove-client.ts';
+import type { OAuthClientID } from '../auth/types.ts';
 import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { PROCESS_IO } from './process-io.ts';
 import type { ProcessIO } from './process-io.ts';
@@ -12,7 +13,7 @@ import type { ProcessIO } from './process-io.ts';
 export type ClientsAction =
   | { readonly kind: 'list' }
   | { readonly kind: 'add'; readonly name: string; readonly redirectURIs: readonly string[] }
-  | { readonly kind: 'remove'; readonly clientID: string };
+  | { readonly kind: 'remove'; readonly clientID: OAuthClientID };
 
 // The authorization server's database, and the command that prefixes every
 // message, such as `clients`.

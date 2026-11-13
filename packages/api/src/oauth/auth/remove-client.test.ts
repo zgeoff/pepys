@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
@@ -15,6 +16,7 @@ import { readClientViews } from './read-client-views.ts';
 import { readGrantViews } from './read-grant-views.ts';
 import { removeClient } from './remove-client.ts';
 import { systemClock } from './system-clock.ts';
+import type { OAuthClientID } from './types.ts';
 import { writeGrantUse } from './write-grant-use.ts';
 
 async function setupTest() {
@@ -60,7 +62,7 @@ test('it removes a client and reports it removed', async () => {
 
 test('it reports an unknown client id as not removed', async () => {
   const ctx = await setupTest();
-  const removed = await removeClient(ctx.store.db, 'unknown-client');
+  const removed = await removeClient(ctx.store.db, toTagged<OAuthClientID>('unknown-client'));
 
   expect(removed).toBeFalse();
 });

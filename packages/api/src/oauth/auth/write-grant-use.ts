@@ -1,9 +1,10 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { OAuthGrantID } from './types.ts';
 
 export async function writeGrantUse(
   db: Kysely<MCPAuthSchema>,
-  grantID: string,
+  grantID: OAuthGrantID,
   now: number,
 ): Promise<void> {
   const lastUsedAt = new Date(now).toISOString();

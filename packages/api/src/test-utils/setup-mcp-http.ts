@@ -6,6 +6,7 @@ import { createApp } from '../app/create-app.ts';
 import { openMCPAuthDatabase } from '../oauth/admin/open-mcp-auth-database.ts';
 import { createEnrollmentToken } from '../oauth/auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../oauth/auth/open-mcp-auth.ts';
+import type { OAuthClientID } from '../oauth/auth/types.ts';
 import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
 import { buildStubAuthenticator } from '../oauth/test-utils/build-stub-authenticator.ts';
 import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
@@ -91,7 +92,7 @@ export async function setupMCPHTTP(options: MCPHTTPSetupOptions = {}) {
     logged,
     harbour,
     store,
-    async createClient(name: string, redirectURIs: readonly string[]): Promise<string> {
+    async createClient(name: string, redirectURIs: readonly string[]): Promise<OAuthClientID> {
       const created = await store.auth.api.createFixedClient({
         body: { name, redirectURIs: [...redirectURIs] },
       });

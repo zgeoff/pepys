@@ -1,8 +1,9 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { PasskeyID } from './types.ts';
 
 interface PasskeyUse {
-  readonly id: string;
+  readonly id: PasskeyID;
 
   // The counter the verification read, which the passkey must still hold,
   // so a passkey removed during the verification, or a concurrent assertion

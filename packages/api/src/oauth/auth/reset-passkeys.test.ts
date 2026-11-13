@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
@@ -9,6 +10,7 @@ import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { resetPasskeys } from './reset-passkeys.ts';
+import type { PasskeyID } from './types.ts';
 
 // A temp directory that holds an authorization database, opened the way
 // the server opens it.
@@ -31,7 +33,7 @@ async function setupTest() {
 test('it removes every passkey, enrollment token, and browser sign-in', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({ id: 'cred-lost' });
+  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
 
   await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
 

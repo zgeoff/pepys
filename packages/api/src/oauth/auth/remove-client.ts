@@ -1,7 +1,8 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { OAuthClientID } from './types.ts';
 
-export function removeClient(db: Kysely<MCPAuthSchema>, clientID: string): Promise<boolean> {
+export function removeClient(db: Kysely<MCPAuthSchema>, clientID: OAuthClientID): Promise<boolean> {
   return db.transaction().execute(async (trx) => {
     const grants = await trx
       .selectFrom('oauthRefreshToken')

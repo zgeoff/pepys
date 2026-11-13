@@ -1,7 +1,8 @@
 import type { Kysely } from 'kysely';
 import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+import type { OAuthGrantID } from './types.ts';
 
-export function revokeGrant(db: Kysely<MCPAuthSchema>, grantID: string): Promise<boolean> {
+export function revokeGrant(db: Kysely<MCPAuthSchema>, grantID: OAuthGrantID): Promise<boolean> {
   return db.transaction().execute(async (trx) => {
     const grant = await trx
       .selectFrom('oauthRefreshToken')

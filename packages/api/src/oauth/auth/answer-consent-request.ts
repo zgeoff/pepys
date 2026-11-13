@@ -1,4 +1,4 @@
-import { isRecord } from '@zgeoff/std';
+import { isRecord, toTagged } from '@zgeoff/std';
 import { GRANT_SCOPES } from '../constants.ts';
 import { buildPageResponse } from '../http/build-page-response.ts';
 import { APPROVAL_WINDOW_SECONDS } from './approval-window-seconds.ts';
@@ -10,7 +10,13 @@ import { readClientName } from './read-client-name.ts';
 import { readOwnerSessionID } from './read-owner-session-id.ts';
 import { removeOwnerSession } from './remove-owner-session.ts';
 import { renderConsentPage } from './render-consent-page.ts';
-import type { HTTPServerContext, Requester } from './types.ts';
+import type {
+  CorrelationID,
+  HTTPServerContext,
+  OAuthClientID,
+  OwnerSessionID,
+  Requester,
+} from './types.ts';
 import { verifyOAuthQuery } from './verify-oauth-query.ts';
 
 interface ConsentRequest {
@@ -44,7 +50,10 @@ export async function answerConsentRequest(
     const redirectURI = params.get('redirect_uri') ?? '';
     const requested = (params.get('scope') ?? '').split(' ');
 
-    const storedName = await readClientName(ctx.store.db, params.get('client_id') ?? '');
+    const storedName = await readClientName(
+      ctx.store.db,
+      toTagged<OAuthClientID>(params.get('client_id') ?? ''),
+    );
 
     const page = renderConsentPage({
       oauthQuery,
@@ -106,7 +115,7 @@ export async function answerConsentRequest(
 
   const params = new URLSearchParams(oauthQuery);
 
-  const clientID = params.get('client_id') ?? '';
+  const clientID = toTagged<OAuthClientID>(params.get('client_id') ?? '');
   const redirectURI = params.get('redirect_uri') ?? '';
 
   const storedName = await readClientName(ctx.store.db, clientID);
@@ -144,7 +153,7 @@ async function verifyConsentRequest(
   ctx: HTTPServerContext,
   oauthQuery: string,
   cookie: string | null,
-): Promise<{ sessionID: string; correlationID: string } | null> {
+): Promise<{ sessionID: OwnerSessionID; correlationID: CorrelationID } | null> {
   const authContext = await ctx.store.auth.$context;
 
   if (!(await verifyOAuthQuery(oauthQuery, authContext.secret, ctx.clock.now()))) {

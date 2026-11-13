@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { toTagged } from '@zgeoff/std';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
+import type { PasskeyID } from '../auth/types.ts';
 import { buildStubClock } from './build-stub-clock.ts';
 import { openTestAuthDatabase } from './open-test-auth-database.ts';
 import { registerTestCleanup } from './register-test-cleanup.ts';
@@ -24,10 +26,14 @@ async function setupTest() {
 test('it writes a passkey enrolled at the clock time, and spends the token it enrolled with', async () => {
   const ctx = await setupTest();
 
-  await seedPasskey(ctx, { id: 'cred-phone' });
+  await seedPasskey(ctx, { id: toTagged<PasskeyID>('cred-phone') });
 
   expect(ctx.db.selectFrom('pepys_passkey').selectAll().execute()).resolves.toMatchObject([
-    { id: 'cred-phone', created_at: '2026-10-14T12:00:00.000Z', last_used_at: null },
+    {
+      id: toTagged<PasskeyID>('cred-phone'),
+      created_at: '2026-10-14T12:00:00.000Z',
+      last_used_at: null,
+    },
   ]);
 
   expect(ctx.db.selectFrom('pepys_enrollment_token').selectAll().execute()).resolves.toStrictEqual(
@@ -39,7 +45,7 @@ test('it writes the input over the defaults', async () => {
   const ctx = await setupTest();
 
   await seedPasskey(ctx, {
-    id: 'cred-laptop',
+    id: toTagged<PasskeyID>('cred-laptop'),
     publicKey: 'BAUG',
     counter: 3,
     transports: ['usb'],
@@ -48,7 +54,7 @@ test('it writes the input over the defaults', async () => {
 
   expect(ctx.db.selectFrom('pepys_passkey').selectAll().execute()).resolves.toMatchObject([
     {
-      id: 'cred-laptop',
+      id: toTagged<PasskeyID>('cred-laptop'),
       public_key: 'BAUG',
       counter: 3,
       transports: '["usb"]',

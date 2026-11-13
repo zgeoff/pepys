@@ -1,6 +1,8 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import { toTagged } from '@zgeoff/std';
 import { setupMCPHTTP } from '../../test-utils/setup-mcp-http.ts';
 import { systemClock } from '../auth/system-clock.ts';
+import type { OAuthGrantID } from '../auth/types.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { readJSONRecord } from '../test-utils/read-json-record.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
@@ -95,7 +97,7 @@ test('it revokes a grant so its access token stops working and it lists no grant
   const codes: number[] = [];
 
   await runGrants(
-    '-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc',
+    toTagged<OAuthGrantID>('-yZRPpyZlelRN38oFXCrOzyQv3VRUBE1m3h_yIrJvhc'),
     { dbPath: ctx.server.dbPath, command: 'grants' },
     {
       print: (line) => {
@@ -147,7 +149,7 @@ test('it refuses to revoke an unknown grant', async () => {
   const codes: number[] = [];
 
   await runGrants(
-    'unknown',
+    toTagged<OAuthGrantID>('unknown'),
     { dbPath: ctx.server.dbPath, command: 'grants' },
     {
       print: () => {},
@@ -177,7 +179,10 @@ test('it sets the process exit code to 1 when it refuses to revoke by default', 
     process.exitCode = exitCode;
   });
 
-  await runGrants('unknown', { dbPath: ctx.server.dbPath, command: 'grants' });
+  await runGrants(toTagged<OAuthGrantID>('unknown'), {
+    dbPath: ctx.server.dbPath,
+    command: 'grants',
+  });
 
   expect(process.exitCode).toBe(1);
 });
