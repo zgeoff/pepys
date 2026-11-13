@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { consumerBuildManifestSchema } from '@pepys/schema';
+import invariant from 'tiny-invariant';
 
 // These tests run scriptc, so they need zig and wasm-tools, which only the e2e job installs.
 async function setupTest() {
@@ -238,6 +239,12 @@ export const deployment = defineDeployment({ name: 'tide', plugins: [tidePlugin]
 
   const again = await ctx.readManifest();
 
-  expect(changed.consumers[0]?.version).not.toBe(first.consumers[0]?.version);
-  expect(again.consumers[0]?.version).toBe(first.consumers[0]?.version);
+  const [firstConsumer] = first.consumers;
+  const [changedConsumer] = changed.consumers;
+
+  invariant(firstConsumer);
+  invariant(changedConsumer);
+
+  expect(changedConsumer.version).not.toBe(firstConsumer.version);
+  expect(again.consumers[0]?.version).toBe(firstConsumer.version);
 });

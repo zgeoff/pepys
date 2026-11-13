@@ -65,6 +65,11 @@ test('it gives a new version for a new module of the same consumer', () => {
   const ctx = setupTest();
   const first = ctx.buildForPlugin(toTagged<VersionHash>('a'.repeat(64)));
   const second = ctx.buildForPlugin(toTagged<VersionHash>('b'.repeat(64)));
+  const [firstConsumer] = first.consumers;
+  const [secondConsumer] = second.consumers;
 
-  expect(second.consumers[0]?.version).not.toBe(first.consumers[0]?.version);
+  invariant(firstConsumer);
+  invariant(secondConsumer);
+
+  expect(secondConsumer.version).not.toBe(firstConsumer.version);
 });
