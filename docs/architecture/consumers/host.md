@@ -75,9 +75,9 @@ disagree, `host.db` is right. The state table in `host.db` also allows `previewe
 but the commands never move a version into either state.
 
 Every command starts from the same two steps. It repairs the `current` link from `host.db`, and then
-opens the version: it checks that the SHA-256 of `module.wasm` equals the version's hash, runs the
-manifest's SQL on the file, and checks the file's tables against the manifest's columns before it
-reads a fact.
+opens the version: it checks that the SHA-256 of `module.wasm` equals the entry's `module` digest,
+runs the manifest's SQL on the file, and checks the file's tables against the manifest's columns
+before it reads a fact.
 
 `up` then runs in this order:
 
