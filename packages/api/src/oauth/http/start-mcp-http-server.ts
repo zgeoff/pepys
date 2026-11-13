@@ -1,22 +1,23 @@
+import { DEFAULT_PATHS, openMCPAuth } from '@zgeoff/mcp-auth';
+import type { MCPAuth, Requester } from '@zgeoff/mcp-auth';
+import type { MCPHTTPAppOptions } from '@zgeoff/mcp-auth/elysia';
 import type { Server } from 'bun';
-import invariant from 'tiny-invariant';
-import { APPROVAL_WINDOW_SECONDS } from '../auth/approval-window-seconds.ts';
-import { createApprovalState } from '../auth/create-approval-state.ts';
-import { createEnrollmentState } from '../auth/create-enrollment-state.ts';
-import { createSecurityEventLog } from '../auth/create-security-event-log.ts';
-import type { MCPAuthDatabase } from '../auth/mcp-auth-database.ts';
-import { openMCPAuth } from '../auth/open-mcp-auth.ts';
-import { systemClock } from '../auth/system-clock.ts';
-import type { Clock } from '../auth/system-clock.ts';
-import type { HTTPServerContext, Requester } from '../auth/types.ts';
-import { GATEWAY_PATHS } from '../constants.ts';
-import type { MCPHTTPAppOptions } from './create-mcp-http-app.ts';
+import { AUTH_TABLES } from '../auth-tables.ts';
+import { GRANT_SCOPES } from '../constants.ts';
+import type { GrantScope } from '../constants.ts';
+import { openMCPAuthDatabase } from '../database/open-mcp-auth-database.ts';
+import { createSecurityEventLog } from '../security/create-security-event-log.ts';
+import { systemClock } from '../system-clock.ts';
+import type { Clock } from '../system-clock.ts';
 import { isLoopbackHost } from './is-loopback-host.ts';
 import { normalizePublicURL } from './normalize-public-url.ts';
 
 interface RequestHandler {
   readonly handle: (request: Request) => Promise<Response>;
 }
+
+// What the served app needs to put the OAuth routes and /mcp beside its own.
+export type MCPServedOptions = Omit<MCPHTTPAppOptions<GrantScope, null>, 'mcp' | 'besidePrefix'>;
 
 interface MCPHTTPServerOptions {
   // The address to bind; 0 as the port binds a free one.
@@ -33,23 +34,18 @@ interface MCPHTTPServerOptions {
   // labels `trusted`, each exactly as the socket reports its address.
   readonly trustForwardedFrom: readonly string[];
 
-  // The authorization server's SQLite database, and the opener the entry
-  // wires in for it.
+  // The authorization server's SQLite database.
   readonly dbPath: string;
-  readonly openAuthDatabase: (path: string) => MCPAuthDatabase;
 
   // Creates the app the server answers with, from the options of its OAuth
   // routes.
-  readonly createServedApp: (oauth: MCPHTTPAppOptions) => RequestHandler;
+  readonly createServedApp: (oauth: MCPServedOptions) => RequestHandler;
 
   // Receives one `pepys security {json}` line per sign-in outcome or refused token.
   readonly printSecurity: (line: string) => void;
 
-  // How long a rotated refresh token still answers with its successor.
-  readonly refreshReuseSeconds?: number;
-
-  // The time pending approvals, their challenges, the limit on approval
-  // starts, and the routes' expiries run on; the system clock when unset.
+  // The time the security log's windows and the auth core's own stamps run
+  // on; the system clock when unset.
   readonly clock?: Clock;
 }
 
@@ -67,6 +63,9 @@ export interface MCPHTTPServer {
 
 // The largest request body the server reads.
 const MAX_REQUEST_BODY_BYTES = 1_048_576;
+
+// How often the server drops expired tokens, sessions and abandoned grants.
+const REMOVE_EXPIRED_INTERVAL_MS = 10 * 60_000;
 
 export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise<MCPHTTPServer> {
   const clock = options.clock ?? systemClock;
@@ -91,10 +90,7 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
 
   const trustedProxies: ReadonlySet<string> = new Set(options.trustForwardedFrom);
 
-  const holder: { ctx: HTTPServerContext | null; app: RequestHandler | null } = {
-    ctx: null,
-    app: null,
-  };
+  const holder: { app: RequestHandler | null } = { app: null };
 
   // The socket's peer is the requester, or the proxy or tunnel in front of
   // the API. Only a listed peer vouches for the forwarded address.
@@ -118,14 +114,13 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
     };
   };
 
-  const handleRequest = (request: Request): Promise<Response> => {
-    // Bun runs a request's fetch on a later turn than the one that bound
-    // the port, and that turn builds the app.
-    invariant(holder.app, 'a request arrived before the server built its app');
+  const handleRequest = (request: Request): Promise<Response> =>
+    holder.app === null
+      ? Promise.resolve(new Response(null, { status: 503 }))
+      : holder.app.handle(request);
 
-    return holder.app.handle(request);
-  };
-
+  // The port is bound before the authorization server opens, since a server
+  // with no public URL takes its origin from the port.
   const server: Server<undefined> = Bun.serve({
     hostname: options.host,
     port: options.port,
@@ -136,61 +131,93 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
   const port = server.port ?? options.port;
   const local = `http://127.0.0.1:${port}`;
   const origin = publicOrigin ?? local;
-  const resource = `${origin}${GATEWAY_PATHS.machine.mcp}`;
-
-  const hosts: ReadonlySet<string> = new Set([
-    new URL(origin).host,
-    `127.0.0.1:${port}`,
-    `localhost:${port}`,
-    ...options.allowedHosts,
-  ]);
-
-  holder.app = options.createServedApp({
-    hosts,
-    origins: new Set([origin, local, `http://localhost:${port}`]),
-    readContext: () => holder.ctx,
-    readRequester,
-    security,
-  });
-
-  let store: HTTPServerContext['store'];
+  let opened: { readonly auth: MCPAuth<GrantScope>; readonly close: () => void };
 
   try {
-    store = await openMCPAuth({
-      dbPath: options.dbPath,
-      openDatabase: options.openAuthDatabase,
-      origin,
-      ...(options.refreshReuseSeconds === undefined
-        ? {}
-        : { refreshReuseSeconds: options.refreshReuseSeconds }),
-    });
+    opened = await openAuth(options.dbPath, origin, clock, security);
   } catch (error) {
     await server.stop(true);
 
     throw error;
   }
 
-  holder.ctx = {
-    origin,
-    resource,
-    store,
-    approvals: createApprovalState(APPROVAL_WINDOW_SECONDS * 1000, () => clock.now()),
-    enrollments: createEnrollmentState(() => clock.now()),
+  const auth = opened.auth;
+
+  holder.app = options.createServedApp({
+    auth,
+    hosts: new Set([
+      new URL(origin).host,
+      `127.0.0.1:${port}`,
+      `localhost:${port}`,
+      ...options.allowedHosts,
+    ]),
+    origins: new Set([origin, local, `http://localhost:${port}`]),
+    readRequester,
     security,
-    clock,
-  };
+  });
+
+  const removeExpiredTimer = setInterval(() => {
+    void runRemoveExpired(auth);
+  }, REMOVE_EXPIRED_INTERVAL_MS);
 
   return {
     url: local,
     listening: formatBindURL(options.host, port),
     origin,
     stop: async () => {
-      await server.stop(true);
-      await store.close();
+      clearInterval(removeExpiredTimer);
 
+      await server.stop(true);
+      await auth.close();
+
+      opened.close();
       security.drain();
     },
   };
+}
+
+async function openAuth(
+  dbPath: string,
+  origin: string,
+  clock: Clock,
+  security: MCPServedOptions['security'],
+) {
+  const sqlite = openMCPAuthDatabase(dbPath, clock.now());
+
+  try {
+    const auth = await openMCPAuth({
+      database: sqlite,
+      origin,
+      productName: 'pepys',
+      scopes: GRANT_SCOPES,
+      paths: DEFAULT_PATHS,
+      tables: AUTH_TABLES,
+      clock,
+      security,
+
+      // Each MCP request is answered on its own, with no stream left open
+      // that a revoke would need to end.
+      onGrantRevoked: () => {},
+    });
+
+    return {
+      auth,
+      close: () => {
+        sqlite.close();
+      },
+    };
+  } catch (error) {
+    sqlite.close();
+    throw error;
+  }
+}
+
+async function runRemoveExpired(auth: MCPAuth<GrantScope>): Promise<void> {
+  try {
+    await auth.removeExpired();
+  } catch (error) {
+    console.error('removing expired auth rows failed', error);
+  }
 }
 
 // An IPv6 address takes the brackets a URL puts around it.
