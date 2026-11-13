@@ -137,6 +137,10 @@ export interface PullContext {
 
   // ingest's logger; a line never holds a secret or a token
   log: Logger;
+
+  // Aborts when ingest stops. A pull that waits on the network may pass it on, so a stop does
+  // not wait out the request.
+  signal: AbortSignal;
 }
 
 // An entity whose row may be behind the source, with the locator of the last fact ingest stored

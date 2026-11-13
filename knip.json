@@ -2,16 +2,10 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": [
-        "scripts/**/*.ts",
-        "stack/**/*.test.ts",
-        "e2e/**/*.test.ts",
-        "e2e/deployment/serve-*.ts",
-        "rig.config.ts"
-      ],
-      "project": ["scripts/**/*.ts", "stack/**/*.ts", "e2e/**/*.ts"]
+      "entry": ["scripts/**/*.ts", "stack/**/*.test.ts", "rig.config.ts"],
+      "project": ["scripts/**/*.ts", "stack/**/*.ts"]
     },
-    "e2e/logbook-plugin": {
+    "packages/cli/e2e/fixtures/logbook-plugin": {
       "entry": ["src/consumers/*.ts", "src/generated/**/*.ts"],
       "bun": false
     },
@@ -38,7 +32,7 @@
       "bun": false
     },
     "packages/cli": {
-      "entry": ["src/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "e2e/fixtures/e2e-deployment.ts"],
       "bun": false
     },
     "packages/contract": {
@@ -50,7 +44,7 @@
       "bun": false
     },
     "packages/ingest": {
-      "entry": ["src/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts"],
       "bun": false
     },
     "packages/mock-network": {
@@ -72,5 +66,8 @@
     "@zgeoff/agent-hooks",
     "@zgeoff/diet",
     "@scriptc/runtime-wasm32-wasi"
-  ]
+  ],
+  "ignoreIssues": {
+    "packages/cli/e2e/**": ["unlisted"]
+  }
 }

@@ -3,7 +3,7 @@ import { createStoreReader, readOffsets } from '@pepys/api';
 import type { StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { ledgerAccountConsumer } from '../packages/testing/src/ledger/ledger-plugin.ts';
+import { ledgerAccountConsumer } from '../../testing/src/ledger/ledger-plugin.ts';
 
 // The setup appends the ledger journey's records to s2-lite before `pepys up`, so the host's scope
 // batch has run the compiled ledger module on them.
@@ -12,7 +12,7 @@ function setupTest() {
 
   invariant(
     storeDirectory !== undefined,
-    'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
+    'run the e2e lane with bun run test:e2e, which preloads packages/cli/e2e/start-stack.ts',
   );
 
   const store = createStoreReader({ storeDirectory });

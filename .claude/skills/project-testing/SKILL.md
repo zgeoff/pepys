@@ -20,36 +20,37 @@ metadata:
 
 ## Departures
 
-- Put a test that needs s2-lite or Garage in the root `e2e/` folder for Bun. Put it in an `e2e`
-  module for Rust. The shared [slow tests reference](../testing/references/slow-tests.md) puts it in
-  a `<name>.docker.test.ts` file, but pepys runs no command for such files. `bun run test` and
-  `cargo nextest run` can't hold these tests either: s2-lite takes longer to start from a fresh
-  image than the `slow-timeout` of the default profile in
-  [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test timeout allow.
-- Put each Bun test of the e2e deployment,
-  [`e2e-deployment.ts`](../../../e2e/deployment/e2e-deployment.ts), in the root `e2e/` folder, in
-  place of the package folder in
-  [Package layout](../testing/references/system-tests.md#package-layout). Such a test follows facts
-  from ingest through the host to a Turso file, and reads the rows through the API. No one package
-  holds that path: ingest is in `packages/ingest` and the source packages, the host in
-  `crates/host`, the API in `packages/api`.
-- Start a process or seed data in [`start-stack.ts`](../../../e2e/start-stack.ts) when more than one
-  test in `e2e/` needs it, in place of the setup hook of the `@zgeoff/rig` test runner in
+- For Bun, put a test that needs s2-lite or Garage in the `e2e/` folder of the package that owns the
+  code it tests. For Rust, put it in an `e2e` module. The shared
+  [slow tests reference](../testing/references/slow-tests.md) puts it in a `<name>.docker.test.ts`
+  file, but pepys runs no command for such files. `bun run test` and `cargo nextest run` can't hold
+  these tests either: s2-lite takes longer to start from a fresh image than the `slow-timeout` of
+  the default profile in [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test
+  timeout allow.
+- Put the e2e tests of the `@pepys/ingest` adapters in
+  [`packages/ingest/e2e/`](../../../packages/ingest/e2e), with a prefix from
+  [E2e prefixes](../testing/references/system-tests.md#e2e-prefixes). The shared
+  [Package layout](../testing/references/system-tests.md#package-layout) rule allows an `e2e/`
+  folder only in a package listed under `programs` in [`rig.config.ts`](../../../rig.config.ts).
+  Only `@pepys/cli` is listed there. Keep the adapter tests in the ingest package, which holds the
+  adapters.
+- Start a process or seed data in [`start-stack.ts`](../../../packages/cli/e2e/start-stack.ts) when
+  more than one e2e test needs it. Don't write the `start` and `stop` modules of
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
-  `bun run test:e2e` runs the `e2e/` folder with plain `bun test` and loads `start-stack.ts` first.
-- Leave `lanes` empty in [`rig.config.ts`](../../../rig.config.ts), in place of the `e2e` entry that
-  [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts) puts there.
-  pepys runs only `bun run test` through the `@zgeoff/rig` test runner, and rig never looks for an
-  `e2e/` folder at the root of a repo with workspaces.
+  `bun run test:e2e` runs both `e2e/` folders with plain `bun test`, and loads `start-stack.ts`
+  first.
+- Leave `lanes` empty in `rig.config.ts`, in place of the `e2e` entry that Files and shared hosts
+  puts there, and keep the `pepys` program entry. pepys runs the e2e tests with `bun run test:e2e`.
+  `rig e2e` refuses `packages/ingest/e2e/`, because ingest declares no program.
 
 ## Where each test goes
 
 | The test needs                                                             | Put it in                                                                                                   | Run it with                               |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | nothing outside the test process, a Turso database file, or a fake network | the file or module beside the code it tests                                                                 | `bun run test`, `cargo nextest run`       |
-| s2-lite or Garage, from Bun                                                | a `<name>.test.ts` file in the root `e2e/` folder                                                           | `bun run test:e2e`                        |
+| s2-lite or Garage, from Bun                                                | a `<prefix>-<name>.test.ts` file in the `e2e/` folder of the package that owns the code                     | `bun run test:e2e`                        |
 | s2-lite or Garage, from Rust                                               | a module named `e2e` in the crate, such as [`e2e.rs`](../../../crates/host/src/e2e.rs)                      | `bun run test:e2e:rust`                   |
-| zig and wasm-tools, to run `pepys build --out` and compile consumers       | a `<name>.test.ts` file in the root `e2e/` folder                                                           | `bun run test:e2e`                        |
+| zig and wasm-tools, to run `pepys build --out` and compile consumers       | a `<prefix>-<name>.test.ts` file in the `e2e/` folder of the package that owns the code                     | `bun run test:e2e`                        |
 | the public packages installed outside the repo, with a running host        | a step of [`run-outside-deployment.ts`](../../../scripts/outside-install/run-outside-deployment.ts)         | `bun run test:e2e:outside`                |
 | hosted models                                                              | a module named `model_api` in the crate whose code calls the model                                          | `cargo nextest run --profile model-api`   |
 | the live GitHub or Gmail API                                               | a module named `github_api` or `gmail_api`, as in [Tests that call a live API](#tests-that-call-a-live-api) | its nextest profile, such as `github-api` |
@@ -91,37 +92,45 @@ every case.
 - Refresh the case "accepts the stub deployment" after you change a consumer of
   [`stub-deployment.ts`](../../../scripts/stub-deployment.ts), or the code in
   [`packages/cli/src/build/`](../../../packages/cli/src/build) that writes a consumer's glue:
-  1. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, as in the next section.
+  1. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, as step 2 of
+     [Bun tests in the e2e/ folders](#bun-tests-in-the-e2e-folders) says.
   2. Run `bun run consumers:build`.
   3. Replace the case's `file` with the `consumers.json` that step 2 writes in `build/consumers/`.
 
-## Bun tests in the root e2e/ folder
+## Bun tests in the e2e/ folders
 
-These tests run the e2e deployment from [Departures](#departures), the `@pepys/ingest` fact log and
-blob store adapters on s2-lite and Garage, and `pepys build`, which compiles consumers. Only the
-`e2e` job in `pr.yml` installs zig and wasm-tools.
+These tests run:
+
+- the e2e deployment, with `pepys start`;
+- the `@pepys/ingest` fact log and blob store adapters, on s2-lite and Garage;
+- `pepys build`, which compiles consumers.
+
+Install zig and wasm-tools yourself before a local run. In CI, only the `e2e` job in `pr.yml`
+installs them.
 
 The e2e deployment holds the GitHub and telemetry plug-ins, the logbook plug-in in
-[`e2e/logbook-plugin/`](../../../e2e/logbook-plugin), and the ledger plug-in of the stub deployment,
-[`ledger-plugin.ts`](../../../packages/testing/src/ledger/ledger-plugin.ts), whose one consumer runs
-in scope mode. The logbook plug-in imports the kit by package name, as a plug-in outside the repo
-does. `bun run consumers:build` compiles the deployment to `build/e2e-consumers/`.
+[`logbook-plugin/`](../../../packages/cli/e2e/fixtures/logbook-plugin), and the ledger plug-in of
+the stub deployment, [`ledger-plugin.ts`](../../../packages/testing/src/ledger/ledger-plugin.ts),
+whose one consumer runs in scope mode. The logbook plug-in imports the kit by package name, as a
+plug-in outside the repo does. `bun run consumers:build` compiles the deployment to
+`build/e2e-consumers/`.
 
 - Read the addresses of the Docker services in each test's `setupTest()`, from the `PEPYS_`
-  variables in [`build-stack-env.ts`](../../../stack/build-stack-env.ts), which `start-stack.ts`
-  sets.
-- To test a new consumer, add its plug-in to `e2e-deployment.ts`, and add the consumer with its
-  stream to `readConsumers` in `start-stack.ts`. The preload stops the host once each consumer in
-  that list has caught up, so a consumer left out may not have applied its facts.
+  variables in [`build-stack-env.ts`](../../../stack/build-stack-env.ts), which
+  [`start-stack.ts`](../../../packages/cli/e2e/start-stack.ts) sets.
+- To test a new consumer, add its plug-in to
+  [`e2e-deployment.ts`](../../../packages/cli/e2e/fixtures/e2e-deployment.ts), and add the consumer
+  with its stream to `readConsumers` in `start-stack.ts`. The preload waits until each consumer in
+  that list has caught up before the tests start, so a consumer left out may not have applied its
+  facts.
 
 To run them:
 
 1. Start Docker.
 2. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN` to the paths of the zig and wasm-tools binaries,
    at the versions the Commands section of [AGENTS.md](../../../AGENTS.md) pins.
-3. Run `bun run test:e2e:prepare`. It builds the host and the consumers of the stub deployment and
-   of the e2e deployment. Run it again after you change the host or a consumer. Ingest and the API
-   run from source.
+3. Run `bun run test:e2e:prepare`, which builds the host and the consumers of both deployments. Run
+   it again after you change the host or a consumer.
 4. Run `bun run test:e2e`.
 
 ## Rust tests in e2e modules
@@ -138,17 +147,12 @@ To run them:
 1. Start Docker.
 2. Install `cargo-nextest`.
 3. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`
-   ([Bun tests in the root e2e/ folder](#bun-tests-in-the-root-e2e-folder), step 2).
+   ([Bun tests in the e2e/ folders](#bun-tests-in-the-e2e-folders), step 2).
 4. Run `bun run test:e2e:prepare`.
-5. Run `bun run test:e2e:rust`. It starts Garage and s2-lite in Docker with
-   [`run-with-stack.ts`](../../../scripts/e2e/run-with-stack.ts), and runs
-   `cargo nextest run --profile e2e`. Then it runs `bun run test:e2e:outside`, the check of a
-   deployment outside the repo, which the Commands section of [AGENTS.md](../../../AGENTS.md)
-   describes. When only it fails, look in a public package or the host.
-
-## Pure functions
-
-- Test a pure function with plain values, and give it no database, network or temporary directory.
+5. Run `bun run test:e2e:rust`. After the Rust tests, the script also runs
+   `bun run test:e2e:outside`, the check of a deployment outside the repo in the Commands section of
+   [AGENTS.md](../../../AGENTS.md). When only the outside check fails, look in a public package or
+   the host.
 
 ## Consumer tests
 

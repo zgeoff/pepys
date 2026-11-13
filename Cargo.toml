@@ -75,3 +75,14 @@ wildcard_enum_match_arm = "warn"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+# A debug host compiles each consumer module with an unoptimised Cranelift, which took the e2e
+# deployment's `up` from 2.5 s to 7 s before its first swap.
+[profile.dev.package.cranelift-codegen]
+opt-level = 3
+
+[profile.dev.package.regalloc2]
+opt-level = 3
+
+[profile.dev.package.wasmtime-internal-cranelift]
+opt-level = 3

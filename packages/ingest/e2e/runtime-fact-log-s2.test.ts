@@ -1,16 +1,16 @@
 import { expect, test } from 'bun:test';
 import { createS2FactLog } from '@pepys/ingest';
 import invariant from 'tiny-invariant';
-import {
-  readFactLogFixtures,
-  runFactLogFixture,
-} from '../packages/ingest/src/fact-log/run-fact-log-fixture.ts';
+import { readFactLogFixtures, runFactLogFixture } from '../src/fact-log/run-fact-log-fixture.ts';
 
 function setupTest() {
   const endpoint = process.env['PEPYS_S2_ENDPOINT'];
   const accessToken = process.env['PEPYS_S2_ACCESS_TOKEN'];
 
-  invariant(endpoint !== undefined && accessToken !== undefined, 'start-stack sets the s2 address');
+  invariant(
+    endpoint !== undefined && accessToken !== undefined,
+    'the e2e preload sets the s2 address',
+  );
 
   return { endpoint, accessToken };
 }

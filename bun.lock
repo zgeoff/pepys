@@ -6,16 +6,11 @@
       "name": "pepys",
       "devDependencies": {
         "@commitlint/cli": "catalog:",
-        "@octokit/webhooks": "catalog:",
-        "@orpc/client": "catalog:",
-        "@pepys/api": "workspace:*",
         "@pepys/cli": "workspace:*",
         "@pepys/ingest": "workspace:*",
         "@pepys/kit": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@pepys/source-github": "workspace:*",
-        "@pepys/source-telemetry": "workspace:*",
-        "@s2-dev/streamstore": "catalog:",
         "@stylistic/eslint-plugin": "catalog:",
         "@tsconfig/strictest": "catalog:",
         "@types/bun": "catalog:",
@@ -40,13 +35,6 @@
         "tslib": "catalog:",
         "tsrs": "catalog:",
         "typescript": "catalog:",
-      },
-    },
-    "e2e/logbook-plugin": {
-      "name": "logbook-plugin",
-      "dependencies": {
-        "@pepys/kit": "workspace:*",
-        "zod": "catalog:",
       },
     },
     "packages/api": {
@@ -93,6 +81,8 @@
         "pepys": "./src/bin.ts",
       },
       "dependencies": {
+        "@pepys/api": "workspace:*",
+        "@pepys/ingest": "workspace:*",
         "@pepys/kit": "workspace:*",
         "@pepys/schema": "workspace:*",
         "@scriptc/runtime-wasm32-wasi": "catalog:",
@@ -100,8 +90,22 @@
         "scriptc": "catalog:",
         "tiny-invariant": "catalog:",
         "ts-pattern": "catalog:",
+        "xstate": "catalog:",
       },
       "devDependencies": {
+        "@octokit/webhooks": "catalog:",
+        "@orpc/client": "catalog:",
+        "@pepys/source-github": "workspace:*",
+        "@pepys/source-telemetry": "workspace:*",
+        "@s2-dev/streamstore": "catalog:",
+        "@zgeoff/testing": "catalog:",
+        "zod": "catalog:",
+      },
+    },
+    "packages/cli/e2e/fixtures/logbook-plugin": {
+      "name": "logbook-plugin",
+      "dependencies": {
+        "@pepys/kit": "workspace:*",
         "zod": "catalog:",
       },
     },
@@ -1113,7 +1117,7 @@
 
     "locate-path": ["locate-path@6.0.0", "", { "dependencies": { "p-locate": "^5.0.0" } }, "sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw=="],
 
-    "logbook-plugin": ["logbook-plugin@workspace:e2e/logbook-plugin"],
+    "logbook-plugin": ["logbook-plugin@workspace:packages/cli/e2e/fixtures/logbook-plugin"],
 
     "memoirist": ["memoirist@1.2.3", "", {}, "sha512-6wkntadi3vDUBX6y5UDuLsLr+hsojMkaapsZyGGzP6rZoYD6K/pAbrp1cZki24jMewoca3KofRYO0T6EEeHNVg=="],
 

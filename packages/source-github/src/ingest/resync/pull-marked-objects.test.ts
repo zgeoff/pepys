@@ -129,7 +129,7 @@ test('it sets the release row to the API state after a draft, a publish and the 
     JSON.stringify({ action: 'created', release: draft, repository }),
   );
 
-  const run = await ctx.ingest.runPull('github', 'resync', null);
+  const run = await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
 
   await ctx.applyStored('facts.github.release');
 
@@ -181,7 +181,7 @@ test('it keeps the published row when a stranger replays the draft and the API a
     JSON.stringify({ action: 'created', release: draft, repository }),
   );
 
-  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
   await ctx.applyStored('facts.github.release');
 
   const rows = await ctx.store.readRows('github_release');
@@ -227,7 +227,7 @@ test('it writes nothing and drops the mark of a release that the API answers 404
     JSON.stringify({ action: 'edited', release: { ...release, name: 'Two' }, repository }),
   );
 
-  const run = await ctx.ingest.runPull('github', 'resync', null);
+  const run = await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
   const types = await ctx.readTypes('facts.github.release');
 
   const marks: unknown = ctx.ingest.resyncMarks.list('github');
@@ -277,7 +277,7 @@ test('it sets the pull request row to the API state after two bodies with one ti
     JSON.stringify({ action: 'edited', pull_request: { ...pullRequest, title: 'Tidy docks' } }),
   );
 
-  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
   await ctx.applyStored('facts.github.pull_request');
 
   const rows = await ctx.store.readRows('github_pull_request');
@@ -325,7 +325,7 @@ test('it sets the pull request row to the unchanged API state again after a late
     JSON.stringify({ action: 'edited', pull_request: { ...pullRequest, title: 'Sort buoys' } }),
   );
 
-  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
   await ctx.applyStored('facts.github.pull_request');
 
   await ctx.send(
@@ -338,7 +338,7 @@ test('it sets the pull request row to the unchanged API state again after a late
 
   const marks = ctx.ingest.resyncMarks.list('github');
 
-  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
   await ctx.applyStored('facts.github.pull_request');
 
   const rows = await ctx.store.readRows('github_pull_request');
@@ -362,7 +362,7 @@ test('it calls no API and stores nothing when no entity is marked', async () => 
     }),
   );
 
-  const run = await ctx.ingest.runPull('github', 'resync', null);
+  const run = await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
 
   expect({ run, calls: called.mock.calls }).toStrictEqual({
     run: { kind: 'stored', stored: 0, cursor: 'resynced', isDone: true },
@@ -400,7 +400,7 @@ test('it keeps every mark when the API is unavailable', async () => {
     JSON.stringify({ action: 'edited', release: { ...release, name: 'Renamed' }, repository }),
   );
 
-  const run = await ctx.ingest.runPull('github', 'resync', null);
+  const run = await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
 
   const marks: unknown = ctx.ingest.resyncMarks.list('github');
 
@@ -458,7 +458,7 @@ test('it signs the App JWT with issue and expiry times from the ingest clock', a
     }),
   );
 
-  await ctx.ingest.runPull('github', 'resync', null);
+  await ctx.ingest.runPull('github', 'resync', null, new AbortController().signal);
 
   const [, claims] = (authorizations[0] ?? '').replace(/^Bearer /u, '').split('.');
 

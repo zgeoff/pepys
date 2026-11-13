@@ -7,7 +7,7 @@ import { buildLogsExport } from '@pepys/source-telemetry/test-utils/build-logs-e
 import { S2 } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import type { e2eDeployment } from './deployment/e2e-deployment.ts';
+import type { e2eDeployment } from './fixtures/e2e-deployment.ts';
 
 // The preload sends every fact these tests read: GitHub webhooks, a signed logbook fact batch, and
 // one OTLP logs export with a proven sender. Each test only reads, but the refusal test sends.
@@ -24,7 +24,7 @@ function setupTest() {
       s2Basin !== undefined &&
       apiURL !== undefined &&
       ingestURL !== undefined,
-    'run the e2e lane with bun run test:e2e, which preloads e2e/start-stack.ts',
+    'run the e2e lane with bun run test:e2e, which preloads packages/cli/e2e/start-stack.ts',
   );
 
   const s2 = new S2({

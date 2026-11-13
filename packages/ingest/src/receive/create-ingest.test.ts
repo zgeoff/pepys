@@ -946,7 +946,7 @@ test('it stores the facts of a resync pull and then removes the marks it was giv
     await ingest.handleRequest(ctx.buildLedgerRequest({ facts: [fact] }));
   }
 
-  const run = await ingest.runPull('ledger', 'resync', null);
+  const run = await ingest.runPull('ledger', 'resync', null, new AbortController().signal);
   const ids = await ctx.readIDs(ctx.streams.till, log);
 
   const marks = ingest.resyncMarks.list('ledger');
@@ -1004,7 +1004,7 @@ test('it keeps a mark that a tie sets while the resync pull runs', async () => {
   await sendTill('first');
   await sendTill('tied');
 
-  const run = ingest.runPull('ledger', 'resync', null);
+  const run = ingest.runPull('ledger', 'resync', null, new AbortController().signal);
 
   await started.promise;
   await sendTill('tied-again');
@@ -1021,7 +1021,7 @@ test('it keeps a mark that a tie sets while the resync pull runs', async () => {
 test('it refuses to run a pull that the source does not have', async () => {
   const ctx = setupTest();
 
-  const run = await ctx.ingest.runPull('beacon', 'resync', null);
+  const run = await ctx.ingest.runPull('beacon', 'resync', null, new AbortController().signal);
 
   expect(run).toStrictEqual({ kind: 'refused', reason: 'the source beacon has no resync pull' });
 });

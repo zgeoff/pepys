@@ -5,7 +5,7 @@
     "packages": [
       "packages/*",
       "research/*",
-      "e2e/logbook-plugin"
+      "packages/cli/e2e/fixtures/logbook-plugin"
     ],
     "catalog": {
       "@better-auth/mcp": "1.7.15",
@@ -67,9 +67,9 @@
   "type": "module",
   "scripts": {
     "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
-    "check": "chex commits local-paths workflows test-timeouts dependency-gates",
+    "check": "chex commits local-paths workflows test-timeouts dependency-gates test-layout",
     "check:outside-install": "bun scripts/outside-install/run-outside-install.ts",
-    "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers && pepys build e2e/deployment/e2e-deployment.ts --out build/e2e-consumers",
+    "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers && pepys build packages/cli/e2e/fixtures/e2e-deployment.ts --out build/e2e-consumers",
     "deadcode": "bash scripts/run-knip.sh && bash scripts/run-knip.sh --production --strict --include unlisted",
     "format": "oxfmt . && format-codemod --quiet . && tombi format",
     "format:check": "oxfmt --check . && format-codemod --check --quiet . && tombi format --check",
@@ -81,7 +81,7 @@
     "schema:check": "bun scripts/generate-schema.ts --check",
     "schema:generate": "bun scripts/generate-schema.ts",
     "test": "rig unit",
-    "test:e2e": "bun test --timeout=15000 --path-ignore-patterns='research/**' --preload ./e2e/start-stack.ts ./e2e",
+    "test:e2e": "bun test --timeout=15000 --path-ignore-patterns='research/**' --preload ./packages/cli/e2e/start-stack.ts ./packages/cli/e2e ./packages/ingest/e2e",
     "test:e2e:rust": "bun scripts/e2e/run-with-stack.ts cargo nextest run --profile e2e --locked --no-tests=fail && bun run test:e2e:outside",
     "test:e2e:outside": "bun scripts/outside-install/run-outside-deployment.ts",
     "test:e2e:prepare": "cargo build --bin pepys --locked && bun run consumers:build",
@@ -101,16 +101,11 @@
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
-    "@octokit/webhooks": "catalog:",
-    "@orpc/client": "catalog:",
-    "@pepys/api": "workspace:*",
     "@pepys/cli": "workspace:*",
     "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@pepys/source-github": "workspace:*",
-    "@pepys/source-telemetry": "workspace:*",
-    "@s2-dev/streamstore": "catalog:",
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",
     "@types/bun": "catalog:",

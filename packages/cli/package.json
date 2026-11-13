@@ -1,7 +1,7 @@
 {
   "name": "@pepys/cli",
   "version": "0.3.1",
-  "description": "The pepys command line: pepys build checks a deployment or a plug-in, writes the glue of each consumer, and compiles each consumer with scriptc",
+  "description": "The pepys command line: pepys build checks a deployment or a plug-in, writes the glue of each consumer, and compiles each consumer with scriptc, and pepys start runs a whole deployment",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,15 +22,24 @@
     "access": "public"
   },
   "dependencies": {
+    "@pepys/api": "workspace:*",
+    "@pepys/ingest": "workspace:*",
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@scriptc/runtime-wasm32-wasi": "catalog:",
     "@zgeoff/std": "catalog:",
     "scriptc": "catalog:",
     "tiny-invariant": "catalog:",
-    "ts-pattern": "catalog:"
+    "ts-pattern": "catalog:",
+    "xstate": "catalog:"
   },
   "devDependencies": {
+    "@octokit/webhooks": "catalog:",
+    "@orpc/client": "catalog:",
+    "@pepys/source-github": "workspace:*",
+    "@pepys/source-telemetry": "workspace:*",
+    "@s2-dev/streamstore": "catalog:",
+    "@zgeoff/testing": "catalog:",
     "zod": "catalog:"
   }
 }

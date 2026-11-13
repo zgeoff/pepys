@@ -5,7 +5,7 @@
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
     "packages/testing/src/ledger/generated/**",
-    "e2e/*/src/generated/**",
+    "packages/cli/e2e/fixtures/*/src/generated/**",
     "docs/design/**/sketches/**"
   ],
   "proseWrap": "always",

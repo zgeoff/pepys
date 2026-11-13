@@ -23,7 +23,7 @@
         "packages/source-*/src/consumers/*.ts",
         "packages/*/src/test-utils/*/consumers/*.ts",
         "packages/testing/src/ledger/consumers/*.ts",
-        "e2e/*/src/consumers/*.ts"
+        "packages/cli/e2e/fixtures/*/src/consumers/*.ts"
       ],
       "rules": {
         "zgeoff/file-named-for-export": "off"
@@ -96,6 +96,23 @@
       }
     },
     {
+      // the e2e tests of the CLI run a deployment of the source plug-ins, and ship in no package
+      "files": ["packages/cli/e2e/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@pepys/spike-*", "**/research/**"],
+                "message": "product code never imports a spike"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       // the kit is published to npm, so it imports no workspace package
       "files": ["packages/kit/**"],
       "rules": {
@@ -145,6 +162,6 @@
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
     "packages/testing/src/ledger/generated/**",
-    "e2e/*/src/generated/**"
+    "packages/cli/e2e/fixtures/*/src/generated/**"
   ]
 }

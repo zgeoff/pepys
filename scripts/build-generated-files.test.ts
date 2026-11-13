@@ -42,7 +42,7 @@ test('it builds the files of the github, ledger, telemetry and logbook consumers
     'packages/source-telemetry/src/generated/telemetry-model-request.sql',
     'packages/source-telemetry/src/generated/telemetry-turn-cost-boundary.ts',
     'packages/source-telemetry/src/generated/telemetry-turn-cost.sql',
-    'e2e/logbook-plugin/src/generated/logbook-voyage-boundary.ts',
-    'e2e/logbook-plugin/src/generated/logbook-voyage.sql',
+    'packages/cli/e2e/fixtures/logbook-plugin/src/generated/logbook-voyage-boundary.ts',
+    'packages/cli/e2e/fixtures/logbook-plugin/src/generated/logbook-voyage.sql',
   ]);
 });
