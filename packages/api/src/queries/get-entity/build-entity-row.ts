@@ -13,11 +13,7 @@ export function buildEntityRow(
 function toValue(column: ColumnDeclaration, stored: unknown): unknown {
   return match(column.kind)
     .with('boolean', () => (stored === null ? null : stored === 1))
-    .with('json', () => (typeof stored === 'string' ? parseJSON(stored) : stored))
+    .with('json', (): unknown => (typeof stored === 'string' ? JSON.parse(stored) : stored))
     .with('text', 'integer', 'real', 'entityID', 'timestamp', () => stored)
     .exhaustive();
-}
-
-function parseJSON(text: string): unknown {
-  return JSON.parse(text);
 }

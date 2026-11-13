@@ -1,4 +1,3 @@
-import type { DeploymentFailure } from '@pepys/kit';
 import { match } from 'ts-pattern';
 import type { BuildOutcome } from './run-build.ts';
 
@@ -69,13 +68,9 @@ export function formatBuildOutcome(outcome: BuildOutcome): FormattedOutcome {
       exitCode: 1 as const,
       text: [
         'the declarations are invalid:',
-        ...invalid.failures.map((failure) => `  ${formatFailure(failure)}`),
+        ...invalid.failures.map((failure) => `  ${JSON.stringify(failure)}`),
         '',
       ].join('\n'),
     }))
     .exhaustive();
-}
-
-function formatFailure(failure: DeploymentFailure): string {
-  return JSON.stringify(failure);
 }
