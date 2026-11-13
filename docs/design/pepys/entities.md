@@ -1,10 +1,10 @@
 # Entities
 
-Entity IDs, entity views and the shared `entity` view are built, as
+Entity IDs, entity views, the shared `entity` view and its filter of deleted rows are built, as
 [entities and links](../../architecture/queries/entities-and-links.md) describes. This design adds
 an alias table beside each entity table, so a readable reference resolves to an ID, the other GitHub
-kinds, the Gmail entities, people, and a tombstone filter in the entity view. Each source brings the
-entity consumers for its own kinds.
+kinds, the Gmail entities, people, and a tombstone for each deletion in every source. Each source
+brings the entity consumers for its own kinds.
 
 ## Tables and aliases
 
@@ -74,7 +74,6 @@ the hub flag, so the neighbourhood walk skips them unless the query asks for the
 
 A deletion in a source becomes a tombstone. The fact stays in the log, and the entity consumer marks
 the row as deleted, so queries skip it by default. This holds for every source, deleted email
-included.
-
-A consumer's entity view declaration may name a deleted-at column, and the generated `entity` view
-then leaves out every row where that column is set.
+included. Each entity consumer marks the delete in the column that its entity view declares as
+`deletedAt`, as [the entity view](../../architecture/queries/entities-and-links.md#the-entity-view)
+describes.

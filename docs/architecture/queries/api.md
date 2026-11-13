@@ -16,8 +16,8 @@ The API checks no credential on `/rpc`, so its listen address and the deployment
 decide who reaches that route. It serves `/mcp` only with `PEPYS_API_PUBLIC_URL` and
 `PEPYS_AUTH_DIR` set, and then refuses each MCP request without a valid access token from its OAuth
 server. With `PEPYS_API_PUBLIC_URL` unset, `/mcp` answers 404. With it set and `PEPYS_AUTH_DIR`
-unset, the API exits 1 at start. The [OAuth server](../../design/api-auth/oauth.md) covers the
-tokens and the owner's passkey sign-in.
+unset, the API exits 1 at start. [The OAuth server](./oauth-server.md) covers the tokens and the
+owner's passkey sign-in.
 
 [Entities and links](./entities-and-links.md) covers entity IDs, kinds, links and the views the
 queries read. [Decision 0010](../../decisions/0010-kysely-for-api-queries.md) and

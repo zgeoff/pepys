@@ -24,6 +24,8 @@
 - [Entities and links](./architecture/queries/entities-and-links.md) — entity IDs, the shared
   `entity` view and the link table.
 - [The API](./architecture/queries/api.md) — the store reader, the core queries and the router.
+- [The OAuth server](./architecture/queries/oauth-server.md) — grants for MCP clients, the owner's
+  passkey, the bearer check and the guards on each request.
 - [The GitHub plug-in](./architecture/plug-ins/github.md) — the webhook, the tie rule, the recovery
   and resync pulls, deploys and the delivery query.
 - [The telemetry plug-in](./architecture/plug-ins/telemetry.md) — the OTLP paths, the sender proof,
@@ -33,14 +35,16 @@
 
 - [Deploying pepys](./runbooks/deploying.md) — build the consumers, fetch the host, and start the
   processes.
+- [Serving MCP](./runbooks/serving-mcp.md) — put `/mcp` on a public route, add a client and revoke a
+  grant.
 - [Releasing](./runbooks/releasing.md) — release a version, and what to do when a run fails.
 
 ## Design
 
 - [pepys design](./design/pepys/README.md) — the parts of pepys that are not built yet, and the
   index of their design docs.
-- [Auth for the API](./design/api-auth/README.md) — OAuth on the public `/mcp` route, and service
-  tokens on the tailnet and cluster `/rpc` routes.
+- [Auth for the API](./design/api-auth/README.md) — service tokens on the tailnet and cluster `/rpc`
+  routes, and the listeners that check them.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
 
 ## Decisions

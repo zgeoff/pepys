@@ -84,7 +84,7 @@ contract fails the test.
 
 The owner runs the API's own admin commands, such as `clients add` and `passkeys enroll`, with
 `kubectl exec` in the API container, as arguments to the API's entry file, not through the CLI, as
-[the OAuth server](../api-auth/oauth.md#the-api-process) sets out.
+[serving MCP](../../runbooks/serving-mcp.md#3-add-a-client) sets out.
 
 The admin routes never check a token. An operator gets inside the pod only with the cluster
 credentials that `kubectl exec` needs. The host's admin port, enrichment's admin port and ingest's
@@ -139,8 +139,8 @@ Every pepys port is cluster-only except three routes.
 
 The API's cluster listener serves `/rpc` and `/mcp` inside the cluster, to the boxxy server with the
 `api-boxxy` token. boxxy is the owner's work dispatcher, and runs in a namespace of its own.
-[Auth for the API](../api-auth/README.md#deployment-changes) lists the Services, NetworkPolicies and
-exposure registry entries of the three listeners.
+[Auth for the API](../api-auth/README.md#deploying-the-listeners) lists the Services,
+NetworkPolicies and exposure registry entries of the three listeners.
 
 Inside the namespace, enrichment and the pod that runs the host and the API call each other on the
 three internal ports below. The admin ports, which the CLI calls, are in [the CLI](#the-cli). The

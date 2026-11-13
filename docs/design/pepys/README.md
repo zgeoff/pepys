@@ -27,7 +27,8 @@ stays pure.
 - [Enrichment](./enrichment.md): git, MIME, model judgements and the job model.
 - [Search](./search.md): LEAF-IR embeddings, full-text search and hybrid ranking.
 - [API](./api.md): writes, search and history queries, the deployment catalog and agent writes.
-- [Auth](./auth.md): the API's OAuth server: clients, tokens, scopes and threats.
+- [Auth](./auth.md): the `write` scope, manual writes, the token check on change feed streams, and
+  their threats.
 - [Change feed](./change-feed.md): the change log and the Durable Streams read protocol.
 - [History](./history.md): transitions, the fact index, and the Parquet lake.
 - [Runtime](./runtime.md): the k3s workloads, images, secrets, network routes and schedules.

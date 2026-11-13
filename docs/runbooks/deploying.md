@@ -73,10 +73,10 @@ Start the processes in the order of the steps. Ingest creates the S2 basin, S2's
 streams, and the fact streams when it starts, and the host reads those streams.
 
 **CAUTION:** The API checks no token on `/rpc`, so anyone who reaches its port reads every row
-through that route. [The API](../architecture/queries/api.md) covers the access tokens that `/mcp`
-checks. Keep the API port on a private network. Open to the public internet only the ingest routes
-that a plug-in declares with `reach: 'public'`. Of the plug-ins in this repo, only the GitHub
-plug-in has one, `/webhook/github`. A cluster that admits its node's own addresses before any
+through that route. Keep the API port on a private network, and put only `/mcp` and the OAuth paths
+on a public route, as [Serving MCP](./serving-mcp.md) gives. Open to the public internet only the
+ingest routes that a plug-in declares with `reach: 'public'`. Of the plug-ins in this repo, only the
+GitHub plug-in has one, `/webhook/github`. A cluster that admits its node's own addresses before any
 network rule lets every process on that node reach the private routes and the API. Each private
 ingest route still checks its secret or its sender proof, but `/rpc` checks nothing.
 
@@ -118,7 +118,7 @@ other's marks.
 
 6. Set `PEPYS_STORE_DIR` for the API to `<store-folder>`. The API reads no S2 setting.
    `PEPYS_API_HOST` defaults to 127.0.0.1, and `PEPYS_API_PORT` defaults to 8081. To serve MCP, also
-   set the settings in the [API auth design](../design/api-auth/README.md#configuration).
+   follow [Serving MCP](./serving-mcp.md).
 7. Start the API with `bun <api-entry-file>`.
 
    Expect: the API listens on its port. Until a consumer has a current version, each query that

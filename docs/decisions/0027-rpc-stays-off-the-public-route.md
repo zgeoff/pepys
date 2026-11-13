@@ -22,9 +22,9 @@ below is built.
 `/rpc` then moves to a second listener, the tailnet listener, which the owner's PC reaches over the
 owner's Tailscale network, the tailnet. Each request carries a service token, a long random string
 whose SHA-256 digest the API finds in its callers file.
-[Auth for the API](../design/api-auth/README.md#later-work-service-tokens-and-more-listeners) holds
-that design: where the callers file lives, the Kubernetes NodePort that carries the listener, and
-the client address check that limits it to the tailnet.
+[Auth for the API](../design/api-auth/README.md#service-tokens-and-listeners) holds that design:
+where the callers file lives, the Kubernetes NodePort that carries the listener, and the client
+address check that limits it to the tailnet.
 
 ## Rejected alternatives
 

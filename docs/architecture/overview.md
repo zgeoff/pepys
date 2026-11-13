@@ -70,6 +70,8 @@ The API never writes the store, and the host never writes the fact log.
   and the `link` table.
 - [The API](./queries/api.md) covers how the API reads the store, the core queries, and the routes
   `/rpc` and `/mcp`.
+- [The OAuth server](./queries/oauth-server.md) covers how an MCP client gets a grant from the
+  owner, and the access token that `/mcp` checks on each request.
 
 ## Topology
 
@@ -94,8 +96,9 @@ disk: the host writes it, and the API reads it.
 pepys publishes no container image. The deployment's repo builds its own images and sets its own
 network rules. Each source module marks each of its routes public or private, and a route it leaves
 unmarked is private. The GitHub webhook is the only public route. The API checks no token on `/rpc`,
-so the deployment's network rules must keep the API off the public network.
-[The API](./queries/api.md) covers the access tokens that `/mcp` checks.
+so the deployment's network rules must keep `/rpc` off the public network. Only `/mcp` and the paths
+of [the OAuth server](./queries/oauth-server.md) may face the internet, because each MCP request
+carries an access token.
 
 [Deploying pepys](../runbooks/deploying.md) gives the steps and the settings of each process.
 

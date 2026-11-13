@@ -4,34 +4,25 @@
 - **Decision records:** [0026](../../decisions/0026-credentials-bound-to-listeners.md),
   [0027](../../decisions/0027-rpc-stays-off-the-public-route.md)
 
-The API serves MCP at `/mcp` to the owner's MCP clients, such as Claude Code on the owner's PC, from
-anywhere, through a Cloudflare tunnel. Every MCP request needs an OAuth access token from the API's
-own authorization server, which [The OAuth server](./oauth.md) describes. The API also serves typed
-oRPC queries under `/rpc` to scripts and pods. The tunnel never forwards `/rpc`, and `/rpc` takes no
-credential. [Later work](#later-work-service-tokens-and-more-listeners) holds the design of the
-service tokens that `/rpc` takes, and of the listeners that check them.
-
-The API shares a pod with the host, pepys's process that writes the store, and only reads the store.
-This design builds the part of [Auth](../pepys/auth.md) that the API's read routes need. Ingest, the
-process that takes in facts from sources ([ingest](../pepys/ingest.md)), keeps its own check on each
-of its routes. A source of personal data, such as mail, joins a deployment only once the whole of
-[Auth](../pepys/auth.md) is built, as the decision record
-[0024: The scope of v1](../../decisions/0024-v1-scope.md) sets.
-
-| Doc                            | Covers                                                                          |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| this README                    | the configuration, the bearer check, security events and the deployment         |
-| [The OAuth server](./oauth.md) | the public paths, the admin commands, grants, the owner's passkey and the pages |
+The API serves MCP at `/mcp` behind its own OAuth server, which
+[the OAuth server](../../architecture/queries/oauth-server.md) describes, and serves typed oRPC
+queries under `/rpc` with no credential. This design adds service tokens to `/rpc`, so a script on
+the owner's PC and a pod in the cluster each read it with a credential of its own, and splits the
+API into three listeners that each take one kind of credential.
+[Serving MCP](../../runbooks/serving-mcp.md) gives the settings of the public route that the API
+serves now.
 
 ## Shape
 
 ```mermaid
 flowchart LR
-  client["MCP client"] -->|"HTTPS"| edge["Cloudflare tunnel"]
-  browser["owner's browser"] -->|"HTTPS, Cloudflare Access login"| edge
-  edge -->|"the OAuth paths and /mcp only"| api["the API: /mcp with an OAuth token, /rpc"]
-  api --> store[("the host's store")]
-  api --> authdb[("mcp-auth.db")]
+  client["MCP client"] -->|"OAuth token, through the tunnel"| public["public listener"]
+  script["owner's script"] -->|"service token, over the tailnet"| tailnet["tailnet listener"]
+  pod["boxxy server"] -->|"service token, in the cluster"| cluster["cluster listener"]
+  public --> api["the API"]
+  tailnet --> api
+  cluster --> api
+  callers[("callers file")] --> api
 ```
 
 These outside systems appear in this design:
@@ -39,7 +30,6 @@ These outside systems appear in this design:
 - **atc** is the owner's agent control tower. Its gateway serves MCP on a public route behind its
   own OAuth server. `@pepys/api` holds a copy of that server's code, so the owner carries each fix
   in atc over to pepys by hand.
-- **better-auth** is the TypeScript library that both OAuth servers run on.
 - **cloudflared** is the tunnel's connector, a pod in the cluster that passes each request from the
   tunnel to the API.
 - **impz** runs the owner's coding agents in small virtual machines, called imps. Its credential
@@ -52,138 +42,16 @@ These outside systems appear in this design:
 Two placeholders stand for the public route: `<public_origin>` is the value of
 `PEPYS_API_PUBLIC_URL`, such as `https://<public_host>`, and `<public_host>` is its host name.
 
-## Contracts
-
-### Configuration
-
-`readAPIConfig` in `@pepys/api` reads these variables. With `PEPYS_API_PUBLIC_URL` unset, the API
-serves `/rpc` alone, and answers 404 on `/mcp`.
-
-| Variable                         | Holds                                                                                                                                                                                                      | Default     | Needed                              |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------------------- |
-| `PEPYS_STORE_DIR`                | the store the host writes                                                                                                                                                                                  | none        | always                              |
-| `PEPYS_API_HOST`                 | the address the API binds                                                                                                                                                                                  | `127.0.0.1` | no                                  |
-| `PEPYS_API_PORT`                 | the port the API binds                                                                                                                                                                                     | `8081`      | no                                  |
-| `PEPYS_API_PUBLIC_URL`           | `<public_origin>`, in a form that [Fail closed at start](#fail-closed-at-start) accepts                                                                                                                    | unset       | to serve `/mcp` and the OAuth paths |
-| `PEPYS_AUTH_DIR`                 | the folder of `mcp-auth.db`. The API makes a missing folder with the mode that the process's umask gives, and sets the mode of `mcp-auth.db` to 0600                                                       | none        | when `PEPYS_API_PUBLIC_URL` is set  |
-| `PEPYS_API_ALLOWED_HOSTS`        | more `Host` values that the API accepts on the OAuth paths and `/mcp`, split by commas. The API accepts `<public_host>` and its own loopback address without them. Set it for a proxy that rewrites `Host` | none        | no                                  |
-| `PEPYS_API_TRUST_FORWARDED_FROM` | socket peer addresses, split by commas, each exactly as the socket reports it. The API marks the `CF-Connecting-IP` address of a request from one of them `trusted`                                        | none        | no                                  |
-
-### The bearer check
-
-The API checks the bearer token of every request to `/mcp` and to `POST /` before MCP sees it,
-whatever the MCP method, `initialize` included. `POST /` is a second address of the MCP endpoint,
-which [the OAuth server's public paths](./oauth.md#public-paths) list. The sign-in pages, the OAuth
-endpoints and the metadata take no bearer token.
-
-- A token passes only when it is an opaque access token that `mcp-auth.db` holds, unexpired,
-  unrevoked and bound to the resource `<public_origin>/mcp`.
-- The API answers 401 to a request with no token or with any other token. The 401 carries the
-  `WWW-Authenticate` response header that [the OAuth server](./oauth.md#public-paths) shows. A 401
-  for a token the API doesn't hold adds `error="invalid_token"`. A 401 for a header that holds no
-  bearer token adds no error.
-- Every MCP tool needs the scope `read`. A token lacks `read` when its client refreshed it with a
-  narrower `scope`, such as `offline_access` alone. The API answers such a token with HTTP 403 and
-  `WWW-Authenticate: Bearer error="insufficient_scope", error_description="Insufficient scope", scope="read"`,
-  with the `resource_metadata` of the 401.
-
-### Security events
-
-The API writes one line to stderr for each security event: `pepys security ` and a JSON object. The
-API writes at most 20 lines of each kind a minute. Past that, it counts the dropped events and
-writes one `suppressed` event with the count at the end of the minute.
-
-```ts
-// @pepys/api: the security event line; the formatter picks each field by name
-interface SecurityEvent {
-  version: 1;
-  ts: string; // ISO 8601
-  kind:
-    | 'authorize_started' // outcome accepted | rejected; reason 'rate_limited'
-    | 'authorize_invalid' // rejected; better-auth's error code, 'bad_host', 'bad_origin' or 'other'
-    | 'owner_auth' // succeeded | failed; 'assertion_failed', 'locked', 'expired', 'not_enrolled', 'invalid_token'
-    | 'consent' // allowed | denied; 'none_ticked'
-    | 'token_exchange' // rejected; better-auth's error code or 'other'
-    | 'bearer' // rejected; 'malformed' or 'invalid_token'
-    | 'suppressed'; // reason: the dropped kind, with count
-  outcome?: string;
-  reason?: string;
-  count?: number;
-  method?: 'passkey' | 'enrollment_token'; // owner_auth only
-  route?: string; // a path the API serves, else 'other'; never a query
-  client?: { id: string; name: string }; // only for a client mcp-auth.db holds
-  redirectHost?: string; // only after better-auth validated the redirect URI
-  correlationID?: string; // random, joins one authorization's events
-  peer?: { address: string; provenance: 'socket' }; // the socket's peer address
-  forwarded?: {
-    address: string; // from CF-Connecting-IP
-    header: 'cf-connecting-ip';
-    provenance: 'trusted' | 'unverified'; // trusted only from a peer in PEPYS_API_TRUST_FORWARDED_FROM
-  };
-  userAgent?: { summary: string; provenance: 'client' }; // cut to 60 characters, control characters removed
-}
-```
-
-## Constraints
-
-### Fail closed at start
-
-The API accepts `PEPYS_API_PUBLIC_URL` in two forms, each an origin with no path:
-
-- `https://` and any host;
-- `http://` and a loopback host, for a local run.
-
-The API exits 1 at start in each of these cases:
-
-- `PEPYS_API_PUBLIC_URL` is set in any other form.
-- `PEPYS_API_PUBLIC_URL` is set and `PEPYS_AUTH_DIR` is unset.
-- `PEPYS_API_PUBLIC_URL` is set and not `https`, and `PEPYS_API_HOST` is a non-loopback address. A
-  listener that other machines reach sits behind a proxy that ends TLS.
-
-### Ingest and the store
-
-- Ingest's routes keep their own checks: the GitHub webhook signature, the signature on each boxxy
-  fact batch, and on the telemetry route a bearer token and the signed identity token of the imp
-  that sent the export ([ingest](../../architecture/ingest/ingest.md)). The API's tokens open no
-  ingest route, and an ingest secret opens no API route.
-- The API reads the store and writes only `mcp-auth.db`. The host never opens `mcp-auth.db`.
-
-## Deployment changes
-
-Make these changes in the cloud repo.
-
-1. Route `<public_host>` through the shared Cloudflare tunnel to the API's ClusterIP Service, with
-   the paths that [the OAuth server's public paths](./oauth.md#public-paths) list. Put the browser
-   paths behind a Cloudflare Access application that admits only the owner. Keep the request's
-   `Host` unchanged in cloudflared. Expect: `/rpc/*` and every other path get the tunnel's 404.
-2. Set `PEPYS_API_PUBLIC_URL` in the API's container of the StatefulSet pod. Set `PEPYS_API_HOST` to
-   `0.0.0.0`. Expect: the API logs `api listening on <bind>, serving /mcp at <public_origin>/mcp`.
-3. Mount a PersistentVolume with the `Retain` reclaim policy at `PEPYS_AUTH_DIR`, in the API's
-   container only.
-4. Add a NetworkPolicy rule that lets cloudflared reach the API's port.
-5. Add a public entry for `<public_host>` to the cloud repo's exposure registry. The registry lists
-   every public route and port of the owner's servers. Name the API's OAuth server as the route's
-   guard.
-6. Add each client, as [Adding a client](./oauth.md#adding-a-client) says. Its step 1 enrolls the
-   owner's passkey. Expect: an MCP client gets a 401, signs the owner in, and reads a query.
-
 ## Decisions
 
-- **`/rpc` stays off the public route.** atc and impz each put only `/mcp` on their public routes. A
-  script on the owner's PC reads `/rpc` over the tailnet, so it needs no browser sign-in, and the
-  internet reaches only MCP and sign-in.
-  ([0027](../../decisions/0027-rpc-stays-off-the-public-route.md))
-- **The API has one scope, `read`.** The API has no write, and `write` arrives with the first write
-  route, as [Scopes](../pepys/auth.md#scopes) sets out.
 - **An agent session in an imp gets no token until a scope can name one plug-in.** A session reaches
   the API through impz's credential broker. With the one `read` scope, a token that reads GitHub
   data reads mail too.
 
-## Later work: service tokens and more listeners
+## Service tokens and listeners
 
-The API binds one listener, and `/rpc` takes no credential. This section holds the design that adds
-service tokens to `/rpc`, and the listeners that check them.
-[0026](../../decisions/0026-credentials-bound-to-listeners.md) records its decisions.
+[0026](../../decisions/0026-credentials-bound-to-listeners.md) records the decisions of this
+section.
 
 ### The three listeners
 
@@ -191,11 +59,11 @@ Each listener takes one kind of credential, on every query, whatever address it 
 included. A NetworkPolicy never stops a process on the cluster's node, which reaches every listener,
 so only a credential keeps the owner's mail from that process.
 
-| Listener | Serves                                                         | Takes                                            | Reached through                              |
-| -------- | -------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
-| public   | `/mcp` and [the OAuth server's paths](./oauth.md#public-paths) | an OAuth access token                            | the tunnel, then a ClusterIP Service         |
-| tailnet  | `/rpc/*`                                                       | a service token of a caller that lists `tailnet` | a NodePort on the k3s node's tailnet address |
-| cluster  | `/rpc/*`, `/mcp`, and `GET /healthz` for the kubelet's probes  | a service token of a caller that lists `cluster` | a ClusterIP Service                          |
+| Listener | Serves                                                                                | Takes                                            | Reached through                              |
+| -------- | ------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
+| public   | `/mcp` and [the public paths](../../runbooks/serving-mcp.md#1-route-the-public-paths) | an OAuth access token                            | the tunnel, then a ClusterIP Service         |
+| tailnet  | `/rpc/*`                                                                              | a service token of a caller that lists `tailnet` | a NodePort on the k3s node's tailnet address |
+| cluster  | `/rpc/*`, `/mcp`, and `GET /healthz` for the kubelet's probes                         | a service token of a caller that lists `cluster` | a ClusterIP Service                          |
 
 - Every listener answers 404 to a path it doesn't serve. `GET /healthz` answers 200 while the
   process serves, and reads nothing.
@@ -329,6 +197,28 @@ build.
 - **Service tokens come from a callers file that the API reloads.** The API shares its pod with the
   host, so a revocation by rollout would stop the host. The file holds only digests, so a read of
   the API's Secret opens nothing.
+
+## Deployment of the public route
+
+Make these changes in the cloud repo.
+
+1. Route `<public_host>` through the shared Cloudflare tunnel to the API's ClusterIP Service, with
+   the paths that [the public paths](../../runbooks/serving-mcp.md#1-route-the-public-paths) list.
+   Put the browser paths behind a Cloudflare Access application that admits only the owner. Keep the
+   request's `Host` unchanged in cloudflared. Expect: `/rpc/*` and every other path get the
+   tunnel's 404.
+2. Set `PEPYS_API_PUBLIC_URL` in the API's container of the StatefulSet pod. Set `PEPYS_API_HOST` to
+   `0.0.0.0`. Expect: the API logs
+   `api listening on http://0.0.0.0:<port>, serving /mcp at <public_origin>/mcp`.
+3. Mount a PersistentVolume with the `Retain` reclaim policy at `PEPYS_AUTH_DIR`, in the API's
+   container only.
+4. Add a NetworkPolicy rule that lets cloudflared reach the API's port.
+5. Add a public entry for `<public_host>` to the cloud repo's exposure registry. The registry lists
+   every public route and port of the owner's servers. Name the API's OAuth server as the route's
+   guard.
+6. Add each client, as [Add a client](../../runbooks/serving-mcp.md#3-add-a-client) says. Its steps
+   1 to 3 enroll the owner's passkey. Expect: an MCP client gets a 401, signs the owner in, and
+   reads a query.
 
 ## Out of scope
 
