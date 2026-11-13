@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import { buildDeploymentEnvironment } from '../src/test-utils/build-deployment-environment.ts';
 import { readFreePort } from '../src/test-utils/read-free-port.ts';
 
@@ -34,12 +35,11 @@ async function setupTest() {
           }),
           stdout: 'ignore',
           stderr: 'pipe',
+          detached: true,
         },
       );
 
-      onTestFinished(() => {
-        child.kill('SIGKILL');
-      });
+      onTestFinished(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([
         new Response(child.stderr).text(),

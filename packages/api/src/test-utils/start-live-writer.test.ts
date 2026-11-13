@@ -33,3 +33,12 @@ test('it commits each statement while it holds the file open', async () => {
 
   expect(rows).toStrictEqual([{ id: 'north' }]);
 });
+
+test('it stops the writer process group when the stack is disposed', async () => {
+  const ctx = await setupTest();
+  const writer = await startLiveWriter(ctx.path, ctx.stack);
+
+  onTestFinished(() => {
+    expect(() => process.kill(-writer.pid, 0)).toThrow();
+  });
+});

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { consumerBuildManifestSchema } from '@pepys/schema';
 import invariant from 'tiny-invariant';
+import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 
 // These tests run scriptc, so they need zig and wasm-tools, which only the e2e job installs.
 async function setupTest() {
@@ -41,14 +42,10 @@ async function setupTest() {
           '--out',
           join(root, 'app/build'),
         ],
-        { stdout: 'pipe', stderr: 'pipe' },
+        { stdout: 'pipe', stderr: 'pipe', detached: true },
       );
 
-      stack.defer(async () => {
-        child.kill();
-
-        await child.exited;
-      });
+      stack.defer(() => stopProcessGroup(child));
 
       const [stderr, exitCode] = await Promise.all([child.stderr.text(), child.exited]);
 

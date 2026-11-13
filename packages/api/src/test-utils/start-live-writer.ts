@@ -1,4 +1,9 @@
+import { start } from '@zgeoff/testing/process';
+
 interface LiveWriter {
+  // the writer's process ID, which also names the process group it leads
+  pid: number;
+
   // runs one statement and resolves once it is committed
   run: (statement: string) => Promise<void>;
 }
@@ -29,50 +34,18 @@ export async function startLiveWriter(
   path: string,
   stack: AsyncDisposableStack,
 ): Promise<LiveWriter> {
-  const child = Bun.spawn([process.execPath, '--eval', writerSource, path], {
+  const writer = await start([process.execPath, '--eval', writerSource, path], {
     cwd: import.meta.dir,
-    stdin: 'pipe',
-    stdout: 'pipe',
-    stderr: 'inherit',
+    ready: { stdout: 'ready' },
   });
 
-  // before the wait for the first answer, so a writer that never answers stops too
-  stack.defer(async () => {
-    child.kill();
-
-    await child.exited;
-  });
-
-  const lines = child.stdout.pipeThrough(new TextDecoderStream()).getReader();
-  let buffered = '';
-
-  const readLine = async (): Promise<string> => {
-    while (!buffered.includes('\n')) {
-      const chunk = await lines.read();
-
-      if (chunk.done) {
-        throw new Error('the live writer ended before it answered');
-      }
-
-      buffered += chunk.value;
-    }
-
-    const end = buffered.indexOf('\n');
-    const line = buffered.slice(0, end);
-
-    buffered = buffered.slice(end + 1);
-
-    return line;
-  };
-
-  await readLine();
+  stack.use(writer);
 
   return {
+    pid: writer.pid,
     run: async (statement) => {
-      await child.stdin.write(`${JSON.stringify(statement)}\n`);
-      await child.stdin.flush();
-
-      await readLine();
+      await writer.write(`${JSON.stringify(statement)}\n`);
+      await writer.waitForLine('done');
     },
   };
 }

@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@orpc/client": "catalog:",
-    "@pepys/testing": "workspace:*"
+    "@pepys/testing": "workspace:*",
+    "@zgeoff/testing": "catalog:"
   }
 }

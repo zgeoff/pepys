@@ -3,6 +3,7 @@ import { chmodSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
+import { runCommand } from '../test-utils/run-command.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { startStubTelemetryCollector } from '../test-utils/start-stub-telemetry-collector.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
@@ -24,7 +25,7 @@ test('it sends no telemetry when the environment turns it on', async () => {
   // better-auth never sends telemetry under NODE_ENV=test, so the store opens in a
   // production-mode process. A request the store starts keeps that process alive
   // until the collector answers, so the process exits only after any request arrived.
-  const opened = Bun.spawn(
+  const opened = await runCommand(
     [
       process.execPath,
       '-e',
@@ -42,19 +43,10 @@ await store.close();`,
         BETTER_AUTH_TELEMETRY: '1',
         BETTER_AUTH_TELEMETRY_ENDPOINT: collector.url,
       },
-      stderr: 'pipe',
     },
   );
 
-  registerTestCleanup(() => {
-    opened.kill();
-
-    return opened.exited;
-  });
-
-  const exitCode = await opened.exited;
-
-  expect(exitCode).toBe(0);
+  expect(opened.exitCode).toBe(0);
   expect(collector.received).toStrictEqual([]);
 });
 

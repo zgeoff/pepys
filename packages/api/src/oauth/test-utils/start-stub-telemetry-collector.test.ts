@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
-import { registerTestCleanup } from './register-test-cleanup.ts';
+import { runCommand } from './run-command.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
 import { startStubTelemetryCollector } from './start-stub-telemetry-collector.ts';
 
@@ -13,7 +13,7 @@ test('it receives the telemetry better-auth sends to the endpoint the environmen
   // A production-mode process, since better-auth never sends telemetry under
   // NODE_ENV=test. A request it starts keeps the process alive until the
   // collector answers, so the process exits only after the request arrived.
-  const sent = Bun.spawn(
+  const sent = await runCommand(
     [
       process.execPath,
       '-e',
@@ -29,17 +29,10 @@ await createTelemetry({ baseURL: 'http://127.0.0.1' });`,
         BETTER_AUTH_TELEMETRY: '1',
         BETTER_AUTH_TELEMETRY_ENDPOINT: collector.url,
       },
-      stderr: 'pipe',
     },
   );
 
-  registerTestCleanup(() => {
-    sent.kill();
-  });
-
-  const exitCode = await sent.exited;
-
-  expect(exitCode).toBe(0);
+  expect(sent.exitCode).toBe(0);
   expect(collector.received).toStrictEqual([collector.url]);
 });
 
