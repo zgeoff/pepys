@@ -1,6 +1,6 @@
 {
   "name": "@pepys/schema",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "The pepys consumer manifest: the types and the strict schema of consumers.json, with its shared case file",
   "license": "MIT",
   "repository": {
