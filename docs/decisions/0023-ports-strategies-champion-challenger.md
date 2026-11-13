@@ -2,7 +2,6 @@
 
 - Date: 2026-11-04
 - Status: decided
-- Design: [the architecture overview](../architecture/overview.md)
 
 ## Decision
 

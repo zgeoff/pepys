@@ -2,8 +2,6 @@
 
 - Date: 2026-11-12
 - Status: decided
-- Design:
-  [the OAuth server](../architecture/queries/oauth-server.md#the-database-and-the-admin-commands)
 
 ## Decision
 

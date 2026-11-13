@@ -3,7 +3,6 @@
 - Date: 2026-10-22
 - Updated: 2026-11-12
 - Status: decided
-- Design: [the API](../architecture/queries/api.md)
 
 ## Decision
 

@@ -3,7 +3,6 @@
 - Date: 2026-10-22
 - Updated: 2026-10-24
 - Status: decided
-- Design: [the host](../architecture/consumers/host.md)
 
 ## Decision
 

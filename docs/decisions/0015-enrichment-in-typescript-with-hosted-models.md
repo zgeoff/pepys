@@ -2,7 +2,6 @@
 
 - Date: 2026-10-22
 - Status: decided
-- Design: [enrichment](../design/pepys/enrichment.md)
 
 ## Decision
 

@@ -2,7 +2,6 @@
 
 - Date: 2026-10-22
 - Status: decided
-- Design: [change feed](../design/pepys/change-feed.md)
 
 ## Decision
 

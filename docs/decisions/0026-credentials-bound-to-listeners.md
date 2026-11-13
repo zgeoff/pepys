@@ -2,7 +2,6 @@
 
 - Date: 2026-11-12
 - Status: decided
-- Design: [auth for the API](../design/api-auth/README.md#service-tokens-and-listeners)
 
 ## Decision
 

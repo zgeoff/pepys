@@ -2,7 +2,6 @@
 
 - Date: 2026-10-24
 - Status: decided
-- Design: [plug-ins and the build](../architecture/consumers/plug-ins-and-build.md)
 
 ## Decision
 
