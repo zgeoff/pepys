@@ -1,6 +1,6 @@
 import type { Logger, StreamName } from '@pepys/kit';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
-import type { BatchPlan } from './plan-batch.ts';
+import type { BatchPlan } from '../utils/plan-batch.ts';
 
 export type BatchOutcome = 'stored' | 'refused' | 'not-stored';
 

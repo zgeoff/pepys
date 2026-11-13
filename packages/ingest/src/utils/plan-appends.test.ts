@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { planAppends } from './plan-appends.ts';
-import { buildTestFact } from './test-utils/build-test-fact.ts';
 
 test('it plans no run for no facts', () => {
   expect(planAppends([])).toStrictEqual({ ok: true, value: [] });

@@ -1,8 +1,8 @@
 import type { Result } from '@pepys/kit';
 import { isRecord } from '@zgeoff/std';
+import { pickBuildTarget } from '../utils/pick-build-target.ts';
 import { checkBuildTarget } from './check-build-target.ts';
 import type { CheckedTarget } from './check-build-target.ts';
-import { pickBuildTarget } from './pick-build-target.ts';
 import type { BuildOutcome } from './run-build.ts';
 
 type TargetRefusal = Extract<BuildOutcome, { kind: 'no-target' } | { kind: 'invalid' }>;

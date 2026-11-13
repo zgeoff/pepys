@@ -1,6 +1,6 @@
 import { checkDeployment } from '@pepys/kit';
 import type { CheckedDeployment, DeploymentFailure, Plugin, Result } from '@pepys/kit';
-import type { BuildTarget } from './pick-build-target.ts';
+import type { BuildTarget } from '../utils/pick-build-target.ts';
 
 export interface CheckedTarget {
   // the name of the deployment, or null for a plug-in built alone

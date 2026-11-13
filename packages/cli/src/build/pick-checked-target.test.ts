@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { defineConsumer, definePlugin } from '@pepys/kit';
-import type { TargetFailure } from './pick-build-target.ts';
+import type { TargetFailure } from '../utils/pick-build-target.ts';
 import { pickCheckedTarget } from './pick-checked-target.ts';
 
 test.each<[string, unknown, TargetFailure]>([

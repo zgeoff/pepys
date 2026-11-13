@@ -1,7 +1,7 @@
 import type { FactEnvelope, Result, StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { checkAppendBatch } from '../check-append-batch.ts';
+import { checkAppendBatch } from '../../utils/check-append-batch.ts';
 import type { AppendBatchOutcome, FactLog, StoredFact } from '../fact-log.ts';
 import { parseStoredFact } from '../parse-stored-fact.ts';
 

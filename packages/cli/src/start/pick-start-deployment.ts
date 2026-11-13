@@ -1,6 +1,6 @@
 import type { Deployment, Result } from '@pepys/kit';
 import { isRecord } from '@zgeoff/std';
-import { pickBuildTarget } from '../build/pick-build-target.ts';
+import { pickBuildTarget } from '../utils/pick-build-target.ts';
 
 // The deployment that a loaded file exports, or the line that says why `pepys start` refuses it.
 export function pickStartDeployment(loaded: unknown): Result<Deployment, string> {

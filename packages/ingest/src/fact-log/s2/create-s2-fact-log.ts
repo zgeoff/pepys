@@ -9,7 +9,7 @@ import {
 } from '@s2-dev/streamstore';
 import type { S2Basin, StreamConfig } from '@s2-dev/streamstore';
 import { toTagged } from '@zgeoff/std';
-import { checkAppendBatch } from '../check-append-batch.ts';
+import { checkAppendBatch } from '../../utils/check-append-batch.ts';
 import type { AppendBatchOutcome, FactLog, StoredFact } from '../fact-log.ts';
 import { parseStoredFact } from '../parse-stored-fact.ts';
 import { findAppendOutcome, isUnknownStream } from './find-append-outcome.ts';

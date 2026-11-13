@@ -3,7 +3,7 @@ import { serveIngest } from '@pepys/ingest';
 import type { Deployment } from '@pepys/kit';
 import { createActor, toPromise } from 'xstate';
 import type { Actor } from 'xstate';
-import { loadBuildFile } from '../build/load-build-file.ts';
+import { loadBuildFile } from '../utils/load-build-file.ts';
 import { pickHostBinary } from './pick-host-binary.ts';
 import { pickStartDeployment } from './pick-start-deployment.ts';
 import { startMachine } from './start-machine.ts';

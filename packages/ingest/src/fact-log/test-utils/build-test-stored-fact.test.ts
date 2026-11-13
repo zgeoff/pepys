@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
-import { buildTestFact } from './build-test-fact.ts';
+import { buildTestFact } from '../../test-utils/build-test-fact.ts';
 import { buildTestStoredFact } from './build-test-stored-fact.ts';
 
 test('it builds a stored fact with the offset and the body of its envelope', () => {

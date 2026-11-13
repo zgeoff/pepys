@@ -1,9 +1,9 @@
 import type { CheckedDeployment, Logger, PullPath, Pulled, SourceDefinition } from '@pepys/kit';
 import type { BatchAppender } from '../fact-log/make-batch-appender.ts';
-import { pickBatchPlan } from '../receive/pick-batch-plan.ts';
 import type { ResyncMarks } from '../receive/resync-marks/create-resync-marks.ts';
 import { writeBatch } from '../receive/write-batch.ts';
 import type { StreamTurns } from '../receive/write-batch.ts';
+import { pickBatchPlan } from '../utils/pick-batch-plan.ts';
 
 export type PullPathName = 'live' | 'recovery' | 'backfill' | 'resync';
 

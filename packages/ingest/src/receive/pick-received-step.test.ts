@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { BlobHash, Received, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
-import { buildTestFact } from '../fact-log/test-utils/build-test-fact.ts';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { pickReceivedStep } from './pick-received-step.ts';
 import type { ReceivedStep } from './pick-received-step.ts';
 

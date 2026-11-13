@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { buildTestFact } from '../test-utils/build-test-fact.ts';
+import { buildTestFact } from '../../test-utils/build-test-fact.ts';
 import { createMemoryFactLog } from './create-memory-fact-log.ts';
 
 function setupTest() {

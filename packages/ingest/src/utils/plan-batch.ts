@@ -1,5 +1,5 @@
 import type { Batch, FactEnvelope, Result, StreamName } from '@pepys/kit';
-import { planAppends } from '../fact-log/plan-appends.ts';
+import { planAppends } from './plan-appends.ts';
 
 export type BatchPlan = ReadonlyMap<StreamName, readonly (readonly FactEnvelope<unknown>[])[]>;
 

@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
 import type { FactID, Result, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import type { StoredFact } from './fact-log.ts';
 import type { AttemptResult } from './pick-attempt-step.ts';
 import { pickSettledAttempt } from './pick-settled-attempt.ts';
-import { buildTestFact } from './test-utils/build-test-fact.ts';
 import { buildTestStoredFact } from './test-utils/build-test-stored-fact.ts';
 
 test.each<

@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { BlobHash, PendingFact, Result, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
-import { buildTestFact } from '../fact-log/test-utils/build-test-fact.ts';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { pickBatchPlan } from './pick-batch-plan.ts';
 import type { BatchRefusal } from './pick-batch-plan.ts';
 import type { BatchPlan } from './plan-batch.ts';

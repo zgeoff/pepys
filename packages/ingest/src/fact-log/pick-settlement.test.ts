@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import type { FactID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
+import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { pickSettlement } from './pick-settlement.ts';
-import { buildTestFact } from './test-utils/build-test-fact.ts';
 import { buildTestStoredFact } from './test-utils/build-test-stored-fact.ts';
 
 test.each([

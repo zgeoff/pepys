@@ -1,7 +1,7 @@
 import type { PendingFact, Received, SourceContext } from '@pepys/kit';
 import { match } from 'ts-pattern';
-import { pickBatchPlan } from './pick-batch-plan.ts';
-import type { BatchPlan } from './plan-batch.ts';
+import { pickBatchPlan } from '../utils/pick-batch-plan.ts';
+import type { BatchPlan } from '../utils/plan-batch.ts';
 
 // `has-blob`: the source read a fact with a blob, a fault of the deployment that ingest answers 500.
 export type ReceivedStep =
