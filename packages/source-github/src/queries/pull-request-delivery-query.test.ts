@@ -474,6 +474,35 @@ test('it leaves out text that is no entity ID and answers for the rest', async (
 
 test('it answers an empty list with no rows', async () => {
   const ctx = await setupTest();
+
+  await ctx.store.apply(githubSource, [
+    {
+      type: 'github.pull_request.opened',
+      event: 'pull_request-11',
+      entity: 'github:pull_request:11',
+      at: '2026-10-01T08:00:00Z',
+      payload: {
+        action: 'opened',
+        pull_request: {
+          id: 11,
+          number: 11,
+          title: 'A change',
+          state: 'open',
+          html_url: 'https://github.example/pull/11',
+          user: { id: 9001, type: 'User' },
+          base: { repo: { id: 1 } },
+          body: null,
+          merged: false,
+          merge_commit_sha: null,
+          created_at: '2026-10-01T08:00:00Z',
+          updated_at: '2026-10-01T08:00:00Z',
+          closed_at: null,
+          merged_at: null,
+        },
+      },
+    },
+  ]);
+
   const result = await ctx.query({ pullRequests: [], environment: 'production' });
 
   expect(result).toStrictEqual([]);
