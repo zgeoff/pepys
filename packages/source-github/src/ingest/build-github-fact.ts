@@ -2,7 +2,7 @@ import { parseFactEnvelope } from '@pepys/kit';
 import type { PendingFact, StreamName } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { match } from 'ts-pattern';
-import { buildBodyHash } from '../utils/build-body-hash.ts';
+import { buildBodyHash } from './build-body-hash.ts';
 import { githubEventRules } from './github-event-rules.ts';
 
 // `delivery`: a webhook body, from the receive path or the recovery pull. `observation`: an object

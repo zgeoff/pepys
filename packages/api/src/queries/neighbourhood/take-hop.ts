@@ -1,5 +1,5 @@
 import type { EntityID, LinkRow } from '@pepys/kit';
-import { compareText } from '../../utils/compare-text.ts';
+import { compareText } from './compare-text.ts';
 
 interface WalkLink {
   type: string;
