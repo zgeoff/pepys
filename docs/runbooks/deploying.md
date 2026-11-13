@@ -125,6 +125,27 @@ other's marks.
    reads that consumer's tables returns HTTP 503. The [API README](../../packages/api/README.md)
    shows a typed client to call a query.
 
+### Start every process with one command
+
+`pepys start` from `@pepys/cli` runs ingest and the API in its own process, and starts the host with
+`run --up`, in that order. Use it in place of steps 3, 5 and 7 when the three processes share one
+machine.
+
+1. Set every variable of steps 2, 4 and 6. `pepys start` reads no other variable for them.
+2. Set `PEPYS_HOST_BIN` to the path of the host binary.
+3. Run the command:
+
+   ```sh
+   bunx pepys start <deployment-file>
+   ```
+
+   Expect: ingest, the API and the host each start as in steps 3, 5 and 7. When a part fails to
+   start or ends on its own, `pepys start` stops the other parts and exits 1. When `PEPYS_HOST_BIN`
+   is unset, it prints a one-line message and exits 1.
+
+4. To stop the deployment, send SIGINT or SIGTERM. Expect: every part stops, and the command
+   exits 0. It exits 1 when a part stops uncleanly.
+
 ## Deploy a change
 
 Find the steps for what you changed.
