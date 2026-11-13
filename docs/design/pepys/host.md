@@ -25,6 +25,9 @@ A consumer reads two more things from the host, beside a row by key and a scope'
 - a scan of a table by an index and a key prefix;
 - a blob by its content hash, which is pure because a hash always names the same bytes.
 
+A fact-mode consumer gets no read of an entity's earlier facts. It keeps what it needs in its own
+rows, and a consumer that needs every fact of an entity runs in scope mode.
+
 ## Consumer versions
 
 A consumer version is a module plus the champion version of each enrichment job the module reads.
