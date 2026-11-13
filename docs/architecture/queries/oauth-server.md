@@ -65,9 +65,9 @@ The owner then adds each client again, enrolls a passkey, and signs each client 
 
 ## Getting a grant
 
-Revoking a grant ends its refresh token and every access token issued under it, with one exception
-that [Refreshing a token](#refreshing-a-token) gives. A grant is what one approved authorization
-produced, and `grants` lists each grant by its ID.
+Revoking a grant ends its refresh token and every access token issued under it, including a token
+that a refresh in progress writes after the revoke ([Refreshing a token](#refreshing-a-token)). A
+grant is what one approved authorization produced, and `grants` lists each grant by its ID.
 
 1. The client posts to `/mcp` with no token. The API answers 401 with a `WWW-Authenticate` header
    that points at its protected resource metadata (RFC 9728), where the client finds the
@@ -130,8 +130,9 @@ What happens when something lands during a refresh depends on when it lands:
 
 - A revoke that commits before step 1 deletes the old refresh token, so the refresh fails.
 - A `grants --revoke` that commits after step 1 deletes the rows that carry the grant's ID at that
-  moment. Each token that better-auth writes after the revoke survives it. This is the exception to
-  the rule that a revoke ends every token of a grant, and `grants` still lists the grant.
+  moment, and records the grant's ID in `pepys_revoked_grant` in the same transaction. A trigger on
+  each token table refuses a row whose grant ID is recorded there, so each later write fails, and
+  the server ends the refresh with a 500 and no token.
 - A `clients remove` that commits after step 1 makes each later write fail, because each token row
   needs its client's row.
 - When the API stops after step 1, the client never receives a new token. It holds only its old
