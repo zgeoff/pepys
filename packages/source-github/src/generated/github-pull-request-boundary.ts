@@ -176,6 +176,11 @@ export interface GithubPullRequestRow {
   payload: unknown;
 }
 
+export interface GithubPullRequestAliasRow {
+  alias: string;
+  entity_id: EntityID;
+}
+
 export interface GithubReleaseBumpRow {
   pull_request_id: EntityID;
   release_repository: string;
@@ -184,6 +189,10 @@ export interface GithubReleaseBumpRow {
 
 export interface GithubPullRequestKey {
   id: GithubPullRequestID;
+}
+
+export interface GithubPullRequestAliasKey {
+  alias: string;
 }
 
 export interface GithubReleaseBumpKey {
@@ -195,6 +204,8 @@ export interface GithubReleaseBumpKey {
 export type GithubPullRequestOperation =
   | { upsert: { github_pull_request: GithubPullRequestRow } }
   | { delete: { github_pull_request: GithubPullRequestKey } }
+  | { upsert: { github_pull_request_alias: GithubPullRequestAliasRow } }
+  | { delete: { github_pull_request_alias: GithubPullRequestAliasKey } }
   | { upsert: { github_release_bump: GithubReleaseBumpRow } }
   | { delete: { github_release_bump: GithubReleaseBumpKey } };
 

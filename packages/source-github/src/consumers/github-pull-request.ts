@@ -6,6 +6,7 @@ import {
 } from '../generated/github-pull-request-boundary.ts';
 import type {
   EntityID,
+  GithubPullRequestAliasRow,
   GithubPullRequestMessage,
   GithubPullRequestModel,
   GithubPullRequestOperation,
@@ -64,7 +65,45 @@ function mapFact(factJSON: string): GithubPullRequestOperation[] {
     .filter((bump) => !replacedKeys.has(JSON.stringify(bump)))
     .map((bump) => ({ upsert: { github_release_bump: bump } }));
 
-  return [{ upsert: { github_pull_request: row } }, ...removed, ...added];
+  const aliases: GithubPullRequestOperation[] = collectAliases(row).map((alias) => ({
+    upsert: { github_pull_request_alias: alias },
+  }));
+
+  return [{ upsert: { github_pull_request: row } }, ...aliases, ...removed, ...added];
+}
+
+// The URL, and `<owner>/<repo>#<number>` when the URL has the `/<owner>/<repo>/pull/<number>`
+// path. GitHub matches an owner and a repository in any case, so each alias is in lowercase.
+function collectAliases(row: GithubPullRequestRow): GithubPullRequestAliasRow[] {
+  const url = trimTrailingSlash(row.url.toLowerCase());
+  const aliases: GithubPullRequestAliasRow[] = [{ alias: url, entity_id: row.id }];
+  const parts = url.split('/');
+  const [scheme, gap, host, owner, repository, pull, number] = parts;
+
+  if (
+    parts.length !== 7 ||
+    scheme === undefined ||
+    !scheme.endsWith(':') ||
+    gap !== '' ||
+    host === undefined ||
+    host === '' ||
+    owner === undefined ||
+    owner === '' ||
+    repository === undefined ||
+    repository === '' ||
+    pull !== 'pull' ||
+    number !== `${row.number}`
+  ) {
+    return aliases;
+  }
+
+  aliases.push({ alias: `${owner}/${repository}#${row.number}`, entity_id: row.id });
+
+  return aliases;
+}
+
+function trimTrailingSlash(text: string): string {
+  return text.endsWith('/') ? text.slice(0, -1) : text;
 }
 
 const releaseURLStart = 'https://github.com/';

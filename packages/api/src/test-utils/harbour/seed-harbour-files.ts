@@ -3,8 +3,8 @@ import { toTagged } from '@zgeoff/std';
 import { createConsumerVersion, writeCurrentVersion } from '../create-consumer-version.ts';
 import { harbourVesselConsumer, harbourVoyageConsumer } from './harbour-plugin.ts';
 
-// Two current consumer files, as the host leaves them: the vessel Tern in one, its voyage 12 to
-// the north port and the voyage's two links in the other.
+// Two current consumer files, as the host leaves them: the vessel Tern with its alias `tern` in
+// one, its voyage 12 to the north port and the voyage's two links in the other.
 export async function seedHarbourFiles(storeDirectory: string): Promise<void> {
   await createConsumerVersion({
     storeDirectory,
@@ -14,6 +14,7 @@ export async function seedHarbourFiles(storeDirectory: string): Promise<void> {
       harbour_vessel: [
         { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
       ],
+      harbour_vessel_alias: [{ alias: 'tern', entity_id: 'harbour:vessel:7' }],
     },
   });
 

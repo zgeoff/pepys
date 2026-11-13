@@ -1,10 +1,11 @@
 # Entities
 
-Entity IDs, entity views, the shared `entity` view and its filter of deleted rows are built, as
+Entity IDs, entity views, the shared `entity` view, its filter of deleted rows and the alias table
+of pull requests are built, as
 [entities and links](../../architecture/queries/entities-and-links.md) describes. This design adds
-an alias table beside each entity table, so a readable reference resolves to an ID, the other GitHub
-kinds, the Gmail entities, people, and a tombstone for each deletion in every source. Each source
-brings the entity consumers for its own kinds.
+an alias table beside each other entity table, so a readable reference resolves to an ID, the other
+GitHub kinds, the Gmail entities, people, and a tombstone for each deletion in every source. Each
+source brings the entity consumers for its own kinds.
 
 ## Tables and aliases
 

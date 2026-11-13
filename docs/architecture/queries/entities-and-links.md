@@ -107,6 +107,27 @@ nullable timestamp column, and the entity view declares that column as its `dele
 release view sets it, to `deleted_at`: a GitHub release that GitHub deleted keeps its row, and the
 GitHub plug-in's own queries skip it too.
 
+## Aliases
+
+An alias is a form of an entity that a person writes, such as `acme/api#412` for a pull request.
+`get_entity` takes an alias in place of an ID. A consumer that keeps aliases of an entity view's
+entities writes them to a table named after the view's table with `_alias` added, such as
+`github_pull_request_alias`. The table holds two columns: `alias`, the text key, and `entity_id`.
+[The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) refuses an alias
+table of any other shape.
+
+A consumer writes each alias in lowercase, with no `/` at the end. The API changes the text it is
+given in the same way before it looks the text up: it removes white space at both ends, changes the
+text to lowercase, and removes one `/` at the end. `Acme/API#412 ` and `acme/api#412` therefore name
+one entity.
+
+To resolve an alias, the API attaches each consumer that has an alias table and a current version,
+and reads each alias table in turn. The first match gives the entity ID. A second call then reads
+the entity as it reads an ID, so a deleted entity stays not found.
+
+In this repo, only the pull request consumer writes aliases, as
+[the GitHub plug-in](../plug-ins/github.md#families-and-consumers) describes.
+
 ## Links
 
 A consumer declares each link type it writes, with the kind or kinds allowed at each end. The host

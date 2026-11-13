@@ -77,6 +77,22 @@ test('it upserts the row of an opened pull request', () => {
         },
       },
     },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/12',
+          entity_id: 'github:pull_request:1874433021',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#12',
+          entity_id: 'github:pull_request:1874433021',
+        },
+      },
+    },
   ]);
 });
 
@@ -130,6 +146,22 @@ test('it maps the merge details of a merged pull request', () => {
           closed_at: '2026-10-02T10:30:00Z',
           merged_at: '2026-10-02T10:30:00Z',
           payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/3',
+          entity_id: 'github:pull_request:77',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#3',
+          entity_id: 'github:pull_request:77',
         },
       },
     },
@@ -193,6 +225,22 @@ test('it replaces the stored row with a fact that has a newer update time', () =
           closed_at: null,
           merged_at: null,
           payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/3',
+          entity_id: 'github:pull_request:77',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#3',
+          entity_id: 'github:pull_request:77',
         },
       },
     },
@@ -343,6 +391,22 @@ test('it upserts a different fact that has the stored update time', () => {
         },
       },
     },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/3',
+          entity_id: 'github:pull_request:77',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#3',
+          entity_id: 'github:pull_request:77',
+        },
+      },
+    },
   ]);
 });
 
@@ -424,6 +488,22 @@ test('it upserts one bump row per release URL in the body of a bot pull request'
     },
     {
       upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/14',
+          entity_id: 'github:pull_request:88',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#14',
+          entity_id: 'github:pull_request:88',
+        },
+      },
+    },
+    {
+      upsert: {
         github_release_bump: {
           pull_request_id: 'github:pull_request:88',
           release_repository: 'acme/kit',
@@ -489,6 +569,22 @@ test.each([
     },
     {
       upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/16',
+          entity_id: 'github:pull_request:90',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#16',
+          entity_id: 'github:pull_request:90',
+        },
+      },
+    },
+    {
+      upsert: {
         github_release_bump: {
           pull_request_id: 'github:pull_request:90',
           release_repository: 'acme/kit',
@@ -540,6 +636,22 @@ test('it writes no bump row for a release URL in the body of a person', () => {
         },
       },
     },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/15',
+          entity_id: 'github:pull_request:89',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#15',
+          entity_id: 'github:pull_request:89',
+        },
+      },
+    },
   ]);
 });
 
@@ -583,6 +695,22 @@ test.each([{ urlTag: 'v1.2.0/' }, { urlTag: 'kit//v1.2.0' }])(
             closed_at: null,
             merged_at: null,
             payload: pullRequest,
+          },
+        },
+      },
+      {
+        upsert: {
+          github_pull_request_alias: {
+            alias: 'https://github.example/acme/harbour/pull/17',
+            entity_id: 'github:pull_request:91',
+          },
+        },
+      },
+      {
+        upsert: {
+          github_pull_request_alias: {
+            alias: 'acme/harbour#17',
+            entity_id: 'github:pull_request:91',
           },
         },
       },
@@ -658,6 +786,22 @@ test('it replaces the bump rows of the stored body with those of a newer body', 
       },
     },
     {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour/pull/14',
+          entity_id: 'github:pull_request:88',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour#14',
+          entity_id: 'github:pull_request:88',
+        },
+      },
+    },
+    {
       delete: {
         github_release_bump: {
           pull_request_id: 'github:pull_request:88',
@@ -672,6 +816,190 @@ test('it replaces the bump rows of the stored body with those of a newer body', 
           pull_request_id: 'github:pull_request:88',
           release_repository: 'acme/kit',
           release_tag: 'v1.3.0',
+        },
+      },
+    },
+  ]);
+});
+
+test('it writes the aliases of a pull request in lowercase', () => {
+  setupTest();
+
+  const pullRequest = {
+    id: 93,
+    number: 21,
+    title: 'Chart the reef',
+    state: 'open',
+    html_url: 'https://github.example/Acme/Harbour-Charts/pull/21',
+    base: { repo: { id: 903 } },
+    created_at: '2026-10-03T09:00:00Z',
+    updated_at: '2026-10-03T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:93',
+          number: 21,
+          repository_id: 'github:repo:903',
+          title: 'Chart the reef',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/Acme/Harbour-Charts/pull/21',
+          merge_commit_sha: null,
+          created_at: '2026-10-03T09:00:00Z',
+          updated_at: '2026-10-03T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/harbour-charts/pull/21',
+          entity_id: 'github:pull_request:93',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/harbour-charts#21',
+          entity_id: 'github:pull_request:93',
+        },
+      },
+    },
+  ]);
+});
+
+test('it writes only the URL alias for a URL with no pull request path', () => {
+  setupTest();
+
+  const pullRequest = {
+    id: 94,
+    number: 22,
+    title: 'Chart the shoal',
+    state: 'open',
+    html_url: 'https://github.example/enterprise/acme/harbour/pull/22',
+    base: { repo: { id: 903 } },
+    created_at: '2026-10-03T09:00:00Z',
+    updated_at: '2026-10-03T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:94',
+          number: 22,
+          repository_id: 'github:repo:903',
+          title: 'Chart the shoal',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/enterprise/acme/harbour/pull/22',
+          merge_commit_sha: null,
+          created_at: '2026-10-03T09:00:00Z',
+          updated_at: '2026-10-03T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/enterprise/acme/harbour/pull/22',
+          entity_id: 'github:pull_request:94',
+        },
+      },
+    },
+  ]);
+});
+
+test('it adds the aliases of a renamed repository and deletes none', () => {
+  const ctx = setupTest();
+
+  ctx.rows.set(
+    'github:pull_request:77',
+    JSON.stringify({
+      id: 'github:pull_request:77',
+      number: 3,
+      repository_id: 'github:repo:902',
+      title: 'Fix the tide table',
+      state: 'open',
+      is_draft: false,
+      is_merged: false,
+      author_id: null,
+      url: 'https://github.example/acme/harbour/pull/3',
+      merge_commit_sha: null,
+      created_at: '2026-10-01T09:00:00Z',
+      updated_at: '2026-10-01T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+      payload: {},
+    }),
+  );
+
+  const pullRequest = {
+    id: 77,
+    number: 3,
+    title: 'Fix the tide table',
+    state: 'open',
+    html_url: 'https://github.example/acme/quay/pull/3',
+    base: { repo: { id: 902 } },
+    created_at: '2026-10-01T09:00:00Z',
+    updated_at: '2026-10-04T09:00:00Z',
+  };
+
+  const factJSON = JSON.stringify({ payload: { pull_request: pullRequest } });
+
+  expect(JSON.parse(applyFact(factJSON))).toStrictEqual([
+    {
+      upsert: {
+        github_pull_request: {
+          id: 'github:pull_request:77',
+          number: 3,
+          repository_id: 'github:repo:902',
+          title: 'Fix the tide table',
+          state: 'open',
+          is_draft: false,
+          is_merged: false,
+          author_id: null,
+          url: 'https://github.example/acme/quay/pull/3',
+          merge_commit_sha: null,
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-04T09:00:00Z',
+          closed_at: null,
+          merged_at: null,
+          payload: pullRequest,
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'https://github.example/acme/quay/pull/3',
+          entity_id: 'github:pull_request:77',
+        },
+      },
+    },
+    {
+      upsert: {
+        github_pull_request_alias: {
+          alias: 'acme/quay#3',
+          entity_id: 'github:pull_request:77',
         },
       },
     },

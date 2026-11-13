@@ -20,6 +20,11 @@ export interface GithubPullRequestRow {
   payload: unknown;
 }
 
+export interface GithubPullRequestAliasRow {
+  alias: string;
+  entity_id: EntityID;
+}
+
 export interface GithubReleaseBumpRow {
   pull_request_id: EntityID;
   release_repository: string;
@@ -79,6 +84,7 @@ export interface LedgerEntryRow {
 
 export interface DB {
   github_pull_request: GithubPullRequestRow;
+  github_pull_request_alias: GithubPullRequestAliasRow;
   github_release_bump: GithubReleaseBumpRow;
   github_release: GithubReleaseRow;
   github_commit: GithubCommitRow;

@@ -103,6 +103,74 @@ test('it serves get_entity at /rpc', async () => {
   });
 });
 
+test('it serves get_entity at /rpc by an alias', async () => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.vessel.named',
+      event: 'evt-1',
+      entity: 'harbour:vessel:7',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { name: 'Tern' },
+    },
+  ]);
+
+  const found = await ctx.client.get_entity({ id: 'TERN' });
+
+  expect(found).toStrictEqual({
+    entity: {
+      id: toTagged<EntityID>('harbour:vessel:7'),
+      kind: 'harbour:vessel',
+      title: 'Tern',
+      url: null,
+      actor: null,
+      updated_at: '2026-11-01T08:00:00.000Z',
+    },
+    consumer: 'harbour_vessel',
+    table: 'harbour_vessel',
+    row: { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+  });
+});
+
+test('it answers 400 for a get_entity with an empty ID', async () => {
+  const ctx = await setupTest();
+
+  const error = await ctx.client.get_entity({ id: '' }).then(
+    () => null,
+    (error_: unknown) => error_,
+  );
+
+  expect(error).toMatchObject({ code: 'BAD_REQUEST' });
+  expect(ctx.statuses).toStrictEqual([400]);
+});
+
+test('it runs get_entity as an MCP tool by an alias', async () => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(harbourSource, [
+    {
+      type: 'harbour.vessel.named',
+      event: 'evt-1',
+      entity: 'harbour:vessel:7',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { name: 'Tern' },
+    },
+  ]);
+
+  const answer = await ctx.callMCP('tools/call', { name: 'get_entity', arguments: { id: 'tern' } });
+
+  const vessel = expect.objectContaining({ id: 'harbour:vessel:7' });
+
+  expect(answer).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: expect.objectContaining({
+      structuredContent: expect.objectContaining({ entity: vessel }),
+    }),
+  });
+});
+
 test('it serves neighbourhood at /rpc with every default filled in', async () => {
   const ctx = await setupTest();
 

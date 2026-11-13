@@ -26,7 +26,10 @@ const entitySummarySchema = z.object({
 const getEntityInput = z.object({
   id: z
     .string()
-    .describe('The entity ID, as <source>:<kind>:<id>, such as github:pull_request:9001.'),
+    .min(1)
+    .describe(
+      'The entity ID, as <source>:<kind>:<id>, such as github:pull_request:9001, or an alias of the entity, such as acme/api#412 or https://github.com/acme/api/pull/412 for a pull request.',
+    ),
 });
 
 const getEntityOutput = z.object({
@@ -109,7 +112,7 @@ export const coreContract = {
     .meta(
       openapi({
         description:
-          'Returns one entity by its ID, such as github:pull_request:9001: its summary, the consumer and table that hold it, and its full row.',
+          'Returns one entity by its ID, such as github:pull_request:9001, or by an alias, such as acme/api#412: its summary, the consumer and table that hold it, and its full row.',
       }),
     )
     .input(getEntityInput)

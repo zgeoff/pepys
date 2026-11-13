@@ -9,10 +9,10 @@
         "consumers": [
           {
             "name": "github_pull_request",
-            "module": "93bae5d2efcaf1db54b60984c0bd7c107d3947a39483d082de05e9a43a66f920",
-            "path": "github_pull_request/93bae5d2efcaf1db54b60984c0bd7c107d3947a39483d082de05e9a43a66f920.wasm",
+            "module": "d477ad0f1fd383efec64d85c1ec1b327d81bd1537558d55bf9c1d13669a3e1e7",
+            "path": "github_pull_request/d477ad0f1fd383efec64d85c1ec1b327d81bd1537558d55bf9c1d13669a3e1e7.wasm",
             "pins": {},
-            "version": "7fbf4b5c95b108fb03440436f0eb23a18c4bdaa3426a4f97bcfa6f200b86abef",
+            "version": "9e4a74b284ca28b49f1987df3cf24eb058f7130045623e921cd69fdaacd86be8",
             "manifest": {
               "name": "github_pull_request",
               "input": {
@@ -98,6 +98,20 @@
                   "primaryKey": ["id"],
                   "indexes": [["repository_id"]]
                 },
+                "github_pull_request_alias": {
+                  "columns": {
+                    "alias": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "entity_id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["alias"],
+                  "indexes": [["entity_id"]]
+                },
                 "github_release_bump": {
                   "columns": {
                     "pull_request_id": {
@@ -118,7 +132,7 @@
                 }
               },
               "links": [],
-              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE TABLE \"github_release_bump\" (\n  \"pull_request_id\" TEXT NOT NULL,\n  \"release_repository\" TEXT NOT NULL,\n  \"release_tag\" TEXT NOT NULL,\n  PRIMARY KEY (\"pull_request_id\", \"release_repository\", \"release_tag\")\n);\n\nCREATE INDEX \"github_release_bump_release_repository_release_tag_idx\" ON \"github_release_bump\" (\"release_repository\", \"release_tag\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
+              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE TABLE \"github_pull_request_alias\" (\n  \"alias\" TEXT NOT NULL,\n  \"entity_id\" TEXT NOT NULL,\n  PRIMARY KEY (\"alias\")\n);\n\nCREATE INDEX \"github_pull_request_alias_entity_id_idx\" ON \"github_pull_request_alias\" (\"entity_id\");\n\nCREATE TABLE \"github_release_bump\" (\n  \"pull_request_id\" TEXT NOT NULL,\n  \"release_repository\" TEXT NOT NULL,\n  \"release_tag\" TEXT NOT NULL,\n  PRIMARY KEY (\"pull_request_id\", \"release_repository\", \"release_tag\")\n);\n\nCREATE INDEX \"github_release_bump_release_repository_release_tag_idx\" ON \"github_release_bump\" (\"release_repository\", \"release_tag\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
             }
           },
           {
@@ -316,10 +330,10 @@
           },
           {
             "name": "ledger_account",
-            "module": "930ea130f9c8f7e2403f8740d8af077e675ef3f9aaf20ddc5505dd32d8ef71a7",
-            "path": "ledger_account/930ea130f9c8f7e2403f8740d8af077e675ef3f9aaf20ddc5505dd32d8ef71a7.wasm",
+            "module": "846b0342e2a7d178d151228dd02646f549a6112a828cda5b7a285b2fab033e4a",
+            "path": "ledger_account/846b0342e2a7d178d151228dd02646f549a6112a828cda5b7a285b2fab033e4a.wasm",
             "pins": {},
-            "version": "b16f787c665a709ad10432707e719b9728a02d30b7bdff95796bd11e1468a61c",
+            "version": "fa46b79cc555ac2557d5842de10724578f84794f365327ad0e19694cae9ebe62",
             "manifest": {
               "name": "ledger_account",
               "input": {

@@ -74,6 +74,11 @@ whose author GitHub gives the user type `Bot`. Such a pull request is a bump: it
 repository to use a release of another repository, as a dependency update bot does.
 [The delivery query](#the-delivery-query) follows a bump to a deploy.
 
+For a fact that wins, the consumer writes the pull request's `html_url` and
+`<owner>/<repo>#<number>` to `github_pull_request_alias`, in lowercase, as
+[aliases](../queries/entities-and-links.md#aliases). It never deletes an alias, so a renamed
+repository's old forms still work.
+
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.
 

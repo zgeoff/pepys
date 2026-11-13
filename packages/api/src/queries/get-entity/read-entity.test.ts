@@ -63,6 +63,7 @@ test.each([
   ['an ID of a kind no entity view holds', 'harbour:port:north'],
   ['an ID of a kind no plug-in brings', 'ledger:account:reef'],
   ['an ID no row holds', 'harbour:vessel:404'],
+  ['an alias no row holds', 'vessel-7'],
 ])('it answers NOT_FOUND for %s', async (_case, id) => {
   const ctx = await setupTest();
   const read = await readEntity(ctx.context, id);
@@ -73,13 +74,55 @@ test.each([
   });
 });
 
-test('it answers BAD_REQUEST for text that is no entity ID', async () => {
-  const ctx = await setupTest();
-  const read = await readEntity(ctx.context, 'vessel-7');
+test.each([['tern'], ['Tern'], [' TERN '], ['tern/']])(
+  'it returns the entity that the alias %p names',
+  async (alias) => {
+    const ctx = await setupTest();
 
-  expect(read).toMatchObject({
+    await ctx.store.apply(harbourSource, [
+      {
+        type: 'harbour.vessel.named',
+        event: 'evt-1',
+        entity: 'harbour:vessel:7',
+        at: '2026-11-01T08:00:00.000Z',
+        payload: { name: 'Tern' },
+      },
+    ]);
+
+    const read = await readEntity(ctx.context, alias);
+
+    expect(read).toStrictEqual({
+      ok: true,
+      value: {
+        entity: {
+          id: toTagged<EntityID>('harbour:vessel:7'),
+          kind: 'harbour:vessel',
+          title: 'Tern',
+          url: null,
+          actor: null,
+          updated_at: '2026-11-01T08:00:00.000Z',
+        },
+        consumer: 'harbour_vessel',
+        table: 'harbour_vessel',
+        row: { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+      },
+    });
+  },
+);
+
+test('it answers SERVICE_UNAVAILABLE for an alias it cannot find while the alias consumer has no current version', async () => {
+  const ctx = await setupTest();
+
+  ctx.store.reader.markDown('harbour_vessel');
+
+  const read = await readEntity(ctx.context, 'tern');
+
+  expect(read).toStrictEqual({
     ok: false,
-    failure: { code: 'BAD_REQUEST' },
+    failure: {
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'the consumer harbour_vessel has no current version',
+    },
   });
 });
 

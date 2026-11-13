@@ -70,11 +70,13 @@ beside an older batch in the other.
 
 The API serves two queries of its own, beside the plug-in queries: `get_entity` and `neighbourhood`.
 Each takes an entity ID of the form `<source>:<kind>:<id>`, as
-[Entity IDs](./entities-and-links.md#entity-ids) describes.
+[Entity IDs](./entities-and-links.md#entity-ids) describes. `get_entity` also takes an alias.
 
-**`get_entity`** returns one entity. The deployment check lets only one consumer declare the entity
-view of a kind, so `get_entity` reads the kind from the ID and attaches that one consumer's file.
-The answer holds:
+**`get_entity`** returns one entity. Text that parses as an entity ID is an ID, and any other text,
+such as `acme/api#412`, is an alias. The API resolves an alias to an ID first, as
+[Aliases](./entities-and-links.md#aliases) describes. The deployment check lets only one consumer
+declare the entity view of a kind, so `get_entity` reads the kind from the ID and attaches that one
+consumer's file. The answer holds:
 
 - the entity's row in the shared `entity` view;
 - the name of the consumer;
@@ -83,11 +85,14 @@ The answer holds:
 
 `get_entity` fails in these cases:
 
-- An ID that does not parse is a bad request.
+- Empty text is a bad request.
 - An ID whose kind no consumer declares an entity view for is not found.
 - An ID with no row is not found.
-- When the consumer has no current version, the call fails with 503, as [One call](#one-call)
-  describes.
+- An alias that no alias table holds is not found. When a consumer with an alias table has no
+  current version, the call fails with 503 in place of not found, because that consumer may hold the
+  alias.
+- When the consumer of the entity's kind has no current version, the call fails with 503, as
+  [One call](#one-call) describes.
 
 **`neighbourhood`** returns the entities linked to a start entity, and the links between them. It
 walks the `link_effective` view, breadth first, in both directions, with one SQL query per hop. It

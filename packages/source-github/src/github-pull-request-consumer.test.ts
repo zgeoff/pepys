@@ -1,7 +1,45 @@
-import { expect, test } from 'bun:test';
-import { checkDeployment } from '@pepys/kit';
+import { expect, onTestFinished, test } from 'bun:test';
+import { createORPCClient } from '@orpc/client';
+import { RPCLink } from '@orpc/client/fetch';
+import { buildQueryContext, createApp } from '@pepys/api';
+import type { DeploymentClient } from '@pepys/api';
+import { checkDeployment, defineDeployment } from '@pepys/kit';
+import type { EntityID } from '@pepys/kit';
+import { createTestStore } from '@pepys/testing';
+import { toTagged } from '@zgeoff/std';
+import invariant from 'tiny-invariant';
 import { githubPlugin } from './github-plugin.ts';
 import { githubPullRequestConsumer } from './github-pull-request-consumer.ts';
+import { githubSource } from './github-source.ts';
+
+async function setupTest() {
+  const deployment = defineDeployment({ name: 'harbour', plugins: [githubPlugin] });
+  const checked = checkDeployment(deployment);
+
+  invariant(checked.ok, 'the GitHub deployment passes the check');
+
+  const store = await createTestStore({ plugins: [githubPlugin] });
+
+  onTestFinished(() => store[Symbol.asyncDispose]());
+
+  const app = createApp(buildQueryContext(store.reader, checked.value), {
+    logError: () => {},
+    oauth: null,
+  });
+
+  const link = new RPCLink({
+    url: '/rpc',
+    origin: 'http://pepys.test',
+
+    // RPCLink fixes this option name
+    // oxlint-disable-next-line zgeoff/function-verb
+    fetch: (url, init) => app.handle(new Request(url, init)),
+  });
+
+  const client: DeploymentClient<typeof deployment> = createORPCClient(link);
+
+  return { store, client };
+}
 
 test('it declares a consumer that passes the deployment check', () => {
   const checked = checkDeployment({ name: 'harbour', plugins: [githubPlugin] });
@@ -9,9 +47,10 @@ test('it declares a consumer that passes the deployment check', () => {
   expect(checked.ok).toBe(true);
 });
 
-test('it owns the pull request and release bump tables and tails the pull request stream', () => {
+test('it owns the pull request, alias and release bump tables and tails the pull request stream', () => {
   expect(Object.keys(githubPullRequestConsumer.tables)).toStrictEqual([
     'github_pull_request',
+    'github_pull_request_alias',
     'github_release_bump',
   ]);
 
@@ -41,6 +80,14 @@ test('it declares the pull request columns', () => {
   });
 });
 
+test('it declares an alias table of a text alias key and the entity ID', () => {
+  expect(githubPullRequestConsumer.tables.github_pull_request_alias).toStrictEqual({
+    columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+    primaryKey: ['alias'],
+    indexes: [{ columns: ['entity_id'] }],
+  });
+});
+
 test('it maps the entity view to the title, URL, author and update time', () => {
   expect(githubPullRequestConsumer.entityViews).toStrictEqual([
     {
@@ -57,4 +104,85 @@ test('it maps the entity view to the title, URL, author and update time', () => 
 
 test('it reads its own table, so a fact older than the stored row changes nothing', () => {
   expect(githubPullRequestConsumer.reads).toStrictEqual(['github_pull_request']);
+});
+
+test.each([
+  ['acme/harbour#12'],
+  ['Acme/Harbour#12'],
+  ['https://github.example/acme/harbour/pull/12'],
+  ['https://github.example/Acme/Harbour/pull/12/'],
+])('#get_entity returns the pull request that the alias %p names', async (alias) => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(githubSource, [
+    {
+      type: 'github.pull_request.opened',
+      event: 'delivery-1',
+      entity: 'github:pull_request:1874433021',
+      at: '2026-10-01T09:00:00Z',
+      payload: {
+        action: 'opened',
+        pull_request: {
+          id: 1_874_433_021,
+          number: 12,
+          title: 'Add the harbour map',
+          state: 'open',
+          html_url: 'https://github.example/Acme/Harbour/pull/12',
+          user: { id: 4401 },
+          base: { repo: { id: 902 } },
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T09:00:00Z',
+        },
+      },
+    },
+  ]);
+
+  const found = await ctx.client.get_entity({ id: alias });
+
+  expect(found).toStrictEqual({
+    entity: {
+      id: toTagged<EntityID>('github:pull_request:1874433021'),
+      kind: 'github:pull_request',
+      title: 'Add the harbour map',
+      url: 'https://github.example/Acme/Harbour/pull/12',
+      actor: toTagged<EntityID>('github:user:4401'),
+      updated_at: '2026-10-01T09:00:00Z',
+    },
+    consumer: 'github_pull_request',
+    table: 'github_pull_request',
+    row: expect.objectContaining({ id: 'github:pull_request:1874433021', number: 12 }),
+  });
+});
+
+test('#get_entity answers NOT_FOUND for an alias of a pull request it has no fact for', async () => {
+  const ctx = await setupTest();
+
+  await ctx.store.apply(githubSource, [
+    {
+      type: 'github.pull_request.opened',
+      event: 'delivery-1',
+      entity: 'github:pull_request:1874433021',
+      at: '2026-10-01T09:00:00Z',
+      payload: {
+        action: 'opened',
+        pull_request: {
+          id: 1_874_433_021,
+          number: 12,
+          title: 'Add the harbour map',
+          state: 'open',
+          html_url: 'https://github.example/acme/harbour/pull/12',
+          base: { repo: { id: 902 } },
+          created_at: '2026-10-01T09:00:00Z',
+          updated_at: '2026-10-01T09:00:00Z',
+        },
+      },
+    },
+  ]);
+
+  const error = await ctx.client.get_entity({ id: 'acme/harbour#13' }).then(
+    () => null,
+    (error_: unknown) => error_,
+  );
+
+  expect(error).toMatchObject({ code: 'NOT_FOUND' });
 });

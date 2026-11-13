@@ -12,8 +12,9 @@ import type { EntityID } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import { z } from 'zod';
 
-// A stub plug-in of two fact-mode consumers in two files: vessels, and voyages that link to a
-// vessel and, through a hub link type, to a port that no consumer holds.
+// A stub plug-in of two fact-mode consumers in two files: vessels, each with its name in lowercase
+// as an alias, and voyages that link to a vessel and, through a hub link type, to a port that no
+// consumer holds.
 
 const vesselFamily = defineFactFamily({
   stream: 'facts.harbour.vessel',
@@ -77,6 +78,14 @@ export const harbourVesselConsumer = defineConsumer({
         updated_at: { kind: 'timestamp' },
       },
       primaryKey: ['id'],
+      indexes: [],
+    }),
+    harbour_vessel_alias: defineTable({
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+      },
+      primaryKey: ['alias'],
       indexes: [],
     }),
   },

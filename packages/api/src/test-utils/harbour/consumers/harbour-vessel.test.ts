@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { applyFact } from './harbour-vessel.ts';
 
-test('it upserts one vessel row named by the fact, at the fact time', () => {
+test('it upserts one vessel row named by the fact, at the fact time, and the name as an alias', () => {
   const operations: unknown = JSON.parse(
     applyFact(
       JSON.stringify({
@@ -23,6 +23,7 @@ test('it upserts one vessel row named by the fact, at the fact time', () => {
         },
       },
     },
+    { upsert: { harbour_vessel_alias: { alias: 'gannet', entity_id: 'harbour:vessel:4' } } },
   ]);
 });
 

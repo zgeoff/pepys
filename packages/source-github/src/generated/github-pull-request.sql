@@ -21,6 +21,14 @@ CREATE TABLE "github_pull_request" (
 
 CREATE INDEX "github_pull_request_repository_id_idx" ON "github_pull_request" ("repository_id");
 
+CREATE TABLE "github_pull_request_alias" (
+  "alias" TEXT NOT NULL,
+  "entity_id" TEXT NOT NULL,
+  PRIMARY KEY ("alias")
+);
+
+CREATE INDEX "github_pull_request_alias_entity_id_idx" ON "github_pull_request_alias" ("entity_id");
+
 CREATE TABLE "github_release_bump" (
   "pull_request_id" TEXT NOT NULL,
   "release_repository" TEXT NOT NULL,

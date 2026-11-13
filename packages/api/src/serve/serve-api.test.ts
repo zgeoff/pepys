@@ -147,6 +147,28 @@ test('it serves get_entity from the file of the consumer that owns the kind', as
   });
 });
 
+test('it serves get_entity by an alias from the file of the consumer that holds the alias', async () => {
+  const ctx = await setupTest();
+
+  await seedHarbourFiles(ctx.storeDirectory);
+
+  const found = await ctx.client.get_entity({ id: 'Tern' });
+
+  expect(found).toStrictEqual({
+    entity: {
+      id: toTagged<EntityID>('harbour:vessel:7'),
+      kind: 'harbour:vessel',
+      title: 'Tern',
+      url: null,
+      actor: null,
+      updated_at: '2026-11-01T08:00:00.000Z',
+    },
+    consumer: 'harbour_vessel',
+    table: 'harbour_vessel',
+    row: { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
+  });
+});
+
 test('it walks a link in one file to an entity in another', async () => {
   const ctx = await setupTest();
 

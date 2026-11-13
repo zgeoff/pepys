@@ -1,9 +1,14 @@
-// A stub fact-mode entry: one row per vessel, named by its newest fact.
+// A stub fact-mode entry: one row per vessel, named by its newest fact, and the name in lowercase
+// as an alias of the vessel.
 export function applyFact(factJSON: string): string {
   const fact = parseVesselFact(factJSON);
   const row = { id: fact.entity, name: fact.payload.name, updated_at: fact.at };
+  const alias = { alias: fact.payload.name.toLowerCase(), entity_id: fact.entity };
 
-  return JSON.stringify([{ upsert: { harbour_vessel: row } }]);
+  return JSON.stringify([
+    { upsert: { harbour_vessel: row } },
+    { upsert: { harbour_vessel_alias: alias } },
+  ]);
 }
 
 interface VesselFact {

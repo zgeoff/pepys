@@ -100,14 +100,16 @@ test('it makes the tables the host makes, link included, for a consumer without 
     directory,
     `select m.name as "table", p.name as name, p.type as type, p."notnull" as "notnull", p.pk as pk
      from sqlite_master m join pragma_table_info(m.name) p
-     where m.type = 'table' and m.name != 'harbour_vessel' order by m.name, p.cid`,
+     where m.type = 'table' and m.name not in ('harbour_vessel', 'harbour_vessel_alias')
+     order by m.name, p.cid`,
   );
 
   const indexes = await ctx.readFile(
     directory,
     `select m.name as "index", m.tbl_name as "table", i.name as "column"
      from sqlite_master m join pragma_index_info(m.name) i
-     where m.type = 'index' and m.sql is not null and m.tbl_name != 'harbour_vessel'
+     where m.type = 'index' and m.sql is not null
+       and m.tbl_name not in ('harbour_vessel', 'harbour_vessel_alias')
      order by m.name, i.seqno`,
   );
 

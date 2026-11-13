@@ -28,6 +28,17 @@ export const githubPullRequestConsumer = defineConsumer({
       indexes: [{ columns: ['repository_id'] }],
     }),
 
+    // Each form a person writes for a pull request: its URL and `<owner>/<repo>#<number>`, in
+    // lowercase. A rename adds the new forms and keeps the old ones.
+    github_pull_request_alias: defineTable({
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+      },
+      primaryKey: ['alias'],
+      indexes: [{ columns: ['entity_id'] }],
+    }),
+
     // One row per release that a bot's pull request names in its body, by the release URL. The rows
     // follow the pull request row: a fact that loses writes none, and one that wins replaces them.
     github_release_bump: defineTable({
