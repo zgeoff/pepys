@@ -382,3 +382,70 @@ test('it keeps a run behind a stopped one waiting until the run ahead of both en
 
   expect(events).toStrictEqual(['live ends', 'backfill starts']);
 });
+
+test('it makes a run that asks after a waiting run stopped wait for the run ahead of both', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const ingest = ctx.createIngest(createMemoryFactLog([cursorStream]), {
+    almanac: {
+      live: {
+        intervalMs: null,
+        pull: async () => {
+          started.resolve();
+
+          await release.promise;
+
+          events.push('live ends');
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: { intervalMs: null, pull: () => Promise.resolve({ kind: 'expired' }) },
+      backfill: {
+        intervalMs: null,
+        pull: () => {
+          events.push('backfill starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+    gazette: {
+      live: {
+        intervalMs: null,
+        pull: () => {
+          events.push('gazette ends');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+  });
+
+  const signal = new AbortController().signal;
+
+  const held = ingest.runPull('almanac', 'live', null, signal);
+
+  await started.promise;
+
+  const waiting = new AbortController();
+
+  const stopped = ingest.runPull('almanac', 'recovery', null, waiting.signal);
+
+  waiting.abort();
+
+  await stopped;
+
+  const after = ingest.runPull('almanac', 'backfill', null, signal);
+
+  await ingest.runPull('gazette', 'live', null, signal);
+
+  release.resolve();
+
+  await Promise.all([held, after]);
+
+  expect(events).toStrictEqual(['gazette ends', 'live ends', 'backfill starts']);
+});

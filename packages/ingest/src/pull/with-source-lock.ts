@@ -27,9 +27,9 @@ export async function withSourceLock<Value>(
   } finally {
     done.resolve();
 
-    if (locks.get(source) === turn) {
-      locks.delete(source);
-    }
+    // A run that stops while it waits ends before the runs ahead of it, so the entry stays until
+    // those runs end too.
+    void removeEndedTurn(locks, source, turn);
   }
 }
 
@@ -57,5 +57,17 @@ async function waitForTurn(
     return signal.aborted ? 'stopped' : 'turn';
   } finally {
     signal.removeEventListener('abort', stop);
+  }
+}
+
+async function removeEndedTurn(
+  locks: SourceLocks,
+  source: string,
+  turn: Promise<void>,
+): Promise<void> {
+  await turn;
+
+  if (locks.get(source) === turn) {
+    locks.delete(source);
   }
 }
