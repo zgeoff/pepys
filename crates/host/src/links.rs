@@ -323,7 +323,6 @@ mod tests {
         problem: Option<String>,
     }
 
-    // The names of the kit's problem kinds.
     fn to_problem_kind(problem: &LinkProblem) -> String {
         match problem {
             LinkProblem::NotDeclared { .. } => "not-declared",

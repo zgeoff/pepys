@@ -306,7 +306,6 @@ mod tests {
     use crate::scope::IndexFacts;
     use crate::test_utils::stub_scope_manifest;
 
-    // A scope module whose apply reads the facts of `asked`, whatever scope it is called for.
     fn build_reading_module(manifest: &ConsumerManifest, asked: &str) -> Vec<u8> {
         let Some(Read::ScopeFacts { length, .. }) = manifest.imports.first() else {
             panic!("the stub scope consumer has one scope read");

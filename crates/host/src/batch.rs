@@ -352,8 +352,6 @@ mod tests {
             .expect("an integer")
     }
 
-    // Upserts a row of a one-column key of `kind` written as `value`, then deletes it by the same
-    // text, in two batches. Returns the rows left and each change log entry's operation and key.
     async fn run_upsert_then_delete(
         kind: &str,
         sql_type: &str,
@@ -1067,8 +1065,6 @@ mod tests {
         assert_eq!(change_log(&store).await.len(), 0);
     }
 
-    // A good fact with a row and a link, then a fact whose link the check refuses. The batch
-    // returns the refusal and leaves every table as it was.
     async fn apply_good_fact_then_bad_link(bad_link: Value) -> (String, [i64; 4], Option<u64>) {
         let (_directory, store, manifest) = setup_with_links().await;
         let good = r#"{"id":"delivery-1"}"#;

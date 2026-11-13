@@ -490,7 +490,6 @@ mod tests {
         store
     }
 
-    // The refusal kinds of the case file.
     fn to_refusal_kind(error: &HostError) -> String {
         match error {
             HostError::BadOperation(_) => "bad-operation",

@@ -115,9 +115,6 @@ mod pull_request_unreadable_payload {
     const BASIN: &str = "pull-request-unreadable-payload";
     const STREAM: &str = "facts.github.pull_request";
 
-    // The pull request module that `bun run consumers:build` compiled from the stub deployment,
-    // through the host's `up` on s2-lite, on a fact whose payload holds no pull request it can read
-    // and then on a readable one.
     #[tokio::test(flavor = "multi_thread")]
     async fn it_stores_no_row_for_a_pull_request_fact_whose_payload_does_not_parse_and_applies_the_next_fact()
      {

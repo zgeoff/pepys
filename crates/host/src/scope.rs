@@ -230,7 +230,6 @@ mod tests {
                 .expect("an integer")
         }
 
-        // The rows, links, change log rows and indexed facts of the file, and the stream's offset.
         async fn read_counts(&self) -> (i64, i64, i64, i64, Option<u64>) {
             (
                 self.count("ledger_account").await + self.count("ledger_entry").await,
