@@ -9,8 +9,8 @@
 
 **WIP**
 
-sources -> immutable fact log (one stream per source, on object storage) -> sandboxed WASM consumers
--> queryable tables
+sources -> immutable fact log (one stream per fact family, on object storage) -> sandboxed WASM
+consumers -> queryable tables
 
 ## Packages
 
