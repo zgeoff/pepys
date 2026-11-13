@@ -101,8 +101,14 @@ test('it fails a deployment whose settings fail the schema', () => {
     settings: { tickets: { project: 'ab' } },
   });
 
-  expect(checkBuildTarget({ kind: 'deployment', deployment })).toMatchObject({
+  expect(checkBuildTarget({ kind: 'deployment', deployment })).toStrictEqual({
     ok: false,
-    failure: [{ kind: 'invalid-settings', plugin: 'tickets' }],
+    failure: [
+      {
+        kind: 'invalid-settings',
+        plugin: 'tickets',
+        issues: [expect.stringMatching(/^project: /u)],
+      },
+    ],
   });
 });
