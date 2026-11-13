@@ -7,7 +7,6 @@ import { match } from 'ts-pattern';
 import { createApp } from '../app/create-app.ts';
 import { readAPIConfig } from '../config/read-api-config.ts';
 import type { APIConfig, MCPConfig } from '../config/read-api-config.ts';
-import { openMCPAuthDatabase } from '../oauth/admin/open-mcp-auth-database.ts';
 import { runClients } from '../oauth/admin/run-clients.ts';
 import { runGrants } from '../oauth/admin/run-grants.ts';
 import { runPasskeys } from '../oauth/admin/run-passkeys.ts';
@@ -163,7 +162,6 @@ function startOAuthServer(context: QueryContext, config: APIConfig, mcp: MCPConf
     allowedHosts: mcp.allowedHosts,
     trustForwardedFrom: mcp.trustForwardedFrom,
     dbPath: join(mcp.authDirectory, AUTH_DB_FILE),
-    openAuthDatabase: openMCPAuthDatabase,
     createServedApp: (oauth) => createApp(context, { logError, oauth }),
 
     // A log shipper matches the `pepys security ` prefix of these lines.

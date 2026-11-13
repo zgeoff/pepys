@@ -1,9 +1,9 @@
 import { parseArgs } from 'node:util';
 import type { Result } from '@pepys/kit';
+import type { GrantID, PasskeyID } from '@zgeoff/mcp-auth';
 import { toTagged } from '@zgeoff/std';
 import type { ClientsAction } from '../oauth/admin/run-clients.ts';
 import type { PasskeysAction } from '../oauth/admin/run-passkeys.ts';
-import type { OAuthClientID, OAuthGrantID, PasskeyID } from '../oauth/auth/types.ts';
 
 // What one run of the API's entry does: serve, or one admin command on the
 // OAuth server's database.
@@ -11,7 +11,7 @@ export type APICommand =
   | { readonly kind: 'serve' }
   | { readonly kind: 'passkeys'; readonly action: PasskeysAction }
   | { readonly kind: 'clients'; readonly action: ClientsAction }
-  | { readonly kind: 'grants'; readonly revoke: OAuthGrantID | null };
+  | { readonly kind: 'grants'; readonly revoke: GrantID | null };
 
 const usage = [
   'usage: <entry>                                   serve the API',
@@ -20,7 +20,7 @@ const usage = [
   '       <entry> passkeys remove <id>              remove a passkey',
   '       <entry> clients [list]                    list the clients',
   '       <entry> clients add <name> --redirect-uri <uri> [--redirect-uri <uri>...]',
-  '       <entry> clients remove <id>               remove a client and revoke its grants',
+  '       <entry> clients remove <name>             remove a client and revoke its grants',
   '       <entry> grants [--revoke=<grant_id>]      list the grants, or revoke one',
 ].join('\n');
 
@@ -52,7 +52,7 @@ export function parseAPIArguments(args: readonly string[]): Result<APICommand, s
         ok: true,
         value: {
           kind: 'grants',
-          revoke: revoke === undefined ? null : toTagged<OAuthGrantID>(revoke),
+          revoke: revoke === undefined ? null : toTagged<GrantID>(revoke),
         },
       };
     }
@@ -125,7 +125,7 @@ function parseClients(args: readonly string[]): Result<APICommand, string> {
           ok: true,
           value: {
             kind: 'clients',
-            action: { kind: 'remove', clientID: toTagged<OAuthClientID>(operand) },
+            action: { kind: 'remove', name: operand },
           },
         }
       : { ok: false, failure: usage };

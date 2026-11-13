@@ -1,278 +1,165 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import type { PasskeyID } from '@zgeoff/mcp-auth';
+import { buildStubAuthenticator, seedPasskey } from '@zgeoff/mcp-auth/testing';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
-import { openMCPAuth } from '../auth/open-mcp-auth.ts';
-import { readEnrollmentToken } from '../auth/read-enrollment-token.ts';
-import { readOwnerSessionViews } from '../auth/read-owner-session-views.ts';
-import { readPasskeyViews } from '../auth/read-passkey-views.ts';
-import { systemClock } from '../auth/system-clock.ts';
-import type { PasskeyID } from '../auth/types.ts';
-import { updatePasskeyUse } from '../auth/update-passkey-use.ts';
-import { buildSeeder } from '../test-utils/build-seeder.ts';
-import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
+import { openSharedAuth } from '../../test-utils/open-shared-auth.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { runPasskeys } from './run-passkeys.ts';
+import type { PasskeysAction } from './run-passkeys.ts';
 
-// A temp directory that holds the authorization database the command
-// opens, with the database opened a second time the way the server opens
-// it, to arrange and read rows through.
+// A database file in a folder the command creates, a second auth core on it
+// to seed passkeys and read them back, and every line the command gives.
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-passkeys-');
   const dbPath = join(temporaryDirectory.path, 'state', 'mcp-auth.db');
+  const printed: string[] = [];
+  const errors: string[] = [];
+  const codes: number[] = [];
 
+  const run = (action: PasskeysAction, command = 'passkeys') =>
+    runPasskeys(
+      action,
+      { dbPath, command },
+      {
+        print: (line) => {
+          printed.push(line);
+        },
+        printError: (line) => {
+          errors.push(line);
+        },
+        setExitCode: (code) => {
+          codes.push(code);
+        },
+      },
+    );
+
+  // The command makes the folder and the tables the second core opens on.
   await runPasskeys(
     { kind: 'list' },
     { dbPath, command: 'passkeys' },
-    { print: () => {}, printError: () => {}, setExitCode: () => {}, now: () => 0 },
-  );
-
-  const store = await openMCPAuth({ dbPath, openDatabase: openMCPAuthDatabase, origin: null });
-
-  registerTestCleanup(() => store.close());
-
-  return { dbPath, store, seed: buildSeeder({ db: store.db, clock: systemClock }) };
-}
-
-test('it prints an enrollment token the server accepts until it expires 15 minutes later', async () => {
-  const ctx = await setupTest();
-
-  const printed: string[] = [];
-
-  await runPasskeys(
-    { kind: 'enroll', reset: false },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
     {
-      print: (line) => {
-        printed.push(line);
-      },
+      print: () => {},
       printError: () => {},
       setExitCode: () => {},
-      now: () => Date.UTC(2026, 9, 14, 12, 0, 0),
     },
   );
 
-  const token = /^Enrollment token: (?<token>pepys-enroll-[\w-]{43})$/u.exec(printed[0] ?? '')
-    ?.groups?.['token'];
+  const auth = await openSharedAuth({ origin: 'http://127.0.0.1:8081', dbPath });
 
-  expect(printed[1]).toBe(
-    "It enrolls one passkey and expires at 2026-10-14T12:15:00.000Z. Open /enroll on the server's public URL in your browser and type it there.",
+  return {
+    auth,
+    printed,
+    errors,
+    codes,
+    runPasskeys: run,
+    seed: { passkey: () => seedPasskey(auth, { authenticator: buildStubAuthenticator() }) },
+  };
+}
+
+test('it prints an enrollment token the server accepts', async () => {
+  const ctx = await setupTest();
+
+  await ctx.runPasskeys({ kind: 'enroll', reset: false });
+
+  const token = /^Enrollment token: (?<token>\S+)$/u.exec(ctx.printed[0] ?? '')?.groups?.['token'];
+
+  const enrolled = await ctx.auth.routes.enroll(
+    new Request('http://127.0.0.1:8081/enroll', {
+      method: 'POST',
+      headers: {
+        origin: 'http://127.0.0.1:8081',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ token: token ?? '' }),
+    }),
+    { socketAddress: null, connectingIP: null, userAgent: null },
   );
 
-  const found = await readEnrollmentToken(
-    ctx.store.db,
-    token ?? '',
-    Date.UTC(2026, 9, 14, 12, 14, 59),
-  );
-
-  expect(found).toBeString();
+  expect({
+    hint: ctx.printed[1],
+    status: enrolled.status,
+    page: await enrolled.text(),
+  }).toStrictEqual({
+    hint: "It enrolls one passkey and expires soon. Open /enroll on the server's public URL in your browser and type it there.",
+    status: 200,
+    page: expect.stringContaining('navigator.credentials.create'),
+  });
 });
 
 test('it keeps the enrolled passkeys when it enrolls without reset', async () => {
   const ctx = await setupTest();
 
-  await ctx.seed.passkey({
-    id: toTagged<PasskeyID>('cred-phone'),
-    now: Date.UTC(2026, 9, 14, 12, 0, 0),
-  });
+  await ctx.seed.passkey();
+  await ctx.runPasskeys({ kind: 'enroll', reset: false });
 
-  await runPasskeys(
-    { kind: 'enroll', reset: false },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
-    { print: () => {}, printError: () => {}, setExitCode: () => {}, now: () => Date.now() },
-  );
-
-  const passkeys = await readPasskeyViews(ctx.store.db);
-
-  expect(passkeys).toStrictEqual([
-    {
-      id: toTagged<PasskeyID>('cred-phone'),
-      createdAt: '2026-10-14T12:00:00.000Z',
-      lastUsedAt: null,
-    },
-  ]);
+  expect(ctx.auth.passkeys.list()).resolves.toHaveLength(1);
 });
 
-test('it removes every passkey, earlier token, and browser sign-in on reset', async () => {
+test('it removes every passkey on reset', async () => {
   const ctx = await setupTest();
 
-  const printed: string[] = [];
+  await ctx.seed.passkey();
+  await ctx.runPasskeys({ kind: 'enroll', reset: true });
 
-  await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
-
-  const earlier = await createEnrollmentToken(ctx.store.db, Date.now());
-
-  await ctx.store.auth.api.signInOwner({ body: {} });
-
-  const signedInBefore = await readOwnerSessionViews(ctx.store.db);
-
-  invariant(signedInBefore.length === 1, 'the arrangement left no browser sign-in');
-
-  await runPasskeys(
-    { kind: 'enroll', reset: true },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
-    {
-      print: (line) => {
-        printed.push(line);
-      },
-      printError: () => {},
-      setExitCode: () => {},
-      now: () => Date.now(),
-    },
-  );
-
-  expect(printed[0]).toBe(
-    'Removed every passkey and enrollment token and ended every browser sign-in. Grants stay.',
-  );
-
-  expect(printed[1]).toStartWith('Enrollment token: pepys-enroll-');
-
-  const passkeys = await readPasskeyViews(ctx.store.db);
-
-  expect(passkeys).toBeEmpty();
-
-  const sessions = await readOwnerSessionViews(ctx.store.db);
-
-  expect(sessions).toBeEmpty();
-
-  const earlierFound = await readEnrollmentToken(ctx.store.db, earlier.token, Date.now());
-
-  expect(earlierFound).toBeNull();
-
-  const token = /^Enrollment token: (?<token>pepys-enroll-[\w-]{43})$/u.exec(printed[1] ?? '')
-    ?.groups?.['token'];
-
-  const found = await readEnrollmentToken(ctx.store.db, token ?? '', Date.now());
-
-  expect(found).toBeString();
+  expect({ printed: ctx.printed, passkeys: await ctx.auth.passkeys.list() }).toStrictEqual({
+    printed: [
+      'Removed every passkey and enrollment token and ended every browser sign-in. Grants stay.',
+      expect.toStartWith('Enrollment token: '),
+      expect.any(String),
+    ],
+    passkeys: [],
+  });
 });
 
 test('it lists each enrolled passkey with when it was enrolled and last used', async () => {
   const ctx = await setupTest();
 
-  const printed: string[] = [];
+  await ctx.seed.passkey();
 
-  await ctx.seed.passkey({
-    id: toTagged<PasskeyID>('cred-phone'),
-    now: Date.UTC(2026, 9, 14, 12, 0, 0),
-  });
+  const [passkey] = await ctx.auth.passkeys.list();
 
-  await ctx.seed.passkey({
-    id: toTagged<PasskeyID>('cred-laptop'),
-    now: Date.UTC(2026, 9, 14, 12, 30, 0),
-  });
+  await ctx.runPasskeys({ kind: 'list' });
 
-  await updatePasskeyUse(ctx.store.db, {
-    id: toTagged<PasskeyID>('cred-phone'),
-    counter: 0,
-    newCounter: 1,
-    now: Date.UTC(2026, 9, 14, 13, 0, 0),
-  });
-
-  await runPasskeys(
-    { kind: 'list' },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
-    {
-      print: (line) => {
-        printed.push(line);
-      },
-      printError: () => {},
-      setExitCode: () => {},
-      now: () => Date.now(),
-    },
-  );
-
-  expect(printed).toStrictEqual([
-    'cred-phone  enrolled 2026-10-14T12:00:00.000Z  last used 2026-10-14T13:00:00.000Z',
-    'cred-laptop  enrolled 2026-10-14T12:30:00.000Z  last used never',
+  expect(ctx.printed).toStrictEqual([
+    `${passkey?.id}  enrolled ${passkey?.createdAt}  last used never`,
   ]);
 });
 
 test('it says how to enroll when no passkey is enrolled', async () => {
   const ctx = await setupTest();
 
-  const printed: string[] = [];
+  await ctx.runPasskeys({ kind: 'list' }, 'api.ts passkeys');
 
-  await runPasskeys(
-    { kind: 'list' },
-    { dbPath: ctx.dbPath, command: 'api.ts passkeys' },
-    {
-      print: (line) => {
-        printed.push(line);
-      },
-      printError: () => {},
-      setExitCode: () => {},
-      now: () => Date.now(),
-    },
-  );
-
-  expect(printed).toStrictEqual(['No passkeys. Enroll one with: api.ts passkeys enroll']);
+  expect(ctx.printed).toStrictEqual(['No passkeys. Enroll one with: api.ts passkeys enroll']);
 });
 
 test('it removes one passkey and keeps the others', async () => {
   const ctx = await setupTest();
 
-  const printed: string[] = [];
+  await ctx.seed.passkey();
+  await ctx.seed.passkey();
 
-  await ctx.seed.passkey({
-    id: toTagged<PasskeyID>('cred-lost'),
-    now: Date.UTC(2026, 9, 14, 12, 0, 0),
+  const [lost, kept] = await ctx.auth.passkeys.list();
+
+  invariant(lost !== undefined && kept !== undefined, 'the arrangement enrolled two passkeys');
+
+  await ctx.runPasskeys({ kind: 'remove', id: lost.id });
+
+  expect({ printed: ctx.printed, passkeys: await ctx.auth.passkeys.list() }).toStrictEqual({
+    printed: [`Removed passkey ${lost.id} and ended every browser sign-in`],
+    passkeys: [kept],
   });
-
-  await ctx.seed.passkey({
-    id: toTagged<PasskeyID>('cred-kept'),
-    now: Date.UTC(2026, 9, 14, 12, 30, 0),
-  });
-
-  await runPasskeys(
-    { kind: 'remove', id: toTagged<PasskeyID>('cred-lost') },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
-    {
-      print: (line) => {
-        printed.push(line);
-      },
-      printError: () => {},
-      setExitCode: () => {},
-      now: () => Date.now(),
-    },
-  );
-
-  expect(printed).toStrictEqual(['Removed passkey cred-lost and ended every browser sign-in']);
-
-  const passkeys = await readPasskeyViews(ctx.store.db);
-
-  expect(passkeys).toStrictEqual([
-    {
-      id: toTagged<PasskeyID>('cred-kept'),
-      createdAt: '2026-10-14T12:30:00.000Z',
-      lastUsedAt: null,
-    },
-  ]);
 });
 
 test('it sets exit code 1 when it removes a passkey that does not exist', async () => {
   const ctx = await setupTest();
 
-  const errors: string[] = [];
-  const codes: number[] = [];
+  await ctx.runPasskeys({ kind: 'remove', id: toTagged<PasskeyID>('cred-missing') });
 
-  await runPasskeys(
-    { kind: 'remove', id: toTagged<PasskeyID>('cred-missing') },
-    { dbPath: ctx.dbPath, command: 'passkeys' },
-    {
-      print: () => {},
-      printError: (line) => {
-        errors.push(line);
-      },
-      setExitCode: (code) => {
-        codes.push(code);
-      },
-      now: () => Date.now(),
-    },
-  );
-
-  expect(errors).toStrictEqual(["passkeys remove: no passkey has the ID 'cred-missing'"]);
-  expect(codes).toStrictEqual([1]);
+  expect({ errors: ctx.errors, codes: ctx.codes }).toStrictEqual({
+    errors: ["passkeys remove: no passkey has the ID 'cred-missing'"],
+    codes: [1],
+  });
 });

@@ -1,5 +1,5 @@
 import invariant from 'tiny-invariant';
-import type { Clock } from '../auth/system-clock.ts';
+import type { Clock } from '../system-clock.ts';
 
 interface StubTimer {
   readonly dueAt: number;
