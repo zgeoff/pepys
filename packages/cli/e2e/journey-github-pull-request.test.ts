@@ -100,7 +100,7 @@ test('it stores the row of the newest pull request update, not the older one tha
         is_draft: 0,
         is_merged: 0,
         author_id: 'github:user:4401',
-        url: 'https://github.example/acme/harbour/pull/12',
+        url: 'https://github.example/Acme/Harbour/pull/12',
         merge_commit_sha: null,
         created_at: '2026-10-01T08:00:00Z',
         updated_at: '2026-10-01T10:00:00Z',
@@ -164,25 +164,30 @@ test('it swaps nothing when up runs again with the same consumers.json', async (
   });
 });
 
-test("it serves the stored row through the API's get_entity by the pull request's alias", async () => {
-  const ctx = setupTest();
+// The delivery's html_url has capitals, so a hit on these lowercase aliases shows the compiled
+// module lowercases what it stores.
+test.each([['acme/harbour#12'], ['https://github.example/acme/harbour/pull/12']])(
+  "it serves the stored row through the API's get_entity by the lowercase alias %p",
+  async (alias) => {
+    const ctx = setupTest();
 
-  const result = await ctx.api.get_entity({ id: 'Acme/Harbour#12' });
+    const result = await ctx.api.get_entity({ id: alias });
 
-  expect(result).toStrictEqual({
-    entity: {
-      id: toTagged<EntityID>('github:pull_request:1874433021'),
-      kind: 'github:pull_request',
-      title: 'Add the harbour map and tides',
-      url: 'https://github.example/acme/harbour/pull/12',
-      actor: toTagged<EntityID>('github:user:4401'),
-      updated_at: '2026-10-01T10:00:00Z',
-    },
-    consumer: 'github_pull_request',
-    table: 'github_pull_request',
-    row: expect.objectContaining({ id: 'github:pull_request:1874433021', number: 12 }),
-  });
-});
+    expect(result).toStrictEqual({
+      entity: {
+        id: toTagged<EntityID>('github:pull_request:1874433021'),
+        kind: 'github:pull_request',
+        title: 'Add the harbour map and tides',
+        url: 'https://github.example/Acme/Harbour/pull/12',
+        actor: toTagged<EntityID>('github:user:4401'),
+        updated_at: '2026-10-01T10:00:00Z',
+      },
+      consumer: 'github_pull_request',
+      table: 'github_pull_request',
+      row: expect.objectContaining({ id: 'github:pull_request:1874433021', number: 12 }),
+    });
+  },
+);
 
 test("it serves the stored row through the API's get_entity", async () => {
   const ctx = setupTest();
@@ -194,7 +199,7 @@ test("it serves the stored row through the API's get_entity", async () => {
       id: toTagged<EntityID>('github:pull_request:1874433021'),
       kind: 'github:pull_request',
       title: 'Add the harbour map and tides',
-      url: 'https://github.example/acme/harbour/pull/12',
+      url: 'https://github.example/Acme/Harbour/pull/12',
       actor: toTagged<EntityID>('github:user:4401'),
       updated_at: '2026-10-01T10:00:00Z',
     },
@@ -209,7 +214,7 @@ test("it serves the stored row through the API's get_entity", async () => {
       is_draft: false,
       is_merged: false,
       author_id: 'github:user:4401',
-      url: 'https://github.example/acme/harbour/pull/12',
+      url: 'https://github.example/Acme/Harbour/pull/12',
       merge_commit_sha: null,
       created_at: '2026-10-01T08:00:00Z',
       updated_at: '2026-10-01T10:00:00Z',
@@ -223,7 +228,7 @@ test("it serves the stored row through the API's get_entity", async () => {
         draft: false,
         merged: false,
         merge_commit_sha: null,
-        html_url: 'https://github.example/acme/harbour/pull/12',
+        html_url: 'https://github.example/Acme/Harbour/pull/12',
         user: { id: 4401 },
         base: { repo: { id: 902 } },
         created_at: '2026-10-01T08:00:00Z',

@@ -23,7 +23,7 @@ export function buildGithubDelivery(parameters: GithubDeliveryParameters): Githu
       draft: false,
       merged: false,
       merge_commit_sha: null,
-      html_url: 'https://github.example/acme/harbour/pull/12',
+      html_url: 'https://github.example/Acme/Harbour/pull/12',
       user: { id: 4401 },
       base: { repo: { id: 902 } },
       created_at: '2026-10-01T08:00:00Z',

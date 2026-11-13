@@ -112,7 +112,7 @@ test('it walks from a voyage across its link to the GitHub pull request it cites
         id: toTagged<EntityID>('github:pull_request:1874433021'),
         kind: 'github:pull_request',
         title: 'Add the harbour map and tides',
-        url: 'https://github.example/acme/harbour/pull/12',
+        url: 'https://github.example/Acme/Harbour/pull/12',
         actor: toTagged<EntityID>('github:user:4401'),
         updated_at: '2026-10-01T10:00:00Z',
         depth: 1,
