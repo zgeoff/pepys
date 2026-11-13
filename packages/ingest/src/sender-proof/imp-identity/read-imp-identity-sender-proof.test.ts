@@ -235,16 +235,38 @@ test('it puts no token, secret or record in a refusal answer or a log line', asy
 });
 
 test.each([
-  { row: 'no setting', hasTrustFolder: false, audience: undefined, tokenAudience: 'pepys-ingest' },
-  { row: 'no audience', hasTrustFolder: true, audience: undefined, tokenAudience: 'pepys-ingest' },
-  { row: 'an empty audience', hasTrustFolder: true, audience: '', tokenAudience: '' },
-  {
-    row: 'no trust folder',
-    hasTrustFolder: false,
-    audience: 'pepys-ingest',
-    tokenAudience: 'pepys-ingest',
-  },
+  { row: 'no setting', audience: undefined },
+  { row: 'no trust folder', audience: 'pepys-ingest' },
 ])('it starts with $row and refuses a signed token with 401', async (row) => {
+  const ctx = await setupTest();
+  const harbour = await createIdentityIssuer('harbour-host');
+
+  await ctx.writeTrustDocument(harbour);
+
+  const token = await harbour.signToken({
+    audience: 'pepys-ingest',
+    subject: 'imp-0193',
+    name: 'tidy-otter',
+    issuedAtSeconds: 1_794_370_812,
+    expiresAtSeconds: 1_794_370_862,
+  });
+
+  const delivered = await ctx.deliver(
+    { BEACON_ISSUERS: undefined, BEACON_AUDIENCE: row.audience },
+    1_794_370_814_000,
+    [token],
+  );
+
+  expect({ status: delivered.status, stored: await ctx.readStoredPayloads() }).toStrictEqual({
+    status: 401,
+    stored: [],
+  });
+});
+
+test.each([
+  { row: 'no audience', audience: undefined, tokenAudience: 'pepys-ingest' },
+  { row: 'an empty audience', audience: '', tokenAudience: '' },
+])('it starts with a trust folder and $row and refuses a signed token with 401', async (row) => {
   const ctx = await setupTest();
   const harbour = await createIdentityIssuer('harbour-host');
 
@@ -259,10 +281,7 @@ test.each([
   });
 
   const delivered = await ctx.deliver(
-    {
-      BEACON_ISSUERS: row.hasTrustFolder ? ctx.folder : undefined,
-      BEACON_AUDIENCE: row.audience,
-    },
+    { BEACON_ISSUERS: ctx.folder, BEACON_AUDIENCE: row.audience },
     1_794_370_814_000,
     [token],
   );

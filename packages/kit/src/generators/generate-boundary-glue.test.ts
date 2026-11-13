@@ -258,15 +258,10 @@ test('it types the fields of a nested object to any depth', () => {
 
 test.each([
   { row: 'a string', schema: z.string(), value: 'ink', decoded: 'ink' },
-  { row: 'a string', schema: z.string(), value: 4, decoded: undefined },
   { row: 'a number', schema: z.number(), value: 4.5, decoded: 4.5 },
-  { row: 'a number', schema: z.number(), value: '4', decoded: undefined },
   { row: 'a boolean', schema: z.boolean(), value: false, decoded: false },
-  { row: 'a boolean', schema: z.boolean(), value: 0, decoded: undefined },
   { row: 'a literal', schema: z.literal(['draft', 3]), value: 3, decoded: 3 },
-  { row: 'a literal', schema: z.literal(['draft', 3]), value: 'final', decoded: undefined },
   { row: 'an enum', schema: z.enum(['open', 'shut']), value: 'shut', decoded: 'shut' },
-  { row: 'an enum', schema: z.enum(['open', 'shut']), value: 'ajar', decoded: undefined },
   { row: 'a brand', schema: z.string().brand<'Mark'>(), value: 'm-1', decoded: 'm-1' },
   {
     row: 'an object',
@@ -274,17 +269,8 @@ test.each([
     value: { pages: 9, binding: 'cloth' },
     decoded: { pages: 9 },
   },
-  {
-    row: 'an object',
-    schema: z.object({ pages: z.number() }),
-    value: { binding: 'cloth' },
-    decoded: undefined,
-  },
   { row: 'an array', schema: z.array(z.string()), value: ['a', 'b'], decoded: ['a', 'b'] },
-  { row: 'an array', schema: z.array(z.string()), value: ['a', 2], decoded: undefined },
-  { row: 'an array', schema: z.array(z.string()), value: 'a', decoded: undefined },
   { row: 'a nullable', schema: z.string().nullable(), value: null, decoded: null },
-  { row: 'a nullable', schema: z.string().nullable(), value: 7, decoded: undefined },
   { row: 'a record', schema: z.record(z.string(), z.number()), value: [1], decoded: [1] },
 ])('it decodes $row from $value as $decoded', async (row) => {
   const ctx = setupTest();
@@ -304,31 +290,28 @@ test.each([
     }),
   );
 
-  const expected =
-    row.decoded === undefined
-      ? undefined
-      : {
-          id: 'event:ledger:n-1',
-          type: 'ledger.note.written',
-          entity: 'ledger:note:1',
-          at: '2026-11-01T08:00:00.000Z',
-          payload: { value: row.decoded },
-        };
-
-  expect(fact).toStrictEqual(expected);
+  expect(fact).toStrictEqual({
+    id: 'event:ledger:n-1',
+    type: 'ledger.note.written',
+    entity: 'ledger:note:1',
+    at: '2026-11-01T08:00:00.000Z',
+    payload: { value: row.decoded },
+  });
 });
 
 test.each([
-  {
-    row: 'each item with only its declared fields',
-    value: [{ name: 'a', size: 2 }, { name: 'b' }],
-    decoded: [{ name: 'a' }, { name: 'b' }],
-  },
-  { row: 'no list when one item does not fit', value: [{ name: 'a' }, { name: 2 }], decoded: null },
-])('it decodes a list of objects to $row', async (row) => {
+  { row: 'a string', schema: z.string(), value: 4 },
+  { row: 'a number', schema: z.number(), value: '4' },
+  { row: 'a boolean', schema: z.boolean(), value: 0 },
+  { row: 'a literal', schema: z.literal(['draft', 3]), value: 'final' },
+  { row: 'an enum', schema: z.enum(['open', 'shut']), value: 'ajar' },
+  { row: 'an object', schema: z.object({ pages: z.number() }), value: { binding: 'cloth' } },
+  { row: 'an array', schema: z.array(z.string()), value: ['a', 2] },
+  { row: 'an array', schema: z.array(z.string()), value: 'a' },
+  { row: 'a nullable', schema: z.string().nullable(), value: 7 },
+])('it reads no fact when $row field holds $value', async (row) => {
   const ctx = setupTest();
-  const label = z.object({ name: z.string() });
-  const payload = z.object({ value: z.array(label) });
+  const payload = z.object({ value: row.schema });
 
   const glue = await ctx.loadGlue(ctx.generateNoteGlue(payload));
 
@@ -344,24 +327,62 @@ test.each([
     }),
   );
 
-  const expected =
-    row.decoded === null
-      ? undefined
-      : {
-          id: 'event:ledger:n-1',
-          type: 'ledger.note.written',
-          entity: 'ledger:note:1',
-          at: '2026-11-01T08:00:00.000Z',
-          payload: { value: row.decoded },
-        };
+  expect(fact).toBeUndefined();
+});
 
-  expect(fact).toStrictEqual(expected);
+test('it decodes a list of objects to each item with only its declared fields', async () => {
+  const ctx = setupTest();
+  const label = z.object({ name: z.string() });
+  const payload = z.object({ value: z.array(label) });
+
+  const glue = await ctx.loadGlue(ctx.generateNoteGlue(payload));
+
+  const fact = ctx.call(
+    glue,
+    'parseLedgerNoteFact',
+    JSON.stringify({
+      id: 'event:ledger:n-1',
+      type: 'ledger.note.written',
+      entity: 'ledger:note:1',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { value: [{ name: 'a', size: 2 }, { name: 'b' }] },
+    }),
+  );
+
+  expect(fact).toStrictEqual({
+    id: 'event:ledger:n-1',
+    type: 'ledger.note.written',
+    entity: 'ledger:note:1',
+    at: '2026-11-01T08:00:00.000Z',
+    payload: { value: [{ name: 'a' }, { name: 'b' }] },
+  });
+});
+
+test('it reads no fact when one item of a list of objects does not fit', async () => {
+  const ctx = setupTest();
+  const label = z.object({ name: z.string() });
+  const payload = z.object({ value: z.array(label) });
+
+  const glue = await ctx.loadGlue(ctx.generateNoteGlue(payload));
+
+  const fact = ctx.call(
+    glue,
+    'parseLedgerNoteFact',
+    JSON.stringify({
+      id: 'event:ledger:n-1',
+      type: 'ledger.note.written',
+      entity: 'ledger:note:1',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { value: [{ name: 'a' }, { name: 2 }] },
+    }),
+  );
+
+  expect(fact).toBeUndefined();
 });
 
 test.each([
-  { row: 'absent', payload: {}, decoded: {} },
-  { row: 'present', payload: { value: 'ink' }, decoded: { value: 'ink' } },
-  { row: 'of the wrong type', payload: { value: 4 }, decoded: undefined },
+  { row: 'absent', payload: {} },
+  { row: 'present', payload: { value: 'ink' } },
 ])('it decodes an optional field that is $row', async (row) => {
   const ctx = setupTest();
   const payload = z.object({ value: z.string().optional() });
@@ -380,18 +401,34 @@ test.each([
     }),
   );
 
-  const expected =
-    row.decoded === undefined
-      ? undefined
-      : {
-          id: 'event:ledger:n-1',
-          type: 'ledger.note.written',
-          entity: 'ledger:note:1',
-          at: '2026-11-01T08:00:00.000Z',
-          payload: row.decoded,
-        };
+  expect(fact).toStrictEqual({
+    id: 'event:ledger:n-1',
+    type: 'ledger.note.written',
+    entity: 'ledger:note:1',
+    at: '2026-11-01T08:00:00.000Z',
+    payload: row.payload,
+  });
+});
 
-  expect(fact).toStrictEqual(expected);
+test('it reads no fact when an optional field has the wrong type', async () => {
+  const ctx = setupTest();
+  const payload = z.object({ value: z.string().optional() });
+
+  const glue = await ctx.loadGlue(ctx.generateNoteGlue(payload));
+
+  const fact = ctx.call(
+    glue,
+    'parseLedgerNoteFact',
+    JSON.stringify({
+      id: 'event:ledger:n-1',
+      type: 'ledger.note.written',
+      entity: 'ledger:note:1',
+      at: '2026-11-01T08:00:00.000Z',
+      payload: { value: 4 },
+    }),
+  );
+
+  expect(fact).toBeUndefined();
 });
 
 test('it reads no fact of a type that no family on the streams declares', async () => {

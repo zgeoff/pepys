@@ -256,21 +256,30 @@ test('it gives two IDs to two records that differ in one attribute', () => {
 test.each([
   {
     row: 'an ISO time with an offset',
-    timestamp: '2026-11-11T04:20:00+02:00',
-    at: '2026-11-11T02:20:00.000Z',
-  },
-  { row: 'no product time', timestamp: undefined, at: '2026-11-11T04:20:00.000Z' },
-  { row: 'a product time that does not parse', timestamp: 'soon', at: '2026-11-11T04:20:00.000Z' },
-])('it reads the time from $row', (row) => {
-  const ctx = setupTest();
-
-  const body = buildLogsExport('codex', {}, [
-    {
+    record: {
       'event.name': 'codex.user_prompt',
       'conversation.id': 'x-3',
-      ...(row.timestamp === undefined ? {} : { 'event.timestamp': row.timestamp }),
+      'event.timestamp': '2026-11-11T04:20:00+02:00',
     },
-  ]);
+    at: '2026-11-11T02:20:00.000Z',
+  },
+  {
+    row: 'no product time',
+    record: { 'event.name': 'codex.user_prompt', 'conversation.id': 'x-3' },
+    at: '2026-11-11T04:20:00.000Z',
+  },
+  {
+    row: 'a product time that does not parse',
+    record: {
+      'event.name': 'codex.user_prompt',
+      'conversation.id': 'x-3',
+      'event.timestamp': 'soon',
+    },
+    at: '2026-11-11T04:20:00.000Z',
+  },
+])('it reads the time from $row', (row) => {
+  const ctx = setupTest();
+  const body = buildLogsExport('codex', {}, [row.record]);
 
   expect(ctx.read(body).facts.map((fact) => fact.at)).toStrictEqual([row.at]);
 });

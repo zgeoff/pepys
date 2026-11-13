@@ -44,16 +44,19 @@ test('it reads each JSON document in the folder that the variable names, and the
   });
 });
 
-test.each([
-  { row: 'an unset variable', isSet: false },
-  { row: 'a folder with no document', isSet: true },
-])('it holds no trust documents for $row', async (row) => {
+test('it holds no trust documents for an unset variable', async () => {
   const ctx = await setupTest();
+  const trust = await ctx.read({ BEACON_ISSUERS: undefined, BEACON_AUDIENCE: 'pepys-ingest' });
 
-  const trust = await ctx.read({
-    BEACON_ISSUERS: row.isSet ? ctx.folder : undefined,
-    BEACON_AUDIENCE: 'pepys-ingest',
+  expect(trust).toStrictEqual({
+    ok: true,
+    value: { issuers: new Map(), audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]) },
   });
+});
+
+test('it holds no trust documents for a folder with no document', async () => {
+  const ctx = await setupTest();
+  const trust = await ctx.read({ BEACON_ISSUERS: ctx.folder, BEACON_AUDIENCE: 'pepys-ingest' });
 
   expect(trust).toStrictEqual({
     ok: true,

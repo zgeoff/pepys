@@ -44,37 +44,70 @@ async function setupTest() {
 }
 
 // The host's Rust scope replace runs the same cases, so the two replaces cannot drift apart unseen.
-test.each(replaceCases.cases.map((replaceCase) => [replaceCase.title, replaceCase] as const))(
-  '#replaceScope in the shared case where %s',
-  async (_title, replaceCase) => {
-    const ctx = await setupTest();
+test.each(
+  replaceCases.cases
+    .filter((replaceCase) => replaceCase.stored === undefined)
+    .map((replaceCase) => [replaceCase.title, replaceCase] as const),
+)('#replaceScope in the shared case where %s', async (_title, replaceCase) => {
+  const ctx = await setupTest();
 
-    const stored = 'stored' in replaceCase ? replaceCase.stored.links : [];
+  const outcomes = [];
 
-    for (const link of stored) {
-      await ctx.writeStoredLink(link);
-    }
+  for (const batch of replaceCase.batches) {
+    const outcome = await ctx.runBatch(batch.scopes);
 
-    const outcomes = [];
+    outcomes.push(outcome);
+  }
 
-    for (const batch of replaceCase.batches) {
-      const outcome = await ctx.runBatch(batch.scopes);
+  const rows = await ctx.readRows();
+  const links = await ctx.readLinks();
 
-      outcomes.push(outcome);
-    }
+  // the case file's rows and change entries are plain JSON, with no row type
+  const received: unknown = { outcomes, rows, links };
 
-    const rows = await ctx.readRows();
-    const links = await ctx.readLinks();
+  expect(received).toStrictEqual({
+    outcomes: replaceCase.batches.map((batch) => {
+      const { scopes: _scopes, ...outcome } = batch;
 
-    // the case file's rows and change entries are plain JSON, with no row type
-    const received: unknown = { outcomes, rows, links };
+      return outcome;
+    }),
+    rows: replaceCase.rows,
+    links: replaceCase.links,
+  });
+});
 
-    expect(received).toStrictEqual({
-      outcomes: replaceCase.batches.map((batch) =>
-        'refused' in batch ? { refused: batch.refused } : { changes: batch.changes },
-      ),
-      rows: replaceCase.rows,
-      links: replaceCase.links,
-    });
-  },
-);
+test.each(
+  replaceCases.cases
+    .filter((replaceCase) => replaceCase.stored !== undefined)
+    .map((replaceCase) => [replaceCase.title, replaceCase] as const),
+)('#replaceScope over stored links in the shared case where %s', async (_title, replaceCase) => {
+  const ctx = await setupTest();
+
+  for (const link of replaceCase.stored.links) {
+    await ctx.writeStoredLink(link);
+  }
+
+  const outcomes = [];
+
+  for (const batch of replaceCase.batches) {
+    const outcome = await ctx.runBatch(batch.scopes);
+
+    outcomes.push(outcome);
+  }
+
+  const rows = await ctx.readRows();
+  const links = await ctx.readLinks();
+
+  // the case file's rows and change entries are plain JSON, with no row type
+  const received: unknown = { outcomes, rows, links };
+
+  expect(received).toStrictEqual({
+    outcomes: replaceCase.batches.map((batch) => {
+      const { scopes: _scopes, ...outcome } = batch;
+
+      return outcome;
+    }),
+    rows: replaceCase.rows,
+    links: replaceCase.links,
+  });
+});

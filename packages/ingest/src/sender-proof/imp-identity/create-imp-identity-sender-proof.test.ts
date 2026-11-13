@@ -87,42 +87,53 @@ test('it hands the verifier the header, the documents and audience of the path, 
   });
 });
 
-test.each([
-  { row: 'no trust document', hasDocuments: false, hasAudience: true },
-  { row: 'no audience', hasDocuments: true, hasAudience: false },
-])(
-  'it refuses every delivery with 401 when $row is configured, and never calls the verifier',
-  async (row) => {
-    const ctx = setupTest();
+test('it refuses every delivery with 401 when no trust document is configured, and never calls the verifier', async () => {
+  const ctx = setupTest();
 
-    const harbour = await createIdentityIssuer('harbour-host');
+  const verify = mock<Verify>(() =>
+    Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
+  );
 
-    const verify = mock<Verify>(() =>
-      Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
-    );
+  const ingest = ctx.createIngestWith(verify, {
+    issuers: new Map([['BEACON_ISSUERS', []]]),
+    audiences: new Map([['BEACON_AUDIENCE', 'pepys-ingest']]),
+  });
 
-    const issuers = row.hasDocuments ? [harbour.document] : [];
+  const response = await ingest.handleRequest(
+    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
+  );
 
-    const audiences = row.hasAudience
-      ? new Map([['BEACON_AUDIENCE', 'pepys-ingest']])
-      : new Map<string, string>();
+  expect({
+    status: response.status,
+    stored: await ctx.readStoredIDs(),
+    verified: verify.mock.calls.length,
+  }).toStrictEqual({ status: 401, stored: [], verified: 0 });
+});
 
-    const ingest = ctx.createIngestWith(verify, {
-      issuers: new Map([['BEACON_ISSUERS', issuers]]),
-      audiences,
-    });
+test('it refuses every delivery with 401 when no audience is configured, and never calls the verifier', async () => {
+  const ctx = setupTest();
 
-    const response = await ingest.handleRequest(
-      ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
-    );
+  const harbour = await createIdentityIssuer('harbour-host');
 
-    expect({
-      status: response.status,
-      stored: await ctx.readStoredIDs(),
-      verified: verify.mock.calls.length,
-    }).toStrictEqual({ status: 401, stored: [], verified: 0 });
-  },
-);
+  const verify = mock<Verify>(() =>
+    Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
+  );
+
+  const ingest = ctx.createIngestWith(verify, {
+    issuers: new Map([['BEACON_ISSUERS', [harbour.document]]]),
+    audiences: new Map<string, string>(),
+  });
+
+  const response = await ingest.handleRequest(
+    ctx.buildRequest('/beacon/readings', { 'imp-identity': 'aGVhZA.Ym9keQ.c2ln' }),
+  );
+
+  expect({
+    status: response.status,
+    stored: await ctx.readStoredIDs(),
+    verified: verify.mock.calls.length,
+  }).toStrictEqual({ status: 401, stored: [], verified: 0 });
+});
 
 test('it refuses with 401 when the verifier throws, and logs no token', async () => {
   const ctx = setupTest();

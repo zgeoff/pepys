@@ -8,7 +8,7 @@ import { buildDeliveryFacts } from '../test-utils/build-delivery-facts.ts';
 import { pullRequestDeliveryQuery } from './pull-request-delivery-query.ts';
 
 interface DeliveryInput {
-  pullRequests: string[];
+  pullRequests: readonly string[];
   environment: string;
   target?: string;
 }
@@ -20,15 +20,15 @@ async function setupTest() {
 
   return {
     store,
-    query: (input: DeliveryInput) => store.query(pullRequestDeliveryQuery, input),
+    query: (input: DeliveryInput) =>
+      store.query(pullRequestDeliveryQuery, { ...input, pullRequests: [...input.pullRequests] }),
   };
 }
 
 test.each([
   {
     row: 'production with no target',
-    environment: 'production',
-    target: undefined,
+    input: { pullRequests: ['github:pull_request:10'], environment: 'production' },
     deploy: {
       id: toTagged<EntityID>('github:deploy:2:production:tag:d1:api'),
       at: '2026-10-01T12:35:00.000Z',
@@ -37,8 +37,7 @@ test.each([
   },
   {
     row: 'production for the target api',
-    environment: 'production',
-    target: 'api',
+    input: { pullRequests: ['github:pull_request:10'], environment: 'production', target: 'api' },
     deploy: {
       id: toTagged<EntityID>('github:deploy:2:production:tag:d1:api'),
       at: '2026-10-01T12:35:00.000Z',
@@ -47,14 +46,12 @@ test.each([
   },
   {
     row: 'production for a target with no deploy',
-    environment: 'production',
-    target: 'web',
+    input: { pullRequests: ['github:pull_request:10'], environment: 'production', target: 'web' },
     deploy: null,
   },
   {
     row: 'staging, which has deployment status rows only',
-    environment: 'staging',
-    target: undefined,
+    input: { pullRequests: ['github:pull_request:10'], environment: 'staging' },
     deploy: {
       id: toTagged<EntityID>('github:deploy:2:staging:deployment_status:d1'),
       at: '2026-10-01T12:50:00Z',
@@ -66,11 +63,7 @@ test.each([
 
   await ctx.store.apply(githubSource, buildDeliveryFacts());
 
-  const result = await ctx.query({
-    pullRequests: ['github:pull_request:10'],
-    environment: row.environment,
-    ...(row.target === undefined ? {} : { target: row.target }),
-  });
+  const result = await ctx.query(row.input);
 
   expect(result).toStrictEqual([
     {

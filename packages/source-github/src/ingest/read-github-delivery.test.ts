@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
+import invariant from 'tiny-invariant';
 import { readGithubDelivery } from './read-github-delivery.ts';
 
 function setupTest() {
@@ -63,12 +64,13 @@ test('it gives one fact ID to one body under two delivery IDs, two spacings and 
     '{ "release": { "created_at": "2026-10-01T09:00:00Z", "id": 5 }, "action": "published" }',
   );
 
-  const ids = [first, second].map((received) =>
-    received.kind === 'batch' ? received.batch.facts[0]?.fact.id : received.kind,
-  );
+  invariant(first.kind === 'batch');
+  invariant(second.kind === 'batch');
 
-  expect(ids[0]).toStartWith('webhook:github:h-');
-  expect(ids[1]).toBe(ids[0]);
+  const firstID = first.batch.facts[0]?.fact.id;
+
+  expect(firstID).toStartWith('webhook:github:h-');
+  expect(second.batch.facts[0]?.fact.id).toBe(firstID);
 });
 
 test.each([
@@ -192,7 +194,9 @@ test.each([
     JSON.stringify(row.body),
   );
 
-  const fact = received.kind === 'batch' ? received.batch.facts[0] : undefined;
+  invariant(received.kind === 'batch');
+
+  const [fact] = received.batch.facts;
 
   const actual: unknown = {
     stream: fact?.stream,

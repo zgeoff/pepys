@@ -22,12 +22,13 @@ function setupTest() {
 
 test('it builds a checked deployment of the three stub sources', () => {
   const ctx = setupTest();
+  const lives = ctx.stub.deployment.sources.map((source) => source.live);
 
-  const routes = ctx.stub.deployment.sources.map((source) =>
-    source.live?.kind === 'receive' ? source.live.route : null,
-  );
-
-  expect(routes).toStrictEqual(['/ledger/facts', '/beacon/readings', '/stray/notes']);
+  expect(lives).toStrictEqual([
+    expect.objectContaining({ kind: 'receive', route: '/ledger/facts' }),
+    expect.objectContaining({ kind: 'receive', route: '/beacon/readings' }),
+    expect.objectContaining({ kind: 'receive', route: '/stray/notes' }),
+  ]);
 });
 
 test('it gives the beacon path a reader that puts the proven sender in place of the origin in the body', () => {
