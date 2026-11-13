@@ -34,10 +34,12 @@ flowchart LR
   rollback --> answer
 ```
 
-Every call reads a fixed set of consumers. A plug-in query lists its consumers in its `reads`. Each
-of the two [core queries](#the-core-queries) picks its own, as that section describes, and
-`get_entity` makes a second call when it resolves an alias. The API keeps one connection per call,
-on Turso, the SQLite engine that the host also writes with.
+Each call reads a set of consumers that is fixed before the call opens a file. A plug-in query lists
+its consumers in its `reads`. Each of the two [core queries](#the-core-queries) picks its set from
+its input, as that section describes. `get_entity` with an alias runs two calls, each through the
+steps below: one over the consumers with an alias table, then one over the consumer of the entity's
+kind. The API keeps one connection per call, on Turso, the SQLite engine that the host also writes
+with.
 
 1. The call resolves the `current` link of each of its consumers before it opens a file, and keeps
    the version folders it resolved. When `up` swaps a version during the call, the call stays on the
@@ -71,7 +73,8 @@ beside an older batch in the other.
 
 The API serves two queries of its own, beside the plug-in queries: `get_entity` and `neighbourhood`.
 Each takes an entity ID of the form `<source>:<kind>:<id>`, as
-[Entity IDs](./entities-and-links.md#entity-ids) describes. `get_entity` also takes an alias.
+[Entity IDs](./entities-and-links.md#entity-ids) describes. The `id` input of `get_entity` can hold
+an alias in place of the ID.
 
 **`get_entity`** returns one entity. Text that parses as an entity ID is an ID, and any other text,
 such as `acme/api#412`, is an alias. The API resolves an alias to an ID first, as

@@ -109,27 +109,33 @@ GitHub plug-in's own queries skip it too.
 
 ## Aliases
 
-`get_entity` finds an entity by an alias as well as by its ID: text a person writes for the entity,
-such as `acme/api#412` for a pull request. Any text that does not parse as an entity ID is an alias.
+`get_entity` takes one text input, which holds an entity ID or an alias. Text with the form in
+[Entity IDs](#entity-ids) is an ID: a lowercase source, a `:`, a lowercase kind, a `:`, and a last
+part that is not empty. The API treats any other text as an alias. An alias is the text a person
+writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pull/412` for a pull
+request.
 
-To keep aliases for the entities of an entity view, a consumer declares a table named after the
-view's table with `_alias` added, such as `github_pull_request_alias`. The table holds two columns:
+To keep aliases, a consumer declares a table beside the table of its entity view, named after that
+table with `_alias` added, such as `github_pull_request_alias`. The alias table holds two columns:
 `alias`, the text key, and `entity_id`.
 [The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) refuses an alias
 table of any other shape.
 
-The consumer writes each alias in lowercase, with no `/` at the end. The API changes the text it is
-given in the same way before it looks the text up: it removes white space at both ends, changes the
-text to lowercase, and removes one `/` at the end. `Acme/API#412 ` and `acme/api#412` therefore name
-one entity.
+The consumer must write each alias in lowercase, with no `/` at the end. The API brings the text it
+is given to the same form before it looks the text up: it removes white space at both ends, changes
+the text to lowercase, and removes one `/` at the end. `Acme/API#412 ` and `acme/api#412` therefore
+name one entity.
 
 The API resolves an alias in two store reads:
 
-1. It attaches every consumer that declares an alias table and has a current version, and reads the
-   alias tables in the order the deployment lists their consumers. The first table that holds the
-   alias gives the entity ID.
-2. It reads that entity as it reads an ID, from the file of the consumer that owns the kind. A
-   deleted entity therefore stays not found.
+1. It attaches each consumer that declares an alias table and has a
+   [current version](../consumers/host.md#versions). It reads the alias tables in the order of the
+   deployment's consumers: plug-in by plug-in as the deployment file lists them, and each plug-in's
+   consumers in its own order. The first table that holds the alias gives the entity ID.
+2. It reads the entity of that ID as `get_entity` reads any ID: it takes the kind from the ID, finds
+   the one consumer that declares the entity view of that kind, and reads that consumer's file, as
+   [the core queries](./api.md#the-core-queries) describe. A deleted entity therefore stays not
+   found.
 
 In this repo, only the pull request consumer writes aliases, as
 [the GitHub plug-in](../plug-ins/github.md#families-and-consumers) describes.
