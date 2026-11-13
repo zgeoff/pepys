@@ -23,6 +23,7 @@ export interface GithubPullRequestRow {
 export interface GithubPullRequestAliasRow {
   alias: string;
   entity_id: EntityID;
+  updated_at: string;
 }
 
 export interface GithubReleaseBumpRow {

@@ -123,7 +123,7 @@ test("it records the stream's last sequence number as the consumer's offset", as
   });
 });
 
-test('it writes an insert with two alias inserts, then an update, to the change log', async () => {
+test('it writes the row and alias inserts, then their updates from the newer fact, to the change log', async () => {
   const ctx = setupTest();
 
   const result = await ctx.readChangeOperations();
@@ -135,6 +135,8 @@ test('it writes an insert with two alias inserts, then an update, to the change 
       { key: '["https://github.example/acme/harbour/pull/12"]', operation: 'insert' },
       { key: '["acme/harbour#12"]', operation: 'insert' },
       { key: '["github:pull_request:1874433021"]', operation: 'update' },
+      { key: '["https://github.example/acme/harbour/pull/12"]', operation: 'update' },
+      { key: '["acme/harbour#12"]', operation: 'update' },
     ],
   });
 });

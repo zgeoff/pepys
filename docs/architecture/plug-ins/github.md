@@ -76,7 +76,7 @@ repository to use a release of another repository, as a dependency update bot do
 A winning fact adds its `html_url` and `<owner>/<repo>#<number>`, in lowercase, to
 `github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). No alias is ever
 deleted, so a renamed repository's old forms still work. When a new repository takes the old name,
-an alias moves only to the pull request updated last.
+an alias goes to the newest fact that names it.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.

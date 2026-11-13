@@ -84,6 +84,7 @@ export const harbourVesselConsumer = defineConsumer({
       columns: {
         alias: { kind: 'text' },
         entity_id: { kind: 'entityID' },
+        updated_at: { kind: 'timestamp' },
       },
       primaryKey: ['alias'],
       indexes: [],

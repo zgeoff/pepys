@@ -116,10 +116,14 @@ writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pul
 request.
 
 To keep aliases, a consumer declares a table beside the table of its entity view, named after that
-table with `_alias` added, such as `github_pull_request_alias`. The alias table holds two columns:
-`alias`, the text key, and `entity_id`.
-[The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) refuses an alias
-table of any other shape.
+table with `_alias` added, such as `github_pull_request_alias`. The alias table holds three columns:
+`alias`, the text key, `entity_id`, and `updated_at`, the source update time of the newest fact that
+names the alias. [The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check)
+refuses an alias table of any other shape.
+
+The consumer gives an alias to an entity only when the fact is newer than the stored `updated_at`,
+so the holder of an alias does not depend on the order in which facts arrive. The entity's own
+update time is no guide: its newest fact may no longer name the alias.
 
 The consumer must write each alias in lowercase, with no `/` at the end. The API brings the text it
 is given to the same form before it looks the text up: it removes white space at both ends, changes

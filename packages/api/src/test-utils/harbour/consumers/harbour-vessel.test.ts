@@ -23,7 +23,15 @@ test('it upserts one vessel row named by the fact, at the fact time, and the nam
         },
       },
     },
-    { upsert: { harbour_vessel_alias: { alias: 'gannet', entity_id: 'harbour:vessel:4' } } },
+    {
+      upsert: {
+        harbour_vessel_alias: {
+          alias: 'gannet',
+          entity_id: 'harbour:vessel:4',
+          updated_at: '2026-11-03T07:30:00.000Z',
+        },
+      },
+    },
   ]);
 });
 

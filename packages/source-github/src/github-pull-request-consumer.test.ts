@@ -5,7 +5,7 @@ import { buildQueryContext, createApp } from '@pepys/api';
 import type { DeploymentClient } from '@pepys/api';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import type { EntityID } from '@pepys/kit';
-import { createTestStore } from '@pepys/testing';
+import { applyInBothOrders, createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { githubPlugin } from './github-plugin.ts';
@@ -80,9 +80,13 @@ test('it declares the pull request columns', () => {
   });
 });
 
-test('it declares an alias table of a text alias key and the entity ID', () => {
+test('it declares an alias table of a text alias key, the entity ID and the update time', () => {
   expect(githubPullRequestConsumer.tables.github_pull_request_alias).toStrictEqual({
-    columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+    columns: {
+      alias: { kind: 'text' },
+      entity_id: { kind: 'entityID' },
+      updated_at: { kind: 'timestamp' },
+    },
     primaryKey: ['alias'],
     indexes: [{ columns: ['entity_id'] }],
   });
@@ -102,7 +106,7 @@ test('it maps the entity view to the title, URL, author and update time', () => 
   ]);
 });
 
-test('it reads its own pull request and alias tables, to drop an older fact and keep a newer alias holder', () => {
+test('it reads its own pull request and alias tables, to drop an older fact and keep a newer alias', () => {
   expect(githubPullRequestConsumer.reads).toStrictEqual([
     'github_pull_request',
     'github_pull_request_alias',
@@ -188,4 +192,98 @@ test('#get_entity answers NOT_FOUND for an alias of a pull request it has no fac
   );
 
   expect(error).toMatchObject({ code: 'NOT_FOUND' });
+});
+
+test('it gives an alias to the newest fact that names it, in either arrival order', async () => {
+  const report = await applyInBothOrders({
+    plugins: [githubPlugin],
+    source: githubSource,
+    facts: [
+      {
+        type: 'github.pull_request.opened',
+        event: 'delivery-1',
+        entity: 'github:pull_request:101',
+        at: '2026-10-01T09:00:00Z',
+        payload: {
+          action: 'opened',
+          pull_request: {
+            id: 101,
+            number: 3,
+            title: 'Chart the harbour mouth',
+            state: 'open',
+            html_url: 'https://github.example/acme/harbour/pull/3',
+            base: { repo: { id: 902 } },
+            created_at: '2026-10-01T09:00:00Z',
+            updated_at: '2026-10-01T09:00:00Z',
+          },
+        },
+      },
+      {
+        type: 'github.pull_request.edited',
+        event: 'delivery-2',
+        entity: 'github:pull_request:101',
+        at: '2026-10-05T09:00:00Z',
+        payload: {
+          action: 'edited',
+          pull_request: {
+            id: 101,
+            number: 3,
+            title: 'Chart the harbour mouth',
+            state: 'open',
+            html_url: 'https://github.example/acme/estuary/pull/3',
+            base: { repo: { id: 902 } },
+            created_at: '2026-10-01T09:00:00Z',
+            updated_at: '2026-10-05T09:00:00Z',
+          },
+        },
+      },
+      {
+        type: 'github.pull_request.opened',
+        event: 'delivery-3',
+        entity: 'github:pull_request:202',
+        at: '2026-10-03T09:00:00Z',
+        payload: {
+          action: 'opened',
+          pull_request: {
+            id: 202,
+            number: 3,
+            title: 'Open the new harbour',
+            state: 'open',
+            html_url: 'https://github.example/acme/harbour/pull/3',
+            base: { repo: { id: 977 } },
+            created_at: '2026-10-03T09:00:00Z',
+            updated_at: '2026-10-03T09:00:00Z',
+          },
+        },
+      },
+    ],
+  });
+
+  const aliases = [
+    {
+      alias: 'acme/estuary#3',
+      entity_id: 'github:pull_request:101',
+      updated_at: '2026-10-05T09:00:00Z',
+    },
+    {
+      alias: 'acme/harbour#3',
+      entity_id: 'github:pull_request:202',
+      updated_at: '2026-10-03T09:00:00Z',
+    },
+    {
+      alias: 'https://github.example/acme/estuary/pull/3',
+      entity_id: 'github:pull_request:101',
+      updated_at: '2026-10-05T09:00:00Z',
+    },
+    {
+      alias: 'https://github.example/acme/harbour/pull/3',
+      entity_id: 'github:pull_request:202',
+      updated_at: '2026-10-03T09:00:00Z',
+    },
+  ];
+
+  expect({
+    given: report.given.rows['github_pull_request_alias'],
+    reversed: report.reversed.rows['github_pull_request_alias'],
+  }).toStrictEqual({ given: aliases, reversed: aliases });
 });

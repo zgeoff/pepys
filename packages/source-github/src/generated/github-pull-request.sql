@@ -24,6 +24,7 @@ CREATE INDEX "github_pull_request_repository_id_idx" ON "github_pull_request" ("
 CREATE TABLE "github_pull_request_alias" (
   "alias" TEXT NOT NULL,
   "entity_id" TEXT NOT NULL,
+  "updated_at" TEXT NOT NULL,
   PRIMARY KEY ("alias")
 );
 

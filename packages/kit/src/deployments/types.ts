@@ -113,7 +113,8 @@ export type DeploymentFailure =
     }
 
   // get_entity resolves an alias through the `<table>_alias` table beside an entity view's table,
-  // which holds only a text `alias` key and a non-null `entity_id`
+  // which holds only a text `alias` key, a non-null `entity_id`, and a non-null `updated_at`
+  // timestamp, so a consumer can give the alias to the newest fact that names it
   | { kind: 'alias-table-shape'; consumer: string; table: string }
 
   // `field` is a path such as `drawers[].label`; ingest stores the uncoerced value, which the

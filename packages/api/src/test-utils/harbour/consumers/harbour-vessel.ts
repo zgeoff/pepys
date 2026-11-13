@@ -3,7 +3,12 @@
 export function applyFact(factJSON: string): string {
   const fact = parseVesselFact(factJSON);
   const row = { id: fact.entity, name: fact.payload.name, updated_at: fact.at };
-  const alias = { alias: fact.payload.name.toLowerCase(), entity_id: fact.entity };
+
+  const alias = {
+    alias: fact.payload.name.toLowerCase(),
+    entity_id: fact.entity,
+    updated_at: fact.at,
+  };
 
   return JSON.stringify([
     { upsert: { harbour_vessel: row } },

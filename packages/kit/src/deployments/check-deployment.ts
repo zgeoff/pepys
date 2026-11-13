@@ -486,13 +486,15 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
 }
 
 function isAliasTable(table: TableDeclaration): boolean {
-  const { alias, entity_id: entityID, ...others } = table.columns;
+  const { alias, entity_id: entityID, updated_at: updatedAt, ...others } = table.columns;
 
   return (
     alias?.kind === 'text' &&
     alias.nullable !== true &&
     entityID?.kind === 'entityID' &&
     entityID.nullable !== true &&
+    updatedAt?.kind === 'timestamp' &&
+    updatedAt.nullable !== true &&
     Object.keys(others).length === 0 &&
     table.primaryKey.length === 1 &&
     table.primaryKey[0] === 'alias'

@@ -14,7 +14,9 @@ export async function seedHarbourFiles(storeDirectory: string): Promise<void> {
       harbour_vessel: [
         { id: 'harbour:vessel:7', name: 'Tern', updated_at: '2026-11-01T08:00:00.000Z' },
       ],
-      harbour_vessel_alias: [{ alias: 'tern', entity_id: 'harbour:vessel:7' }],
+      harbour_vessel_alias: [
+        { alias: 'tern', entity_id: 'harbour:vessel:7', updated_at: '2026-11-01T08:00:00.000Z' },
+      ],
     },
   });
 

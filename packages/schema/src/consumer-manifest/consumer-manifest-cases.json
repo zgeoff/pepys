@@ -9,10 +9,10 @@
         "consumers": [
           {
             "name": "github_pull_request",
-            "module": "0740764033fa262a0aa9abfff0a75d419469ead298a455ccc75f470b517c601e",
-            "path": "github_pull_request/0740764033fa262a0aa9abfff0a75d419469ead298a455ccc75f470b517c601e.wasm",
+            "module": "04691e908cb4e904b33296cd26394ca6c10e7aff10f2f37b29330219c6656ae2",
+            "path": "github_pull_request/04691e908cb4e904b33296cd26394ca6c10e7aff10f2f37b29330219c6656ae2.wasm",
             "pins": {},
-            "version": "8f1fccceba70af0e8a7d1afab4d335cac5fa0f52041bae9b806207973b83c850",
+            "version": "b8843619ba0df9efd7c048e265ae2047a59ba1bc7e3988ff4b2cb68a7375a7f2",
             "manifest": {
               "name": "github_pull_request",
               "input": {
@@ -113,6 +113,10 @@
                     "entity_id": {
                       "kind": "entityID",
                       "nullable": false
+                    },
+                    "updated_at": {
+                      "kind": "timestamp",
+                      "nullable": false
                     }
                   },
                   "primaryKey": ["alias"],
@@ -138,7 +142,7 @@
                 }
               },
               "links": [],
-              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE TABLE \"github_pull_request_alias\" (\n  \"alias\" TEXT NOT NULL,\n  \"entity_id\" TEXT NOT NULL,\n  PRIMARY KEY (\"alias\")\n);\n\nCREATE INDEX \"github_pull_request_alias_entity_id_idx\" ON \"github_pull_request_alias\" (\"entity_id\");\n\nCREATE TABLE \"github_release_bump\" (\n  \"pull_request_id\" TEXT NOT NULL,\n  \"release_repository\" TEXT NOT NULL,\n  \"release_tag\" TEXT NOT NULL,\n  PRIMARY KEY (\"pull_request_id\", \"release_repository\", \"release_tag\")\n);\n\nCREATE INDEX \"github_release_bump_release_repository_release_tag_idx\" ON \"github_release_bump\" (\"release_repository\", \"release_tag\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
+              "schema": "CREATE TABLE \"github_pull_request\" (\n  \"id\" TEXT NOT NULL,\n  \"number\" INTEGER NOT NULL,\n  \"repository_id\" TEXT NOT NULL,\n  \"title\" TEXT NOT NULL,\n  \"state\" TEXT NOT NULL,\n  \"is_draft\" INTEGER NOT NULL,\n  \"is_merged\" INTEGER NOT NULL,\n  \"author_id\" TEXT,\n  \"url\" TEXT NOT NULL,\n  \"merge_commit_sha\" TEXT,\n  \"created_at\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  \"closed_at\" TEXT,\n  \"merged_at\" TEXT,\n  \"payload\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"github_pull_request_repository_id_idx\" ON \"github_pull_request\" (\"repository_id\");\n\nCREATE TABLE \"github_pull_request_alias\" (\n  \"alias\" TEXT NOT NULL,\n  \"entity_id\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"alias\")\n);\n\nCREATE INDEX \"github_pull_request_alias_entity_id_idx\" ON \"github_pull_request_alias\" (\"entity_id\");\n\nCREATE TABLE \"github_release_bump\" (\n  \"pull_request_id\" TEXT NOT NULL,\n  \"release_repository\" TEXT NOT NULL,\n  \"release_tag\" TEXT NOT NULL,\n  PRIMARY KEY (\"pull_request_id\", \"release_repository\", \"release_tag\")\n);\n\nCREATE INDEX \"github_release_bump_release_repository_release_tag_idx\" ON \"github_release_bump\" (\"release_repository\", \"release_tag\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'github:pull_request' AS \"kind\",\n  \"title\" AS \"title\",\n  \"url\" AS \"url\",\n  \"author_id\" AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"github_pull_request\";\n"
             }
           },
           {

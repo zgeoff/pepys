@@ -179,6 +179,7 @@ export interface GithubPullRequestRow {
 export interface GithubPullRequestAliasRow {
   alias: string;
   entity_id: EntityID;
+  updated_at: string;
 }
 
 export interface GithubReleaseBumpRow {
@@ -336,9 +337,14 @@ export function readGithubPullRequestAliasRow(key: string): GithubPullRequestAli
     return undefined;
   }
 
+  if (!('updated_at' in parsed) || (typeof parsed.updated_at !== 'string')) {
+    return undefined;
+  }
+
   return {
     alias: parsed.alias,
     entity_id: parsed.entity_id,
+    updated_at: parsed.updated_at,
   };
 }
 

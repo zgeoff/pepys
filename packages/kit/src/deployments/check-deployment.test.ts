@@ -1035,12 +1035,13 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
 
 test.each([
   [
-    'a column beside alias and entity_id',
+    'a column beside alias, entity_id and updated_at',
     {
       columns: {
         alias: { kind: 'text' },
         entity_id: { kind: 'entityID' },
-        added_at: { kind: 'timestamp' },
+        updated_at: { kind: 'timestamp' },
+        added_by: { kind: 'text' },
       },
       primaryKey: ['alias'],
       indexes: [],
@@ -1049,7 +1050,11 @@ test.each([
   [
     'a nullable entity_id',
     {
-      columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID', nullable: true } },
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID', nullable: true },
+        updated_at: { kind: 'timestamp' },
+      },
       primaryKey: ['alias'],
       indexes: [],
     },
@@ -1057,7 +1062,43 @@ test.each([
   [
     'an entity_id of text',
     {
-      columns: { alias: { kind: 'text' }, entity_id: { kind: 'text' } },
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'text' },
+        updated_at: { kind: 'timestamp' },
+      },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'no updated_at',
+    {
+      columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'a nullable updated_at',
+    {
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+        updated_at: { kind: 'timestamp', nullable: true },
+      },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'an updated_at of text',
+    {
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+        updated_at: { kind: 'text' },
+      },
       primaryKey: ['alias'],
       indexes: [],
     },
@@ -1065,7 +1106,11 @@ test.each([
   [
     'a key of alias and entity_id',
     {
-      columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+        updated_at: { kind: 'timestamp' },
+      },
       primaryKey: ['alias', 'entity_id'],
       indexes: [],
     },
@@ -1110,7 +1155,7 @@ test.each([
   });
 });
 
-test('it accepts an alias table of a text alias key and an entity ID', () => {
+test('it accepts an alias table of a text alias key, an entity ID and an update time', () => {
   const deployment = {
     name: 'harbour',
     plugins: [
@@ -1126,7 +1171,11 @@ test('it accepts an alias table of a text alias key and an entity ID', () => {
                 indexes: [],
               },
               till_alias: {
-                columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+                columns: {
+                  alias: { kind: 'text' },
+                  entity_id: { kind: 'entityID' },
+                  updated_at: { kind: 'timestamp' },
+                },
                 primaryKey: ['alias'],
                 indexes: [{ columns: ['entity_id'] }],
               },
