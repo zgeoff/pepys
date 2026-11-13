@@ -121,15 +121,17 @@ A failed batch rolls back, and the task then picks one of two outcomes by the er
 - After any other error, the task stops at once, because the same facts fail the same way again.
   Examples are output the host refuses, a trap in the module and a module file with the wrong hash.
 
-The `up` of `run --up` picks by the same rule, with the same waits and the same limit. After a store
-or log error, such as a refused S2 connection, `run` prints the consumer and the error, waits, and
-runs that consumer's `up` again from its start. After any other error, or at the limit, `run` exits
-1 before any task starts. The `up` command never retries.
+The `up` of `run --up` retries a store or log error as a task does. After such an error, for example
+a refused S2 connection, `run` prints the consumer and the error, waits, and runs that consumer's
+`up` again from step 1. The waits and the limit are those of a task, and the host counts the failed
+tries of each consumer's `up` on their own. After any other error, or when one consumer's `up`
+reaches the limit, `run` exits 1 before any task starts. The `up` command never retries.
 
 A stopped task stays stopped until the process restarts. The host prints the error, and the other
 tasks keep running. When every task has stopped, `run` exits 1. SIGINT or SIGTERM stops `run` with
-exit 0 at any point, the `up` of `--up` too, and the next `up` resumes a stopped `up`. When
-`consumers.json` lists no consumer, `run` waits for one of the two signals.
+exit 0 at any point, during the `up` of `--up` as well as once the tasks run. The next `up` builds
+again a version whose build the signal stopped. When `consumers.json` lists no consumer, `run` waits
+for one of the two signals.
 
 ## The module boundary
 
@@ -239,11 +241,13 @@ the package plug-ins build on, and each check must report the problem kind that 
 
 ## Known limits
 
-- An `up` that fails on any error but a store or log error stops `run --up`, so no consumer's tables
-  update until someone fixes it, while ingest keeps appending facts.
+- `run --up` never retries an `up` that fails on an error other than a store or log error. `run`
+  exits, so no consumer's tables update until someone fixes the error, while ingest keeps appending
+  facts.
 - A batch that fails on another scope's row or link stops its consumer until a new module is up.
-- A store or log outage longer than the sum of the retry waits stops `run --up` during its `up`, and
-  every task that reads during it, until the process restarts.
+- A store or log outage longer than the sum of the retry waits makes `run --up` exit 1 when the
+  outage comes during the `up`. Once the tasks run, such an outage stops every task that reads
+  during the outage, until the process restarts.
 - The host never deletes an old version's folder, so each swap leaves one more folder in the store.
 - Each version of a scope consumer stores its own copy of its streams' facts, and a new version
   indexes them again as it replays.
