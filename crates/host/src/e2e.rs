@@ -101,6 +101,134 @@ mod blob_store_garage {
     crate::blob_store::fixtures::for_each_blob_store_fixture!(garage_tests);
 }
 
+mod pull_request_unreadable_payload {
+    use std::path::Path;
+
+    use serde_json::json;
+
+    use super::{create_s2_log, read_variable};
+    use crate::commands::{HostConfig, up};
+    use crate::database::{Store, open_store, read_offset};
+    use crate::fact_log::s2::S2Settings;
+    use crate::fact_log::{AppendOutcome, FactLog};
+
+    const BASIN: &str = "pull-request-unreadable-payload";
+    const STREAM: &str = "facts.github.pull_request";
+
+    // The pull request module that `bun run consumers:build` compiled from the stub deployment,
+    // through the host's `up` on s2-lite, on a fact whose payload holds no pull request it can read
+    // and then on a readable one.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_stores_no_row_for_a_pull_request_fact_whose_payload_does_not_parse_and_applies_the_next_fact()
+     {
+        let consumers =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../build/consumers/consumers.json");
+
+        assert!(
+            consumers.exists(),
+            "build the consumers first: bun run test:e2e:prepare"
+        );
+
+        let unreadable = json!({
+            "id": "webhook:github:delivery-1",
+            "type": "github.pull_request.opened",
+            "v": 1,
+            "api": "github/2022-11-28",
+            "entity": "github:pull_request:41",
+            "at": "2026-10-01T09:00:00Z",
+            "payload": {"action": "opened", "pull_request": {"id": 41, "number": "forty-one"}}
+        });
+        let readable = json!({
+            "id": "webhook:github:delivery-2",
+            "type": "github.pull_request.opened",
+            "v": 1,
+            "api": "github/2022-11-28",
+            "entity": "github:pull_request:42",
+            "at": "2026-10-01T09:05:00Z",
+            "payload": {
+                "action": "opened",
+                "pull_request": {
+                    "id": 42,
+                    "number": 7,
+                    "title": "Chart the outer channel",
+                    "state": "open",
+                    "draft": false,
+                    "merged": false,
+                    "merge_commit_sha": null,
+                    "html_url": "https://github.example/acme/harbour/pull/7",
+                    "user": {"id": 4401},
+                    "base": {"repo": {"id": 902}},
+                    "created_at": "2026-10-01T09:05:00Z",
+                    "updated_at": "2026-10-01T09:05:00Z",
+                    "closed_at": null,
+                    "merged_at": null
+                }
+            }
+        });
+        let log = create_s2_log(BASIN, &[STREAM.to_owned()]).await;
+
+        assert_eq!(
+            log.append_batch(STREAM, &[unreadable.to_string(), readable.to_string()], 0)
+                .await
+                .expect("an append"),
+            AppendOutcome::Acknowledged {
+                first_offset: 0,
+                count: 2,
+            }
+        );
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let config = HostConfig {
+            s2: S2Settings {
+                endpoint: read_variable("PEPYS_S2_ENDPOINT"),
+                access_token: read_variable("PEPYS_S2_ACCESS_TOKEN"),
+                basin: BASIN.to_owned(),
+            },
+            store_dir: directory.path().join("store"),
+            consumers,
+        };
+
+        up(&config, Some("github_pull_request"), None)
+            .await
+            .expect("an up");
+
+        let store = open_store(
+            &config
+                .store_dir
+                .join("github_pull_request/current/consumer.db"),
+        )
+        .await
+        .expect("the store");
+
+        assert_eq!(
+            (
+                read_texts(&store, "SELECT id FROM github_pull_request").await,
+                read_texts(&store, "SELECT fact_id FROM applied_facts ORDER BY fact_id").await,
+                read_offset(&store, STREAM).await.expect("an offset"),
+            ),
+            (
+                vec!["github:pull_request:42".to_owned()],
+                vec![
+                    "webhook:github:delivery-1".to_owned(),
+                    "webhook:github:delivery-2".to_owned()
+                ],
+                Some(1)
+            )
+        );
+    }
+
+    async fn read_texts(store: &Store, query: &str) -> Vec<String> {
+        let mut rows = store.connection.query(query, ()).await.expect("a query");
+        let mut texts = Vec::new();
+
+        while let Some(row) = rows.next().await.expect("a row") {
+            texts.push(row.get(0).expect("a text"));
+        }
+
+        texts
+    }
+}
+
 mod scope_journey {
     use std::path::Path;
 
