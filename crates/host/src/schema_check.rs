@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use thiserror::Error;
 use turso::Value;
 
 use crate::consumer::{ColumnKind, ConsumerManifest, TableInfo};
@@ -55,7 +56,7 @@ pub async fn check_schema(store: &Store, manifest: &ConsumerManifest) -> Result<
 
         check_columns(info, &columns).map_err(|reason| HostError::SchemaMismatch {
             table: table.clone(),
-            reason,
+            reason: reason.to_string(),
         })?;
     }
 
@@ -63,15 +64,32 @@ pub async fn check_schema(store: &Store, manifest: &ConsumerManifest) -> Result<
 }
 
 /// The first difference between a table of the manifest and its columns in the file.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ColumnMismatch {
+    #[error("the column {0} is in only one of the two")]
+    OnlyOnOneSide(String),
+    #[error("the column {name} is {found}, and its kind needs {expected}")]
+    DeclaredType {
+        name: String,
+        found: String,
+        expected: &'static str,
+    },
+    #[error("the column {0} differs in NOT NULL from its nullable flag")]
+    NotNull(String),
+    #[error("the primary key differs")]
+    PrimaryKey,
+}
+
+/// Compares a table of the manifest with its columns in the file.
 ///
 /// # Errors
-/// Fails with the reason for the difference.
-pub fn check_columns(info: &TableInfo, columns: &[StoredColumn]) -> Result<(), String> {
+/// Fails with the first [`ColumnMismatch`].
+pub fn check_columns(info: &TableInfo, columns: &[StoredColumn]) -> Result<(), ColumnMismatch> {
     let stored: BTreeSet<&str> = columns.iter().map(|column| column.name.as_str()).collect();
     let listed: BTreeSet<&str> = info.columns.keys().map(String::as_str).collect();
 
     if let Some(name) = stored.symmetric_difference(&listed).next() {
-        return Err(format!("the column {name} is in only one of the two"));
+        return Err(ColumnMismatch::OnlyOnOneSide((*name).to_owned()));
     }
 
     for column in columns {
@@ -81,17 +99,15 @@ pub fn check_columns(info: &TableInfo, columns: &[StoredColumn]) -> Result<(), S
         let expected = to_declared_type(declared.kind);
 
         if !column.declared_type.eq_ignore_ascii_case(expected) {
-            return Err(format!(
-                "the column {} is {}, and its kind needs {expected}",
-                column.name, column.declared_type
-            ));
+            return Err(ColumnMismatch::DeclaredType {
+                name: column.name.clone(),
+                found: column.declared_type.clone(),
+                expected,
+            });
         }
 
         if column.not_null == declared.nullable {
-            return Err(format!(
-                "the column {} differs in NOT NULL from its nullable flag",
-                column.name
-            ));
+            return Err(ColumnMismatch::NotNull(column.name.clone()));
         }
     }
 
@@ -107,7 +123,7 @@ pub fn check_columns(info: &TableInfo, columns: &[StoredColumn]) -> Result<(), S
         .map(|column| column.name.as_str())
         .ne(info.primary_key.iter().map(String::as_str))
     {
-        return Err("the primary key differs".to_owned());
+        return Err(ColumnMismatch::PrimaryKey);
     }
 
     Ok(())
@@ -297,7 +313,7 @@ mod tests {
                 &info(),
                 &[column("id", "TEXT", 2), column("day", "INTEGER", 1)]
             ),
-            Err("the primary key differs".to_owned())
+            Err(ColumnMismatch::PrimaryKey)
         );
     }
 
@@ -308,7 +324,11 @@ mod tests {
                 &info(),
                 &[column("id", "TEXT", 1), column("day", "REAL", 2)]
             ),
-            Err("the column day is REAL, and its kind needs INTEGER".to_owned())
+            Err(ColumnMismatch::DeclaredType {
+                name: "day".to_owned(),
+                found: "REAL".to_owned(),
+                expected: "INTEGER",
+            })
         );
     }
 }
