@@ -3,9 +3,9 @@ import { match } from 'ts-pattern';
 import type { ResumedPull } from '../pull/cursors/read-saved-cursors.ts';
 import type { PullRun, PullRunner } from '../pull/make-pull-runner.ts';
 
-// One timer per pull, whose first run starts from the pull's saved cursor. A run never overlaps the
-// one before it on the same timer. Returns the function that stops the timers: it aborts each run
-// in flight and settles once every run has ended.
+// One timer per pull, whose first run starts from the pull's saved cursor. A timer starts no run
+// while its last one waits for its source or runs. Returns the function that stops the timers: it
+// aborts each run, waiting or in flight, and settles once every run has ended.
 export function startPullTimers(
   pulls: readonly ResumedPull[],
   runPull: PullRunner,

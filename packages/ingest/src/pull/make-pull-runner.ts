@@ -6,6 +6,8 @@ import type { StreamTurns } from '../receive/write-batch.ts';
 import { pickBatchPlan } from '../utils/pick-batch-plan.ts';
 import { buildCursorRecord } from './cursors/build-cursor-record.ts';
 import { cursorStream } from './cursors/cursor-stream.ts';
+import { withSourceLock } from './with-source-lock.ts';
+import type { SourceLocks } from './with-source-lock.ts';
 
 export type PullPathName = 'live' | 'recovery' | 'backfill' | 'resync';
 
@@ -37,10 +39,12 @@ interface PullRunnerDependencies {
   logger: Logger;
 }
 
-// For a resync pull, removes each mark it was given that no tie set again since. A pull's fact is
-// noted in no mark: a resynced fact ties with the body it replaces, and would mark its entity again
-// on every run.
+// The pull paths of one source run one after the other, in the order they were asked for, and the
+// pull paths of two sources run at the same time. A run that waits for its source ends as refused
+// when its signal aborts, and its pull never starts.
 export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner {
+  const locks: SourceLocks = new Map();
+
   return async (sourceName, pathName, cursor, signal) => {
     const source = dependencies.deployment.sources.find(
       (candidate) => candidate.name === sourceName,
@@ -52,67 +56,13 @@ export function makePullRunner(dependencies: PullRunnerDependencies): PullRunner
       return { kind: 'refused', reason: `the source ${sourceName} has no ${pathName} pull` };
     }
 
-    const marks = pathName === 'resync' ? dependencies.resyncMarks.list(source.name) : [];
-    const env: Record<string, string> = {};
+    const run = await withSourceLock(locks, source.name, signal, () =>
+      runPull(dependencies, { source, path, pathName, cursor, signal }),
+    );
 
-    for (const name of path.env ?? []) {
-      env[name] = dependencies.secrets[name] ?? '';
-    }
-
-    const pulled = await path.pull(cursor, {
-      env,
-      marks,
-      now: dependencies.now,
-      log: dependencies.logger,
-      signal,
-    });
-
-    if (pulled.kind !== 'batch') {
-      return pulled;
-    }
-
-    const plan = pickBatchPlan(source, pulled.batch);
-
-    if (!plan.ok) {
-      return { kind: 'refused', reason: plan.failure.reason };
-    }
-
-    const outcome = await writeBatch(plan.value, dependencies);
-
-    if (outcome !== 'stored') {
-      return outcome === 'not-stored'
-        ? { kind: 'not-stored' }
-        : { kind: 'refused', reason: 'the log refused the batch' };
-    }
-
-    // A run that leaves the cursor where it was has nothing to save.
-    if (pulled.cursor !== cursor) {
-      const record = buildCursorRecord({
-        source: source.name,
-        path: pathName,
-        cursor: pulled.cursor,
-        nowMs: dependencies.now(),
-      });
-
-      const saved = await writeBatch(new Map([[cursorStream, [[record]]]]), dependencies);
-
-      if (saved !== 'stored') {
-        return saved === 'not-stored'
-          ? { kind: 'not-stored' }
-          : { kind: 'refused', reason: 'the log refused the cursor record' };
-      }
-    }
-
-    for (const mark of marks) {
-      dependencies.resyncMarks.remove(source.name, mark);
-    }
-
-    return {
-      kind: 'stored',
-      stored: pulled.batch.facts.length,
-      cursor: pulled.cursor,
-      isDone: pulled.isDone,
-    };
+    return run === 'stopped'
+      ? { kind: 'refused', reason: `the ${pathName} pull of ${sourceName} stopped before its turn` }
+      : run;
   };
 }
 
@@ -120,4 +70,83 @@ function findPullPath(source: SourceDefinition, pathName: PullPathName): PullPat
   const path = source[pathName];
 
   return path?.kind === 'pull' ? path : undefined;
+}
+
+interface PullRequest {
+  source: SourceDefinition;
+  path: PullPath;
+  pathName: PullPathName;
+  cursor: string | null;
+  signal: AbortSignal;
+}
+
+// For a resync pull, removes each mark it was given that no tie set again since. A pull's fact is
+// noted in no mark: a resynced fact ties with the body it replaces, and would mark its entity again
+// on every run.
+async function runPull(
+  dependencies: PullRunnerDependencies,
+  request: PullRequest,
+): Promise<PullRun> {
+  const source = request.source;
+  const marks = request.pathName === 'resync' ? dependencies.resyncMarks.list(source.name) : [];
+  const env: Record<string, string> = {};
+
+  for (const name of request.path.env ?? []) {
+    env[name] = dependencies.secrets[name] ?? '';
+  }
+
+  const pulled = await request.path.pull(request.cursor, {
+    env,
+    marks,
+    now: dependencies.now,
+    log: dependencies.logger,
+    signal: request.signal,
+  });
+
+  if (pulled.kind !== 'batch') {
+    return pulled;
+  }
+
+  const plan = pickBatchPlan(source, pulled.batch);
+
+  if (!plan.ok) {
+    return { kind: 'refused', reason: plan.failure.reason };
+  }
+
+  const outcome = await writeBatch(plan.value, dependencies);
+
+  if (outcome !== 'stored') {
+    return outcome === 'not-stored'
+      ? { kind: 'not-stored' }
+      : { kind: 'refused', reason: 'the log refused the batch' };
+  }
+
+  // A run that leaves the cursor where it was has nothing to save.
+  if (pulled.cursor !== request.cursor) {
+    const record = buildCursorRecord({
+      source: source.name,
+      path: request.pathName,
+      cursor: pulled.cursor,
+      nowMs: dependencies.now(),
+    });
+
+    const saved = await writeBatch(new Map([[cursorStream, [[record]]]]), dependencies);
+
+    if (saved !== 'stored') {
+      return saved === 'not-stored'
+        ? { kind: 'not-stored' }
+        : { kind: 'refused', reason: 'the log refused the cursor record' };
+    }
+  }
+
+  for (const mark of marks) {
+    dependencies.resyncMarks.remove(source.name, mark);
+  }
+
+  return {
+    kind: 'stored',
+    stored: pulled.batch.facts.length,
+    cursor: pulled.cursor,
+    isDone: pulled.isDone,
+  };
 }

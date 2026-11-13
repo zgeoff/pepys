@@ -9,6 +9,7 @@ import { readSavedCursors } from '../pull/cursors/read-saved-cursors.ts';
 import { createIngest } from '../receive/create-ingest.ts';
 import { noSenderProof } from '../sender-proof/none/no-sender-proof.ts';
 import { buildStubPullDeployment } from '../test-utils/build-stub-pull-deployment.ts';
+import type { StubPulls } from '../test-utils/build-stub-pull-deployment.ts';
 import { buildTestFact } from '../test-utils/build-test-fact.ts';
 import { startPullTimers } from './start-pull-timers.ts';
 
@@ -18,34 +19,141 @@ function setupTest() {
   const tide = toStreamName('facts.almanac.tide');
   const log = createMemoryFactLog([tide, cursorStream]);
 
+  // one ingest over the test's log, as a start of the process makes one
+  const startTimersOver = async (pullsBySource: Readonly<Record<string, StubPulls>>) => {
+    const deployment = buildStubPullDeployment(pullsBySource);
+
+    const ingest = createIngest({
+      deployment,
+      secrets: {},
+      log,
+      senderProof: noSenderProof,
+      appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
+      now: () => 0,
+      logger,
+    });
+
+    const pulls = await readSavedCursors(log, collectTimedPulls(deployment.sources));
+
+    const stop = startPullTimers(pulls, ingest.runPull, logger);
+
+    onTestFinished(stop);
+
+    return { stop, runPull: ingest.runPull };
+  };
+
   return {
     tide,
     readLogged: () => lines.map((line): unknown => JSON.parse(line)),
-
-    // one ingest over the test's log, as a start of the process makes one
+    startTimersOver,
     startTimers: async (pull: PullPath['pull']) => {
-      const deployment = buildStubPullDeployment({ almanac: { live: { intervalMs: 1, pull } } });
+      const timers = await startTimersOver({ almanac: { live: { intervalMs: 1, pull } } });
 
-      const ingest = createIngest({
-        deployment,
-        secrets: {},
-        log,
-        senderProof: noSenderProof,
-        appendRetry: { maxAttempts: 1, retryDelayMs: 0 },
-        now: () => 0,
-        logger,
-      });
-
-      const pulls = await readSavedCursors(log, collectTimedPulls(deployment.sources));
-
-      const stop = startPullTimers(pulls, ingest.runPull, logger);
-
-      onTestFinished(stop);
-
-      return stop;
+      return timers.stop;
     },
   };
 }
+
+test('it makes a run through runPull wait for a timed run of the same source', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const timers = await ctx.startTimersOver({
+    almanac: {
+      live: {
+        intervalMs: 1,
+        pull: async () => {
+          events.push('live starts');
+          started.resolve();
+
+          await release.promise;
+
+          events.push('live ends');
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: {
+        intervalMs: null,
+        pull: () => {
+          events.push('recovery starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+    tally: {
+      live: { intervalMs: null, pull: () => Promise.resolve({ kind: 'expired' }) },
+    },
+  });
+
+  await started.promise;
+
+  const signal = new AbortController().signal;
+
+  const run = timers.runPull('almanac', 'recovery', null, signal);
+
+  await timers.runPull('tally', 'live', null, signal);
+
+  release.resolve();
+
+  await run;
+
+  expect(events.slice(0, 3)).toStrictEqual(['live starts', 'live ends', 'recovery starts']);
+});
+
+test('it settles a stop while a timed run waits for its source, and that run never starts', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const later = Promise.withResolvers<void>();
+
+  // The timers fire in the order of their intervals, so once the 5 ms timer of the other source
+  // has run, the 1 ms recovery timer has fired and its run waits behind the live run.
+  const timers = await ctx.startTimersOver({
+    almanac: {
+      live: {
+        intervalMs: 1,
+        pull: async (_cursor, context) => {
+          events.push('live starts');
+
+          await new Promise((resolve) => {
+            context.signal.addEventListener('abort', resolve);
+          });
+
+          events.push('live ends');
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: {
+        intervalMs: 1,
+        pull: () => {
+          events.push('recovery starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+    tally: {
+      live: {
+        intervalMs: 5,
+        pull: () => {
+          later.resolve();
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+  });
+
+  await later.promise;
+
+  await timers.stop();
+
+  expect(events).toStrictEqual(['live starts', 'live ends']);
+});
 
 test('it passes the first run after a restart the cursor that the last stored run saved', async () => {
   const ctx = setupTest();

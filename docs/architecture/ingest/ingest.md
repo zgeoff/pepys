@@ -165,7 +165,16 @@ one part that the sender did not write. Ingest never checks that a `read` does t
 
 Ingest starts one timer for each pull path that sets an interval. Ingest never runs a pull path with
 no interval on its own. Code that holds the result of `createIngest` can run such a path once
-through `runPull`, as the tests do. A run never overlaps the one before it on the same timer.
+through `runPull`, as the tests do.
+
+Ingest holds one lock per source, in memory. A run takes the lock of its source before its pull
+starts, so two pull paths of one source never run at the same time, and the pull paths of two
+sources do. A `runPull` call takes the same lock as a timer's run.
+
+A run that finds the lock taken waits, and the waiting runs go in the order they asked. A timer
+starts no run while its last run waits or runs, so each timer has at most one run in the queue. A
+waiting run keeps its turn, because a skipped turn would leave an hourly pull two hours between
+runs. When ingest stops, a waiting run ends, and its pull never starts.
 
 A pull's batch goes through the same batch checks and appends as a delivery. When a pull returns a
 fact with a blob, ingest appends nothing from that run, logs the error, and keeps the cursor.
@@ -198,8 +207,7 @@ When a pull reports that its cursor expired, the timer drops the cursor, and the
 none. No record marks the drop, so a restart before the next stored run passes the expired cursor
 once more. On any other failure, ingest logs the error and keeps the cursor.
 
-A caller of `runPull` passes the cursor itself, and a stored run appends its cursor record in the
-same way.
+A caller of `runPull` passes the cursor itself, and a stored run appends its record in the same way.
 
 ## Log lines
 
@@ -240,7 +248,7 @@ old records from a stream that has the default retention. Ingest then reads the
 [saved cursors](#cursors).
 
 Ingest takes no lock across processes. Two processes of one deployment would each keep their own
-recent bodies, timers and resync marks, so a deployment runs one.
+recent bodies, timers, source locks and resync marks, so a deployment runs one.
 
 ## Known limits
 

@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
 import { createLogger, toStreamName } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
@@ -182,4 +182,203 @@ test('it answers not-stored for a run whose cursor record gets no acknowledgemen
   const run = await ingest.runPull('almanac', 'recovery', null, new AbortController().signal);
 
   expect(run).toStrictEqual({ kind: 'not-stored' });
+});
+
+test('it runs a second pull path of a source only after the first one ends', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const ingest = ctx.createIngest(createMemoryFactLog([cursorStream]), {
+    almanac: {
+      live: {
+        intervalMs: null,
+        pull: async () => {
+          events.push('live starts');
+          started.resolve();
+
+          await release.promise;
+
+          events.push('live ends');
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: {
+        intervalMs: null,
+        pull: () => {
+          events.push('recovery starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+    tally: {
+      live: { intervalMs: null, pull: () => Promise.resolve({ kind: 'expired' }) },
+    },
+  });
+
+  const signal = new AbortController().signal;
+
+  const first = ingest.runPull('almanac', 'live', null, signal);
+
+  await started.promise;
+
+  const second = ingest.runPull('almanac', 'recovery', null, signal);
+
+  await ingest.runPull('tally', 'live', null, signal);
+
+  release.resolve();
+
+  await Promise.all([first, second]);
+
+  expect(events).toStrictEqual(['live starts', 'live ends', 'recovery starts']);
+});
+
+test('it runs the pull paths of two sources at the same time', async () => {
+  const ctx = setupTest();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const ingest = ctx.createIngest(createMemoryFactLog([cursorStream]), {
+    almanac: {
+      live: {
+        intervalMs: null,
+        pull: async () => {
+          started.resolve();
+
+          await release.promise;
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+    },
+    tally: {
+      live: { intervalMs: null, pull: () => Promise.resolve({ kind: 'expired' }) },
+    },
+  });
+
+  const signal = new AbortController().signal;
+
+  const held = ingest.runPull('almanac', 'live', null, signal);
+
+  onTestFinished(async () => {
+    release.resolve();
+
+    await held;
+  });
+
+  await started.promise;
+
+  const run = await ingest.runPull('tally', 'live', null, signal);
+
+  expect(run).toStrictEqual({ kind: 'expired' });
+});
+
+test('it refuses a run whose signal aborts while it waits, and never starts its pull', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const ingest = ctx.createIngest(createMemoryFactLog([cursorStream]), {
+    almanac: {
+      live: {
+        intervalMs: null,
+        pull: async () => {
+          started.resolve();
+
+          await release.promise;
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: {
+        intervalMs: null,
+        pull: () => {
+          events.push('recovery starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+  });
+
+  const held = ingest.runPull('almanac', 'live', null, new AbortController().signal);
+
+  await started.promise;
+
+  const waiting = new AbortController();
+
+  const stopped = ingest.runPull('almanac', 'recovery', null, waiting.signal);
+
+  waiting.abort();
+
+  const run = await stopped;
+
+  release.resolve();
+
+  await held;
+
+  expect(run).toStrictEqual({
+    kind: 'refused',
+    reason: 'the recovery pull of almanac stopped before its turn',
+  });
+
+  expect(events).toStrictEqual([]);
+});
+
+test('it keeps a run behind a stopped one waiting until the run ahead of both ends', async () => {
+  const ctx = setupTest();
+  const events: string[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  const ingest = ctx.createIngest(createMemoryFactLog([cursorStream]), {
+    almanac: {
+      live: {
+        intervalMs: null,
+        pull: async () => {
+          started.resolve();
+
+          await release.promise;
+
+          events.push('live ends');
+
+          return { kind: 'unavailable', retryAfterMs: 1 };
+        },
+      },
+      recovery: { intervalMs: null, pull: () => Promise.resolve({ kind: 'expired' }) },
+      backfill: {
+        intervalMs: null,
+        pull: () => {
+          events.push('backfill starts');
+
+          return Promise.resolve({ kind: 'unavailable', retryAfterMs: 1 });
+        },
+      },
+    },
+  });
+
+  const signal = new AbortController().signal;
+
+  const held = ingest.runPull('almanac', 'live', null, signal);
+
+  await started.promise;
+
+  const waiting = new AbortController();
+
+  const stopped = ingest.runPull('almanac', 'recovery', null, waiting.signal);
+  const behind = ingest.runPull('almanac', 'backfill', null, signal);
+
+  waiting.abort();
+
+  await stopped;
+
+  release.resolve();
+
+  await Promise.all([held, behind]);
+
+  expect(events).toStrictEqual(['live ends', 'backfill starts']);
 });
