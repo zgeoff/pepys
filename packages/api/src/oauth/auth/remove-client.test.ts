@@ -3,14 +3,13 @@ import { join } from 'node:path';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
+import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
-import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readClientViews } from './read-client-views.ts';
 import { readGrantViews } from './read-grant-views.ts';
@@ -33,17 +32,14 @@ async function setupTest() {
   registerTestCleanup(() => store.close());
 
   const authenticator = buildStubAuthenticator();
-
-  const enrollment = await createEnrollmentToken(store.db, Date.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
+  const deps = { db: store.db, clock: systemClock };
 
   return {
     url: server.url,
     origin: server.origin,
     authenticator,
     store,
-    seed: buildSeeder({ db: store.db, clock: systemClock }),
+    seed: { ...buildSeeder(deps), ...buildEnrolledPasskeySeeder({ ...deps, server }) },
   };
 }
 
@@ -69,6 +65,8 @@ test('it reports an unknown client id as not removed', async () => {
 
 test("it never removes another client's tokens, consent or grant use", async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const removed = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },

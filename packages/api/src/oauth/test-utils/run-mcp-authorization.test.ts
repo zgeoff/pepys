@@ -2,13 +2,12 @@ import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { openMCPAuthDatabase } from '../admin/open-mcp-auth-database.ts';
-import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
-import { resetPasskeys } from '../auth/reset-passkeys.ts';
+import { systemClock } from '../auth/system-clock.ts';
+import { buildEnrolledPasskeySeeder } from './build-enrolled-passkey-seeder.ts';
 import { buildStubAuthenticator } from './build-stub-authenticator.ts';
 import { registerTestCleanup } from './register-test-cleanup.ts';
 import { runMCPAuthorization } from './run-mcp-authorization.ts';
-import { runPasskeyEnrollment } from './run-passkey-enrollment.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
 
 async function setupTest() {
@@ -27,15 +26,19 @@ async function setupTest() {
 
   const authenticator = buildStubAuthenticator();
 
-  const enrollment = await createEnrollmentToken(store.db, Date.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
-
-  return { url: server.url, origin: server.origin, authenticator, store };
+  return {
+    url: server.url,
+    origin: server.origin,
+    authenticator,
+    store,
+    seed: buildEnrolledPasskeySeeder({ db: store.db, clock: systemClock, server }),
+  };
 }
 
 test('it returns at the redirect URI with an authorization code its verifier exchanges for tokens', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
@@ -89,8 +92,6 @@ test('it throws when the authorization stops short of the login page', async () 
 test('it throws when the login page holds no passkey ceremony', async () => {
   const ctx = await setupTest();
 
-  await resetPasskeys(ctx.store.db);
-
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
   });
@@ -107,6 +108,8 @@ test('it throws when the login page holds no passkey ceremony', async () => {
 
 test('it throws when the passkey sign-in does not reach the consent page', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },

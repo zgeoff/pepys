@@ -11,6 +11,7 @@ import { readOwnerSessionViews } from '../auth/read-owner-session-views.ts';
 import { removeClient } from '../auth/remove-client.ts';
 import { resetPasskeys } from '../auth/reset-passkeys.ts';
 import { revokeGrant } from '../auth/revoke-grant.ts';
+import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
@@ -25,8 +26,8 @@ import { runPasskeySignIn } from '../test-utils/run-passkey-sign-in.ts';
 import { sendModernMCPRequest } from '../test-utils/send-modern-mcp-request.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 
-// The API of the harbour deployment with its OAuth routes, its database in
-// the test's temp folder, and the owner's passkey enrolled.
+// The API of the harbour deployment with its OAuth routes and its database in
+// the test's temp folder.
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-mcp-http-');
   const dbPath = join(temporaryDirectory.path, 'mcp-auth.db');
@@ -54,13 +55,7 @@ async function setupTest() {
   registerTestCleanup(() => store.close());
 
   const authenticator = buildStubAuthenticator();
-
-  const enrollment = await createEnrollmentToken(store.db, clock.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
-
-  // The lines the enrollment printed are not part of any scenario.
-  security.length = 0;
+  const deps = { db: store.db, clock };
 
   return {
     directory: temporaryDirectory.path,
@@ -71,7 +66,10 @@ async function setupTest() {
     security,
     clock,
     store,
-    seed: buildSeeder({ db: store.db, clock }),
+    seed: {
+      ...buildSeeder(deps),
+      ...buildEnrolledPasskeySeeder({ ...deps, server }),
+    },
 
     // Stops the server and starts a fresh process's worth of it on the same
     // port and database, as an operator's restart does, trusting the
@@ -167,6 +165,8 @@ test('it challenges a request without a token with where to find the resource me
 test('it issues an access and refresh token for an approved authorization code', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -209,6 +209,8 @@ test('it issues an access and refresh token for an approved authorization code',
 test('it returns to the client with the issuer and the state it sent', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -235,6 +237,8 @@ test('it returns to the client with the issuer and the state it sent', async () 
 
 test('it runs a tool call whose scope the token holds', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -287,6 +291,8 @@ test('it runs a tool call whose scope the token holds', async () => {
 test('it refuses an MCP request that does not accept an event stream with 406', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -333,6 +339,8 @@ test('it refuses an MCP request that does not accept an event stream with 406', 
 
 test('it refuses an MCP request with insufficient_scope to a token refreshed without read', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -401,6 +409,8 @@ test('it refuses an MCP request with insufficient_scope to a token refreshed wit
 test('it serves a tool call in the stateless revision with the result type it requires', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: {
       name: 'ChatGPT',
@@ -434,6 +444,8 @@ test('it serves a tool call in the stateless revision with the result type it re
 
 test('it refuses consent to a scope the client did not request', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -486,6 +498,8 @@ test('it refuses consent to a scope the client did not request', async () => {
 
 test('it denies the request when the operator allows nothing', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -544,6 +558,8 @@ test('it denies the request when the operator allows nothing', async () => {
 test('it shows the consent page on every authorization of a client', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -570,6 +586,8 @@ test('it shows the consent page on every authorization of a client', async () =>
 
 test('it binds a token to /mcp when the client names no resource', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -644,6 +662,8 @@ test('it binds a token to /mcp when the client names no resource', async () => {
 test('it asks a browser that kept its owner session for a fresh passkey sign-in', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -685,6 +705,8 @@ test('it asks a browser that kept its owner session for a fresh passkey sign-in'
 
 test('it refuses an access token once its grant is revoked', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -745,6 +767,8 @@ test('it refuses an access token once its grant is revoked', async () => {
 test('it refuses to refresh a token once its grant is revoked', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -802,6 +826,8 @@ test('it refuses to refresh a token once its grant is revoked', async () => {
 
 test('it shows the consent page again to a client whose grant was revoked', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -869,6 +895,8 @@ test('it shows the consent page again to a client whose grant was revoked', asyn
 test('it rotates a refresh token into a new one with the same scope', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -914,6 +942,8 @@ test('it rotates a refresh token into a new one with the same scope', async () =
 
 test('it refuses a spent refresh token as invalid_grant', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -973,6 +1003,8 @@ test('it refuses a spent refresh token as invalid_grant', async () => {
 
 test('it refuses the successor of a refresh token once the spent one is replayed', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1036,6 +1068,8 @@ test('it refuses the successor of a refresh token once the spent one is replayed
 
 test('it refuses a reused authorization code and revokes what the first use issued', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1159,6 +1193,8 @@ test('it refuses an authorization for another resource with invalid_target', asy
 test('it refuses a code exchange for another resource with invalid_target', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1231,6 +1267,8 @@ test('it refuses an authorization without PKCE before asking the operator', asyn
 
 test('it refuses a code exchange with the wrong PKCE verifier', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1457,6 +1495,8 @@ test.each([['/oauth2/get-clients'], ['/list-sessions']])(
 test('it keeps serving an access token once the exchange deletes the session that approved it', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1499,6 +1539,8 @@ test('it keeps serving an access token once the exchange deletes the session tha
 test('it refreshes a token once the exchange deletes the session that approved it', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1539,6 +1581,8 @@ test('it refreshes a token once the exchange deletes the session that approved i
 
 test('it serves a token refreshed once the exchange deletes the session that approved it', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1593,6 +1637,8 @@ test('it serves a token refreshed once the exchange deletes the session that app
 test('it refuses the access token of a removed client', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1638,6 +1684,8 @@ test('it refuses the access token of a removed client', async () => {
 test('it refuses the refresh token of a removed client', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1681,6 +1729,8 @@ test('it refuses the refresh token of a removed client', async () => {
 
 test('it refuses a token bound to the resource of an earlier public URL', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1765,6 +1815,8 @@ test('it listens beyond loopback behind an https public URL', async () => {
 test('it refuses a consent answer for a request no passkey signed in for', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1835,6 +1887,8 @@ test('it refuses a consent answer for a request no passkey signed in for', async
 
 test("it refuses a consent answer carrying another approval's owner session", async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -1919,6 +1973,8 @@ test("it refuses a consent answer carrying another approval's owner session", as
 test('it refuses a consent answer whose query still asks for a login', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -1974,6 +2030,8 @@ test('it refuses a consent answer whose query still asks for a login', async () 
 
 test("it shows an error page instead of the consent page for another approval's request", async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -2039,6 +2097,8 @@ test("it shows an error page instead of the consent page for another approval's 
 test('it shows an error page instead of the consent page for a query with a broken signature', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2087,6 +2147,8 @@ test('it shows an error page instead of the consent page for a query with a brok
 test('it shows an error page instead of the consent page to a browser with no owner session', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2129,6 +2191,8 @@ test('it shows an error page instead of the consent page to a browser with no ow
 
 test('it refuses a second consent answer from one login', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -2194,6 +2258,8 @@ test('it refuses a second consent answer from one login', async () => {
 test('it deletes the owner session when the operator denies the request', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2247,6 +2313,8 @@ test('it deletes the owner session when the operator denies the request', async 
 test('it keeps the owner session no longer than the authorization code it approved', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2272,6 +2340,8 @@ test('it keeps the owner session no longer than the authorization code it approv
 
 test('it deletes the owner session once its authorization code is exchanged', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -2347,6 +2417,8 @@ test('it shows the sentence for an unknown client on the error page', async () =
 test('it accepts a token bound to /mcp at the bare origin', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: {
       name: 'ChatGPT',
@@ -2417,6 +2489,10 @@ test('it challenges a request to the bare origin with the /mcp resource metadata
 test('it writes an accepted start, an owner sign-in, and an allowed consent as security events', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  ctx.security.length = 0;
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2476,6 +2552,10 @@ test('it writes an accepted start, an owner sign-in, and an allowed consent as s
 
 test('it carries one correlation id from the start of an authorization through its consent', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  ctx.security.length = 0;
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -2718,6 +2798,8 @@ test('it writes a token exchange with a grant type pepys does not offer as unsup
 test('it writes no security event for a token exchange that issues tokens', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -2811,6 +2893,8 @@ test('it writes no security event for an MCP request with no Authorization heade
 
 test('it writes a token bound to the resource of an earlier public URL as invalid_token', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3038,6 +3122,8 @@ test('it writes no security event for the approval page itself', async () => {
 test('it writes an allow sent with no scope ticked as a denied consent with none_ticked', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3094,6 +3180,8 @@ test('it writes an allow sent with no scope ticked as a denied consent with none
 
 test('it writes a deny as a denied consent with no reason', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3167,6 +3255,10 @@ test('it writes one suppressed event with the dropped count once a burst past th
 
 test('it marks every forwarded address unverified and keeps every secret of a full sign-in and its refused tokens out of its events and request lines', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  ctx.security.length = 0;
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3464,6 +3556,8 @@ test('it marks every forwarded address unverified and keeps every secret of a fu
 test('it refreshes a grant issued before a restart', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3518,6 +3612,8 @@ test('it refreshes a grant issued before a restart', async () => {
 test('it serves an MCP request with an access token issued before a restart', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3561,6 +3657,8 @@ test('it serves an MCP request with an access token issued before a restart', as
 
 test('it refuses the refresh token of a grant revoked before a restart', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3609,6 +3707,8 @@ test('it refuses the refresh token of a grant revoked before a restart', async (
 
 test('it refuses a consent answer from a sign-in made before a restart', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3664,6 +3764,8 @@ test('it refuses a consent answer from a sign-in made before a restart', async (
 test('it refuses a login page opened before a restart', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3714,6 +3816,8 @@ test('it refuses a login page opened before a restart', async () => {
 
 test('it refuses a consent answer from a sign-in made before the passkeys were reset', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3767,6 +3871,8 @@ test('it refuses a consent answer from a sign-in made before the passkeys were r
 test('it refuses the lost passkey once a reset enrolled a new one', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3802,6 +3908,8 @@ test('it refuses the lost passkey once a reset enrolled a new one', async () => 
 
 test('it refuses a sign-in abandoned at the passkey prompt once its approval expired', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3852,6 +3960,8 @@ test('it refuses a sign-in abandoned at the passkey prompt once its approval exp
 test('it refreshes a grant issued before the passkeys were reset', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -3892,6 +4002,8 @@ test('it refreshes a grant issued before the passkeys were reset', async () => {
 
 test('it refuses a code exchange that carries a DPoP proof with invalid_request', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -3945,6 +4057,8 @@ test('it refuses a code exchange that carries a DPoP proof with invalid_request'
 
 test('it refuses a DPoP-bound access token sent as a bearer token with invalid_token', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },

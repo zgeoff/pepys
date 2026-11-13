@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
+import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildHookedAuthOpener } from '../test-utils/build-hooked-auth-opener.ts';
 import { buildSeeder } from '../test-utils/build-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
@@ -10,9 +11,7 @@ import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { readJSONRecord } from '../test-utils/read-json-record.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
-import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readGrantViews } from './read-grant-views.ts';
 import { revokeGrant } from './revoke-grant.ts';
@@ -37,10 +36,7 @@ async function setupTest() {
   registerTestCleanup(() => store.close());
 
   const authenticator = buildStubAuthenticator();
-
-  const enrollment = await createEnrollmentToken(store.db, Date.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
+  const deps = { db: store.db, clock: systemClock };
 
   return {
     url: server.url,
@@ -48,12 +44,14 @@ async function setupTest() {
     authenticator,
     store,
     armBeforeServerQuery: opener.armBeforeQuery,
-    seed: buildSeeder({ db: store.db, clock: systemClock }),
+    seed: { ...buildSeeder(deps), ...buildEnrolledPasskeySeeder({ ...deps, server }) },
   };
 }
 
 test("it forgets the consent its client held along with the grant's tokens", async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -101,6 +99,8 @@ test('it reports an unknown grant id as not revoked', async () => {
 
 test("it never removes another grant's tokens or another client's consent", async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const revoked = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -165,6 +165,8 @@ test.each([
   'it leaves no token of a grant revoked while a refresh writes its new %s token',
   async (_kind, query) => {
     const ctx = await setupTest();
+
+    await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
     const created = await ctx.store.auth.api.createFixedClient({
       body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },

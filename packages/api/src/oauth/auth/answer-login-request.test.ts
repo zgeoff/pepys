@@ -3,17 +3,15 @@ import { join } from 'node:path';
 import { sql } from 'kysely';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
+import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { buildStubClock } from '../test-utils/build-stub-clock.ts';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { parsePasskeyPage } from '../test-utils/parse-passkey-page.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
-import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { runPasskeySignIn } from '../test-utils/run-passkey-sign-in.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
-import { resetPasskeys } from './reset-passkeys.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-answer-login-');
@@ -37,39 +35,32 @@ async function setupTest() {
 
   const authenticator = buildStubAuthenticator();
 
-  const enrollment = await createEnrollmentToken(store.db, clock.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
-
-  // Every sign-in starts from an authorization, which needs a client.
-  const created = await store.auth.api.createFixedClient({
-    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
-  });
-
-  // The lines the enrollment printed are not part of any scenario.
-  requests.length = 0;
-  security.length = 0;
-
   return {
     url: server.url,
     origin: server.origin,
-    clientID: created.clientID,
     authenticator,
     clock,
     store,
     requests,
     security,
+    seed: buildEnrolledPasskeySeeder({ db: store.db, clock, server }),
   };
 }
 
 test('it signs the owner in with the enrolled passkey and sends the browser on to consent', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     state: 'state-1',
@@ -94,6 +85,12 @@ test('it signs the owner in with the enrolled passkey and sends the browser on t
 test('it refuses the assertion of a passkey that was never enrolled', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const stranger = buildStubAuthenticator();
 
   await stranger.create(
@@ -105,7 +102,7 @@ test('it refuses the assertion of a passkey that was never enrolled', async () =
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -132,13 +129,15 @@ test('it refuses the assertion of a passkey that was never enrolled', async () =
 test('it offers no sign-in and refuses a posted assertion while no passkey is enrolled', async () => {
   const ctx = await setupTest();
 
-  await resetPasskeys(ctx.store.db);
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
 
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -169,6 +168,12 @@ test('it offers no sign-in and refuses a posted assertion while no passkey is en
 test('it signs nobody in when a reset commits after the assertion verifies and before the session exists', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   // The sign-in stores the passkey's counter once the assertion verifies;
   // this trigger runs a reset's deletes right then, in the same statement.
   await sql`
@@ -184,7 +189,7 @@ test('it signs nobody in when a reset commits after the assertion verifies and b
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -209,11 +214,17 @@ test('it signs nobody in when a reset commits after the assertion verifies and b
 test('it refuses an assertion posted a second time once it signed in', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -255,11 +266,17 @@ test('it refuses an assertion posted a second time once it signed in', async () 
 test('it refuses an assertion whose challenge a failed sign-in already took', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -303,11 +320,17 @@ test('it refuses an assertion whose challenge a failed sign-in already took', as
 test('it refuses an assertion signed more than five minutes after its page as expired', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -354,11 +377,17 @@ test.each([
 ])('it refuses an assertion made for %s', async (_label, ceremony) => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -379,11 +408,17 @@ test.each([
 test("it refuses an assertion signed for one request's page when posted for another request", async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const first = new URL(`${ctx.url}/oauth2/authorize`);
 
   first.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     state: 'state-1',
@@ -434,11 +469,17 @@ test("it refuses an assertion signed for one request's page when posted for anot
 test('it refuses the assertion of an earlier tab once a later tab opened the same login page', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -476,11 +517,17 @@ test('it refuses the assertion of an earlier tab once a later tab opened the sam
 test('it shows the page with a fresh challenge after a failed sign-in and ends the request at the fifth', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -521,11 +568,17 @@ test('it shows the page with a fresh challenge after a failed sign-in and ends t
 test('it refuses the enrolled passkey once five failed sign-ins ended the request', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -577,11 +630,17 @@ test('it refuses the enrolled passkey once five failed sign-ins ended the reques
 test('it signs nobody in with an approval code, whatever the code', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -609,11 +668,20 @@ test('it signs nobody in with an approval code, whatever the code', async () => 
 test('it signs nobody in with any value its request lines and security events hold', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
+  ctx.requests.length = 0;
+  ctx.security.length = 0;
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -665,11 +733,19 @@ test('it signs nobody in with any value its request lines and security events ho
 test('it writes a failed sign-in as a failed passkey owner sign-in with the start correlation id', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
+  ctx.security.length = 0;
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
@@ -698,7 +774,7 @@ test('it writes a failed sign-in as a failed passkey owner sign-in with the star
       reason: 'assertion_failed',
       method: 'passkey',
       route: '/login',
-      client: { id: ctx.clientID, name: 'dots' },
+      client: { id: created.clientID, name: 'dots' },
       correlationID: expect.toBeOneOf([correlationID]),
       peer: { address: '127.0.0.1', provenance: 'socket' },
       userAgent: { summary: expect.toStartWith('Bun/'), provenance: 'client' },
@@ -709,11 +785,17 @@ test('it writes a failed sign-in as a failed passkey owner sign-in with the star
 test('it writes the fifth failed sign-in as a locked passkey owner sign-in', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
+  const created = await ctx.store.auth.api.createFixedClient({
+    body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
+  });
+
   const authorize = new URL(`${ctx.url}/oauth2/authorize`);
 
   authorize.search = new URLSearchParams({
     response_type: 'code',
-    client_id: ctx.clientID,
+    client_id: created.clientID,
     redirect_uri: 'https://dots.example/cb',
     scope: 'read',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',

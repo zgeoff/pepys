@@ -2,12 +2,12 @@ import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
 import { openMCPAuthDatabase } from '../admin/open-mcp-auth-database.ts';
-import { createEnrollmentToken } from '../auth/create-enrollment-token.ts';
 import { openMCPAuth } from '../auth/open-mcp-auth.ts';
+import { systemClock } from '../auth/system-clock.ts';
+import { buildEnrolledPasskeySeeder } from './build-enrolled-passkey-seeder.ts';
 import { buildStubAuthenticator } from './build-stub-authenticator.ts';
 import { registerTestCleanup } from './register-test-cleanup.ts';
 import { runMCPTokenGrant } from './run-mcp-token-grant.ts';
-import { runPasskeyEnrollment } from './run-passkey-enrollment.ts';
 import { sendModernMCPRequest } from './send-modern-mcp-request.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
 
@@ -25,15 +25,19 @@ async function setupTest() {
 
   const authenticator = buildStubAuthenticator();
 
-  const enrollment = await createEnrollmentToken(store.db, Date.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
-
-  return { url: server.url, origin: server.origin, authenticator, store };
+  return {
+    url: server.url,
+    origin: server.origin,
+    authenticator,
+    store,
+    seed: buildEnrolledPasskeySeeder({ db: store.db, clock: systemClock, server }),
+  };
 }
 
 test('it sends a request the server serves in the stateless revision', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
@@ -66,6 +70,8 @@ test('it sends a request the server serves in the stateless revision', async () 
 
 test('it names the tool of a tool call in its headers, as the stateless revision requires', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },

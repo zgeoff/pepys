@@ -2,16 +2,16 @@ import { expect, onTestFinished, setSystemTime, test } from 'bun:test';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
 import { startHarbourMCPServer } from '../../test-utils/start-harbour-mcp-server.ts';
+import { buildEnrolledPasskeySeeder } from '../test-utils/build-enrolled-passkey-seeder.ts';
 import { buildStubAuthenticator } from '../test-utils/build-stub-authenticator.ts';
 import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { readJSONRecord } from '../test-utils/read-json-record.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
-import { runPasskeyEnrollment } from '../test-utils/run-passkey-enrollment.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
-import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readGrantViews } from './read-grant-views.ts';
+import { systemClock } from './system-clock.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-collect-grants-');
@@ -28,15 +28,19 @@ async function setupTest() {
 
   const authenticator = buildStubAuthenticator();
 
-  const enrollment = await createEnrollmentToken(store.db, Date.now());
-
-  await runPasskeyEnrollment(server, enrollment.token, authenticator);
-
-  return { url: server.url, origin: server.origin, authenticator, store };
+  return {
+    url: server.url,
+    origin: server.origin,
+    authenticator,
+    store,
+    seed: buildEnrolledPasskeySeeder({ db: store.db, clock: systemClock, server }),
+  };
 }
 
 test('it lists a grant with its client and scopes and no last use before the grant is used', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -78,6 +82,8 @@ test('it lists a grant with its client and scopes and no last use before the gra
 
 test('it lists when a grant was last used', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
@@ -136,6 +142,8 @@ test('it lists when a grant was last used', async () => {
 test('it leaves out a grant whose refresh token was revoked', async () => {
   const ctx = await setupTest();
 
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
+
   const created = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
   });
@@ -178,6 +186,8 @@ test('it leaves out a grant whose refresh token was revoked', async () => {
 
 test('it lists the grants oldest first', async () => {
   const ctx = await setupTest();
+
+  await ctx.seed.enrolledPasskey({ authenticator: ctx.authenticator });
 
   const claude = await ctx.store.auth.api.createFixedClient({
     body: { name: 'Claude', redirectURIs: ['https://assistant.example.com/callback'] },
