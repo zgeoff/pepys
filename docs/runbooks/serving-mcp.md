@@ -128,8 +128,6 @@ unknown command prints the usage of every command and exits 2.
      it was last used.
   2. Run `bun <api_entry> grants --revoke=<grant_id>`. Expect: `Revoked grant <grant_id>`, and the
      grant's tokens fail on their next request.
-  3. Run `bun <api_entry> grants` again. When it still lists the grant, a refresh ran during the
-     revoke, so revoke the grant again.
 - To end every grant of a client and remove the client:
   1. Run `bun <api_entry> clients`. Expect: each client, with its ID.
   2. Run `bun <api_entry> clients remove <client_id>`. Expect: the client's tokens fail on their
