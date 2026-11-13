@@ -164,6 +164,26 @@ test.each([
       at: '2026-10-05T14:00:00Z',
     },
   },
+  {
+    event: 'repository',
+    body: {
+      action: 'created',
+      repository: {
+        id: 903,
+        full_name: 'acme/lighthouse',
+        created_at: 1_790_845_200,
+        updated_at: null,
+      },
+      sender: { id: 4404 },
+    },
+    fact: {
+      stream: 'facts.github.repository',
+      type: 'github.repository.created',
+      entity: 'github:repo:903',
+      actor: 'github:user:4404',
+      at: '2026-10-01T09:00:00.000Z',
+    },
+  },
 ])('it stores one $fact.type fact for a signed $event webhook sent twice', async (row) => {
   const ctx = setupTest();
   const body = JSON.stringify(row.body);

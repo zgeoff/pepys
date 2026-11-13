@@ -118,11 +118,13 @@ const reviewThreadBodySchema = z.looseObject({
   sender: senderSchema,
 });
 
+const secondsOrTimeSchema = z.union([z.number().int(), timeSchema]);
+
 const repositoryBodySchema = z.looseObject({
   action: z.string().min(1),
   repository: z.looseObject({
     id: z.number().int(),
-    created_at: timeSchema.nullish(),
+    created_at: secondsOrTimeSchema.nullish(),
     updated_at: timeSchema.nullish(),
   }),
   sender: senderSchema,
@@ -365,7 +367,7 @@ export const githubEventRules: Readonly<Record<string, GithubEventRule>> = {
       return pickFields(repositoryFamily, `github.repository.${parsed.data.action}`, {
         entity: `github:repo:${repository.id}`,
         actor: parsed.data.sender,
-        time: repository.updated_at ?? repository.created_at,
+        time: repository.updated_at ?? toRepositoryTime(repository.created_at),
         locator: undefined,
       });
     },
@@ -442,4 +444,9 @@ function findFirstCommentID(
   );
 
   return first?.id ?? comments[0]?.in_reply_to_id ?? undefined;
+}
+
+// GitHub's repository schema allows a repository's `created_at` as Unix seconds as well as text.
+function toRepositoryTime(time: number | string | null | undefined): string | null | undefined {
+  return typeof time === 'number' ? new Date(time * 1000).toISOString() : time;
 }
