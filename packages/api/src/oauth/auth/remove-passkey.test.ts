@@ -8,6 +8,8 @@ import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readOwnerSessionViews } from './read-owner-session-views.ts';
+import { readPasskeyViews } from './read-passkey-views.ts';
 import { removePasskey } from './remove-passkey.ts';
 import type { PasskeyID } from './types.ts';
 
@@ -38,7 +40,7 @@ test('it removes the passkey and every browser sign-in', async () => {
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-kept') });
   await ctx.auth.api.signInOwner({ body: {} });
 
-  const signedInBefore = await ctx.db.selectFrom('session').select('id').execute();
+  const signedInBefore = await readOwnerSessionViews(ctx.db);
 
   invariant(signedInBefore.length === 1, 'the arrangement left no browser sign-in');
 
@@ -46,11 +48,17 @@ test('it removes the passkey and every browser sign-in', async () => {
 
   expect(removed).toBeTrue();
 
-  const passkeyRows = await ctx.db.selectFrom('pepys_passkey').select('id').execute();
+  const passkeys = await readPasskeyViews(ctx.db);
 
-  expect(passkeyRows).toStrictEqual([{ id: toTagged<PasskeyID>('cred-kept') }]);
+  expect(passkeys).toStrictEqual([
+    {
+      id: toTagged<PasskeyID>('cred-kept'),
+      createdAt: '2026-10-14T12:00:00.000Z',
+      lastUsedAt: null,
+    },
+  ]);
 
-  const sessions = await ctx.db.selectFrom('session').select('id').execute();
+  const sessions = await readOwnerSessionViews(ctx.db);
 
   expect(sessions).toBeEmpty();
 });
@@ -64,7 +72,7 @@ test('it removes nothing and keeps every browser sign-in for an unknown passkey'
 
   expect(removed).toBeFalse();
 
-  const sessions = await ctx.db.selectFrom('session').select('id').execute();
+  const sessions = await readOwnerSessionViews(ctx.db);
 
   expect(sessions).toBeArrayOfSize(1);
 });

@@ -8,6 +8,7 @@ import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { createPasskey } from './create-passkey.ts';
 import { deriveTokenHash } from './derive-token-hash.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readEnrollmentToken } from './read-enrollment-token.ts';
 import { readPasskeyViews } from './read-passkey-views.ts';
 import type { PasskeyID } from './types.ts';
 
@@ -55,9 +56,13 @@ test('it stores the passkey and spends its token', async () => {
     },
   ]);
 
-  const tokenRows = await ctx.db.selectFrom('pepys_enrollment_token').selectAll().execute();
+  const token = await readEnrollmentToken(
+    ctx.db,
+    enrollment.token,
+    Date.UTC(2026, 9, 14, 12, 5, 0),
+  );
 
-  expect(tokenRows).toBeEmpty();
+  expect(token).toBeNull();
 });
 
 test('it stores nothing for a token that is spent', async () => {
@@ -118,10 +123,10 @@ test('it keeps the token when the passkey is already enrolled', async () => {
     createPasskey(ctx.db, { ...passkey, tokenHash: deriveTokenHash(second.token) }),
   ).rejects.toThrow();
 
-  const tokenRows = await ctx.db
-    .selectFrom('pepys_enrollment_token')
-    .select('token_hash')
-    .execute();
+  const tokens = [
+    await readEnrollmentToken(ctx.db, first.token, Date.UTC(2026, 9, 14, 12, 5, 0)),
+    await readEnrollmentToken(ctx.db, second.token, Date.UTC(2026, 9, 14, 12, 5, 0)),
+  ];
 
-  expect(tokenRows).toStrictEqual([{ token_hash: deriveTokenHash(second.token) }]);
+  expect(tokens).toStrictEqual([null, deriveTokenHash(second.token)]);
 });

@@ -8,6 +8,7 @@ import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readPasskey } from './read-passkey.ts';
 import { verifyPasskeyAssertion } from './verify-passkey-assertion.ts';
 import { verifyPasskeyRegistration } from './verify-passkey-registration.ts';
 
@@ -76,12 +77,15 @@ test('it returns the id of the enrolled passkey an assertion verifies against an
 
   expect(verified).toBe(ctx.authenticator.credentialID);
 
-  const passkeyRows = await ctx.db
-    .selectFrom('pepys_passkey')
-    .select(['counter', 'last_used_at'])
-    .execute();
+  const passkey = await readPasskey(ctx.db, ctx.authenticator.credentialID);
 
-  expect(passkeyRows).toStrictEqual([{ counter: 1, last_used_at: '2026-10-14T13:00:00.000Z' }]);
+  expect(passkey).toStrictEqual({
+    id: ctx.authenticator.credentialID,
+    publicKey: ctx.credential.publicKey,
+    counter: 1,
+    transports: expect.toBeString(),
+    lastUsedAt: '2026-10-14T13:00:00.000Z',
+  });
 });
 
 test.each([

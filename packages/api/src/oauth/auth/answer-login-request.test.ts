@@ -12,6 +12,8 @@ import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runPasskeySignIn } from '../test-utils/run-passkey-sign-in.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readOwnerSessionViews } from './read-owner-session-views.ts';
+import { readPasskeyViews } from './read-passkey-views.ts';
 
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-answer-login-');
@@ -209,8 +211,8 @@ test('it signs nobody in when a reset commits after the assertion verifies and b
   const login = new URL(started.headers.get('location') ?? '/', ctx.url);
 
   const signedIn = await runPasskeySignIn(ctx, login);
-  const passkeys = await ctx.store.db.selectFrom('pepys_passkey').select('id').execute();
-  const sessions = await ctx.store.db.selectFrom('session').select('id').execute();
+  const passkeys = await readPasskeyViews(ctx.store.db);
+  const sessions = await readOwnerSessionViews(ctx.store.db);
 
   expect(passkeys).toBeEmpty();
   expect(signedIn.status).toBe(400);

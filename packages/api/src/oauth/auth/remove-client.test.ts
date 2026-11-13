@@ -12,7 +12,10 @@ import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
 import { readClientViews } from './read-client-views.ts';
+import { readConsentViews } from './read-consent-views.ts';
+import { readGrantUseViews } from './read-grant-use-views.ts';
 import { readGrantViews } from './read-grant-views.ts';
+import { readTokenViews } from './read-token-views.ts';
 import { removeClient } from './remove-client.ts';
 import { systemClock } from './system-clock.ts';
 import type { OAuthClientID } from './types.ts';
@@ -110,21 +113,18 @@ test("it never removes another client's tokens, consent or grant use", async () 
 
   await removeClient(ctx.store.db, removed.clientID);
 
-  const accessTokens = await ctx.store.db
-    .selectFrom('oauthAccessToken')
-    .select('clientId')
-    .execute();
+  const tokens = await readTokenViews(ctx.store.db);
+  const consents = await readConsentViews(ctx.store.db);
+  const grantUses = await readGrantUseViews(ctx.store.db);
 
-  const refreshTokens = await ctx.store.db
-    .selectFrom('oauthRefreshToken')
-    .select('clientId')
-    .execute();
+  expect(tokens).toStrictEqual({
+    accessTokens: [{ clientID: kept.clientID, grantID: keptGrant.grantID }],
+    refreshTokens: [{ clientID: kept.clientID, grantID: keptGrant.grantID }],
+  });
 
-  const consents = await ctx.store.db.selectFrom('oauthConsent').select('clientId').execute();
-  const grantUses = await ctx.store.db.selectFrom('pepys_grant_use').select('grant_id').execute();
+  expect(consents).toStrictEqual([{ clientID: kept.clientID }]);
 
-  expect(accessTokens).toStrictEqual([{ clientId: kept.clientID }]);
-  expect(refreshTokens).toStrictEqual([{ clientId: kept.clientID }]);
-  expect(consents).toStrictEqual([{ clientId: kept.clientID }]);
-  expect(grantUses).toStrictEqual([{ grant_id: keptGrant.grantID }]);
+  expect(grantUses).toStrictEqual([
+    { grantID: keptGrant.grantID, lastUsedAt: '2026-10-08T00:00:00.000Z' },
+  ]);
 });

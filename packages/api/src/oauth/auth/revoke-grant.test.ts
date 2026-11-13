@@ -13,7 +13,9 @@ import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { runMCPAuthorization } from '../test-utils/run-mcp-authorization.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readConsentViews } from './read-consent-views.ts';
 import { readGrantViews } from './read-grant-views.ts';
+import { readTokenViews } from './read-token-views.ts';
 import { revokeGrant } from './revoke-grant.ts';
 import { systemClock } from './system-clock.ts';
 import type { OAuthGrantID } from './types.ts';
@@ -82,7 +84,7 @@ test("it forgets the consent its client held along with the grant's tokens", asy
   invariant(grant !== undefined, 'the exchange left no grant');
 
   const revoked = await revokeGrant(ctx.store.db, grant.grantID);
-  const consents = await ctx.store.db.selectFrom('oauthConsent').select('id').execute();
+  const consents = await readConsentViews(ctx.store.db);
   const grants = await readGrantViews(ctx.store.db);
 
   expect(revoked).toBeTrue();
@@ -141,21 +143,15 @@ test("it never removes another grant's tokens or another client's consent", asyn
 
   await revokeGrant(ctx.store.db, revokedGrant.grantID);
 
-  const accessTokens = await ctx.store.db
-    .selectFrom('oauthAccessToken')
-    .select('authorizationCodeId')
-    .execute();
+  const tokens = await readTokenViews(ctx.store.db);
+  const consents = await readConsentViews(ctx.store.db);
 
-  const refreshTokens = await ctx.store.db
-    .selectFrom('oauthRefreshToken')
-    .select('authorizationCodeId')
-    .execute();
+  expect(tokens).toStrictEqual({
+    accessTokens: [{ clientID: kept.clientID, grantID: keptGrant.grantID }],
+    refreshTokens: [{ clientID: kept.clientID, grantID: keptGrant.grantID }],
+  });
 
-  const consents = await ctx.store.db.selectFrom('oauthConsent').select('clientId').execute();
-
-  expect(accessTokens).toStrictEqual([{ authorizationCodeId: keptGrant.grantID }]);
-  expect(refreshTokens).toStrictEqual([{ authorizationCodeId: keptGrant.grantID }]);
-  expect(consents).toStrictEqual([{ clientId: kept.clientID }]);
+  expect(consents).toStrictEqual([{ clientID: kept.clientID }]);
 });
 
 test.each([
@@ -214,20 +210,10 @@ test.each([
       }),
     });
 
-    const accessTokens = await ctx.store.db
-      .selectFrom('oauthAccessToken')
-      .select('id')
-      .where('authorizationCodeId', '=', grant.grantID)
-      .execute();
-
-    const refreshTokens = await ctx.store.db
-      .selectFrom('oauthRefreshToken')
-      .select('id')
-      .where('authorizationCodeId', '=', grant.grantID)
-      .execute();
+    const stored = await readTokenViews(ctx.store.db);
 
     expect(revoked).toStrictEqual([true]);
     expect(refreshed.status).toBe(500);
-    expect({ accessTokens, refreshTokens }).toStrictEqual({ accessTokens: [], refreshTokens: [] });
+    expect(stored).toStrictEqual({ accessTokens: [], refreshTokens: [] });
   },
 );

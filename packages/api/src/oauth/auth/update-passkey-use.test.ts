@@ -7,6 +7,7 @@ import { openTestAuthDatabase } from '../test-utils/open-test-auth-database.ts';
 import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readPasskey } from './read-passkey.ts';
 import type { PasskeyID } from './types.ts';
 import { updatePasskeyUse } from './update-passkey-use.ts';
 
@@ -44,9 +45,13 @@ test('it stores the new counter and the time of the use', async () => {
 
   expect(stored).toBeTrue();
 
-  expect(
-    ctx.db.selectFrom('pepys_passkey').select(['counter', 'last_used_at']).execute(),
-  ).resolves.toStrictEqual([{ counter: 5, last_used_at: '2026-10-14T13:00:00.000Z' }]);
+  expect(readPasskey(ctx.db, toTagged<PasskeyID>('cred-phone'))).resolves.toStrictEqual({
+    id: toTagged<PasskeyID>('cred-phone'),
+    publicKey: expect.toBeString(),
+    counter: 5,
+    transports: expect.toBeString(),
+    lastUsedAt: '2026-10-14T13:00:00.000Z',
+  });
 });
 
 test('it stores nothing when the passkey holds another counter than the verification read', async () => {
@@ -65,9 +70,13 @@ test('it stores nothing when the passkey holds another counter than the verifica
 
   expect(stored).toBeFalse();
 
-  expect(
-    ctx.db.selectFrom('pepys_passkey').select(['counter', 'last_used_at']).execute(),
-  ).resolves.toStrictEqual([{ counter: 6, last_used_at: null }]);
+  expect(readPasskey(ctx.db, toTagged<PasskeyID>('cred-phone'))).resolves.toStrictEqual({
+    id: toTagged<PasskeyID>('cred-phone'),
+    publicKey: expect.toBeString(),
+    counter: 6,
+    transports: expect.toBeString(),
+    lastUsedAt: null,
+  });
 });
 
 test('it stores nothing for a passkey that is no longer enrolled', async () => {

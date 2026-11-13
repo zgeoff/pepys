@@ -9,6 +9,10 @@ import { registerTestCleanup } from '../test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { createEnrollmentToken } from './create-enrollment-token.ts';
 import { openMCPAuth } from './open-mcp-auth.ts';
+import { readClientViews } from './read-client-views.ts';
+import { readEnrollmentToken } from './read-enrollment-token.ts';
+import { readOwnerSessionViews } from './read-owner-session-views.ts';
+import { readPasskeyViews } from './read-passkey-views.ts';
 import { resetPasskeys } from './reset-passkeys.ts';
 import type { PasskeyID } from './types.ts';
 
@@ -37,28 +41,29 @@ test('it removes every passkey, enrollment token, and browser sign-in', async ()
 
   await ctx.seed.passkey({ id: toTagged<PasskeyID>('cred-lost') });
 
-  await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
+  const enrollment = await createEnrollmentToken(ctx.db, Date.UTC(2026, 9, 14, 12, 0, 0));
 
   await ctx.auth.api.signInOwner({ body: {} });
 
-  const signedInBefore = await ctx.db.selectFrom('session').select('id').execute();
+  const signedInBefore = await readOwnerSessionViews(ctx.db);
 
   invariant(signedInBefore.length === 1, 'the arrangement left no browser sign-in');
 
   await resetPasskeys(ctx.db);
 
-  const passkeyRows = await ctx.db.selectFrom('pepys_passkey').select('id').execute();
+  const passkeys = await readPasskeyViews(ctx.db);
 
-  expect(passkeyRows).toBeEmpty();
+  expect(passkeys).toBeEmpty();
 
-  const tokenRows = await ctx.db
-    .selectFrom('pepys_enrollment_token')
-    .select('token_hash')
-    .execute();
+  const token = await readEnrollmentToken(
+    ctx.db,
+    enrollment.token,
+    Date.UTC(2026, 9, 14, 12, 0, 0),
+  );
 
-  expect(tokenRows).toBeEmpty();
+  expect(token).toBeNull();
 
-  const sessions = await ctx.db.selectFrom('session').select('id').execute();
+  const sessions = await readOwnerSessionViews(ctx.db);
 
   expect(sessions).toBeEmpty();
 });
@@ -66,13 +71,20 @@ test('it removes every passkey, enrollment token, and browser sign-in', async ()
 test('it never removes a client', async () => {
   const ctx = await setupTest();
 
-  await ctx.auth.api.createFixedClient({
+  const created = await ctx.auth.api.createFixedClient({
     body: { name: 'dots', redirectURIs: ['https://dots.example/cb'] },
   });
 
   await resetPasskeys(ctx.db);
 
-  const clients = await ctx.db.selectFrom('oauthClient').select('name').execute();
+  const clients = await readClientViews(ctx.db);
 
-  expect(clients).toStrictEqual([{ name: 'dots' }]);
+  expect(clients).toStrictEqual([
+    {
+      clientID: created.clientID,
+      name: 'dots',
+      redirectURIs: ['https://dots.example/cb'],
+      createdAt: expect.toBeString(),
+    },
+  ]);
 });
