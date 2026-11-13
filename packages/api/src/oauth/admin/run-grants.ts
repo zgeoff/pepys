@@ -1,5 +1,10 @@
-import type { GrantID } from '@zgeoff/mcp-auth';
-import { openAuthAdmin } from './open-auth-admin.ts';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { openMCPAuth } from '../auth/open-mcp-auth.ts';
+import { readGrantViews } from '../auth/read-grant-views.ts';
+import { revokeGrant } from '../auth/revoke-grant.ts';
+import type { OAuthGrantID } from '../auth/types.ts';
+import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { PROCESS_IO } from './process-io.ts';
 import type { ProcessIO } from './process-io.ts';
 
@@ -11,15 +16,21 @@ interface GrantsTarget {
 }
 
 export async function runGrants(
-  revoke: GrantID | null,
+  revoke: OAuthGrantID | null,
   target: GrantsTarget,
   io: Pick<ProcessIO, 'print' | 'printError' | 'setExitCode'> = PROCESS_IO,
 ): Promise<void> {
-  const opened = await openAuthAdmin(target.dbPath);
+  mkdirSync(dirname(target.dbPath), { recursive: true });
+
+  const store = await openMCPAuth({
+    dbPath: target.dbPath,
+    openDatabase: openMCPAuthDatabase,
+    origin: null,
+  });
 
   try {
     if (revoke !== null) {
-      const revoked = await opened.admin.grants.revoke(revoke);
+      const revoked = await revokeGrant(store.db, revoke);
 
       if (!revoked) {
         io.printError(`${target.command}: no grant has the ID '${revoke}'`);
@@ -33,7 +44,7 @@ export async function runGrants(
       return;
     }
 
-    const grants = await opened.admin.grants.list();
+    const grants = await readGrantViews(store.db);
 
     if (grants.length === 0) {
       io.print('No grants.');
@@ -47,6 +58,6 @@ export async function runGrants(
       );
     }
   } finally {
-    await opened.close();
+    await store.close();
   }
 }

@@ -8,9 +8,11 @@ import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
 import { z } from 'zod';
 import type { DeploymentClient } from '../client/deployment-client.ts';
+import { runMCPTokenGrant } from '../oauth/test-utils/run-mcp-token-grant.ts';
 import { buildQueryContext } from '../queries/build-query-context.ts';
 import { harbourPlugin, harbourSource } from '../test-utils/harbour/harbour-plugin.ts';
 import { readMCPAnswer } from '../test-utils/read-mcp-answer.ts';
+import { setupMCPHTTP } from '../test-utils/setup-mcp-http.ts';
 import { startAuthorizedMCP } from '../test-utils/start-authorized-mcp.ts';
 import { createApp } from './create-app.ts';
 import { createRouter } from './create-router.ts';
@@ -420,4 +422,84 @@ test('it answers /mcp with 404 when the API serves no OAuth routes', async () =>
   );
 
   expect(answered.status).toBe(404);
+});
+
+test('it challenges an MCP request with no token for the resource metadata', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+
+  expect({
+    status: answered.status,
+    challenge: answered.headers.get('www-authenticate'),
+  }).toStrictEqual({
+    status: 401,
+    challenge: `Bearer resource_metadata="${server.origin}/.well-known/oauth-protected-resource/mcp"`,
+  });
+});
+
+test('it serves /rpc under a Host header the OAuth routes refuse', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/rpc/get_entity`, {
+    method: 'POST',
+    headers: { host: 'cluster.example.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ json: { id: 'harbour:vessel:404' } }),
+  });
+
+  expect(answered.json()).resolves.toMatchObject({ json: { code: 'NOT_FOUND' } });
+});
+
+test('it refuses /mcp under a Host header it does not serve', async () => {
+  const server = await setupMCPHTTP();
+
+  const answered = await fetch(`${server.url}/mcp`, {
+    method: 'POST',
+    headers: { host: 'cluster.example.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+
+  expect(answered.status).toBe(403);
+});
+
+test('it lists the tools at /mcp to a client that enrolled, signed in, consented and took a token', async () => {
+  const server = await setupMCPHTTP();
+
+  const clientID = await server.createClient('harbour assistant', [
+    'https://assistant.example.com/callback',
+  ]);
+
+  const grant = await runMCPTokenGrant(server, {
+    clientID,
+    redirectURI: 'https://assistant.example.com/callback',
+    scope: 'read',
+    ticked: ['read'],
+  });
+
+  const listed = await readMCPAnswer(
+    (request) =>
+      fetch(`${server.url}/mcp`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${grant.accessToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: request.body,
+      }),
+    'tools/list',
+    {},
+  );
+
+  expect(listed).toStrictEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    result: {
+      tools: expect.arrayContaining([expect.objectContaining({ name: 'get_entity' })]),
+    },
+  });
 });

@@ -87,10 +87,10 @@ unknown command prints the usage of every command and exits 2.
 
 2. Run `bun <api_entry> passkeys enroll`.
 
-   Expect: an enrollment token, which expires soon.
+   Expect: an enrollment token, and the time it expires.
 
-3. Right away, open `<public_origin>/enroll` in the owner's browser. Type the token, and create the
-   passkey when the browser asks.
+3. Before that time, open `<public_origin>/enroll` in the owner's browser. Type the token, and
+   create the passkey when the browser asks.
 
    Expect: `bun <api_entry> passkeys` lists the new passkey.
 
@@ -129,9 +129,9 @@ unknown command prints the usage of every command and exits 2.
   2. Run `bun <api_entry> grants --revoke=<grant_id>`. Expect: `Revoked grant <grant_id>`, and the
      grant's tokens fail on their next request.
 - To end every grant of a client and remove the client:
-  1. Run `bun <api_entry> clients`. Expect: each client, with its ID and its name.
-  2. Run `bun <api_entry> clients remove <name>`. Expect: the count of grants it revoked, and the
-     client's tokens fail on their next request.
+  1. Run `bun <api_entry> clients`. Expect: each client, with its ID.
+  2. Run `bun <api_entry> clients remove <client_id>`. Expect: the client's tokens fail on their
+     next request.
 - To replace a lost or stolen passkey:
   1. Run `bun <api_entry> passkeys enroll --reset`. Expect: a new enrollment token. The command
      deletes every passkey, and keeps every grant.

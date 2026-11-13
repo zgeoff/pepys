@@ -1,0 +1,148 @@
+import { randomBytes } from 'node:crypto';
+import { chmodSync, closeSync, openSync } from 'node:fs';
+import { mcp } from '@better-auth/mcp';
+import { oauthProvider } from '@better-auth/oauth-provider';
+import type { OAuthOptions, Scope } from '@better-auth/oauth-provider';
+import { betterAuth } from 'better-auth';
+import type { BetterAuthPlugin } from 'better-auth';
+import { getMigrations } from 'better-auth/db/migration';
+import { Kysely, sql } from 'kysely';
+import { GATEWAY_PATHS, GRANT_SCOPES } from '../constants.ts';
+import { APPROVAL_WINDOW_SECONDS } from './approval-window-seconds.ts';
+import { createOwnerPlugin } from './create-owner-plugin.ts';
+import { deriveTokenHash } from './derive-token-hash.ts';
+import type { MCPAuthDatabase } from './mcp-auth-database.ts';
+import type { MCPAuthSchema } from './mcp-auth-schema.ts';
+
+interface MCPAuthOptions {
+  readonly dbPath: string;
+
+  // The public origin: the issuer, with `<origin>/mcp` the one resource tokens
+  // are bound to. Null opens the store to manage clients and grants only, with
+  // no resource served.
+  readonly origin: string | null;
+
+  // How long a rotated refresh token still answers with its successor; 0
+  // treats any reuse as replay.
+  readonly refreshReuseSeconds?: number;
+
+  // Opens the database file, which the entry wires to the API's SQLite opener.
+  readonly openDatabase: (path: string) => MCPAuthDatabase;
+}
+
+// The owner's session lives only to carry one approval from the code page
+// through consent to the code exchange, which every token detaches from.
+const OWNER_SESSION_SECONDS = 3 * APPROVAL_WINDOW_SECONDS;
+
+export async function openMCPAuth(options: MCPAuthOptions) {
+  // better-auth reads these when it builds its context; an empty endpoint
+  // turns its telemetry into a no-op.
+  process.env['BETTER_AUTH_TELEMETRY'] = '0';
+  process.env['BETTER_AUTH_TELEMETRY_ENDPOINT'] = '';
+
+  // The file holds token hashes and owner sessions, so only its owner may
+  // read it. SQLite gives the WAL and shared-memory files the main file's
+  // mode, so the mode is set before SQLite opens it.
+  closeSync(openSync(options.dbPath, 'a', 0o600));
+  chmodSync(options.dbPath, 0o600);
+
+  const database = options.openDatabase(options.dbPath);
+
+  const db = new Kysely<MCPAuthSchema>({ dialect: database.dialect });
+
+  const providerOptions: OAuthOptions<Scope[]> = {
+    loginPage: GATEWAY_PATHS.browser.login,
+    consentPage: GATEWAY_PATHS.browser.consent,
+    scopes: [...GRANT_SCOPES, 'offline_access'],
+    disableJwtPlugin: true,
+    allowDynamicClientRegistration: false,
+    grantTypes: ['authorization_code', 'refresh_token'],
+
+    // The API serves one resource, so every client may request it.
+    enforcePerClientResources: false,
+    accessTokenExpiresIn: 3600,
+    codeExpiresIn: APPROVAL_WINDOW_SECONDS,
+    refreshTokenReuseInterval: options.refreshReuseSeconds ?? 0,
+    storeTokens: { hash: (token: string) => Promise.resolve(deriveTokenHash(token)) },
+  };
+
+  const provider =
+    options.origin === null
+      ? oauthProvider(providerOptions)
+      : mcp({ ...providerOptions, resource: `${options.origin}${GATEWAY_PATHS.machine.mcp}` });
+
+  const baseURL = options.origin ?? 'http://127.0.0.1';
+
+  const auth = betterAuth({
+    baseURL,
+    basePath: '/',
+    secret: randomBytes(32).toString('base64url'),
+    database: { db, type: 'sqlite' },
+    telemetry: { enabled: false },
+    logger: { level: 'error' },
+    rateLimit: { enabled: false },
+
+    // Every open runs the migrations itself, so the startup schema check
+    // would only report the tables a fresh database has yet to get.
+    advanced: { database: { validateSchema: false } },
+    trustedOrigins: [baseURL],
+    session: { expiresIn: OWNER_SESSION_SECONDS, disableSessionRefresh: true },
+
+    // The provider's own endpoint types do not satisfy the plugin type under
+    // exactOptionalPropertyTypes, so the API reaches them over HTTP-shaped requests.
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- better-auth plugin type under exactOptionalPropertyTypes
+    plugins: [provider as BetterAuthPlugin, createOwnerPlugin()],
+  });
+
+  const migrations = await getMigrations(auth.options);
+
+  await migrations.runMigrations();
+
+  await sql`create table if not exists pepys_grant_use (grant_id text primary key not null, last_used_at text not null)`.execute(
+    db,
+  );
+
+  await sql`create table if not exists pepys_revoked_grant (grant_id text primary key not null)`.execute(
+    db,
+  );
+
+  // better-auth writes a refresh's new tokens in statements apart from the
+  // one that spends the old token, so a revoke in another process can commit
+  // between them. These inserts then abort rather than outlive the revoke.
+  for (const table of ['oauthAccessToken', 'oauthRefreshToken']) {
+    await sql`create trigger if not exists ${sql.id(`pepys_refuse_revoked_${table}`)} before insert on ${sql.table(table)} when exists (select 1 from pepys_revoked_grant where grant_id = new."authorizationCodeId") begin select raise(abort, 'the grant is revoked'); end`.execute(
+      db,
+    );
+  }
+
+  await sql`create table if not exists pepys_passkey (id text primary key not null, public_key text not null, counter integer not null, transports text not null, created_at text not null, last_used_at text)`.execute(
+    db,
+  );
+
+  await sql`create table if not exists pepys_enrollment_token (token_hash text primary key not null, created_at text not null, expires_at text not null)`.execute(
+    db,
+  );
+
+  // A resource served under an earlier public URL stays a valid token target
+  // until its row goes.
+  if (options.origin !== null) {
+    await db
+      .deleteFrom('oauthResource')
+      .where('identifier', '!=', `${options.origin}${GATEWAY_PATHS.machine.mcp}`)
+      .execute();
+  }
+
+  // better-auth starts its context when it is built, and that start queries
+  // the database, so a close before it settles destroys the driver under it.
+  await auth.$context;
+
+  return {
+    auth,
+    db,
+    async close(): Promise<void> {
+      await db.destroy();
+
+      database.close();
+    },
+  };
+}

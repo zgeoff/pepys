@@ -1,12 +1,19 @@
-import { MCPAuthError } from '@zgeoff/mcp-auth';
-import { openAuthAdmin } from './open-auth-admin.ts';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { isAllowedRedirectURI } from '../auth/is-allowed-redirect-uri.ts';
+import { normalizeClientName } from '../auth/normalize-client-name.ts';
+import { openMCPAuth } from '../auth/open-mcp-auth.ts';
+import { readClientViews } from '../auth/read-client-views.ts';
+import { removeClient } from '../auth/remove-client.ts';
+import type { OAuthClientID } from '../auth/types.ts';
+import { openMCPAuthDatabase } from './open-mcp-auth-database.ts';
 import { PROCESS_IO } from './process-io.ts';
 import type { ProcessIO } from './process-io.ts';
 
 export type ClientsAction =
   | { readonly kind: 'list' }
   | { readonly kind: 'add'; readonly name: string; readonly redirectURIs: readonly string[] }
-  | { readonly kind: 'remove'; readonly name: string };
+  | { readonly kind: 'remove'; readonly clientID: OAuthClientID };
 
 // The authorization server's database, and the command that prefixes every
 // message, such as `clients`.
@@ -20,33 +27,59 @@ export async function runClients(
   target: ClientsTarget,
   io: Pick<ProcessIO, 'print' | 'printError' | 'setExitCode' | 'exit'> = PROCESS_IO,
 ): Promise<void> {
-  if (action.kind === 'add' && action.redirectURIs.length === 0) {
-    io.printError(`${target.command} add: give at least one --redirect-uri`);
-    io.exit(1);
+  if (action.kind === 'add') {
+    const refused = action.redirectURIs.find((uri) => !isAllowedRedirectURI(uri));
 
-    return;
+    if (action.redirectURIs.length === 0 || refused !== undefined) {
+      const message =
+        refused === undefined
+          ? `${target.command} add: give at least one --redirect-uri`
+          : `${target.command} add: '${refused}' is not a redirect URI pepys accepts; use https, or http on a loopback host, with no fragment`;
+
+      io.printError(message);
+      io.exit(1);
+
+      return;
+    }
   }
 
-  const opened = await openAuthAdmin(target.dbPath);
+  mkdirSync(dirname(target.dbPath), { recursive: true });
+
+  const store = await openMCPAuth({
+    dbPath: target.dbPath,
+    openDatabase: openMCPAuthDatabase,
+    origin: null,
+  });
 
   try {
     if (action.kind === 'add') {
-      const added = await opened.admin.clients.add(action.name, action.redirectURIs);
+      const name = normalizeClientName(action.name);
 
-      io.print(`Added ${added.name}. Its client ID is ${added.clientID}`);
+      const created = await store.auth.api.createFixedClient({
+        body: { name, redirectURIs: [...action.redirectURIs] },
+      });
+
+      io.print(`Added ${name}. Its client ID is ${created.clientID}`);
 
       return;
     }
 
     if (action.kind === 'remove') {
-      const revoked = await opened.admin.clients.remove(action.name);
+      const removed = await removeClient(store.db, action.clientID);
 
-      io.print(`Removed client ${action.name} and revoked the ${revoked} grants it held`);
+      if (!removed) {
+        io.printError(`${target.command} remove: no client has the ID '${action.clientID}'`);
+        io.setExitCode(1);
+
+        return;
+      }
+
+      io.print(`Removed client ${action.clientID} and revoked every grant it held`);
 
       return;
     }
 
-    const clients = await opened.admin.clients.list();
+    const clients = await readClientViews(store.db);
 
     if (clients.length === 0) {
       io.print(`No clients. Add one with: ${target.command} add <name> --redirect-uri <uri>`);
@@ -57,16 +90,7 @@ export async function runClients(
     for (const client of clients) {
       io.print(`${client.clientID}  ${client.name}  ${client.redirectURIs.join(' ')}`);
     }
-  } catch (error) {
-    // The core refuses a taken or unknown name and a redirect URI it does not
-    // accept with an error the owner can act on.
-    if (!(error instanceof MCPAuthError)) {
-      throw error;
-    }
-
-    io.printError(`${target.command} ${action.kind}: ${error.message}`);
-    io.setExitCode(1);
   } finally {
-    await opened.close();
+    await store.close();
   }
 }

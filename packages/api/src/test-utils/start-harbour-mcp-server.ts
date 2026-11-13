@@ -2,6 +2,7 @@ import { checkDeployment, defineDeployment } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import invariant from 'tiny-invariant';
 import { createApp } from '../app/create-app.ts';
+import { openMCPAuthDatabase } from '../oauth/admin/open-mcp-auth-database.ts';
 import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
 import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
 import { buildQueryContext } from '../queries/build-query-context.ts';
@@ -10,9 +11,7 @@ import { harbourPlugin } from './harbour/harbour-plugin.ts';
 type ServerOptions = Parameters<typeof startMCPHTTPServer>[0];
 
 type HarbourServerOptions = Pick<ServerOptions, 'dbPath'> &
-  Partial<Omit<ServerOptions, 'dbPath' | 'createServedApp'>> & {
-    readonly logError?: (message: string, error: unknown) => void;
-  };
+  Partial<Omit<ServerOptions, 'dbPath' | 'createServedApp'>>;
 
 // The API of the harbour deployment on a free loopback port with its OAuth
 // routes, each option the server's own default unless the test sets it.
@@ -26,21 +25,23 @@ export async function startHarbourMCPServer(options: HarbourServerOptions) {
 
   registerTestCleanup(() => harbour[Symbol.asyncDispose]());
 
-  const { logError = () => {}, ...serverOptions } = options;
-
   const server = await startMCPHTTPServer({
     host: '127.0.0.1',
     port: 0,
     publicURL: null,
     allowedHosts: [],
     trustForwardedFrom: [],
+    openAuthDatabase: openMCPAuthDatabase,
     printSecurity: () => {},
-    ...serverOptions,
+    ...options,
     createServedApp: (oauth) =>
-      createApp(buildQueryContext(harbour.reader, checked.value), { logError, oauth }),
+      createApp(buildQueryContext(harbour.reader, checked.value), {
+        logError: () => {},
+        oauth,
+      }),
   });
 
   registerTestCleanup(() => server.stop());
 
-  return { ...server, harbour };
+  return server;
 }

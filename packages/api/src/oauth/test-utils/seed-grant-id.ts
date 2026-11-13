@@ -1,0 +1,31 @@
+import invariant from 'tiny-invariant';
+import type { OAuthClientID, OAuthGrantID } from '../auth/types.ts';
+import type { MCPAuthSeedDeps } from './types.ts';
+
+export interface GrantIDInput {
+  readonly clientID: OAuthClientID;
+  readonly grantID: OAuthGrantID;
+}
+
+export async function seedGrantID(
+  deps: Pick<MCPAuthSeedDeps, 'db'>,
+  input: GrantIDInput,
+): Promise<GrantIDInput> {
+  // A grant with a chosen id: the OAuth provider draws each grant's id at
+  // random, so no code here picks one, such as an id that starts with a dash.
+  const accessTokens = await deps.db
+    .updateTable('oauthAccessToken')
+    .set({ authorizationCodeId: input.grantID })
+    .where('clientId', '=', input.clientID)
+    .executeTakeFirst();
+
+  const refreshTokens = await deps.db
+    .updateTable('oauthRefreshToken')
+    .set({ authorizationCodeId: input.grantID })
+    .where('clientId', '=', input.clientID)
+    .executeTakeFirst();
+
+  invariant(accessTokens.numUpdatedRows > 0n && refreshTokens.numUpdatedRows > 0n);
+
+  return input;
+}

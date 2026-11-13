@@ -2,12 +2,9 @@ import { McpServer, createMcpHandler } from '@modelcontextprotocol/server';
 import { McpRegistrar } from '@orpc/mcp';
 import { COMMON_ERROR_STATUS_MAP, ORPCError, onError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
-import type { Access } from '@zgeoff/mcp-auth';
-import { createMCPHTTPApp } from '@zgeoff/mcp-auth/elysia';
 import { Elysia } from 'elysia';
-import type { GrantScope } from '../oauth/constants.ts';
-import { answerMCPRequest } from '../oauth/http/answer-mcp-request.ts';
-import type { MCPServedOptions } from '../oauth/http/start-mcp-http-server.ts';
+import { createMCPHTTPApp } from '../oauth/http/create-mcp-http-app.ts';
+import type { MCPHTTPAppOptions } from '../oauth/http/create-mcp-http-app.ts';
 import type { QueryContext } from '../queries/types.ts';
 import { createRouter } from './create-router.ts';
 
@@ -15,7 +12,7 @@ interface AppDependencies {
   logError: (message: string, error: unknown) => void;
 
   // The OAuth server's routes, which guard /mcp; null serves /rpc alone.
-  oauth: MCPServedOptions | null;
+  oauth: MCPHTTPAppOptions | null;
 }
 
 // The router at /rpc, and each of its procedures as an MCP tool at /mcp behind
@@ -49,24 +46,9 @@ export function createApp(context: QueryContext, dependencies: AppDependencies) 
     return result.matched ? result.response : new Response('not found', { status: 404 });
   });
 
-  const oauth = dependencies.oauth;
-
-  if (oauth === null) {
-    return app;
-  }
-
-  const metadataURL = `${oauth.auth.issuer}${oauth.auth.paths.machine.mcpResourceMetadata}`;
-
-  const handleMCPRequest = (request: Request, access: Access<GrantScope, null>) =>
-    answerMCPRequest({ metadataURL, mcp }, request, access);
-
-  return app.use(
-    createMCPHTTPApp({
-      ...oauth,
-      mcp: { fetch: handleMCPRequest },
-      besidePrefix: '/rpc/',
-    }),
-  );
+  return dependencies.oauth === null
+    ? app
+    : app.use(createMCPHTTPApp({ ...dependencies.oauth, mcp, besidePrefix: '/rpc/' }));
 }
 
 interface ProcedureCall {
