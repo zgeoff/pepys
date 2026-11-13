@@ -10,9 +10,9 @@ test.each(
     .filter((manifestCase) => manifestCase.isValid)
     .map((manifestCase) => [manifestCase.title, manifestCase] as const),
 )('it %s, in the shared manifest cases', (_title, manifestCase) => {
-  const parsed = consumerBuildManifestSchema.safeParse(manifestCase.file);
+  const parsed: unknown = consumerBuildManifestSchema.safeParse(manifestCase.file);
 
-  expect(parsed.success).toBe(true);
+  expect(parsed).toStrictEqual({ success: true, data: manifestCase.file });
 });
 
 test.each(
@@ -25,7 +25,5 @@ test.each(
   invariant(!parsed.success);
   invariant(manifestCase.issuePath !== undefined);
 
-  expect(parsed.error.issues.map((issue) => issue.path)).toStrictEqual(
-    parsed.error.issues.map(() => manifestCase.issuePath),
-  );
+  expect(parsed.error.issues.map((issue) => issue.path)).toStrictEqual([manifestCase.issuePath]);
 });

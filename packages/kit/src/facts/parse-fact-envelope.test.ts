@@ -13,7 +13,9 @@ test.each(
     .filter((envelopeCase) => envelopeCase.isValid)
     .map((envelopeCase) => [envelopeCase.title, envelopeCase] as const),
 )('it %s, in the shared envelope cases', (_title, envelopeCase) => {
-  expect(parseFactEnvelope(envelopeCase.envelope).ok).toBe(true);
+  const actual: unknown = parseFactEnvelope(envelopeCase.envelope);
+
+  expect(actual).toStrictEqual({ ok: true, value: envelopeCase.envelope });
 });
 
 test.each(
@@ -26,9 +28,7 @@ test.each(
   invariant(!result.ok);
   invariant(envelopeCase.issuePath !== undefined);
 
-  expect(result.failure.issues.map((issue) => issue.path)).toStrictEqual(
-    result.failure.issues.map(() => envelopeCase.issuePath),
-  );
+  expect(result.failure.issues.map((issue) => issue.path)).toStrictEqual([envelopeCase.issuePath]);
 });
 
 test('it accepts an envelope with every field', () => {
@@ -87,7 +87,7 @@ test('it accepts the ID that buildManualFactID gives', () => {
     toTagged<RequestID>('request-1'),
   );
 
-  const result = parseFactEnvelope({
+  const actual: unknown = parseFactEnvelope({
     id,
     type: 'manual.link.asserted',
     v: 1,
@@ -97,7 +97,18 @@ test('it accepts the ID that buildManualFactID gives', () => {
     payload: {},
   });
 
-  expect(result.ok).toBe(true);
+  expect(actual).toStrictEqual({
+    ok: true,
+    value: {
+      id,
+      type: 'manual.link.asserted',
+      v: 1,
+      api: 'pepys/1',
+      entity: 'github:pull_request:1',
+      at: '2026-10-24T01:02:03Z',
+      payload: {},
+    },
+  });
 });
 
 test('it rejects an unknown envelope key', () => {
