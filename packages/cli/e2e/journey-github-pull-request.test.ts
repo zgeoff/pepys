@@ -123,7 +123,7 @@ test("it records the stream's last sequence number as the consumer's offset", as
   });
 });
 
-test('it writes an insert, then an update, to the change log', async () => {
+test('it writes an insert with two alias inserts, then an update, to the change log', async () => {
   const ctx = setupTest();
 
   const result = await ctx.readChangeOperations();
@@ -132,6 +132,8 @@ test('it writes an insert, then an update, to the change log', async () => {
     ok: true,
     value: [
       { key: '["github:pull_request:1874433021"]', operation: 'insert' },
+      { key: '["https://github.example/acme/harbour/pull/12"]', operation: 'insert' },
+      { key: '["acme/harbour#12"]', operation: 'insert' },
       { key: '["github:pull_request:1874433021"]', operation: 'update' },
     ],
   });
@@ -159,6 +161,26 @@ test('it swaps nothing when up runs again with the same consumers.json', async (
   expect(output).toStrictEqual({
     exitCode: 0,
     stdout: expect.stringMatching(/^github_pull_request [0-9a-f]{64}: no swap/u),
+  });
+});
+
+test("it serves the stored row through the API's get_entity by the pull request's alias", async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.api.get_entity({ id: 'Acme/Harbour#12' });
+
+  expect(result).toStrictEqual({
+    entity: {
+      id: toTagged<EntityID>('github:pull_request:1874433021'),
+      kind: 'github:pull_request',
+      title: 'Add the harbour map and tides',
+      url: 'https://github.example/acme/harbour/pull/12',
+      actor: toTagged<EntityID>('github:user:4401'),
+      updated_at: '2026-10-01T10:00:00Z',
+    },
+    consumer: 'github_pull_request',
+    table: 'github_pull_request',
+    row: expect.objectContaining({ id: 'github:pull_request:1874433021', number: 12 }),
   });
 });
 
