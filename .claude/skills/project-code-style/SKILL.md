@@ -12,7 +12,23 @@ metadata:
 
 ## Departures
 
-None.
+- Export an `init` and an `update` from each consumer file that only pass their arguments to the
+  generated functions in the consumer's boundary file, `src/generated/<consumer-file>-boundary.ts`.
+  This replaces the shared rule against such a wrapper, in
+  [Structure](../code-style/SKILL.md#structure). scriptc, the compiler that builds each consumer,
+  needs both declared in the consumer file, and refuses a re-export.
+  [Plug-ins and build](../../../docs/architecture/consumers/plug-ins-and-build.md) gives the rest of
+  what scriptc checks. The consumer's own logic goes in its other exports, such as `applyFact`.
+
+  ```ts
+  export function init(): GithubRefModel {
+    return initGithubRefModel();
+  }
+
+  export function update(model: GithubRefModel, message: GithubRefMessage): GithubRefModel {
+    return updateGithubRefModel(model, message);
+  }
+  ```
 
 ## Folders
 
@@ -45,7 +61,8 @@ packages/example/src/
   that two or more features import in `src/test-utils/`.
 - No `index.ts` in a feature folder. `src/index.ts` is the only barrel, with one exception. A public
   package may give a subpath to functions that a plug-in never imports, such as the generators that
-  only `pepys build` calls. A plug-in that imports the main entry then can't reach them. To add one:
+  only `pepys build` calls, so that a plug-in that imports the main entry can't reach them. To add
+  one:
   - list the subpath in `exports` in `package.json`;
   - point the subpath at a file in `src/` with the subpath's name, such as `src/generators.ts` for
     `@pepys/kit/generators`;
@@ -84,8 +101,8 @@ packages/example/src/
 
 - Brand every TypeScript ID with type-fest `Tagged`, and build one with `toTagged` from
   `@zgeoff/std`. A bare `string` never stands for an ID.
-- In a consumer, import the ID types from `src/generated/<consumer-file>-boundary.ts`. scriptc,
-  which compiles consumers to WebAssembly, refuses a type-fest import, even a type-only one.
+- In a consumer, import the ID types from `src/generated/<consumer-file>-boundary.ts`. scriptc
+  refuses a type-fest import, even a type-only one.
   - Look in the boundary file for a `to<SourceKind>ID` function, where `<SourceKind>` is the kind in
     PascalCase, such as `toGithubPullRequestID` for `github:pull_request`. The generator writes one
     for each kind of the consumer's `entityViews` and of the `from` and `to` of its `links`. Pass it
