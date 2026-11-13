@@ -95,8 +95,9 @@ unknown command prints the usage of every command and exits 2.
    Expect: `bun <api_entry> passkeys` lists the new passkey.
 
 4. Pick a free port, `<port>`, on the machine that runs the MCP client. The client listens there for
-   the browser's redirect. The server accepts only the redirect URI that you add, so the port must
-   stay the same.
+   the browser's redirect. The server matches every other part of the redirect URI exactly, and lets
+   the port of an `http://localhost` redirect URI vary, as RFC 8252 section 8.3 asks. Claude Code
+   takes a fixed port, so give it the same `<port>` in step 6.
 5. Run this command, with the client's name in place of `<name>`:
 
    ```sh

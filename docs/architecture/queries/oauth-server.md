@@ -75,7 +75,9 @@ produced, and `grants` lists each grant by its ID.
 2. The client opens the owner's browser on `/oauth2/authorize`. For a client the owner never added,
    or a redirect URI the client was not added with, the server shows an error page with fixed text,
    and redirects nowhere. The server has no dynamic client registration and fetches no client
-   metadata document, so the owner's list is the only way in.
+   metadata document, so the owner's list is the only way in. better-auth matches every character of
+   the redirect URI, except the port of an `http` loopback redirect URI, which may differ from the
+   one the client was added with, as RFC 8252 section 8.3 asks.
 3. The server starts a pending approval for the authorization, and asks for a passkey sign-in,
    whatever session the browser kept. A passed sign-in starts an owner session, which carries this
    one approval to the code exchange.
