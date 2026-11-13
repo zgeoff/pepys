@@ -112,6 +112,10 @@ export type DeploymentFailure =
       usedAs: 'id' | 'actor' | 'deletedAt';
     }
 
+  // get_entity resolves an alias through the `<table>_alias` table beside an entity view's table,
+  // which holds only a text `alias` key and a non-null `entity_id`
+  | { kind: 'alias-table-shape'; consumer: string; table: string }
+
   // `field` is a path such as `drawers[].label`; ingest stores the uncoerced value, which the
   // consumer's decoder refuses
   | { kind: 'coerced-payload-field'; source: string; factType: string; field: string }

@@ -4,7 +4,7 @@ import { factKinds } from '../entity-ids/fact-kinds.ts';
 import { collectCoercedFields } from '../generators/collect-coerced-fields.ts';
 import type { EntityKind, LinkTypeDeclaration } from '../link-types/types.ts';
 import type { FactFamily, SourceDefinition } from '../sources/types.ts';
-import type { Result } from '../types.ts';
+import type { Result, TableDeclaration } from '../types.ts';
 import type {
   CheckedDeployment,
   Deployment,
@@ -414,6 +414,13 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
   }
 
   for (const view of consumer.entityViews) {
+    const aliasTable = `${view.table}_alias`;
+    const aliases = consumer.tables[aliasTable];
+
+    if (aliases !== undefined && !isAliasTable(aliases)) {
+      failures.push({ kind: 'alias-table-shape', consumer: consumer.name, table: aliasTable });
+    }
+
     const declared = consumer.tables[view.table]?.columns;
 
     if (declared === undefined) {
@@ -476,6 +483,20 @@ function collectTableFailures(consumer: ConsumerDeclaration): DeploymentFailure[
   }
 
   return failures;
+}
+
+function isAliasTable(table: TableDeclaration): boolean {
+  const { alias, entity_id: entityID, ...others } = table.columns;
+
+  return (
+    alias?.kind === 'text' &&
+    alias.nullable !== true &&
+    entityID?.kind === 'entityID' &&
+    entityID.nullable !== true &&
+    Object.keys(others).length === 0 &&
+    table.primaryKey.length === 1 &&
+    table.primaryKey[0] === 'alias'
+  );
 }
 
 function collectMissingConsumers(

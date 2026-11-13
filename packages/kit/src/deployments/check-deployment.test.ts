@@ -1032,3 +1032,121 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
 ])('it refuses %s', (_label, buildDeployment, failure) => {
   expect(checkDeployment(buildDeployment())).toStrictEqual({ ok: false, failure: [failure] });
 });
+
+test.each([
+  [
+    'a column beside alias and entity_id',
+    {
+      columns: {
+        alias: { kind: 'text' },
+        entity_id: { kind: 'entityID' },
+        added_at: { kind: 'timestamp' },
+      },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'a nullable entity_id',
+    {
+      columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID', nullable: true } },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'an entity_id of text',
+    {
+      columns: { alias: { kind: 'text' }, entity_id: { kind: 'text' } },
+      primaryKey: ['alias'],
+      indexes: [],
+    },
+  ],
+  [
+    'a key of alias and entity_id',
+    {
+      columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+      primaryKey: ['alias', 'entity_id'],
+      indexes: [],
+    },
+  ],
+] as const)('it refuses an alias table with %s', (_label, aliasTable) => {
+  const deployment = {
+    name: 'harbour',
+    plugins: [
+      definePlugin({
+        name: 'ledger',
+        consumers: [
+          buildStubConsumer({
+            name: 'ledger_till',
+            tables: {
+              till: {
+                columns: { id: { kind: 'entityID' }, label: { kind: 'text' } },
+                primaryKey: ['id'],
+                indexes: [],
+              },
+              till_alias: aliasTable,
+            },
+            entityViews: [
+              {
+                table: 'till',
+                kind: 'ledger:till',
+                id: 'id',
+                title: 'label',
+                url: null,
+                actor: null,
+                updatedAt: 'label',
+              },
+            ],
+          }),
+        ],
+      }),
+    ],
+  };
+
+  expect(checkDeployment(deployment)).toStrictEqual({
+    ok: false,
+    failure: [{ kind: 'alias-table-shape', consumer: 'ledger_till', table: 'till_alias' }],
+  });
+});
+
+test('it accepts an alias table of a text alias key and an entity ID', () => {
+  const deployment = {
+    name: 'harbour',
+    plugins: [
+      definePlugin({
+        name: 'ledger',
+        consumers: [
+          buildStubConsumer({
+            name: 'ledger_till',
+            tables: {
+              till: {
+                columns: { id: { kind: 'entityID' }, label: { kind: 'text' } },
+                primaryKey: ['id'],
+                indexes: [],
+              },
+              till_alias: {
+                columns: { alias: { kind: 'text' }, entity_id: { kind: 'entityID' } },
+                primaryKey: ['alias'],
+                indexes: [{ columns: ['entity_id'] }],
+              },
+            },
+            entityViews: [
+              {
+                table: 'till',
+                kind: 'ledger:till',
+                id: 'id',
+                title: 'label',
+                url: null,
+                actor: null,
+                updatedAt: 'label',
+              },
+            ],
+          }),
+        ],
+      }),
+    ],
+  };
+
+  expect(checkDeployment(deployment).ok).toBe(true);
+});

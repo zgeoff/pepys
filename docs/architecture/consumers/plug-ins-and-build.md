@@ -62,6 +62,8 @@ a failure, so a deployment that one process would refuse runs in none. The failu
   starts with one of those words;
 - a query or table name that the core reserves, such as `get_entity` or `link_effective`;
 - a key column that can be null;
+- a table named `<table>_alias`, beside the table of an entity view, that holds any column other
+  than a text `alias` key and a non-null entity ID `entity_id`;
 - a consumer that reads a table by key when that table's key is a JSON column.
 
 `pepys build` also takes a file that exports one plug-in, with no deployment. The check of a plug-in
