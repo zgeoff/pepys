@@ -45,7 +45,5 @@ export interface ConsumerDeclaration<
 
   // own tables whose rows the module reads by key; fact mode only
   readonly reads: readonly string[];
-
-  // the link types the consumer may write
   readonly links: readonly LinkType[];
 }

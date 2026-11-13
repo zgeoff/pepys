@@ -10,8 +10,6 @@ export interface GlueFile {
 
 export interface ConsumerGlueParameters {
   consumer: ConsumerDeclaration;
-
-  // the families of the deployment
   families: readonly FactFamily[];
 
   // the checked settings of the consumer's plug-in, or undefined when it declares none
