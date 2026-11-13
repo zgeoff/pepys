@@ -1,6 +1,5 @@
-import { DEFAULT_PATHS } from '@zgeoff/mcp-auth';
+import { DEFAULT_PATHS, normalizeClientName } from '@zgeoff/mcp-auth';
 import type { SecurityEvent } from '@zgeoff/mcp-auth';
-import { normalizeClientName } from './normalize-client-name.ts';
 
 export interface SuppressedSecurityEvent {
   readonly kind: 'suppressed';
