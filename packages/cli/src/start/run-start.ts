@@ -17,7 +17,7 @@ export interface StartOptions {
 // to start leaves no host running. A stop signal during load or startup cancels it at once and
 // stops every part already started.
 export async function runStart(options: StartOptions): Promise<number> {
-  const stopRequest = makeStopRequest();
+  const stopRequest = createStopRequest();
 
   try {
     return await runParts(options, stopRequest);
@@ -35,7 +35,7 @@ interface StopRequest {
   remove: () => void;
 }
 
-function makeStopRequest(): StopRequest {
+function createStopRequest(): StopRequest {
   let isRequested = false;
   const requested = Promise.withResolvers<void>();
   let listener: (() => void) | null = null;
