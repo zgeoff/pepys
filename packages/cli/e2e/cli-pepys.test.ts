@@ -2,16 +2,13 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildStubPluginSource } from './test-utils/build-stub-plugin-source.ts';
+import { run } from '@zgeoff/testing/process';
+import { buildStubPluginSource } from '../src/test-utils/build-stub-plugin-source.ts';
 
 async function setupTest() {
-  const stack = new AsyncDisposableStack();
-
-  onTestFinished(() => stack.disposeAsync());
-
   const root = await mkdtemp(join(tmpdir(), 'pepys-bin-'));
 
-  stack.defer(() => rm(root, { recursive: true, force: true }));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
 
   await mkdir(join(root, 'src'), { recursive: true });
 
@@ -20,27 +17,12 @@ async function setupTest() {
 
   return {
     root,
-    runBin: async (args: string[], env: Record<string, string | undefined> = {}) => {
-      const child = Bun.spawn(['bun', join(import.meta.dir, 'bin.ts'), ...args], {
-        env: { ...process.env, PEPYS_HOST_BIN: undefined, ...env },
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
-
-      stack.defer(async () => {
-        child.kill();
-
-        await child.exited;
-      });
-
-      const [stdout, stderr, exitCode] = await Promise.all([
-        child.stdout.text(),
-        child.stderr.text(),
-        child.exited,
-      ]);
-
-      return { stdout, stderr, exitCode };
-    },
+    runBin: (args: string[], env: Record<string, string | undefined> = {}) =>
+      run(['bun', join(import.meta.dir, '../src/bin.ts')], {
+        args,
+        env: { PEPYS_HOST_BIN: undefined, ...env },
+        timeoutMs: 10_000,
+      }),
   };
 }
 

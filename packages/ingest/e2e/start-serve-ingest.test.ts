@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'pepys-serve-'));
@@ -11,8 +12,8 @@ async function setupTest() {
   });
 
   const script = [
-    `import { serveIngest } from ${JSON.stringify(join(import.meta.dir, 'serve-ingest.ts'))};`,
-    `import { buildStubReceiveDeployment } from ${JSON.stringify(join(import.meta.dir, '../test-utils/build-stub-receive-deployment.ts'))};`,
+    `import { serveIngest } from ${JSON.stringify(join(import.meta.dir, '../src/serve/serve-ingest.ts'))};`,
+    `import { buildStubReceiveDeployment } from ${JSON.stringify(join(import.meta.dir, '../src/test-utils/build-stub-receive-deployment.ts'))};`,
     'const definition = buildStubReceiveDeployment().definition;',
     "const plugins = process.env['STUB_PLUGINS'] === 'twice' ? [...definition.plugins, ...definition.plugins] : definition.plugins;",
     'await serveIngest({ deployment: { ...definition, plugins }, environment: process.env });',
@@ -21,11 +22,15 @@ async function setupTest() {
   return {
     folder,
     runServeIngest: async (environment: Record<string, string>) => {
+      // The whole environment of the run, so a variable of the e2e stack never fills a gap.
       const child = Bun.spawn([process.execPath, '--eval', script], {
         env: environment,
         stdout: 'pipe',
         stderr: 'pipe',
+        detached: true,
       });
+
+      onTestFinished(() => stopProcessGroup(child));
 
       const [exitCode, stderr] = await Promise.all([
         child.exited,
