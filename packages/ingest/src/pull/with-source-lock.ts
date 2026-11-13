@@ -47,7 +47,10 @@ async function waitForTurn(
   }
 
   const stopped = Promise.withResolvers<void>();
-  const stop = (): void => stopped.resolve();
+
+  const stop = (): void => {
+    stopped.resolve();
+  };
 
   signal.addEventListener('abort', stop);
 
