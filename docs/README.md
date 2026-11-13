@@ -45,6 +45,8 @@
   index of their design docs.
 - [Auth for the API](./design/api-auth/README.md) — service tokens on the tailnet and cluster `/rpc`
   routes, and the listeners that check them.
+- [GitHub tables for six more kinds](./design/github-tables.md) — the consumers, tables, aliases and
+  links of repositories, reviews, review comments, review threads, issue comments and issues.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
 
 ## Decisions
