@@ -34,9 +34,10 @@ flowchart LR
   rollback --> answer
 ```
 
-Every call reads a fixed set of consumers. A plug-in query lists its consumers in its `reads`. The
-two [core queries](#the-core-queries) pick theirs from the call's input. The API keeps one
-connection per call, on Turso, the SQLite engine that the host also writes with.
+Every call reads a fixed set of consumers. A plug-in query lists its consumers in its `reads`. Each
+of the two [core queries](#the-core-queries) picks its own, as that section describes, and
+`get_entity` makes a second call when it resolves an alias. The API keeps one connection per call,
+on Turso, the SQLite engine that the host also writes with.
 
 1. The call resolves the `current` link of each of its consumers before it opens a file, and keeps
    the version folders it resolved. When `up` swaps a version during the call, the call stays on the
@@ -74,25 +75,25 @@ Each takes an entity ID of the form `<source>:<kind>:<id>`, as
 
 **`get_entity`** returns one entity. Text that parses as an entity ID is an ID, and any other text,
 such as `acme/api#412`, is an alias. The API resolves an alias to an ID first, as
-[Aliases](./entities-and-links.md#aliases) describes. The deployment check lets only one consumer
-declare the entity view of a kind, so `get_entity` reads the kind from the ID and attaches that one
-consumer's file. The answer holds:
+[Aliases](./entities-and-links.md#aliases) describes, in a call of its own. The
+[deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) lets only one consumer
+declare the entity view of a kind, so `get_entity` then reads the kind from the ID and attaches that
+one consumer's file. The answer holds:
 
 - the entity's row in the shared `entity` view;
 - the name of the consumer;
 - the name of the consumer's table behind the view;
 - the entity's full row in that table.
 
-`get_entity` fails in these cases:
+`get_entity` fails with these typed errors, each with its HTTP status on a route call:
 
-- Empty text is a bad request.
-- An ID whose kind no consumer declares an entity view for is not found.
-- An ID with no row is not found.
-- An alias that no alias table holds is not found. When a consumer with an alias table has no
-  current version, the call fails with 503 in place of not found, because that consumer may hold the
+- `BAD_REQUEST`, 400: empty text.
+- `NOT_FOUND`, 404: an ID whose kind no consumer declares an entity view for, an ID with no row, or
+  an alias that no alias table holds.
+- `SERVICE_UNAVAILABLE`, 503: the consumer of the entity's kind has no current version, as
+  [One call](#one-call) describes. An alias that no alias table holds also gets 503 in place of 404
+  when a consumer with an alias table has no current version, because that consumer may hold the
   alias.
-- When the consumer of the entity's kind has no current version, the call fails with 503, as
-  [One call](#one-call) describes.
 
 **`neighbourhood`** returns the entities linked to a start entity, and the links between them. It
 walks the `link_effective` view, breadth first, in both directions, with one SQL query per hop. It
