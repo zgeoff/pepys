@@ -150,11 +150,16 @@ scriptc compiles a subset of TypeScript, and refuses a break of each rule below 
 3. Export `init` and `update`. Also export `applyFact` for a fact-mode consumer, or `applyScope` for
    a scope-mode consumer.
 
-When two facts have the same source update time, break the tie by fact ID, such as by keeping the
-fact with the smaller ID. A consumer's result must not depend on the order in which two facts with
-the same time arrive. One test run sees one arrival order, so it cannot show a missing tie-break.
-Call `applyInBothOrders` from `@pepys/testing` in a consumer's tests: it applies the facts one at a
-time in order, then in reverse, and compares the two stores.
+When two facts change one row, keep the fact whose change the source dated later, its source update
+time. Facts can land in the stream out of that order, such as a failed webhook delivery that
+[the GitHub recovery pull](../plug-ins/github.md#the-recovery-pull) fetches later, so a consumer
+that keeps the last fact it gets keeps a stale row. When two facts have the same time, keep the
+later fact in the stream. The host applies the facts in stream order on every replay, so a replay
+picks the same winner.
+
+One test run sees one stream order, so it cannot show a missing time check. Call `applyInBothOrders`
+from `@pepys/testing` in a consumer's tests, on facts with different times: it applies the facts one
+at a time in order, then in reverse, and compares the two stores.
 
 ## consumers.json
 

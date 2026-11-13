@@ -121,8 +121,10 @@ table with `_alias` added, such as `github_pull_request_alias`. The alias table 
 names the alias. [The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check)
 refuses an alias table of any other shape.
 
-The consumer gives an alias to an entity only when the fact is newer than the stored `updated_at`,
-so the holder of an alias does not depend on the order in which facts arrive. The entity's own
+The consumer writes an alias row for the entity of a fact when no row holds the alias, or when the
+fact's source update time is newer than the stored `updated_at`. At an equal time, the later fact in
+the stream takes the alias, by the rule in
+[Writing an entry file](../consumers/plug-ins-and-build.md#writing-an-entry-file). The entity's own
 update time is no guide: its newest fact may no longer name the alias.
 
 The consumer must write each alias in lowercase, with no `/` at the end. The API brings the text it

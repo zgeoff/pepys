@@ -96,8 +96,8 @@ first position in the stream.
 
 The `github_pull_request` and `github_release` consumers compare the times of facts. The fact with
 the newer time wins, and so does the first fact of an object. When two facts have equal times, the
-later one in the stream wins. The host keeps the stream order on every replay, so a replay picks the
-same winner.
+later one in the stream wins, by the rule in
+[Writing an entry file](../consumers/plug-ins-and-build.md#writing-an-entry-file).
 
 A pull request's time is its `updated_at`. A release's time is the first of `updated_at`,
 `published_at` and `created_at` that holds a value.
