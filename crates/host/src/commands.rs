@@ -384,33 +384,51 @@ fn wait_for_stop() -> Result<impl Future<Output = ()>, HostError> {
 }
 
 /// Runs every consumer that `consumers.json` lists, one task each, until SIGINT or SIGTERM. With
-/// `up_first`, deploys every listed consumer before any task starts.
+/// `up_first`, deploys every listed consumer before any task starts, and prints each retry of an
+/// `up` that a store or log error failed.
 ///
 /// # Errors
-/// Fails before any task starts when the file is refused, an `up` fails, a listed consumer has no
-/// current version, or two current versions own one table. Fails after every task has stopped
-/// with an error.
+/// Fails before any task starts when the file is refused, an `up` fails with an error that
+/// [`pick_recovery`] does not retry, a listed consumer has no current version, or two current
+/// versions own one table. Fails after every task has stopped with an error.
 pub async fn run(config: &HostConfig, up_first: bool) -> Result<(), HostError> {
     let stop = wait_for_stop()?;
     let log = S2Log::connect(&config.s2)?;
+    let on_up_retry = |consumer: &str, error: &HostError, delay: Duration| {
+        eprintln!(
+            "pepys: up {consumer} retries in {} ms after a store error: {error}",
+            delay.as_millis()
+        );
+    };
 
-    run_until(config, &log, up_first, stop).await
+    run_until(
+        config,
+        &log,
+        up_first,
+        stop,
+        on_up_retry,
+        tokio::time::sleep,
+    )
+    .await
 }
 
-/// `run` with the stop as an argument: it returns `Ok` when `stop` ends, during the start or
-/// once the tasks run.
+/// `run` with the stop, the report of an `up` retry and the wait before it as arguments. It
+/// returns `Ok` when `stop` ends, during the start or once the tasks run.
 async fn run_until(
     config: &HostConfig,
     log: &impl FactLog,
     up_first: bool,
     stop: impl Future<Output = ()>,
+    on_up_retry: impl FnMut(&str, &HostError, Duration),
+    wait: impl AsyncFn(Duration),
 ) -> Result<(), HostError> {
     tokio::pin!(stop);
 
-    // A stop during the `up` drops it: each step of a swap leaves a state the next start resumes.
+    // A stop during the `up` drops it, in a retry's wait too: each step of a swap leaves a state
+    // the next start resumes.
     let file = tokio::select! {
         () = &mut stop => return Ok(()),
-        file = start_run(config, log, up_first) => file?,
+        file = start_run(config, log, up_first, on_up_retry, wait) => file?,
     };
     let mut tasks = JoinSet::new();
 
@@ -448,11 +466,16 @@ async fn start_run(
     config: &HostConfig,
     log: &impl FactLog,
     up_first: bool,
+    on_up_retry: impl FnMut(&str, &HostError, Duration),
+    wait: impl AsyncFn(Duration),
 ) -> Result<BuildManifest, HostError> {
     let file = config.read_build_manifest()?;
 
     if up_first {
-        print!("{}", up_listed(config, log, &file, None).await?);
+        print!(
+            "{}",
+            up_with_retries(config, log, &file, on_up_retry, wait).await?
+        );
     }
 
     let mut owners: BTreeMap<String, String> = BTreeMap::new();
@@ -604,23 +627,71 @@ async fn up_listed(
     let mut report = String::new();
 
     for listed in targets {
-        let wrap = |error| HostError::Up {
-            consumer: listed.name.clone(),
-            source: Box::new(error),
-        };
-        let bytes =
-            std::fs::read(config.module_path(listed)).map_err(|error| wrap(error.into()))?;
-
-        check_module_hash(&listed.name, &listed.module, &bytes).map_err(wrap)?;
-
         report.push_str(
-            &up_version(config, log, &listed.to_version(), &bytes)
+            &up_consumer(config, log, listed)
                 .await
-                .map_err(wrap)?,
+                .map_err(|error| to_up_error(listed, error))?,
         );
     }
 
     Ok(report)
+}
+
+/// Deploys every listed consumer in file order, as the `up` of `run --up`. After a store or log
+/// error it waits and runs that consumer's `up` again from its start, as [`pick_recovery`]
+/// decides, and an `up` that succeeds resets the count for the next consumer. Any other error
+/// ends it.
+async fn up_with_retries(
+    config: &HostConfig,
+    log: &impl FactLog,
+    file: &BuildManifest,
+    mut on_retry: impl FnMut(&str, &HostError, Duration),
+    wait: impl AsyncFn(Duration),
+) -> Result<String, HostError> {
+    let mut report = String::new();
+
+    for listed in &file.consumers {
+        let mut failures = 0;
+
+        let swapped = loop {
+            match up_consumer(config, log, listed).await {
+                Ok(swapped) => break swapped,
+                Err(error) => {
+                    failures += 1;
+
+                    let Recovery::Retry(delay) = pick_recovery(&error, failures) else {
+                        return Err(to_up_error(listed, error));
+                    };
+
+                    on_retry(&listed.name, &error, delay);
+                    wait(delay).await;
+                }
+            }
+        };
+
+        report.push_str(&swapped);
+    }
+
+    Ok(report)
+}
+
+async fn up_consumer(
+    config: &HostConfig,
+    log: &impl FactLog,
+    listed: &ListedConsumer,
+) -> Result<String, HostError> {
+    let bytes = std::fs::read(config.module_path(listed))?;
+
+    check_module_hash(&listed.name, &listed.module, &bytes)?;
+
+    up_version(config, log, &listed.to_version(), &bytes).await
+}
+
+fn to_up_error(listed: &ListedConsumer, error: HostError) -> HostError {
+    HostError::Up {
+        consumer: listed.name.clone(),
+        source: Box::new(error),
+    }
 }
 
 async fn up_kept(
@@ -931,11 +1002,17 @@ fn build_preview_diff(
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    use s2_sdk::S2;
     use serde_json::json;
 
     use super::*;
     use crate::durable::rename_fault;
     use crate::fact_log::memory::MemoryLog;
+    use crate::fact_log::s2::{build_append_config, build_config};
+    use crate::test_utils::stub_s2::{STUB_S2_HOST, TurmoilConnector, WRITER_HOST};
     use crate::test_utils::{
         CannedRunner, build_text_module, stub_build_manifest, stub_scope_manifest, upsert_json,
     };
@@ -1047,7 +1124,14 @@ mod tests {
 
         let stopped = tokio::time::timeout(
             Duration::from_secs(2),
-            run_until(&ctx.config, &StalledLog, true, std::future::ready(())),
+            run_until(
+                &ctx.config,
+                &StalledLog,
+                true,
+                std::future::ready(()),
+                |_, _, _| {},
+                async |_| {},
+            ),
         )
         .await
         .expect("a run that ends before its up does");
@@ -1379,7 +1463,14 @@ mod tests {
 
         write_build(&ctx.config, &[(listed, bytes)]);
 
-        let result = start_run(&ctx.config, &MemoryLog::seeded(STREAM, &["a"]), false).await;
+        let result = start_run(
+            &ctx.config,
+            &MemoryLog::seeded(STREAM, &["a"]),
+            false,
+            |_, _, _| {},
+            async |_| {},
+        )
+        .await;
 
         assert_eq!(
             result.map_err(|error| error.to_string()),
@@ -1392,6 +1483,232 @@ mod tests {
 
     /// Ups the stub consumer with a module that returns `output` on a log with no facts, and opens
     /// its current file.
+    #[test]
+    fn it_retries_the_up_of_run_up_that_s2_refuses_a_connection_until_the_stop() {
+        let ctx = setup_test();
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+
+        write_build(&ctx.config, &[(listed, bytes)]);
+
+        let config = ctx.config.clone();
+        let retries = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::clone(&retries);
+        let ended = Arc::new(Mutex::new(None));
+        let returned = Arc::clone(&ended);
+        let mut sim = turmoil::Builder::new()
+            .simulation_duration(Duration::from_secs(60))
+            .build();
+
+        // A host with no listener refuses each connection.
+        sim.host(STUB_S2_HOST, std::future::pending::<turmoil::Result>);
+        sim.client(WRITER_HOST, async move {
+            let settings = S2Settings {
+                endpoint: format!("http://{STUB_S2_HOST}"),
+                access_token: "unused".to_owned(),
+                basin: "conformance".to_owned(),
+            };
+            let reader = S2::new_with_connector(build_config(&settings)?, TurmoilConnector)?;
+            let writer = S2::new_with_connector(build_append_config(&settings)?, TurmoilConnector)?;
+            let log = S2Log::from_clients(&reader, &writer, &settings.basin)?;
+            let stop = tokio::sync::Notify::new();
+
+            let result = run_until(
+                &config,
+                &log,
+                true,
+                stop.notified(),
+                |consumer, error, delay| {
+                    recorded.lock().expect("the retries").push((
+                        consumer.to_owned(),
+                        error.to_string(),
+                        delay,
+                    ));
+                    stop.notify_one();
+                },
+                |_| std::future::pending(),
+            )
+            .await;
+
+            *returned.lock().expect("the result") = Some(result.map_err(|error| error.to_string()));
+
+            Ok(())
+        });
+
+        sim.run().expect("the simulation");
+
+        assert_eq!(
+            (
+                ended.lock().expect("the result").clone(),
+                retries.lock().expect("the retries").clone()
+            ),
+            (
+                Some(Ok(())),
+                vec![(
+                    "github_pull_request".to_owned(),
+                    "s2: connection refused: 192.168.0.1:80 -> send error: client error (Connect)"
+                        .to_owned(),
+                    Duration::from_millis(200)
+                )]
+            )
+        );
+    }
+
+    /// A log that refuses each read until it has refused `refusals` of them, with the error of a
+    /// refused S2 connection, then reads `log`.
+    struct RefusingLog {
+        refusals: AtomicU32,
+        log: MemoryLog,
+    }
+
+    impl RefusingLog {
+        fn refusing(refusals: u32) -> Self {
+            Self {
+                refusals: AtomicU32::new(refusals),
+                log: MemoryLog::seeded(STREAM, &["a"]),
+            }
+        }
+
+        fn refuse(&self) -> Result<(), HostError> {
+            let left = self.refusals.load(Ordering::Relaxed);
+
+            if left == 0 {
+                return Ok(());
+            }
+
+            self.refusals.store(left - 1, Ordering::Relaxed);
+
+            Err(HostError::Stream("connection refused".to_owned()))
+        }
+    }
+
+    impl FactLog for RefusingLog {
+        async fn append_batch(
+            &self,
+            stream: &str,
+            bodies: &[String],
+            expected_tail: u64,
+        ) -> Result<crate::fact_log::AppendOutcome, HostError> {
+            self.log.append_batch(stream, bodies, expected_tail).await
+        }
+
+        async fn read(
+            &self,
+            stream: &str,
+            from: u64,
+            count: usize,
+        ) -> Result<Vec<crate::fact_log::StoredFact>, HostError> {
+            self.refuse()?;
+            self.log.read(stream, from, count).await
+        }
+
+        async fn read_tail(&self, stream: &str) -> Result<u64, HostError> {
+            self.refuse()?;
+            self.log.read_tail(stream).await
+        }
+    }
+
+    #[tokio::test]
+    async fn it_swaps_the_listed_version_in_once_the_log_of_run_up_stops_refusing_reads() {
+        let ctx = setup_test();
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+        let file = write_build(&ctx.config, &[(listed, bytes)]);
+        let mut retries = Vec::new();
+
+        let result = start_run(
+            &ctx.config,
+            &RefusingLog::refusing(2),
+            true,
+            |consumer, error, delay| {
+                retries.push((consumer.to_owned(), error.to_string(), delay));
+            },
+            async |_| {},
+        )
+        .await;
+
+        assert_eq!(
+            (result.map_err(|error| error.to_string()), retries),
+            (
+                Ok(file),
+                vec![
+                    (
+                        "github_pull_request".to_owned(),
+                        "s2: connection refused".to_owned(),
+                        Duration::from_millis(200)
+                    ),
+                    (
+                        "github_pull_request".to_owned(),
+                        "s2: connection refused".to_owned(),
+                        Duration::from_millis(400)
+                    )
+                ]
+            )
+        );
+        assert_eq!(
+            read_current_version(&ctx.config, "github_pull_request")
+                .expect("a read")
+                .map(|current| current.version),
+            Some(version_hash('a'))
+        );
+    }
+
+    #[tokio::test]
+    async fn it_fails_a_one_shot_up_at_the_first_read_the_log_refuses() {
+        let ctx = setup_test();
+        let (listed, bytes) = build_listed(&version_hash('a'), "[]");
+        let file = write_build(&ctx.config, &[(listed, bytes)]);
+        let log = RefusingLog::refusing(5);
+
+        let result = up_listed(&ctx.config, &log, &file, None).await;
+
+        assert_eq!(
+            (
+                result.map_err(|error| error.to_string()),
+                log.refusals.load(Ordering::Relaxed)
+            ),
+            (
+                Err("up github_pull_request failed: s2: connection refused".to_owned()),
+                4
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn it_ends_the_up_of_run_up_with_no_retry_when_another_consumer_owns_its_table() {
+        let ctx = setup_test();
+        let log = MemoryLog::seeded(STREAM, &["a"]);
+        let (first, first_bytes) = build_listed(&version_hash('a'), "[]");
+        let file = write_build(&ctx.config, &[(first.clone(), first_bytes.clone())]);
+
+        up_listed(&ctx.config, &log, &file, None)
+            .await
+            .expect("the first up");
+
+        let mut rival = first;
+
+        rival.name = "rival".to_owned();
+        rival.manifest.name = "rival".to_owned();
+        write_build(&ctx.config, &[(rival, first_bytes)]);
+
+        let mut retries = Vec::new();
+
+        let result = start_run(
+            &ctx.config,
+            &log,
+            true,
+            |_, error, _| retries.push(error.to_string()),
+            async |_| {},
+        )
+        .await;
+
+        assert_eq!(
+            (result.map_err(|error| error.to_string()), retries),
+            (
+                Err("up rival failed: rival declares the table github_pull_request, which the current version of github_pull_request owns".to_owned()),
+                Vec::new()
+            )
+        );
+    }
+
     async fn up_with_no_facts(config: &HostConfig, output: &str) -> (Store, BuildManifest) {
         let (listed, bytes) = build_listed(&version_hash('a'), output);
         let file = write_build(config, &[(listed, bytes)]);
@@ -1507,27 +1824,46 @@ mod tests {
         let (listed, bytes) = build_listed(&version_hash('a'), "[]");
         let file = write_build(&ctx.config, &[(listed, bytes)]);
 
-        let result = start_run(&ctx.config, &MemoryLog::seeded(STREAM, &["a"]), true).await;
+        let result = start_run(
+            &ctx.config,
+            &MemoryLog::seeded(STREAM, &["a"]),
+            true,
+            |_, _, _| {},
+            async |_| {},
+        )
+        .await;
 
         assert_eq!(result.expect("a start"), file);
     }
 
     #[tokio::test]
-    async fn it_names_the_consumer_when_the_up_of_run_up_fails() {
+    async fn it_names_the_consumer_and_never_retries_when_the_up_of_run_up_finds_a_bad_module() {
         let ctx = setup_test();
         let (listed, _) = build_listed(&version_hash('a'), "[]");
 
         write_build(&ctx.config, &[(listed.clone(), b"(module)".to_vec())]);
 
-        let result = start_run(&ctx.config, &MemoryLog::seeded(STREAM, &["a"]), true).await;
+        let mut retries = Vec::new();
+
+        let result = start_run(
+            &ctx.config,
+            &MemoryLog::seeded(STREAM, &["a"]),
+            true,
+            |_, error, _| retries.push(error.to_string()),
+            async |_| {},
+        )
+        .await;
 
         assert_eq!(
-            result.map_err(|error| error.to_string()),
-            Err(format!(
-                "up github_pull_request failed: the module file of github_pull_request has the hash {}, and the manifest lists {}",
-                hash_module(b"(module)"),
-                listed.module
-            ))
+            (result.map_err(|error| error.to_string()), retries),
+            (
+                Err(format!(
+                    "up github_pull_request failed: the module file of github_pull_request has the hash {}, and the manifest lists {}",
+                    hash_module(b"(module)"),
+                    listed.module
+                )),
+                Vec::new()
+            )
         );
     }
 
@@ -1971,7 +2307,7 @@ mod tests {
             ],
         );
 
-        let result = start_run(&ctx.config, &log, false).await;
+        let result = start_run(&ctx.config, &log, false, |_, _, _| {}, async |_| {}).await;
 
         assert_eq!(
             result.map(|_| ()).map_err(|error| error.to_string()),

@@ -5,20 +5,22 @@ use crate::error::HostError;
 const FIRST_DELAY: Duration = Duration::from_millis(200);
 const MAX_DELAY: Duration = Duration::from_secs(30);
 
-/// The consecutive failed passes after which a consumer's task stops, even on a store error.
+/// The consecutive failures after which a consumer's task stops and the `up` of `run --up` ends,
+/// even on a store error.
 pub const RETRY_LIMIT: u32 = 10;
 
-/// What a consumer's task does after a pass fails.
+/// What a consumer's task does after a pass fails, and the `up` of `run --up` after it fails.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Recovery {
-    /// Wait this long, then run the pass again from the committed offsets.
+    /// Wait this long, then run the pass again from the committed offsets, or the `up` again from
+    /// its start.
     Retry(Duration),
     Stop,
 }
 
 /// Retries a store or log error, with a delay that doubles from 200 ms up to 30 s, until
-/// `failures` consecutive passes have failed. Stops at once on any other error, which the
-/// consumer's output or the deployment caused, so a retry would fail the same way.
+/// `failures` reaches the limit of consecutive failures. Stops at once on any other error, which
+/// the consumer's output or the deployment caused, so a retry would fail the same way.
 #[must_use]
 pub fn pick_recovery(error: &HostError, failures: u32) -> Recovery {
     if !is_store_error(error) || failures >= RETRY_LIMIT {
