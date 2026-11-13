@@ -14,13 +14,17 @@
 - [Overview](./architecture/overview.md) — the path of a fact, the processes, the data, and the
   concerns that cut across the system.
 - [Ingest](./architecture/ingest/ingest.md) — the receive routes, the checks, the answers and the
-  pull timers.
+  settings.
+- [Pull paths](./architecture/ingest/pull-paths.md) — the pull timers, the lock of a source, resync
+  marks and saved cursors.
 - [The fact log](./architecture/ingest/fact-log.md) — streams, the fact envelope, fact IDs, one
   append, and the ports with their fixtures.
 - [Plug-ins and the build](./architecture/consumers/plug-ins-and-build.md) — what a plug-in
   declares, the glue, `pepys build`, `consumers.json` and the test store.
-- [The host](./architecture/consumers/host.md) — versions, fact mode, scope mode, the module
+- [The host](./architecture/consumers/host.md) — the commands, fact mode, scope mode, the module
   boundary and the store files.
+- [Versions](./architecture/consumers/versions.md) — what a version of a consumer is, and how the
+  host makes one current.
 - [Entities and links](./architecture/queries/entities-and-links.md) — entity IDs, the shared
   `entity` view and the link table.
 - [The API](./architecture/queries/api.md) — the store reader, the core queries and the router.

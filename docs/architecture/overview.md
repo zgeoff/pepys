@@ -58,14 +58,16 @@ flowchart LR
 
 The API never writes the store, and the host never writes the fact log.
 
-- [Ingest](./ingest/ingest.md) covers the routes, the delivery checks, the answers and the pull
-  timers.
+- [Ingest](./ingest/ingest.md) covers the routes, the delivery checks, the answers and the settings.
+- [Pull paths](./ingest/pull-paths.md) covers the pull timers, the lock of a source, resync marks
+  and saved cursors.
 - [The fact log](./ingest/fact-log.md) covers the streams, the format of a fact, fact IDs and how
   one append lands exactly once.
 - [Plug-ins and the build](./consumers/plug-ins-and-build.md) covers what a plug-in declares, the
   check on a deployment, and how `pepys build` compiles each consumer.
-- [The host](./consumers/host.md) covers consumer versions, fact mode, scope mode and the store
-  files.
+- [The host](./consumers/host.md) covers the commands, fact mode, scope mode and the store files.
+- [Versions](./consumers/versions.md) covers what a version of a consumer is, and how the host makes
+  one current.
 - [Entities and links](./queries/entities-and-links.md) covers entity IDs, the shared `entity` view
   and the `link` table.
 - [The API](./queries/api.md) covers how the API reads the store, the core queries, and the routes

@@ -139,7 +139,7 @@ name one entity.
 The API resolves an alias in two store reads:
 
 1. It attaches each consumer that declares an alias table and has a
-   [current version](../consumers/host.md#versions). It reads the alias tables in the order of the
+   [current version](../consumers/versions.md). It reads the alias tables in the order of the
    deployment's consumers: plug-in by plug-in as the deployment file lists them, and each plug-in's
    consumers in its own order. The first table that holds the alias gives the entity ID.
 2. It reads the entity of that ID as `get_entity` reads any ID: it takes the kind from the ID, finds

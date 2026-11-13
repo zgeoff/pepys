@@ -2,7 +2,7 @@
 
 A consumer is the code that a plug-in declares to turn facts into rows. The host runs each consumer
 and writes its rows to one database file per consumer version, and a `current` link in the
-consumer's folder points at the version that readers see. [The host](../consumers/host.md#versions)
+consumer's folder points at the version that readers see. [The host](../consumers/versions.md)
 covers versions and how `up` swaps the `current` link.
 
 Tools and agents read those files through the API, one Bun process. It serves every query of a

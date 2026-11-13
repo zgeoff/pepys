@@ -36,7 +36,7 @@ limited time by default.
 ### The cursor stream
 
 The `facts.cursors` stream belongs to no fact family. It holds the position of each
-[pull path](./ingest.md#cursors) in its source, one record per run that moved the position. The
+[pull path](./pull-paths.md#cursors) in its source, one record per run that moved the position. The
 position has a stream of its own because one pull path can write several fact streams, and two pull
 paths can write the same one, so the last record of a fact stream gives no pull path's position.
 
