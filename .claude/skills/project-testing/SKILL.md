@@ -37,11 +37,18 @@ metadata:
 - Start a process or seed data in [`start-stack.ts`](../../../packages/cli/e2e/start-stack.ts) when
   more than one e2e test needs it. Don't write the `start` and `stop` modules of
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
-  `bun run test:e2e` runs both `e2e/` folders with plain `bun test`, and loads `start-stack.ts`
-  first.
+  `bun run test:e2e` loads `start-stack.ts` first, then runs only the `e2e/` folders that its script
+  lists. Add a new `e2e/` folder to the script, or its tests never run.
 - Leave `lanes` empty in `rig.config.ts`, in place of the `e2e` entry that Files and shared hosts
   puts there, and keep the `pepys` program entry. pepys runs the e2e tests with `bun run test:e2e`.
   `rig e2e` refuses `packages/ingest/e2e/`, because ingest declares no program.
+- For an API test, seed a consumer's rows with
+  [`create-consumer-version.ts`](../../../packages/api/src/test-utils/create-consumer-version.ts),
+  in place of the shared [Seeding](../testing/references/seeding.md) rule. It writes
+  `<store>/<consumer>/<version>/consumer.db` directly, as only the Rust host does, and the host runs
+  only in the e2e lane. When you change a host table that the helper makes, such as `link`, change
+  [`host-tables.json`](../../../packages/api/src/test-utils/host-tables.json) too: a host test
+  checks it. Test the path from a fact to an API answer in `packages/cli/e2e/`.
 
 ## Where each test goes
 
@@ -105,15 +112,8 @@ These tests run:
 - the `@pepys/ingest` fact log and blob store adapters, on s2-lite and Garage;
 - `pepys build`, which compiles consumers.
 
-Install zig and wasm-tools yourself before a local run. In CI, only the `e2e` job in `pr.yml`
-installs them.
-
-The e2e deployment holds the GitHub and telemetry plug-ins, the logbook plug-in in
-[`logbook-plugin/`](../../../packages/cli/e2e/fixtures/logbook-plugin), and the ledger plug-in of
-the stub deployment, [`ledger-plugin.ts`](../../../packages/testing/src/ledger/ledger-plugin.ts),
-whose one consumer runs in scope mode. The logbook plug-in imports the kit by package name, as a
-plug-in outside the repo does. `bun run consumers:build` compiles the deployment to
-`build/e2e-consumers/`.
+In the [logbook plug-in](../../../packages/cli/e2e/fixtures/logbook-plugin), import `@pepys/kit` by
+package name, never by a relative path, as a plug-in outside the repo does.
 
 - Read the addresses of the Docker services in each test's `setupTest()`, from the `PEPYS_`
   variables in [`build-stack-env.ts`](../../../stack/build-stack-env.ts), which
