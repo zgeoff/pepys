@@ -31,8 +31,10 @@ You need:
    package exports, such as `githubPlugin` from `@pepys/source-github`.
 3. Write an ingest entry file that calls `serveIngest({ deployment, environment: process.env })`
    from `@pepys/ingest`.
-4. Write an API entry file that calls `serveAPI({ deployment, environment: process.env })` from
-   `@pepys/api`.
+4. Write an API entry file that calls
+   `serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) })` from
+   `@pepys/api`. With the arguments passed on, the same file runs the OAuth server's admin commands,
+   which [Serving MCP](./serving-mcp.md#3-add-a-client) uses.
 
 ## 2. Build the consumers
 

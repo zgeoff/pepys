@@ -28,7 +28,7 @@ Serve a deployment's queries from an entry file, then call them with a typed cli
 import { serveAPI } from '@pepys/api';
 import { deployment } from './deployment.ts';
 
-serveAPI({ deployment, environment: process.env });
+serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) });
 ```
 
 ```sh
