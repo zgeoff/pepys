@@ -1,17 +1,20 @@
 # entity-neighbourhood
 
-An API client looks an entity up with `get_entity`, by its ID or by an alias, then lists the
-entities linked to it with `neighbourhood`. The CLI calls them with `query entity` and
-`query neighbourhood`.
+An API client calls `get_entity` to read one entity, by its ID or by an alias, and `neighbourhood`
+to list the entities linked to it. The CLI's `query entity` and `query neighbourhood` call them
+through the API. Run the journey, then compare what each query returns with the end state.
 
-- `send-webhook` builds a pull request with the GitHub ID 1874433009 plus its number, so #47 is
-  `github:pull_request:1874433056`. Every pull request is in the repo `Acme/Harbour`, by the user
-  4401, so its alias is `acme/harbour#47` and its `actor` is `github:user:4401`.
-- In the e2e deployment, no GitHub consumer writes links. The only link that can point at a pull
-  request is a `logbook_voyage_cites` link, which a logbook voyage writes. A voyage is a trip that
-  the test plug-in `logbook` records.
-- `neighbourhood` follows a link in either direction. Its `direction` is relative to the entity the
-  walk starts from.
+- Use the IDs the journey uses. `send-webhook` gives a pull request the GitHub ID 1874433009 + its
+  number, in the repo `Acme/Harbour`, by the GitHub user 4401. Pull request #47 therefore has the
+  entity ID `github:pull_request:1874433056`, the alias `acme/harbour#47`, and the `actor`
+  `github:user:4401`.
+- Call `query neighbourhood` with the entity ID: it refuses an alias.
+- Expect exactly one link. The e2e deployment's GitHub consumers never write a link. The test
+  plug-in `logbook` records voyages, and its consumer writes a `logbook_voyage_cites` link from a
+  voyage to each pull request the voyage cites. `send-voyage --cites 47` sends a voyage that cites
+  #47.
+- Read `direction` from the pull request: `neighbourhood` follows links in both directions, and
+  marks a link `incoming` when it points at the entity you asked about.
 
 ## Journey
 
@@ -26,10 +29,10 @@ bun verify query neighbourhood --id github:pull_request:1874433056
 
 ## End state
 
-- `query entity` returns `data.entity.id` `github:pull_request:1874433056`, `title`
+- `query entity` returns `data.entity` with `id` `github:pull_request:1874433056`, `title`
   `Chart the north channel` and `actor` `github:user:4401`.
-- `query neighbourhood` returns two entities in `data.entities`, in any order:
+- `query neighbourhood` returns exactly two entities in `data.entities`, in any order:
   `github:pull_request:1874433056` at `depth` 0, and `logbook:voyage:v-47` at `depth` 1.
-- `query neighbourhood` returns one link in `data.links`: `type` `logbook_voyage_cites`, `from`
-  `logbook:voyage:v-47`, `to` `github:pull_request:1874433056` and `direction` `incoming`.
-- `data.unresolved` and `data.skippedConsumers` are empty arrays.
+- `query neighbourhood` returns exactly one link in `data.links`: `type` `logbook_voyage_cites`,
+  `from` `logbook:voyage:v-47`, `to` `github:pull_request:1874433056`, and `direction` `incoming`.
+- `query neighbourhood` returns `data.unresolved` and `data.skippedConsumers` as empty arrays.

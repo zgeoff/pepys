@@ -1,16 +1,18 @@
 # pull-request-delivery
 
-The `github_pull_request_delivery` query, which `query delivery` calls, gives a merged pull
-request's merge time, the first release after the merge, and the deploy of that release to an
-environment. The journey sends GitHub webhooks to ingest, the service that receives them. The host
-applies them, and the API answers the query.
+An API client calls the `github_pull_request_delivery` query to see a merged pull request's merge
+time, the first release after the merge, and that release's deploy to an environment. The CLI's
+`query delivery` command calls it through the API. The journey sends GitHub webhooks to ingest, the
+service that stores each one as a fact. The host applies the facts, and the API answers the query.
 
-- `send-webhook` builds a pull request with the GitHub ID 1874433009 plus its number, so #31 is
-  `github:pull_request:1874433040`. Every pull request is in the repo `Acme/Harbour`.
-- The journey sends #31 opened, then reviewed, then merged, then the release `v2.1.0`. It sends no
-  deploy, so `deploy` is null in any environment.
-- The journey sends the review because a GitHub delivery holds one, but no consumer in the e2e
-  deployment reads reviews. Only `data.sent` shows that ingest took it.
+- Use the IDs the journey uses. `send-webhook` gives a pull request the GitHub ID 1874433009 + its
+  number, so pull request #31 has the entity ID `github:pull_request:1874433040`.
+- Expect `deploy` null. The journey sends no deploy webhook.
+- Expect no read to show the review. The journey sends it as a real pull request gets one, and
+  checks only that `send-webhook` returns `data.sent` 1. The e2e deployment has no consumer of
+  reviews.
+- Compare each time as the same instant. A time may come back with milliseconds, such as
+  `2026-10-02T11:00:00.000Z`.
 
 ## Journey
 
@@ -28,10 +30,10 @@ bun verify db query "select number, state, is_merged, merged_at from github_pull
 ## End state
 
 - Each `send-webhook` returns `data.sent` 1.
-- `query delivery` returns an array of one object in `data`, with the times as written here:
+- `query delivery` returns an array of exactly one object in `data`, with at least these fields:
   - `pullRequest`: `github:pull_request:1874433040`;
-  - `mergedAt`: `2026-10-02T11:00:00Z`;
-  - `release`: `tag` `v2.1.0` and `at` `2026-10-03T08:00:00Z`;
+  - `mergedAt`: 2026-10-02 11:00:00 UTC;
+  - `release`: `tag` `v2.1.0`, and `at` 2026-10-03 08:00:00 UTC;
   - `deploy`: null.
-- `db query` returns one row in `data.rows`: `number` 31, `state` `closed`, `is_merged` 1 and
-  `merged_at` `2026-10-02T11:00:00Z`.
+- `db query` returns one row in `data.rows`: `number` 31, `state` `closed`, `is_merged` 1, and
+  `merged_at` 2026-10-02 11:00:00 UTC.

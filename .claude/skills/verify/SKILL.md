@@ -122,14 +122,16 @@ command points that command alone.
 
 <!-- repo: targets -->
 
-| Target  | Start with                                            | Access     |
-| ------- | ----------------------------------------------------- | ---------- |
-| `local` | `bun verify use --target local`, then `bun verify up` | read-write |
+| Target  | Start with                                                                             | Access     |
+| ------- | -------------------------------------------------------------------------------------- | ---------- |
+| `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
 
-Before `up`, and again after you change the host or a consumer, run `bun run test:e2e:prepare`. It
-builds the host, the Rust process that runs each consumer, and the consumers, the plug-in code that
-turns facts into a SQLite database each. `up` then runs the e2e deployment from this checkout with a
-fresh store, and `down` removes everything `up` started.
+`bun run test:e2e:prepare` builds the host and the consumers. The host is the Rust process that runs
+each consumer. A consumer is plug-in code that turns facts into its own SQLite database. After you
+change the host or a consumer, run `bun run test:e2e:prepare` again, then `bun verify up --restart`.
+`up` starts the e2e deployment, the test deployment of `packages/cli/e2e/fixtures/`, on s2-lite, the
+local fact log, and Garage, the local blob store, with an empty store folder. `down` removes
+everything that `up` started.
 
 Run the host-restart-recovery journey last: it stops the host and starts it again.
 
@@ -148,9 +150,10 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
 
 - Run `bun verify caught-up` after the last send and before the first read. The host applies each
   fact after ingest stores it, so a read straight after a send can miss it.
-- `db query` reads a copy of the `github_pull_request` consumer's database, made when it runs.
-- `stream read host` reads the host's log, and `host-reads` the host's reads from s2-lite, since the
-  last `use`.
+- Each `db query` copies the `github_pull_request` consumer's database when it starts, and reads the
+  copy.
+- `stream read host` reads the host's log since the last `use`. `host-reads` lists the host's reads
+  from s2-lite since the last `use`.
 - After `stop-host`, the host stays stopped until `start-host`, and `caught-up` and `doctor` fail.
 
 <!-- /repo -->
@@ -160,11 +163,11 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
 <!-- repo: registry -->
 
 The registry, [`create-verify-registry.ts`](../../../scripts/verify/create-verify-registry.ts),
-declares the target, actions, commands, doctor checks and features. Each feature's `paths` and the
-`.ignore` list live in [`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Ignore only a
-file that no journey runs: an ignore glob beats a feature's glob. For each new feature glob, add an
-entry to [`skill-gate.json`](../../skill-gate.json) with the glob as `match` and `verify` as its
-skill.
+declares the target, actions, commands, doctor checks and features. It takes each feature's `paths`
+and its `.ignore` list from [`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Add a
+file to the `.ignore` list only when no journey runs it: the gate skips an ignored file, even when a
+feature's `paths` match it. For each new feature glob, add an entry to
+[`skill-gate.json`](../../skill-gate.json) with the glob as `match` and `verify` as its skill.
 
 <!-- /repo -->
 

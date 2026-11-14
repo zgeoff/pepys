@@ -1,17 +1,18 @@
 # host-restart-recovery
 
-The host runs each consumer over its fact stream on s2-lite. Each fact on
-`facts.github.pull_request` has an offset, its sequence number from 0. With the rows of each batch,
-the host saves the last offset it applied. When the host starts again, it reads from the saved
-offset plus 1, so it applies each fact once. Ingest, the service that receives webhooks, keeps
-storing facts while the host is stopped.
+The host reads each consumer's fact stream from s2-lite. Each fact on `facts.github.pull_request`
+has an offset, its sequence number from 0. The host saves the last offset it applied in the same
+transaction as the rows that fact changed. When the host starts again, it reads on from the saved
+offset + 1, so it applies each fact once. Ingest keeps storing facts while the host is stopped.
 
-- Run this journey last, on a run where no other journey is mid-way: it stops the host.
-- When a step fails after `stop-host`, run `bun verify action start-host` before anything else.
-- `stop-host` and `start-host` report `progress` for the `github_pull_request` consumer:
-  `appliedThrough` is the saved offset, and `tail` is the offset the next fact will get.
-- The second `use` marks where `stream read host` and `host-reads` start, so they show only the
-  restart.
+- Start the host again after a failure. When a step fails while the host is stopped, run
+  `bun verify action start-host`, then the journey again from the top.
+- Read `progress` as the `github_pull_request` consumer's: `appliedThrough` is its saved offset, and
+  `tail` is the offset that the next fact on the stream will get.
+- Run `use` the second time as written. Each `use` marks the current end of the `host` and `s2`
+  logs, and `stream read host` and `host-reads` read from that mark, so they show only the restart.
+- `send-webhook --count 40` sends pull requests numbered from `--number` up, here #200 to #239.
+  Other journeys use numbers below 200.
 
 ## Journey
 
@@ -33,14 +34,16 @@ bun verify stream read host
 ## End state
 
 - `stop-host` returns `data.host` `stopped`, `data.exitCode` 0, and `data.progress.appliedThrough`
-  equal to `data.progress.tail` minus 1: the host had applied every fact.
-- `start-host` returns `data.host` `running`, the same `appliedThrough` as `stop-host`, and a `tail`
-  20 higher than `stop-host`'s: the 20 facts that ingest stored while the host was stopped.
-- `host-reads` returns one read in `data.reads`, with `seqNum` equal to `start-host`'s
-  `appliedThrough` plus 1, and `count` 20: the host read on from its saved offset.
-- The first `db query` returns `pull_requests` 60 and `ids` 60: no fact lost.
-- The second `db query` returns `applied` equal to `saved_offset` plus 1: the stream holds only pull
-  request facts, from offset 0, and the host applied each once.
+  equal to `data.progress.tail` minus 1: the host had applied every fact when it stopped.
+- `start-host` returns `data.host` `running`, the `appliedThrough` that `stop-host` returned, and a
+  `tail` 20 higher than `stop-host` returned: ingest stored 20 facts while the host was stopped.
+- `host-reads` returns exactly one read in `data.reads`, with `seqNum` equal to `appliedThrough`
+  plus 1, and `count` 20: after the restart, the host read on from its saved offset.
+- The first `db query` returns `pull_requests` 60 and `ids` 60: the consumer lost no fact.
+- The second `db query` returns `applied` equal to `saved_offset` plus 1. The stream holds only pull
+  request facts, from every journey of the run, at offsets 0 to `saved_offset`, and the consumer
+  applied each of them once.
 - `stream read host` holds a line that starts `github_pull_request` and ends
-  `no swap, the version is current`: the host kept its deployed consumer, with its database and
-  saved offset, and built no new one.
+  `no swap, the version is current`. The host deploys a new version of a consumer when its code
+  changes. This line shows that the host kept the consumer it had, with its database and saved
+  offset.
