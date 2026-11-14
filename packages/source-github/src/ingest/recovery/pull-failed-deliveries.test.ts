@@ -3,6 +3,7 @@ import { createHash, generateKeyPairSync } from 'node:crypto';
 import { createLogger } from '@pepys/kit';
 import { mockNetwork } from '@pepys/mock-network';
 import { HttpResponse, delay, http } from 'msw';
+import { z } from 'zod';
 import { GITHUB_API_URL, githubDeliveries } from '../../test-utils/github-api-handlers.ts';
 import { pullFailedDeliveries } from './pull-failed-deliveries.ts';
 
@@ -249,6 +250,53 @@ test('it rejects the pull when the App private key cannot sign', async () => {
   expect(pulled).toStrictEqual({
     kind: 'rejected',
     reason: 'the GitHub App private key cannot sign a token',
+  });
+});
+
+test('it reads a page that GitHub serves after the JWT of the first page expired', async () => {
+  const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  let nowMs = 1_800_000_000_000;
+
+  mockNetwork.use(
+    http.get(`${GITHUB_API_URL}/app/hook/deliveries`, (info) => {
+      const url = new URL(info.request.url);
+
+      const [, claims] = (info.request.headers.get('authorization') ?? '').split('.');
+      const expiry: unknown = JSON.parse(Buffer.from(claims ?? '', 'base64url').toString('utf8'));
+
+      if (!z.object({ exp: z.number().gt(nowMs / 1000) }).safeParse(expiry).success) {
+        return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 });
+      }
+
+      if (url.searchParams.has('cursor')) {
+        return new HttpResponse('[{"id":401,"status_code":200,"event":"push"}]');
+      }
+
+      // the first page takes GitHub eleven minutes
+      nowMs += 660_000;
+
+      return new HttpResponse('[{"id":402,"status_code":200,"event":"push"}]', {
+        headers: { link: `<${GITHUB_API_URL}/app/hook/deliveries?cursor=1>; rel="next"` },
+      });
+    }),
+  );
+
+  const pulled = await pullFailedDeliveries(null, {
+    env: {
+      PEPYS_GITHUB_APP_ID: '4242',
+      PEPYS_GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    },
+    now: () => nowMs,
+    marks: [],
+    log: createLogger({ write: () => {} }),
+    signal: new AbortController().signal,
+  });
+
+  expect(pulled).toStrictEqual({
+    kind: 'batch',
+    batch: { facts: [] },
+    cursor: '402',
+    isDone: true,
   });
 });
 

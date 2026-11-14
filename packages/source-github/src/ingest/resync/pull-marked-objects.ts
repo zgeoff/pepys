@@ -2,7 +2,7 @@ import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
 import type { GithubFactOrigin } from '../build-github-fact.ts';
-import { findAppJWT } from '../github-app/find-app-jwt.ts';
+import { findAppJWTSigner } from '../github-app/find-app-jwt-signer.ts';
 import { pickPullFailure } from '../github-app/pick-pull-failure.ts';
 import { readInstallationToken } from '../github-app/read-installation-token.ts';
 import type { InstallationToken } from '../github-app/read-installation-token.ts';
@@ -24,9 +24,9 @@ export async function pullMarkedObjects(
     return { kind: 'batch', batch: { facts: [] }, cursor: 'resynced', isDone: true };
   }
 
-  const appJWT = findAppJWT(context.env, context.now());
+  const signAppJWT = findAppJWTSigner(context.env, context.now);
 
-  if (appJWT === undefined) {
+  if (signAppJWT === undefined) {
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };
   }
 
@@ -35,7 +35,7 @@ export async function pullMarkedObjects(
   const facts: PendingFact[] = [];
 
   for (const target of targets) {
-    const token = await readCachedToken(tokens, target.repository, appJWT, context);
+    const token = await readCachedToken(tokens, target.repository, signAppJWT, context);
 
     if (token.kind === 'failed') {
       return pickPullFailure(token.status);
@@ -63,7 +63,7 @@ export async function pullMarkedObjects(
 async function readCachedToken(
   tokens: Map<string, InstallationToken>,
   repository: string,
-  appJWT: string,
+  signAppJWT: () => string,
   call: GithubCall,
 ): Promise<InstallationToken> {
   const known = tokens.get(repository);
@@ -72,7 +72,7 @@ async function readCachedToken(
     return known;
   }
 
-  const token = await readInstallationToken(repository, appJWT, call);
+  const token = await readInstallationToken(repository, signAppJWT, call);
 
   tokens.set(repository, token);
 

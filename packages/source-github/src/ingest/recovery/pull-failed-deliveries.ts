@@ -2,7 +2,7 @@ import { planAppends } from '@pepys/ingest';
 import type { PendingFact, PullContext, Pulled } from '@pepys/kit';
 import { z } from 'zod';
 import { buildGithubFact } from '../build-github-fact.ts';
-import { findAppJWT } from '../github-app/find-app-jwt.ts';
+import { findAppJWTSigner } from '../github-app/find-app-jwt-signer.ts';
 import { pickPullFailure } from '../github-app/pick-pull-failure.ts';
 import { requestGithubAPI } from '../github-app/request-github-api.ts';
 import type { GithubAnswer, GithubCall } from '../github-app/request-github-api.ts';
@@ -19,15 +19,15 @@ export async function pullFailedDeliveries(
   cursor: string | null,
   context: PullContext,
 ): Promise<Pulled> {
-  const appJWT = findAppJWT(context.env, context.now());
+  const signAppJWT = findAppJWTSigner(context.env, context.now);
 
-  if (appJWT === undefined) {
+  if (signAppJWT === undefined) {
     return { kind: 'rejected', reason: 'the GitHub App private key cannot sign a token' };
   }
 
   const seenID = cursor === null ? 0n : BigInt(cursor);
 
-  const listed = await readDeliveriesAfter(seenID, appJWT, context);
+  const listed = await readDeliveriesAfter(seenID, signAppJWT, context);
 
   if (listed.kind !== 'listed') {
     return pickPullFailure(listed.status);
@@ -36,7 +36,7 @@ export async function pullFailedDeliveries(
   const facts: PendingFact[] = [];
 
   for (const id of collectFailedIDs(listed.items)) {
-    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, appJWT, context);
+    const answer = await requestGithubAPI(`/app/hook/deliveries/${id}`, signAppJWT(), context);
 
     const detail = deliveryDetailSchema.safeParse(answer.body);
 
@@ -89,14 +89,14 @@ type DeliveryList = { kind: 'listed'; items: DeliveryItem[] } | { kind: 'failed'
 // GitHub lists the newest delivery first, so the pages stop at the first one already seen.
 async function readDeliveriesAfter(
   seenID: bigint,
-  appJWT: string,
+  signAppJWT: () => string,
   call: GithubCall,
 ): Promise<DeliveryList> {
   const items: DeliveryItem[] = [];
   let url: string | undefined = '/app/hook/deliveries?per_page=100';
 
   while (url !== undefined) {
-    const answer: GithubAnswer = await requestGithubAPI(url, appJWT, call);
+    const answer: GithubAnswer = await requestGithubAPI(url, signAppJWT(), call);
 
     const page = deliveryListSchema.safeParse(parseDeliveryList(answer.text));
 

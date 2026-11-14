@@ -11,13 +11,17 @@ export type InstallationToken =
 const installationSchema = z.looseObject({ id: z.number().int() });
 const accessTokenSchema = z.looseObject({ token: z.string().min(1) });
 
-// The token of the App's installation on one repository, `owner/name`, from the App's JWT.
+// The token of the App's installation on one repository, `owner/name`. Each call signs its own JWT.
 export async function readInstallationToken(
   repository: string,
-  appJWT: string,
+  signAppJWT: () => string,
   call: GithubCall,
 ): Promise<InstallationToken> {
-  const installation = await requestGithubAPI(`/repos/${repository}/installation`, appJWT, call);
+  const installation = await requestGithubAPI(
+    `/repos/${repository}/installation`,
+    signAppJWT(),
+    call,
+  );
 
   if (installation.status === 404) {
     return { kind: 'not-installed' };
@@ -31,7 +35,7 @@ export async function readInstallationToken(
 
   const created = await requestGithubAPI(
     `/app/installations/${parsedInstallation.data.id}/access_tokens`,
-    appJWT,
+    signAppJWT(),
     call,
     'POST',
   );
