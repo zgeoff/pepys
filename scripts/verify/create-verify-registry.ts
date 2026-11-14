@@ -4,17 +4,24 @@ import { WringerError, createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
 import { db } from '@wringer/db';
 import { http } from '@wringer/http';
+import { mcp } from '@wringer/mcp';
 import { stream } from '@wringer/stream';
 import { z } from 'zod';
 import { writeGithubDelivery } from '../../packages/cli/e2e/fixtures/write-github-delivery.ts';
+import { buildMCPServers } from './build-mcp-servers.ts';
 import { buildWebhookDeliveries } from './build-webhook-deliveries.ts';
+import { localMCPClient, prodMCPClient, prodOrigin } from './constants.ts';
 import { createAPIClient } from './create-api-client.ts';
 import { createControlClient } from './create-control-client.ts';
 import { checkAnswers } from './doctor/check-answers.ts';
 import { checkAPI } from './doctor/check-api.ts';
 import { checkContainers } from './doctor/check-containers.ts';
 import { checkHost } from './doctor/check-host.ts';
+import { checkMCPDoor } from './doctor/check-mcp-door.ts';
+import { checkMCPSignIn } from './doctor/check-mcp-sign-in.ts';
+import { makeLocalCheck } from './doctor/make-local-check.ts';
 import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
+import { createLocalMCPClient } from './local/create-local-mcp-client.ts';
 import { parseRunEndpoints } from './parse-run-endpoints.ts';
 import { readConsumerProgress } from './read-consumer-progress.ts';
 import { readStreamReads } from './read-stream-reads.ts';
@@ -23,6 +30,11 @@ import { writeTelemetryExport } from './write-telemetry-export.ts';
 import { writeVoyage } from './write-voyage.ts';
 
 const noInput = z.strictObject({});
+const skippedSchema = z.strictObject({ skipped: z.string() });
+const projectSchema = z.strictObject({ project: z.string() });
+const answeredURLSchema = z.strictObject({ url: z.string() });
+const apiAnsweredSchema = z.strictObject({ answered: z.string() });
+const hostStateSchema = z.strictObject({ host: z.string(), starts: z.number().int() });
 const timeSchema = z.iso.datetime();
 
 const entityIDText = z
@@ -75,15 +87,18 @@ export function createVerifyRegistry(): Wringer {
     .use(http({}))
     .use(db({}))
     .use(stream({}))
+    .use(mcp({}))
     .target('local', {
       mode: 'launch',
       access: 'read-write',
       host: local(),
       launch: (ctx) => ({
-        command: [process.execPath, launcherPath, ctx.runDirectory],
+        command: [process.execPath, launcherPath, ctx.runDirectory, createLocalMCPClient()],
         ready: (line) => (line['event'] === 'ready' ? parseRunEndpoints(line) : null),
       }),
       drivers: {
+        mcp: (ctx) => buildMCPServers(parseRunEndpoints(ctx.endpoints).mcp, localMCPClient),
+
         // Every call goes to the API's oRPC routes, which POST each call and only read, so a read
         // command and a doctor check may send them.
         http: () => ({
@@ -113,11 +128,21 @@ export function createVerifyRegistry(): Wringer {
         },
       },
     })
+    .target('prod', {
+      mode: 'attach',
+      access: 'read-only',
+      refusalHint:
+        'prod is the deployed pepys, and it is read-only. Leave the write undone, skip `done` for this feature, and report the write you needed.',
+      host: local(),
+      endpoints: () => ({ mcp: prodOrigin }),
+      drivers: { mcp: () => buildMCPServers(prodOrigin, prodMCPClient) },
+    })
     .action({
       name: 'send-webhook',
       summary:
         'Send a signed GitHub delivery to ingest: a pull request opened (--count opens that many from --number up), reviewed or merged, or a release published',
       effect: 'write',
+      targets: ['local'],
       input: z.strictObject({
         event: z.enum(['opened', 'reviewed', 'merged', 'released']),
         number: z.number().int().min(1).max(9999).optional(),
@@ -156,6 +181,7 @@ export function createVerifyRegistry(): Wringer {
       summary:
         "Send one OTLP logs export that holds a Claude Code model request per entry of --requests in --session, proven by the run's identity issuer",
       effect: 'write',
+      targets: ['local'],
       input: z.strictObject({
         session: z.string().min(1),
         requests: z.array(modelRequestSchema).min(1).max(20),
@@ -168,6 +194,7 @@ export function createVerifyRegistry(): Wringer {
       summary:
         'Send a signed logbook fact batch: one voyage that cites the pull request with the number --cites',
       effect: 'write',
+      targets: ['local'],
       input: z.strictObject({
         voyage: z.string().regex(/^[a-z0-9-]+$/u, 'Name a voyage in lowercase, such as v-31.'),
         title: z.string().min(1),
@@ -182,6 +209,7 @@ export function createVerifyRegistry(): Wringer {
       summary:
         "Stop the host with SIGTERM, leaving ingest and the API running, and report the pull request consumer's saved offset",
       effect: 'write',
+      targets: ['local'],
       input: noInput,
       data: z.strictObject({
         host: z.enum(['running', 'stopped']),
@@ -207,6 +235,7 @@ export function createVerifyRegistry(): Wringer {
       summary:
         "Start the host again with `run --up`, and report the pull request consumer's saved offset it resumes after",
       effect: 'write',
+      targets: ['local'],
       input: noInput,
       data: z.strictObject({
         host: z.enum(['running', 'stopped']),
@@ -296,44 +325,58 @@ export function createVerifyRegistry(): Wringer {
     .check({
       name: 'docker',
       input: noInput,
-      data: z.strictObject({ project: z.string() }),
+      data: z.union([projectSchema, skippedSchema]),
       timeoutMs: 10_000,
-      run: (_input, ctx) => checkContainers(parseRunEndpoints(ctx.endpoints)),
+      run: makeLocalCheck((run) => checkContainers(run)),
     })
     .check({
       name: 's2-lite',
       input: noInput,
-      data: z.strictObject({ url: z.string() }),
+      data: z.union([answeredURLSchema, skippedSchema]),
       timeoutMs: 5000,
-      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 's2-lite'),
+      run: makeLocalCheck((run) => checkAnswers(run, 's2-lite')),
     })
     .check({
       name: 'garage',
       input: noInput,
-      data: z.strictObject({ url: z.string() }),
+      data: z.union([answeredURLSchema, skippedSchema]),
       timeoutMs: 5000,
-      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 'garage'),
+      run: makeLocalCheck((run) => checkAnswers(run, 'garage')),
     })
     .check({
       name: 'ingest',
       input: noInput,
-      data: z.strictObject({ url: z.string() }),
+      data: z.union([answeredURLSchema, skippedSchema]),
       timeoutMs: 5000,
-      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 'ingest'),
+      run: makeLocalCheck((run) => checkAnswers(run, 'ingest')),
     })
     .check({
       name: 'api',
       input: noInput,
-      data: z.strictObject({ answered: z.string() }),
+      data: z.union([apiAnsweredSchema, skippedSchema]),
       timeoutMs: 10_000,
-      run: (_input, ctx) => checkAPI(ctx.drivers.http),
+      run: makeLocalCheck((_run, ctx) => checkAPI(ctx.drivers.http)),
     })
     .check({
       name: 'host',
       input: noInput,
-      data: z.strictObject({ host: z.string(), starts: z.number().int() }),
+      data: z.union([hostStateSchema, skippedSchema]),
       timeoutMs: hostCheckTimeoutMs + 5000,
-      run: (_input, ctx) => checkHost(parseRunEndpoints(ctx.endpoints), hostCheckTimeoutMs),
+      run: makeLocalCheck((run) => checkHost(run, hostCheckTimeoutMs)),
+    })
+    .check({
+      name: 'mcp-door',
+      input: noInput,
+      data: answeredURLSchema,
+      timeoutMs: 10_000,
+      run: (_input, ctx) => checkMCPDoor(ctx.endpoints),
+    })
+    .check({
+      name: 'mcp-sign-in',
+      input: noInput,
+      data: z.strictObject({ server: z.string(), tools: z.number().int() }),
+      timeoutMs: 20_000,
+      run: (_input, ctx) => checkMCPSignIn(ctx.drivers.mcp),
     })
     .feature(
       {
@@ -356,6 +399,11 @@ export function createVerifyRegistry(): Wringer {
         name: 'host-restart-recovery',
         summary: 'Stop the host while facts arrive, start it again, and see each fact applied once',
         paths: featurePaths['host-restart-recovery'],
+      },
+      {
+        name: 'mcp-queries',
+        summary: 'Sign in to /mcp as a service client, and call two queries',
+        paths: featurePaths['mcp-queries'],
       },
     )
     .shared(...sharedPaths)

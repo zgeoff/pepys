@@ -15,13 +15,14 @@ export const featurePaths = {
   'session-model-requests': [...everyJourney, 'packages/source-telemetry/**'],
   'entity-neighbourhood': [...everyJourney, 'packages/source-github/**'],
   'host-restart-recovery': [...everyJourney, 'packages/source-github/**'],
+  'mcp-queries': [...everyJourney, 'packages/source-github/**', 'packages/source-telemetry/**'],
 } as const satisfies Record<string, readonly string[]>;
 
 // A change to one of these changes every feature: the verify CLI, its `local` app and its doctor.
 export const sharedPaths = ['scripts/verify/**'] as const;
 
 // A path that one of these globs matches counts as no change, even where a feature's or a shared
-// glob matches it too.
+// glob matches it too, so the gate skips it. Add a glob only for files that no journey runs.
 export const ignoredPaths = [
   // 1. No runtime effect: prose and tests. Never `**/*.md`: a package may read markdown at run time.
   'docs/**',

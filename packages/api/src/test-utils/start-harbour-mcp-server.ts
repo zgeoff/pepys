@@ -34,6 +34,7 @@ export async function startHarbourMCPServer(options: HarbourServerOptions) {
     publicURL: null,
     allowedHosts: [],
     trustForwardedFrom: [],
+    serviceTokensFile: null,
     printSecurity: () => {},
     ...serverOptions,
     createServedApp: (oauth) =>

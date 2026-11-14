@@ -162,6 +162,7 @@ function startOAuthServer(context: QueryContext, config: APIConfig, mcp: MCPConf
     allowedHosts: mcp.allowedHosts,
     trustForwardedFrom: mcp.trustForwardedFrom,
     dbPath: join(mcp.authDirectory, AUTH_DB_FILE),
+    serviceTokensFile: mcp.serviceTokensFile,
     createServedApp: (oauth) => createApp(context, { logError, oauth }),
 
     // A log shipper matches the `pepys security ` prefix of these lines.

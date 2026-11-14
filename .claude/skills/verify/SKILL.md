@@ -52,6 +52,7 @@ journey of `bun verify` commands, and the end state that shows it works.
 | session-model-requests | Send a session's telemetry batch, and read its model requests                                   | [references/feature-session-model-requests.md](references/feature-session-model-requests.md) |
 | entity-neighbourhood   | Read a pull request with get_entity, and walk to the voyage that cites it                       | [references/feature-entity-neighbourhood.md](references/feature-entity-neighbourhood.md)     |
 | host-restart-recovery  | Stop the host while facts arrive, start it again, and see each fact applied once                | [references/feature-host-restart-recovery.md](references/feature-host-restart-recovery.md)   |
+| mcp-queries            | Sign in to /mcp as a service client, and call two queries                                       | [references/feature-mcp-queries.md](references/feature-mcp-queries.md)                       |
 
 <!-- /wringer:features -->
 
@@ -125,15 +126,17 @@ command points that command alone.
 | Target  | Start with                                                                             | Access     |
 | ------- | -------------------------------------------------------------------------------------- | ---------- |
 | `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
+| `prod`  | `bun verify use --target prod`, then `bun verify attach`                               | read-only  |
 
-`bun run test:e2e:prepare` builds the host and the consumers. The host is the Rust process that runs
-each consumer. A consumer is plug-in code that turns facts into its own SQLite database. After you
-change the host or a consumer, run `bun run test:e2e:prepare` again, then `bun verify up --restart`.
-`up` starts the e2e deployment from `packages/cli/e2e/fixtures/`, with an empty store folder. It
-runs on s2-lite, the local fact log, and Garage, the local blob store. `down` removes everything
-that `up` started.
+`bun run test:e2e:prepare` builds the host and the consumers that it runs. After you change either,
+run the build again, then `bun verify up --restart`. `up` starts the e2e deployment from
+`packages/cli/e2e/fixtures/` with no data. It runs on s2-lite and Garage, the local fact log and
+blob store. `down` removes it.
 
-Run the host-restart-recovery journey last: it stops the host and starts it again.
+Run host-restart-recovery last: it restarts the host.
+
+After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
+`prod` takes only the `mcp` commands.
 
 <!-- /repo -->
 
@@ -153,7 +156,7 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
 - Each `db query` copies the `github_pull_request` consumer's database when it starts, and reads the
   copy.
 - `stream read host` reads the host's log since the last `use`. `host-reads` lists the host's reads
-  from s2-lite since the last `use`.
+  from s2-lite since then.
 - After `stop-host`, the host stays stopped until `start-host`, and `caught-up` and `doctor` fail.
 
 <!-- /repo -->
@@ -163,11 +166,11 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
 <!-- repo: registry -->
 
 The registry, [`create-verify-registry.ts`](../../../scripts/verify/create-verify-registry.ts),
-declares the target, actions, commands, doctor checks and features. It takes each feature's `paths`
-and its `.ignore` list from [`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Add a
-file to the `.ignore` list only when no journey runs it: the gate skips an ignored file, even when a
-feature's `paths` match it. For each new feature glob, add an entry to
-[`skill-gate.json`](../../skill-gate.json) with the glob as `match` and `verify` as its skill.
+declares the targets, actions, commands, doctor checks and features. It reads each feature's
+`paths`, and the registry's `.ignore` list, from
+[`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Add a glob to the `.ignore` list
+only for files that no journey runs. For each new feature glob, add an entry to
+[`skill-gate.json`](../../skill-gate.json), with the glob as `match` and `verify` as its skill.
 
 <!-- /repo -->
 
