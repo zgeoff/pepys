@@ -7,7 +7,7 @@ const firstDelayMs = 200;
 const maxDelayMs = 30_000;
 
 // the failures in a row after which the start ends, as the host's `up` does
-export const startRetryLimit = 10;
+const startRetryLimit = 10;
 
 // What the start does after the fact log failed it `failures` times in a row. A failure that a later
 // try can pass, such as a refused connection or a 5xx, waits a delay that doubles from 200 ms up to
