@@ -128,16 +128,15 @@ command points that command alone.
 | `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
 | `prod`  | `bun verify use --target prod`, then `bun verify attach`                               | read-only  |
 
-`bun run test:e2e:prepare` builds the consumers, plug-in code that turns facts into SQLite
-databases, and the host, the Rust process that runs them. After you change either, run it again,
-then `bun verify up --restart`. `up` starts the e2e deployment from `packages/cli/e2e/fixtures/` on
-s2-lite, the local fact log, and Garage, the local blob store, with an empty store folder. `down`
-removes everything that `up` started.
+`bun run test:e2e:prepare` builds the host, the Rust process that runs the consumers. Each consumer
+turns facts into a SQLite database. After you change either, run it again, then
+`bun verify up --restart`. `up` starts the e2e deployment from `packages/cli/e2e/fixtures/` with no
+data. It runs on s2-lite and Garage, the local fact log and blob store. `down` removes it.
 
-Run the host-restart-recovery journey last: it stops the host and starts it again.
+Run host-restart-recovery last: it restarts the host.
 
-`prod` is the deployed API's `/mcp`. Only the `mcp` commands work there:
-[On prod](references/feature-mcp-queries.md#on-prod) gives its secret and its reads.
+Use `prod`, the deployed `/mcp`, for the `mcp` commands only.
+[On prod](references/feature-mcp-queries.md#on-prod) gives its secret and reads.
 
 <!-- /repo -->
 
@@ -156,8 +155,8 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
   fact after ingest stores it, so a read straight after a send can miss it.
 - Each `db query` copies the `github_pull_request` consumer's database when it starts, and reads the
   copy.
-- Since the last `use`, `stream read host` reads the host's log, and `host-reads` lists the host's
-  reads from s2-lite.
+- `stream read host` reads the host's log since the last `use`. `host-reads` lists the host's reads
+  from s2-lite since then.
 - After `stop-host`, the host stays stopped until `start-host`, and `caught-up` and `doctor` fail.
 
 <!-- /repo -->
@@ -167,10 +166,11 @@ group, such as `action`: run `bun verify <group> --help` for its commands.
 <!-- repo: registry -->
 
 The registry, [`create-verify-registry.ts`](../../../scripts/verify/create-verify-registry.ts),
-declares the target, actions, commands, doctor checks and features. It takes each feature's `paths`
-and its `.ignore` list from [`feature-paths.ts`](../../../scripts/verify/feature-paths.ts), whose
-comments say what may join the list. For each new feature glob, add an entry to
-[`skill-gate.json`](../../skill-gate.json) with the glob as `match` and `verify` as its skill.
+declares the targets, actions, commands, doctor checks and features. It reads each feature's
+`paths`, and the registry's `.ignore` list, from
+[`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Add a glob to the `.ignore` list
+only for files that no journey runs. For each new feature glob, add an entry to
+[`skill-gate.json`](../../skill-gate.json), with the glob as `match` and `verify` as its skill.
 
 <!-- /repo -->
 

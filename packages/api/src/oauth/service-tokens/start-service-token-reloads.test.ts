@@ -47,7 +47,10 @@ test('it reloads the service-token file when the process gets SIGHUP', async () 
     JSON.stringify({
       resource: 'https://quay.example/mcp',
       clients: {
-        'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_dockreaderdockreaderdockreader01'] },
+        'dock-reader': {
+          scopes: ['read'],
+          secretDigests: ['8f5dce3101b35b758cca5d0a431e6cbbf9619a6614d38cbdc7d5294db5a06804'],
+        },
       },
     }),
   );
@@ -55,14 +58,10 @@ test('it reloads the service-token file when the process gets SIGHUP', async () 
   process.kill(process.pid, 'SIGHUP');
 
   await waitFor(async () => {
-    const added = await ctx.verify('pepys_svc_dockreaderdockreaderdockreader01');
+    const dropped = await ctx.verify('pepys_svc_quayreaderquayreaderquayreader01');
 
-    expect(added).not.toBeNull();
+    expect(dropped).toBeNull();
   });
-
-  const dropped = await ctx.verify('pepys_svc_quayreaderquayreaderquayreader01');
-
-  expect(dropped).toBeNull();
 });
 
 test('it stops listening for SIGHUP at the stop', async () => {

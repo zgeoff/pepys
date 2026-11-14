@@ -103,18 +103,26 @@ one.
 An agent with no person present, such as the `prod` target of `bun verify`, signs in as a service
 client. It sends its ID, `service:<name>`, and its secret to `/oauth2/token` with the
 `client_credentials` grant, and gets a short-lived read token that never refreshes. The package
-checks the grant. pepys gives it the clients, from the JSON file at `PEPYS_API_SERVICE_TOKENS_FILE`,
-and the prefix `pepys_svc_` for the file's static tokens.
+checks the grant, and pepys gives it the clients from the JSON file at
+`PEPYS_API_SERVICE_TOKENS_FILE`.
 
 The file holds the sha256 digest of each client's secret, never the secret, and its `resource` must
 be `PEPYS_API_PUBLIC_URL` followed by `/mcp`.
-[Add a service client](../../runbooks/serving-mcp.md#add-a-service-client) gives the steps.
+[Add a service client](../../runbooks/serving-mcp.md#add-a-service-client) gives the steps. pepys
+departs from the package's file rules twice:
 
-- The API reads the file at start, and refuses to start when the file is missing, fails to parse, or
-  names another resource.
-- On SIGHUP, the API reads the file again. A file that fails the same checks leaves the old clients
-  in place, and the API logs the reason to stderr. A client or a scope that the new file drops loses
-  its access at its next request.
+- pepys refuses a client with a static token, a bearer that the package takes in place of a digest.
+  Anyone who read the file could use such a token.
+- pepys takes a file with no clients, `"clients": {}`. The package refuses one, which would leave
+  the last client in place when its entry is removed.
+
+The API reads the file at start and on SIGHUP:
+
+- At start, the API refuses to start when the file is missing, fails to parse, holds a static token
+  or names another resource.
+- On SIGHUP, a file that fails the same checks leaves the old clients in place, and the API logs the
+  reason to stderr. A client or a scope that the new file drops loses its access at its next
+  request.
 - A restart forgets every token issued to a service client, and the client signs in again.
 
 ## Security events

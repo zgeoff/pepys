@@ -4,8 +4,8 @@ import { openSharedAuth } from '../../test-utils/open-shared-auth.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { reloadServiceTokens } from './reload-service-tokens.ts';
 
-// An auth core that starts with one service client, `quay-reader`, and its static token, and the
-// path of a service-token file in the test's temp folder that the test writes.
+// An auth core that starts with one service client, `quay-reader`, and its static token, which
+// `verify` checks with no token exchange, and the path of a service-token file that the test writes.
 async function setupTest() {
   const temporaryDirectory = setupTempDir('pepys-service-tokens-');
   const filePath = join(temporaryDirectory.path, 'service-tokens.json');
@@ -43,7 +43,10 @@ test('it replaces the service clients with those of a valid file', async () => {
     JSON.stringify({
       resource: 'https://quay.example/mcp',
       clients: {
-        'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_dockreaderdockreaderdockreader01'] },
+        'dock-reader': {
+          scopes: ['read'],
+          secretDigests: ['8f5dce3101b35b758cca5d0a431e6cbbf9619a6614d38cbdc7d5294db5a06804'],
+        },
       },
     }),
   );
@@ -53,32 +56,39 @@ test('it replaces the service clients with those of a valid file', async () => {
   expect(reload).toStrictEqual({ kind: 'replaced', clients: 1 });
 });
 
-test('it serves a client the reloaded file adds, and refuses the one it drops', async () => {
+test('it refuses a client that the reloaded file drops', async () => {
   const ctx = await setupTest();
 
   await ctx.writeFile(
     JSON.stringify({
       resource: 'https://quay.example/mcp',
       clients: {
-        'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_dockreaderdockreaderdockreader01'] },
+        'dock-reader': {
+          scopes: ['read'],
+          secretDigests: ['8f5dce3101b35b758cca5d0a431e6cbbf9619a6614d38cbdc7d5294db5a06804'],
+        },
       },
     }),
   );
 
   await ctx.reload();
 
+  const dropped = await ctx.verify('pepys_svc_quayreaderquayreaderquayreader01');
+
+  expect(dropped).toBeNull();
+});
+
+test('it revokes the last service client when the reloaded file names none', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writeFile(JSON.stringify({ resource: 'https://quay.example/mcp', clients: {} }));
+
+  const reload = await ctx.reload();
+
   expect({
-    added: await ctx.verify('pepys_svc_dockreaderdockreaderdockreader01'),
+    reload,
     dropped: await ctx.verify('pepys_svc_quayreaderquayreaderquayreader01'),
-  }).toStrictEqual({
-    added: {
-      kind: 'service',
-      clientID: 'service:dock-reader',
-      clientName: 'service:dock-reader',
-      scopes: ['read'],
-    },
-    dropped: null,
-  });
+  }).toStrictEqual({ reload: { kind: 'replaced', clients: 0 }, dropped: null });
 });
 
 test.each([
@@ -90,17 +100,17 @@ test.each([
       clients: {
         'dock-reader': {
           scopes: ['write'],
-          tokens: ['pepys_svc_dockreaderdockreaderdockreader01'],
+          secretDigests: ['8f5dce3101b35b758cca5d0a431e6cbbf9619a6614d38cbdc7d5294db5a06804'],
         },
       },
     }),
   },
   {
-    problem: 'a token without the prefix',
+    problem: 'a client with a static token',
     text: JSON.stringify({
       resource: 'https://quay.example/mcp',
       clients: {
-        'dock-reader': { scopes: ['read'], tokens: ['svca_dockreaderdockreaderdockreader01'] },
+        'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_dockreaderdockreaderdockreader01'] },
       },
     }),
   },
@@ -109,9 +119,16 @@ test.each([
     text: JSON.stringify({
       resource: 'https://other.example/mcp',
       clients: {
-        'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_dockreaderdockreaderdockreader01'] },
+        'dock-reader': {
+          scopes: ['read'],
+          secretDigests: ['8f5dce3101b35b758cca5d0a431e6cbbf9619a6614d38cbdc7d5294db5a06804'],
+        },
       },
     }),
+  },
+  {
+    problem: 'no clients for another resource',
+    text: JSON.stringify({ resource: 'https://other.example/mcp', clients: {} }),
   },
 ])('it keeps the old service clients when the new file holds $problem', async (row) => {
   const ctx = await setupTest();
@@ -152,17 +169,20 @@ test('it keeps the old service clients when the file is gone', async () => {
   });
 });
 
-test('it never quotes a token of a file it refuses', async () => {
+test.each([
+  { problem: 'a malformed token', token: 'pepys_svc_leakleak' },
+  { problem: 'a well-formed token', token: 'pepys_svc_leakleakleakleakleakleakleakleak01' },
+])('it never quotes $problem of a file it refuses', async (row) => {
   const ctx = await setupTest();
 
   await ctx.writeFile(
     JSON.stringify({
       resource: 'https://quay.example/mcp',
-      clients: { 'dock-reader': { scopes: ['read'], tokens: ['pepys_svc_leakleak'] } },
+      clients: { 'dock-reader': { scopes: ['read'], tokens: [row.token] } },
     }),
   );
 
   const reload = await ctx.reload();
 
-  expect(JSON.stringify(reload)).not.toContain('pepys_svc_leakleak');
+  expect(JSON.stringify(reload)).not.toContain(row.token);
 });

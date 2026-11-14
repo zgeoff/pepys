@@ -76,7 +76,8 @@ With `PEPYS_API_PUBLIC_URL` set, the API prints the reason and exits 1 at start 
   with a host that is not loopback.
 - `PEPYS_AUTH_DIR` is unset.
 - `PEPYS_API_PUBLIC_URL` uses `http://` and `PEPYS_API_HOST` is not a loopback address.
-- The file at `PEPYS_API_SERVICE_TOKENS_FILE` is missing, fails to parse, or names another resource.
+- The file at `PEPYS_API_SERVICE_TOKENS_FILE` is missing, fails to parse, holds a static token or
+  names another resource.
 
 ## 3. Add a client
 
@@ -165,7 +166,7 @@ A service client signs in with an ID and a secret, and gets only the `read` scop
 
 - To end a service client's access, remove its entry from the service-token file, then send SIGHUP
   as step 3 of [Add a service client](#add-a-service-client) says. Its tokens fail on their next
-  request.
+  request. When it is the last client, leave `"clients": {}` in the file.
 - To end one grant:
   1. Run `bun <api_entry> grants`. Expect: each grant, with its ID, its client, its scopes and when
      it was last used.
