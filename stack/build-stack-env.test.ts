@@ -3,6 +3,7 @@ import { buildStackEnv } from './build-stack-env.ts';
 
 test('it gives each address and key of the stack its variable', () => {
   const env = buildStackEnv({
+    project: 'pepys-stack-0a1b2c3d',
     s2Endpoint: 'http://127.0.0.1:4100',
     s2AccessToken: 'ignored',
     s2Basin: 'pepys-local',

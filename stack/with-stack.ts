@@ -10,6 +10,8 @@ interface GarageAccess {
 }
 
 export interface RunningStack {
+  // the compose project, whose label marks each container, volume and network of the stack
+  project: string;
   s2Endpoint: string;
   s2AccessToken: string;
   s2Basin: string;
@@ -75,6 +77,7 @@ export async function withStack<Result>(
     await startStack(compose, stopController.signal, s2Port);
 
     const value = await run({
+      project: projectName,
       s2Endpoint: `http://127.0.0.1:${s2Port}`,
       s2AccessToken: 'ignored',
       s2Basin: 'pepys-local',
@@ -95,7 +98,9 @@ export async function withStack<Result>(
 
   if (owned) {
     try {
-      await compose(['down', '--volumes', '--remove-orphans']);
+      // s2-lite ignores SIGTERM, so Docker's default 10 s stop wait ends in SIGKILL (exit 137)
+      // anyway; the volumes go with the project, so nothing a graceful stop saves is kept.
+      await compose(['down', '--volumes', '--remove-orphans', '--timeout', '0']);
 
       console.error(`removed compose project ${projectName}`);
     } catch (error: unknown) {

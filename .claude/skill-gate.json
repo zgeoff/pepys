@@ -5,6 +5,15 @@
     { "match": "**/*.test.ts", "skills": ["testing", "project-testing"] },
     { "match": "**/*.md", "skills": ["docs-writing", "project-docs-writing"] },
     { "match": "**/skills/*/SKILL.md", "skills": ["skill-writing", "docs-writing", "deslop"] },
-    { "match": "**/skills/*/references/**", "skills": ["skill-writing", "docs-writing", "deslop"] }
+    { "match": "**/skills/*/references/**", "skills": ["skill-writing", "docs-writing", "deslop"] },
+    { "match": "packages/{api,contract,ingest,kit,kysely-turso,schema}/**", "skills": ["verify"] },
+    { "match": "packages/cli/src/{build,utils,test-utils}/**", "skills": ["verify"] },
+    { "match": "packages/cli/e2e/fixtures/**", "skills": ["verify"] },
+    { "match": "packages/testing/src/ledger/**", "skills": ["verify"] },
+    { "match": "crates/host/**", "skills": ["verify"] },
+    { "match": "stack/**", "skills": ["verify"] },
+    { "match": "packages/source-github/**", "skills": ["verify"] },
+    { "match": "packages/source-telemetry/**", "skills": ["verify"] },
+    { "match": "scripts/verify/**", "skills": ["verify"] }
   ]
 }

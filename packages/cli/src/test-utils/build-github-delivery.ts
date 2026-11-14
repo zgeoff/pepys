@@ -1,5 +1,10 @@
+import { buildPullRequestFields } from './build-pull-request-fields.ts';
+
 export interface GithubDelivery {
   deliveryID: string;
+
+  // the `x-github-event` header that GitHub sends with the body
+  event: 'pull_request' | 'pull_request_review' | 'release';
   body: string;
 }
 
@@ -8,31 +13,39 @@ interface GithubDeliveryParameters {
   action: string;
   title: string;
   updatedAt: string;
+
+  // pull request 12 when absent
+  number?: number;
+
+  // absent: the pull request is open
+  mergedAt?: string;
 }
 
 // The body of one `pull_request` webhook delivery of an invented pull request, before it is signed.
 export function buildGithubDelivery(parameters: GithubDeliveryParameters): GithubDelivery {
+  const number = parameters.number ?? 12;
+  const mergedAt = parameters.mergedAt ?? null;
+
   const body = JSON.stringify({
     action: parameters.action,
-    number: 12,
+    number,
     pull_request: {
-      id: 1_874_433_021,
-      number: 12,
+      ...buildPullRequestFields(number, parameters.updatedAt),
       title: parameters.title,
-      state: 'open',
+      state: mergedAt === null ? 'open' : 'closed',
       draft: false,
-      merged: false,
-      merge_commit_sha: null,
-      html_url: 'https://github.example/Acme/Harbour/pull/12',
-      user: { id: 4401 },
-      base: { repo: { id: 902 } },
-      created_at: '2026-10-01T08:00:00Z',
-      updated_at: parameters.updatedAt,
-      closed_at: null,
-      merged_at: null,
+      merged: mergedAt !== null,
+      merge_commit_sha: mergedAt === null ? null : buildMergeCommitSHA(number),
+      closed_at: mergedAt,
+      merged_at: mergedAt,
     },
     sender: { id: 4401 },
   });
 
-  return { deliveryID: parameters.deliveryID, body };
+  return { deliveryID: parameters.deliveryID, event: 'pull_request', body };
+}
+
+// 40 hex digits, distinct for each pull request number
+function buildMergeCommitSHA(number: number): string {
+  return number.toString(16).padStart(40, 'c');
 }
