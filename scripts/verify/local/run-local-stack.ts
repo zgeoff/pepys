@@ -1,5 +1,7 @@
 import { createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serveAPI } from '@pepys/api';
 import { serveIngest } from '@pepys/ingest';
@@ -8,11 +10,19 @@ import { startE2EStack } from '../../../packages/cli/e2e/fixtures/start-e2e-stac
 import { StackInterruptedError } from '../../../stack/stack-interrupted-error.ts';
 import { createHostProcess } from './create-host-process.ts';
 import { serveControl } from './serve-control.ts';
+import { writeServiceTokenFile } from './write-service-token-file.ts';
+
+interface LocalRun {
+  readonly runDirectory: string;
+
+  // the sha256 digest of the run's service client secret, which the launch minted
+  readonly digest: string;
+}
 
 // The `local` target's app: the e2e deployment, with ingest and the API in this process and the host
 // as a child that the control server stops and starts. It prints one ready line, runs until SIGTERM
 // or SIGINT, then removes everything it started.
-export async function runLocalStack(runDirectory: string): Promise<number> {
+export async function runLocalStack(run: LocalRun): Promise<number> {
   const stopController = new AbortController();
 
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
@@ -24,7 +34,7 @@ export async function runLocalStack(runDirectory: string): Promise<number> {
   const cleanup = new AsyncDisposableStack();
 
   try {
-    await runParts(cleanup, runDirectory, stopController.signal);
+    await runParts(cleanup, run, stopController.signal);
   } catch (error) {
     if (!(error instanceof StackInterruptedError)) {
       process.stderr.write(`verify local: the start failed: ${String(error)}\n`);
@@ -36,7 +46,7 @@ export async function runLocalStack(runDirectory: string): Promise<number> {
 
 async function runParts(
   cleanup: AsyncDisposableStack,
-  runDirectory: string,
+  run: LocalRun,
   stopSignal: AbortSignal,
 ): Promise<void> {
   const startedAt = performance.now();
@@ -58,15 +68,28 @@ async function runParts(
     return;
   }
 
+  // The API serves /mcp on its loopback origin, behind its OAuth server, with the run's one service
+  // client in a service-token file. The OAuth database and the file go when the run ends.
+  const authDirectory = await mkdtemp(join(tmpdir(), 'pepys-verify-auth-'));
+
+  cleanup.defer(() => rm(authDirectory, { recursive: true, force: true }));
+
+  const serviceTokensFile = await writeServiceTokenFile(authDirectory, started.apiURL, run.digest);
+
   const stopAPI = await serveAPI({
     deployment: e2eDeployment,
-    environment: started.environment,
+    environment: {
+      ...started.environment,
+      PEPYS_API_PUBLIC_URL: started.apiURL,
+      PEPYS_AUTH_DIR: authDirectory,
+      PEPYS_API_SERVICE_TOKENS_FILE: serviceTokensFile,
+    },
     exitOnSignal: false,
   });
 
   cleanup.defer(stopAPI);
 
-  const hostLogPath = join(runDirectory, 'host.log');
+  const hostLogPath = join(run.runDirectory, 'host.log');
   const hostLog = createWriteStream(hostLogPath, { flags: 'a' });
 
   cleanup.defer(() => closeWriteStream(hostLog));
@@ -100,6 +123,7 @@ async function runParts(
     event: 'ready',
     ingest: started.ingestURL,
     api: started.apiURL,
+    mcp: started.apiURL,
     control: control.url.origin,
     s2: started.stack.s2Endpoint,
     s2Basin: started.stack.s2Basin,
@@ -108,6 +132,7 @@ async function runParts(
     project: started.stack.project,
     store: started.storeDirectory,
     hostLog: hostLogPath,
+    serviceTokens: serviceTokensFile,
     startMs: String(startMs),
   });
 
@@ -168,13 +193,14 @@ async function closeParts(cleanup: AsyncDisposableStack): Promise<number> {
 
 if (import.meta.main) {
   const runDirectory = process.argv.at(2);
+  const digest = process.argv.at(3);
 
-  if (runDirectory === undefined) {
-    process.stderr.write('usage: run-local-stack.ts <run directory>\n');
+  if (runDirectory === undefined || digest === undefined) {
+    process.stderr.write('usage: run-local-stack.ts <run directory> <service secret digest>\n');
     process.exit(2);
   }
 
-  const exitCode = await runLocalStack(runDirectory);
+  const exitCode = await runLocalStack({ runDirectory, digest });
 
   process.exit(exitCode);
 }

@@ -1,5 +1,5 @@
 import { DEFAULT_PATHS, openMCPAuth } from '@zgeoff/mcp-auth';
-import type { MCPAuth } from '@zgeoff/mcp-auth';
+import type { MCPAuth, MCPAuthOptions } from '@zgeoff/mcp-auth';
 import { AUTH_TABLES } from '../oauth/auth-tables.ts';
 import { GRANT_SCOPES } from '../oauth/constants.ts';
 import type { GrantScope } from '../oauth/constants.ts';
@@ -10,6 +10,9 @@ interface SharedAuthTarget {
   // The public origin the server serves, or would serve, and its database file.
   readonly origin: string;
   readonly dbPath: string;
+
+  // The service clients the core starts with; absent opens it with none.
+  readonly serviceTokens?: MCPAuthOptions<GrantScope, null>['serviceTokens'];
 }
 
 // A second auth core on a server's database file, for a test to sign in and
@@ -31,6 +34,7 @@ export async function openSharedAuth(target: SharedAuthTarget): Promise<MCPAuth<
     clock: { now: () => Date.now() },
     security: { record: () => {} },
     onGrantRevoked: () => {},
+    ...(target.serviceTokens === undefined ? {} : { serviceTokens: target.serviceTokens }),
   });
 
   registerTestCleanup(() => auth.close());

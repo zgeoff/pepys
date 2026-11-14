@@ -69,6 +69,32 @@ test('it reads what /mcp needs once the public URL is set', () => {
         authDirectory: '/var/pepys-auth',
         allowedHosts: ['api.internal.example.com', 'api.example.com'],
         trustForwardedFrom: ['10.0.0.7'],
+        serviceTokensFile: null,
+      },
+    },
+  });
+});
+
+test('it reads the service-token file beside the public URL', () => {
+  const environment = {
+    PEPYS_STORE_DIR: '/var/pepys',
+    PEPYS_API_PUBLIC_URL: 'https://pepys.example.com',
+    PEPYS_AUTH_DIR: '/var/pepys-auth',
+    PEPYS_API_SERVICE_TOKENS_FILE: '/etc/pepys/service-tokens.json',
+  };
+
+  expect(readAPIConfig(environment)).toStrictEqual({
+    ok: true,
+    value: {
+      storeDirectory: '/var/pepys',
+      host: '127.0.0.1',
+      port: 8081,
+      mcp: {
+        publicURL: 'https://pepys.example.com',
+        authDirectory: '/var/pepys-auth',
+        allowedHosts: [],
+        trustForwardedFrom: [],
+        serviceTokensFile: '/etc/pepys/service-tokens.json',
       },
     },
   });
@@ -83,5 +109,17 @@ test('it refuses a public URL without the folder of the OAuth database', () => {
   expect(readAPIConfig(environment)).toStrictEqual({
     ok: false,
     failure: ['PEPYS_AUTH_DIR is not set, and PEPYS_API_PUBLIC_URL needs it'],
+  });
+});
+
+test('it refuses a service-token file without a public URL', () => {
+  const environment = {
+    PEPYS_STORE_DIR: '/var/pepys',
+    PEPYS_API_SERVICE_TOKENS_FILE: '/etc/pepys/service-tokens.json',
+  };
+
+  expect(readAPIConfig(environment)).toStrictEqual({
+    ok: false,
+    failure: ['PEPYS_API_PUBLIC_URL is not set, and PEPYS_API_SERVICE_TOKENS_FILE needs it'],
   });
 });

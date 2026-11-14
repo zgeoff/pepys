@@ -58,11 +58,13 @@ command is no serving process, and shares the first process's `mcp-auth.db`.
    - `PEPYS_API_HOST`: an address the proxy reaches, such as `0.0.0.0`.
 2. When the proxy rewrites `Host`, set `PEPYS_API_ALLOWED_HOSTS` to the values it sends, split by
    commas.
-3. To see the real client address in the API's security log, set `PEPYS_API_TRUST_FORWARDED_FROM` to
+3. To let agents sign in with no person present, set `PEPYS_API_SERVICE_TOKENS_FILE` to the path of
+   a service-token file, as [Add a service client](#add-a-service-client) says.
+4. To see the real client address in the API's security log, set `PEPYS_API_TRUST_FORWARDED_FROM` to
    the proxy's IP addresses, split by commas. The API writes one `pepys security` line to stderr for
    each sign-in and each refused token. With the variable set, the API marks the client address that
    the proxy forwards `trusted`, and otherwise `unverified`.
-4. Start the API.
+5. Start the API.
 
    Expect: the API logs
    `api listening on http://<host>:<port>, serving /mcp at <public_origin>/mcp`, where `<host>` and
@@ -74,6 +76,7 @@ With `PEPYS_API_PUBLIC_URL` set, the API prints the reason and exits 1 at start 
   with a host that is not loopback.
 - `PEPYS_AUTH_DIR` is unset.
 - `PEPYS_API_PUBLIC_URL` uses `http://` and `PEPYS_API_HOST` is not a loopback address.
+- The file at `PEPYS_API_SERVICE_TOKENS_FILE` is missing, fails to parse, or names another resource.
 
 ## 3. Add a client
 
@@ -121,8 +124,48 @@ unknown command prints the usage of every command and exits 2.
    Expect: the client opens the owner's browser on `/oauth2/authorize`. After the passkey sign-in
    and the consent, the client lists the API's tools, and a tool call returns rows.
 
+## Add a service client
+
+A service client signs in with an ID and a secret, and gets only the `read` scope.
+[Service clients](../architecture/queries/oauth-server.md#service-clients) explains the file.
+
+1. From the pepys repo root, mint a secret and its digest:
+
+   ```sh
+   bun -e "const minted = (await import('@zgeoff/mcp-auth')).mintServiceSecret(); console.log(JSON.stringify(minted))"
+   ```
+
+   Expect: one JSON object with `secret` and `digest`. The command prints the secret, so run it in a
+   terminal that nothing records. Put the secret in the client's password store right away, and keep
+   it out of the service-token file and every log.
+
+2. Add the client to the service-token file, with a name for it in place of `<name>` and the digest
+   alone:
+
+   ```json
+   {
+     "resource": "<public_origin>/mcp",
+     "clients": { "<name>": { "scopes": ["read"], "secretDigests": ["<digest>"] } }
+   }
+   ```
+
+   To rotate a secret, add the new digest beside the old one, move the client to the new secret,
+   then remove the old digest.
+
+3. Send SIGHUP to the API process. In a container where the API is process 1, run `kill -HUP 1` in
+   the container.
+
+   Expect: the API logs `service tokens reloaded from <file>: clients <count>`. When it logs
+   `service tokens kept`, fix the reason it gives, and send SIGHUP again.
+
+4. Point the agent's MCP client at `<public_origin>/mcp` with the `client_credentials` grant,
+   `client_secret_basic`, the client ID `service:<name>` and the secret.
+
 ## Revoke access
 
+- To end a service client's access, remove its entry from the service-token file, then send SIGHUP
+  as step 3 of [Add a service client](#add-a-service-client) says. Its tokens fail on their next
+  request.
 - To end one grant:
   1. Run `bun <api_entry> grants`. Expect: each grant, with its ID, its client, its scopes and when
      it was last used.

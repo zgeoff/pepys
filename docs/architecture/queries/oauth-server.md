@@ -98,6 +98,25 @@ unknown token with 401 and the metadata challenge. pepys then:
 Each MCP request is answered on its own, with no stream left open, so a revoke needs no hook to end
 one.
 
+## Service clients
+
+An agent with no person present, such as the `prod` target of `bun verify`, signs in as a service
+client. It sends its ID, `service:<name>`, and its secret to `/oauth2/token` with the
+`client_credentials` grant, and gets a short-lived read token that never refreshes. The package
+checks the grant. pepys gives it the clients, from the JSON file at `PEPYS_API_SERVICE_TOKENS_FILE`,
+and the prefix `pepys_svc_` for the file's static tokens.
+
+The file holds the sha256 digest of each client's secret, never the secret, and its `resource` must
+be `PEPYS_API_PUBLIC_URL` followed by `/mcp`.
+[Add a service client](../../runbooks/serving-mcp.md#add-a-service-client) gives the steps.
+
+- The API reads the file at start, and refuses to start when the file is missing, fails to parse, or
+  names another resource.
+- On SIGHUP, the API reads the file again. A file that fails the same checks leaves the old clients
+  in place, and the API logs the reason to stderr. A client or a scope that the new file drops loses
+  its access at its next request.
+- A restart forgets every token issued to a service client, and the client signs in again.
+
 ## Security events
 
 The API writes one line to stderr for each security event that the package records:

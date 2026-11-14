@@ -159,6 +159,8 @@ docs/
   It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which defaults to
   127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081. With `PEPYS_API_PUBLIC_URL` and
   `PEPYS_AUTH_DIR` set, it also serves MCP at `/mcp` behind the OAuth server in
-  [OAuth server](docs/architecture/queries/oauth-server.md). Given `passkeys`, `clients` or
-  `grants`, it runs that admin command on the OAuth server's database and exits.
+  [OAuth server](docs/architecture/queries/oauth-server.md). `PEPYS_API_SERVICE_TOKENS_FILE` names
+  the file of its [service clients](docs/architecture/queries/oauth-server.md#service-clients),
+  which it reads again on SIGHUP. Given `passkeys`, `clients` or `grants`, it runs that admin
+  command on the OAuth server's database and exits.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

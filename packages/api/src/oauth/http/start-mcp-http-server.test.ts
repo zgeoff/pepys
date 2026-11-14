@@ -352,3 +352,119 @@ test('it listens beyond loopback behind an https public URL', async () => {
     listening: expect.stringMatching(/^http:\/\/0\.0\.0\.0:\d+$/u),
   });
 });
+
+test('it gives a service client in its service-token file an access token that /mcp serves', async () => {
+  const temporaryDirectory = setupTempDir('pepys-mcp-http-');
+  const serviceTokensFile = join(temporaryDirectory.path, 'service-tokens.json');
+
+  await Bun.write(
+    serviceTokensFile,
+    JSON.stringify({
+      resource: 'https://quay.example/mcp',
+      clients: {
+        'quay-reader': {
+          scopes: ['read'],
+          secretDigests: ['edcf76230c5f263afc457c110b580af491e99729113b05a3dfbf1b90d52b8ceb'],
+        },
+      },
+    }),
+  );
+
+  const server = await startHarbourMCPServer({
+    publicURL: 'https://quay.example',
+    dbPath: join(temporaryDirectory.path, 'mcp-auth.db'),
+    serviceTokensFile,
+  });
+
+  const issued = await fetch(`${server.url}/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${btoa('service:quay-reader:svcs_quayreaderquayreaderquayreaderquay01')}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials&scope=read',
+  });
+
+  const token = await readJSONRecord(issued);
+
+  invariant(typeof token['access_token'] === 'string', 'the token route issued an access token');
+
+  const pinged = await fetch(`${server.url}/mcp`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token['access_token']}`,
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+  });
+
+  expect(pinged.status).toBe(200);
+});
+
+test.each([
+  { client: 'service:dock-reader', secret: 'svcs_quayreaderquayreaderquayreaderquay01' },
+  { client: 'service:quay-reader', secret: 'svcs_dockreaderdockreaderdockreaderdock01' },
+])('it refuses a client_credentials request from $client with invalid_client', async (row) => {
+  const temporaryDirectory = setupTempDir('pepys-mcp-http-');
+  const serviceTokensFile = join(temporaryDirectory.path, 'service-tokens.json');
+
+  await Bun.write(
+    serviceTokensFile,
+    JSON.stringify({
+      resource: 'https://quay.example/mcp',
+      clients: {
+        'quay-reader': {
+          scopes: ['read'],
+          secretDigests: ['edcf76230c5f263afc457c110b580af491e99729113b05a3dfbf1b90d52b8ceb'],
+        },
+      },
+    }),
+  );
+
+  const server = await startHarbourMCPServer({
+    publicURL: 'https://quay.example',
+    dbPath: join(temporaryDirectory.path, 'mcp-auth.db'),
+    serviceTokensFile,
+  });
+
+  const refused = await fetch(`${server.url}/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${btoa(`${row.client}:${row.secret}`)}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials&scope=read',
+  });
+
+  expect({ status: refused.status, body: await readJSONRecord(refused) }).toStrictEqual({
+    status: 401,
+    body: expect.objectContaining({ error: 'invalid_client' }),
+  });
+});
+
+test.each([
+  { problem: 'is not JSON', text: '{"resource":' },
+  {
+    problem: 'names another resource',
+    text: JSON.stringify({
+      resource: 'https://other.example/mcp',
+      clients: {
+        'quay-reader': { scopes: ['read'], tokens: ['pepys_svc_quayreaderquayreaderquayreader01'] },
+      },
+    }),
+  },
+])('it refuses to start with a service-token file that $problem', async (row) => {
+  const temporaryDirectory = setupTempDir('pepys-mcp-http-');
+  const serviceTokensFile = join(temporaryDirectory.path, 'service-tokens.json');
+
+  await Bun.write(serviceTokensFile, row.text);
+
+  const started = startHarbourMCPServer({
+    publicURL: 'https://quay.example',
+    dbPath: join(temporaryDirectory.path, 'mcp-auth.db'),
+    serviceTokensFile,
+  });
+
+  expect(started).rejects.toThrow(/service.token file/u);
+});

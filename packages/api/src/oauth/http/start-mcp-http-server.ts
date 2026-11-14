@@ -3,10 +3,12 @@ import type { MCPAuth, Requester } from '@zgeoff/mcp-auth';
 import type { MCPHTTPAppOptions } from '@zgeoff/mcp-auth/elysia';
 import type { Server } from 'bun';
 import { AUTH_TABLES } from '../auth-tables.ts';
-import { GRANT_SCOPES } from '../constants.ts';
+import { GRANT_SCOPES, SERVICE_TOKEN_PREFIX } from '../constants.ts';
 import type { GrantScope } from '../constants.ts';
 import { openMCPAuthDatabase } from '../database/open-mcp-auth-database.ts';
 import { createSecurityEventLog } from '../security/create-security-event-log.ts';
+import { readServiceTokenFile } from '../service-tokens/read-service-token-file.ts';
+import { startServiceTokenReloads } from '../service-tokens/start-service-token-reloads.ts';
 import { systemClock } from '../system-clock.ts';
 import type { Clock } from '../system-clock.ts';
 import { isLoopbackHost } from './is-loopback-host.ts';
@@ -36,6 +38,10 @@ interface MCPHTTPServerOptions {
 
   // The authorization server's SQLite database.
   readonly dbPath: string;
+
+  // The service-token file, which the server reads at start and again on each SIGHUP; null serves
+  // no service client.
+  readonly serviceTokensFile: string | null;
 
   // Creates the app the server answers with, from the options of its OAuth
   // routes.
@@ -134,7 +140,7 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
   let opened: { readonly auth: MCPAuth<GrantScope>; readonly close: () => void };
 
   try {
-    opened = await openAuth(options.dbPath, origin, clock, security);
+    opened = await openAuth({ ...options, origin, clock, security });
   } catch (error) {
     await server.stop(true);
 
@@ -160,12 +166,19 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
     void runRemoveExpired(auth);
   }, REMOVE_EXPIRED_INTERVAL_MS);
 
+  const stopReloads =
+    options.serviceTokensFile === null
+      ? async () => {}
+      : startServiceTokenReloads(auth, options.serviceTokensFile);
+
   return {
     url: local,
     listening: formatBindURL(options.host, port),
     origin,
     stop: async () => {
       clearInterval(removeExpiredTimer);
+
+      await stopReloads();
 
       await server.stop(true);
       await auth.close();
@@ -176,24 +189,32 @@ export async function startMCPHTTPServer(options: MCPHTTPServerOptions): Promise
   };
 }
 
-async function openAuth(
-  dbPath: string,
-  origin: string,
-  clock: Clock,
-  security: MCPServedOptions['security'],
-) {
-  const sqlite = openMCPAuthDatabase(dbPath, clock.now());
+interface AuthOpening {
+  readonly dbPath: string;
+  readonly serviceTokensFile: string | null;
+  readonly origin: string;
+  readonly clock: Clock;
+  readonly security: MCPServedOptions['security'];
+}
+
+// A service-token file that fails to read or parse fails the start, so a deploy with a broken file
+// never serves without its service clients.
+async function openAuth(opening: AuthOpening) {
+  const serviceTokens = await readServiceTokens(opening.serviceTokensFile);
+
+  const sqlite = openMCPAuthDatabase(opening.dbPath, opening.clock.now());
 
   try {
     const auth = await openMCPAuth({
       database: sqlite,
-      origin,
+      origin: opening.origin,
       productName: 'pepys',
       scopes: GRANT_SCOPES,
       paths: DEFAULT_PATHS,
       tables: AUTH_TABLES,
-      clock,
-      security,
+      clock: opening.clock,
+      security: opening.security,
+      ...(serviceTokens === null ? {} : { serviceTokens }),
 
       // Each MCP request is answered on its own, with no stream left open
       // that a revoke would need to end.
@@ -210,6 +231,20 @@ async function openAuth(
     sqlite.close();
     throw error;
   }
+}
+
+async function readServiceTokens(path: string | null) {
+  if (path === null) {
+    return null;
+  }
+
+  const parsed = await readServiceTokenFile(path);
+
+  if (!parsed.ok) {
+    throw new Error(`the service-token file ${path} is not valid: ${parsed.reason}`);
+  }
+
+  return { prefix: SERVICE_TOKEN_PREFIX, file: parsed.file };
 }
 
 async function runRemoveExpired(auth: MCPAuth<GrantScope>): Promise<void> {

@@ -14,6 +14,9 @@ export interface MCPConfig {
 
   // the socket peers whose CF-Connecting-IP header a security event marks trusted
   trustForwardedFrom: string[];
+
+  // the service-token file, reloaded on SIGHUP; null when PEPYS_API_SERVICE_TOKENS_FILE is unset
+  serviceTokensFile: string | null;
 }
 
 export interface APIConfig {
@@ -36,12 +39,16 @@ export function readAPIConfig(
   const port = portText === '' ? ({ ok: true, value: 8081 } as const) : parsePort(portText);
   const publicURL = environment['PEPYS_API_PUBLIC_URL'] ?? '';
   const authDirectory = environment['PEPYS_AUTH_DIR'] ?? '';
+  const serviceTokensFile = environment['PEPYS_API_SERVICE_TOKENS_FILE'] ?? '';
 
   const problems = [
     ...(storeDirectory === '' ? ['PEPYS_STORE_DIR is not set'] : []),
     ...(port.ok ? [] : ['PEPYS_API_PORT is not a port number']),
     ...(publicURL !== '' && authDirectory === ''
       ? ['PEPYS_AUTH_DIR is not set, and PEPYS_API_PUBLIC_URL needs it']
+      : []),
+    ...(publicURL === '' && serviceTokensFile !== ''
+      ? ['PEPYS_API_PUBLIC_URL is not set, and PEPYS_API_SERVICE_TOKENS_FILE needs it']
       : []),
   ];
 
@@ -63,6 +70,7 @@ export function readAPIConfig(
               authDirectory,
               allowedHosts: parseList(environment['PEPYS_API_ALLOWED_HOSTS']),
               trustForwardedFrom: parseList(environment['PEPYS_API_TRUST_FORWARDED_FROM']),
+              serviceTokensFile: serviceTokensFile === '' ? null : serviceTokensFile,
             },
     },
   };

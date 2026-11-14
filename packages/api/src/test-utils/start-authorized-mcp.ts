@@ -22,6 +22,7 @@ export async function startAuthorizedMCP(context: QueryContext, logError: LogErr
     allowedHosts: [],
     trustForwardedFrom: [],
     dbPath,
+    serviceTokensFile: null,
     createServedApp: (oauth) => createApp(context, { logError, oauth }),
     printSecurity: () => {},
   });
