@@ -128,15 +128,15 @@ command points that command alone.
 | `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
 | `prod`  | `bun verify use --target prod`, then `bun verify attach`                               | read-only  |
 
-`bun run test:e2e:prepare` builds the host, the Rust process that runs the consumers. Each consumer
-turns facts into a SQLite database. After you change either, run it again, then
-`bun verify up --restart`. `up` starts the e2e deployment from `packages/cli/e2e/fixtures/` with no
-data. It runs on s2-lite and Garage, the local fact log and blob store. `down` removes it.
+`bun run test:e2e:prepare` builds the host and the consumers that it runs. After you change either,
+run the build again, then `bun verify up --restart`. `up` starts the e2e deployment from
+`packages/cli/e2e/fixtures/` with no data. It runs on s2-lite and Garage, the local fact log and
+blob store. `down` removes it.
 
 Run host-restart-recovery last: it restarts the host.
 
-Use `prod`, the deployed `/mcp`, for the `mcp` commands only.
-[On prod](references/feature-mcp-queries.md#on-prod) gives its secret and reads.
+After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
+`prod` takes only the `mcp` commands.
 
 <!-- /repo -->
 
