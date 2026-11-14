@@ -1,6 +1,6 @@
 import { implement } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
-import { e2eSecrets } from '../../../packages/cli/src/test-utils/e2e-secrets.ts';
+import { e2eSecrets } from '../../../packages/cli/e2e/fixtures/e2e-secrets.ts';
 import type { IdentityIssuer } from '../../../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import { controlContract } from './control-contract.ts';
 import type { HostProcess } from './create-host-process.ts';

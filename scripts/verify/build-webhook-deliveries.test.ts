@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
-import { buildGithubDelivery } from '../../packages/cli/src/test-utils/build-github-delivery.ts';
-import { buildGithubReleaseDelivery } from '../../packages/cli/src/test-utils/build-github-release-delivery.ts';
-import { buildGithubReviewDelivery } from '../../packages/cli/src/test-utils/build-github-review-delivery.ts';
+import { buildGithubDelivery } from '../../packages/cli/e2e/fixtures/build-github-delivery.ts';
+import { buildGithubReleaseDelivery } from '../../packages/cli/e2e/fixtures/build-github-release-delivery.ts';
+import { buildGithubReviewDelivery } from '../../packages/cli/e2e/fixtures/build-github-review-delivery.ts';
 import { buildWebhookDeliveries } from './build-webhook-deliveries.ts';
 
 test('it builds one opened pull request per count, numbered up from the first', () => {

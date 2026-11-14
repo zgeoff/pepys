@@ -13,9 +13,9 @@ import type { RunningStack } from '../../../../stack/with-stack.ts';
 import { createIdentityIssuer } from '../../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import type { IdentityIssuer } from '../../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import ledgerJourney from '../../../testing/src/ledger/ledger-journey.json' with { type: 'json' };
-import { e2eReadConsumers } from '../../e2e/fixtures/e2e-read-consumers.ts';
+import { readFreePort } from '../../src/test-utils/read-free-port.ts';
+import { e2eReadConsumers } from './e2e-read-consumers.ts';
 import { e2eSecrets } from './e2e-secrets.ts';
-import { readFreePort } from './read-free-port.ts';
 
 const root = join(import.meta.dir, '../../../..');
 const consumersPath = join(root, 'build/e2e-consumers/consumers.json');

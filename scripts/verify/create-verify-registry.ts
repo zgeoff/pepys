@@ -6,7 +6,7 @@ import { db } from '@wringer/db';
 import { http } from '@wringer/http';
 import { stream } from '@wringer/stream';
 import { z } from 'zod';
-import { writeGithubDelivery } from '../../packages/cli/src/test-utils/write-github-delivery.ts';
+import { writeGithubDelivery } from '../../packages/cli/e2e/fixtures/write-github-delivery.ts';
 import { buildWebhookDeliveries } from './build-webhook-deliveries.ts';
 import { createAPIClient } from './create-api-client.ts';
 import { createControlClient } from './create-control-client.ts';

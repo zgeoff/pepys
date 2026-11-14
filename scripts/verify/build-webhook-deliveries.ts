@@ -1,8 +1,8 @@
 import { match } from 'ts-pattern';
-import { buildGithubDelivery } from '../../packages/cli/src/test-utils/build-github-delivery.ts';
-import type { GithubDelivery } from '../../packages/cli/src/test-utils/build-github-delivery.ts';
-import { buildGithubReleaseDelivery } from '../../packages/cli/src/test-utils/build-github-release-delivery.ts';
-import { buildGithubReviewDelivery } from '../../packages/cli/src/test-utils/build-github-review-delivery.ts';
+import { buildGithubDelivery } from '../../packages/cli/e2e/fixtures/build-github-delivery.ts';
+import type { GithubDelivery } from '../../packages/cli/e2e/fixtures/build-github-delivery.ts';
+import { buildGithubReleaseDelivery } from '../../packages/cli/e2e/fixtures/build-github-release-delivery.ts';
+import { buildGithubReviewDelivery } from '../../packages/cli/e2e/fixtures/build-github-review-delivery.ts';
 
 export interface WebhookInput {
   event: 'opened' | 'reviewed' | 'merged' | 'released';

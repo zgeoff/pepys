@@ -113,7 +113,6 @@
     "@pepys/kit": "workspace:*",
     "@pepys/schema": "workspace:*",
     "@pepys/source-github": "workspace:*",
-    "@pepys/source-telemetry": "workspace:*",
     "@s2-dev/streamstore": "catalog:",
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",

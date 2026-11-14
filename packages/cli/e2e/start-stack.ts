@@ -13,12 +13,12 @@ import { logbookSource } from 'logbook-plugin';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import type { RunningStack } from '../../../stack/with-stack.ts';
 import type { IdentityIssuer } from '../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
-import { buildGithubDelivery } from '../src/test-utils/build-github-delivery.ts';
-import { e2eSecrets } from '../src/test-utils/e2e-secrets.ts';
-import { readLaggingConsumers } from '../src/test-utils/read-lagging-consumers.ts';
-import { startE2EStack } from '../src/test-utils/start-e2e-stack.ts';
-import { writeGithubDelivery } from '../src/test-utils/write-github-delivery.ts';
+import { buildGithubDelivery } from './fixtures/build-github-delivery.ts';
 import { e2eReadConsumers } from './fixtures/e2e-read-consumers.ts';
+import { e2eSecrets } from './fixtures/e2e-secrets.ts';
+import { readLaggingConsumers } from './fixtures/read-lagging-consumers.ts';
+import { startE2EStack } from './fixtures/start-e2e-stack.ts';
+import { writeGithubDelivery } from './fixtures/write-github-delivery.ts';
 
 const root = join(import.meta.dir, '../../..');
 const cliPath = join(root, 'packages/cli/src/bin.ts');

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { serveAPI } from '@pepys/api';
 import { serveIngest } from '@pepys/ingest';
 import { e2eDeployment } from '../../../packages/cli/e2e/fixtures/e2e-deployment.ts';
-import { startE2EStack } from '../../../packages/cli/src/test-utils/start-e2e-stack.ts';
+import { startE2EStack } from '../../../packages/cli/e2e/fixtures/start-e2e-stack.ts';
 import { StackInterruptedError } from '../../../stack/stack-interrupted-error.ts';
 import { createHostProcess } from './create-host-process.ts';
 import { serveControl } from './serve-control.ts';

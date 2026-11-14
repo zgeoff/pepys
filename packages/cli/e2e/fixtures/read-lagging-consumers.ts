@@ -1,8 +1,8 @@
 import { readOffsets } from '@pepys/api';
 import type { StoreReader } from '@pepys/kit';
 import { S2 } from '@s2-dev/streamstore';
-import type { ReadConsumer } from '../../e2e/fixtures/e2e-read-consumers.ts';
 import { collectLaggingConsumers } from './collect-lagging-consumers.ts';
+import type { ReadConsumer } from './e2e-read-consumers.ts';
 
 interface S2Access {
   s2Endpoint: string;

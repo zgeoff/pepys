@@ -1,8 +1,8 @@
 import { createFactBatchSender } from '@pepys/kit/send';
 import { WringerError } from '@wringer/core';
 import { logbookSource } from 'logbook-plugin';
-import { buildPullRequestFields } from '../../packages/cli/src/test-utils/build-pull-request-fields.ts';
-import { e2eSecrets } from '../../packages/cli/src/test-utils/e2e-secrets.ts';
+import { buildPullRequestFields } from '../../packages/cli/e2e/fixtures/build-pull-request-fields.ts';
+import { e2eSecrets } from '../../packages/cli/e2e/fixtures/e2e-secrets.ts';
 
 export interface VoyageInput {
   voyage: string;
