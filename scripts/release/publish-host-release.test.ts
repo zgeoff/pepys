@@ -47,6 +47,9 @@ esac
         GH_LOG: log,
         GH_RELEASES: releasesFile,
         GH_PUBLISHED_DIR: publishedDirectory,
+
+        // a failed gh call exits before the script removes its own temp folder
+        TMPDIR: directory,
         ...env,
       },
       stdout: 'ignore',

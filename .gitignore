@@ -35,3 +35,6 @@ Thumbs.db
 
 # built consumer modules
 /build
+
+# verify CLI state and evidence
+.wringer/
