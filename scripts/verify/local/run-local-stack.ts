@@ -13,18 +13,18 @@ import { serveControl } from './serve-control.ts';
 // as a child that the control server stops and starts. It prints one ready line, runs until SIGTERM
 // or SIGINT, then removes everything it started.
 export async function runLocalStack(runDirectory: string): Promise<number> {
-  const stopRequested = Promise.withResolvers<void>();
+  const stopController = new AbortController();
 
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
-      stopRequested.resolve();
+      stopController.abort();
     });
   }
 
   const cleanup = new AsyncDisposableStack();
 
   try {
-    await runParts(cleanup, runDirectory, stopRequested.promise);
+    await runParts(cleanup, runDirectory, stopController.signal);
   } catch (error) {
     if (!(error instanceof StackInterruptedError)) {
       process.stderr.write(`verify local: the start failed: ${String(error)}\n`);
@@ -37,19 +37,26 @@ export async function runLocalStack(runDirectory: string): Promise<number> {
 async function runParts(
   cleanup: AsyncDisposableStack,
   runDirectory: string,
-  stopRequested: Promise<void>,
+  stopSignal: AbortSignal,
 ): Promise<void> {
   const startedAt = performance.now();
 
   const started = await startE2EStack(cleanup);
 
+  // ingest retries the fact log at start, so a stop then must end its wait, or the SIGKILL that
+  // follows SIGTERM lands before the cleanup removes the compose project
   const stopIngest = await serveIngest({
     deployment: e2eDeployment,
     environment: started.environment,
     exitOnSignal: false,
+    signal: stopSignal,
   });
 
   cleanup.defer(stopIngest);
+
+  if (stopSignal.aborted) {
+    return;
+  }
 
   const stopAPI = await serveAPI({
     deployment: e2eDeployment,
@@ -106,7 +113,7 @@ async function runParts(
 
   process.stdout.write(`${ready}\n`);
 
-  await stopRequested;
+  await waitForAbort(stopSignal);
 }
 
 function closeWriteStream(stream: WriteStream): Promise<void> {
@@ -126,6 +133,20 @@ async function copyOutput(output: ReadableStream<Uint8Array>, hostLog: WriteStre
     hostLog.write(chunk);
     process.stderr.write(chunk);
   }
+}
+
+function waitForAbort(signal: AbortSignal): Promise<void> {
+  const aborted = Promise.withResolvers<void>();
+
+  if (signal.aborted) {
+    aborted.resolve();
+  }
+
+  signal.addEventListener('abort', () => {
+    aborted.resolve();
+  });
+
+  return aborted.promise;
 }
 
 // Runs every cleanup step, the compose project's removal last, and returns the exit code.

@@ -8,7 +8,9 @@ test('it builds an approving review of the pull request with the number', () => 
     submittedAt: '2026-10-02T09:00:00Z',
   });
 
-  expect({ ...delivery, body: JSON.parse(delivery.body) }).toStrictEqual({
+  const body: unknown = JSON.parse(delivery.body);
+
+  expect({ ...delivery, body }).toStrictEqual({
     deliveryID: 'd-3',
     event: 'pull_request_review',
     body: {

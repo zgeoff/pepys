@@ -46,7 +46,7 @@ async function writeStoreCopy(consumerDirectory: string, copyPath: string): Prom
   try {
     await database.exec(`vacuum into '${copyPath.replaceAll("'", "''")}'`);
   } finally {
-    database.close();
+    await database.close();
   }
 }
 

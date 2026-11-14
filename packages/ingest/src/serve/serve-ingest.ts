@@ -59,7 +59,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
 
   const starting = new AbortController();
 
-  let stop = (): Promise<void> => Promise.resolve(starting.abort());
+  let stop = (): Promise<void> => {
+    starting.abort();
+
+    return Promise.resolve();
+  };
 
   if (options.exitOnSignal !== false) {
     const shutdown = makeShutdownHandler({

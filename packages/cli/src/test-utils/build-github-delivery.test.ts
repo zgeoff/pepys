@@ -9,7 +9,9 @@ test('it builds an open pull request 12 whose body carries the title, action and
     updatedAt: '2026-10-01T09:30:00Z',
   });
 
-  expect({ ...delivery, body: JSON.parse(delivery.body) }).toStrictEqual({
+  const body: unknown = JSON.parse(delivery.body);
+
+  expect({ ...delivery, body }).toStrictEqual({
     deliveryID: 'd-1',
     event: 'pull_request',
     body: {

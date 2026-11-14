@@ -21,7 +21,7 @@ interface TelemetryInput {
 }
 
 // The sender that proves each export: the run's identity issuer signs its token for this subject.
-const sender = { subject: 'imp-verify', name: 'imp-verify' } as const;
+const sender = { subject: 'verify-agent', name: 'verify-agent' } as const;
 
 // Sends one OTLP logs export of the Claude Code model requests of the session to ingest's telemetry
 // route, with the bearer secret and a fresh identity token, as an exporter on an imp does. It

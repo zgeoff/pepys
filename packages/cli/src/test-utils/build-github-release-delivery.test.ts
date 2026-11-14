@@ -8,7 +8,9 @@ test('it builds a published release of Acme/Harbour with the tag', () => {
     publishedAt: '2026-10-03T08:00:00Z',
   });
 
-  expect({ ...delivery, body: JSON.parse(delivery.body) }).toStrictEqual({
+  const body: unknown = JSON.parse(delivery.body);
+
+  expect({ ...delivery, body }).toStrictEqual({
     deliveryID: 'd-4',
     event: 'release',
     body: {

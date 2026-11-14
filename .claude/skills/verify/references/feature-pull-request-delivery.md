@@ -1,12 +1,16 @@
 # pull-request-delivery
 
-A team reads how far a merged pull request has got with the `github_pull_request_delivery` query:
-when it merged, the first release after the merge, and the deploy to an environment. GitHub sends
-the facts as webhooks to ingest, the host applies them, and the API answers the query.
+The `github_pull_request_delivery` query, which `query delivery` calls, gives a merged pull
+request's merge time, the first release after the merge, and the deploy of that release to an
+environment. The journey sends GitHub webhooks to ingest, the service that receives them. The host
+applies them, and the API answers the query.
 
-The journey sends pull request #31 opened, reviewed and merged, then release `v2.1.0`. The e2e
-deployment sends no deploys, and no consumer reads reviews, so the review is sent but shows in no
-read.
+- `send-webhook` builds a pull request with the GitHub ID 1874433009 plus its number, so #31 is
+  `github:pull_request:1874433040`. Every pull request is in the repo `Acme/Harbour`.
+- The journey sends #31 opened, then reviewed, then merged, then the release `v2.1.0`. It sends no
+  deploy, so `deploy` is null in any environment.
+- The journey sends the review because a GitHub delivery holds one, but no consumer in the e2e
+  deployment reads reviews. Only `data.sent` shows that ingest took it.
 
 ## Journey
 
@@ -24,8 +28,10 @@ bun verify db query "select number, state, is_merged, merged_at from github_pull
 ## End state
 
 - Each `send-webhook` returns `data.sent` 1.
-- `query delivery` returns one row in `data`: `pullRequest` `github:pull_request:1874433040`,
-  `mergedAt` `2026-10-02T11:00:00Z`, `release` with `tag` `v2.1.0` and `at` `2026-10-03T08:00:00Z`,
-  and `deploy` null.
-- `db query` returns one row: `number` 31, `state` `closed`, `is_merged` 1 and `merged_at`
-  `2026-10-02T11:00:00Z`.
+- `query delivery` returns an array of one object in `data`, with the times as written here:
+  - `pullRequest`: `github:pull_request:1874433040`;
+  - `mergedAt`: `2026-10-02T11:00:00Z`;
+  - `release`: `tag` `v2.1.0` and `at` `2026-10-03T08:00:00Z`;
+  - `deploy`: null.
+- `db query` returns one row in `data.rows`: `number` 31, `state` `closed`, `is_merged` 1 and
+  `merged_at` `2026-10-02T11:00:00Z`.

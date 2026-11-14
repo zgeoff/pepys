@@ -17,6 +17,7 @@ import { checkHost } from './doctor/check-host.ts';
 import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
 import { parseRunEndpoints } from './parse-run-endpoints.ts';
 import { readConsumerProgress } from './read-consumer-progress.ts';
+import { readStreamReads } from './read-stream-reads.ts';
 import { waitForCaughtUp } from './wait-for-caught-up.ts';
 import { writeTelemetryExport } from './write-telemetry-export.ts';
 import { writeVoyage } from './write-voyage.ts';
@@ -53,6 +54,13 @@ const caughtUpSchema = z.strictObject({
   waitedMs: z.number().int(),
 });
 
+const hostReadSchema = z.strictObject({
+  at: z.string(),
+  seqNum: z.number().int(),
+  count: z.number().int(),
+});
+
+const hostReadsSchema = z.strictObject({ reads: z.array(hostReadSchema) });
 const pullRequestStream = 'facts.github.pull_request';
 const launcherPath = join(import.meta.dir, 'local', 'run-local-stack.ts');
 const storeSqlitePath = join(import.meta.dir, 'local', 'run-store-sqlite.ts');
@@ -91,9 +99,18 @@ export function createVerifyRegistry(): Wringer {
           database: join(parseRunEndpoints(ctx.endpoints).store, githubPullRequestConsumer.name),
           program: [process.execPath, storeSqlitePath],
         }),
-        stream: (ctx) => ({
-          sources: { host: { file: parseRunEndpoints(ctx.endpoints).hostLog } },
-        }),
+
+        // s2-lite logs each read with its start, `seq_num`, which shows where the host resumed
+        stream: (ctx) => {
+          const run = parseRunEndpoints(ctx.endpoints);
+
+          return {
+            sources: {
+              host: { file: run.hostLog },
+              s2: { command: ['docker', 'logs', '--follow', `${run.project}-s2-lite-1`] },
+            },
+          };
+        },
       },
     })
     .action({
@@ -219,6 +236,17 @@ export function createVerifyRegistry(): Wringer {
       data: caughtUpSchema,
       timeoutMs: 120_000,
       run: (args, ctx) => waitForCaughtUp(parseRunEndpoints(ctx.endpoints), args.waitMs),
+    })
+    .command({
+      path: ['host-reads'],
+      summary:
+        "List the host's reads of one fact stream since `use`, each with the offset it starts at, from s2-lite's log",
+      effect: 'read',
+      args: z.strictObject({
+        stream: z.string().regex(/^facts\.[a-z_.]+$/u, 'Name a fact stream.'),
+      }),
+      data: hostReadsSchema,
+      run: (args, ctx) => readStreamReads(ctx.drivers.stream, args.stream),
     })
     .command({
       path: ['query', 'delivery'],
