@@ -23,7 +23,7 @@ export function isUnknownStream(error: unknown): boolean {
   return error instanceof S2Error && error.status === 404 && error.code === 'stream_not_found';
 }
 
-function isDefiniteRefusal(error: unknown): boolean {
+export function isDefiniteRefusal(error: unknown): boolean {
   return (
     error instanceof S2Error &&
     error.origin === 'server' &&

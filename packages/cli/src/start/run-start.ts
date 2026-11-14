@@ -30,6 +30,9 @@ interface StopRequest {
   isRequested: () => boolean;
   requested: Promise<void>;
 
+  // aborts on the first request
+  signal: AbortSignal;
+
   // runs now if a stop was requested already, and on the next request otherwise
   onRequest: (listener: () => void) => void;
   remove: () => void;
@@ -38,12 +41,16 @@ interface StopRequest {
 function createStopRequest(): StopRequest {
   let isRequested = false;
   const requested = Promise.withResolvers<void>();
+
+  const stopping = new AbortController();
+
   let listener: (() => void) | null = null;
 
   const onSignal = (): void => {
     isRequested = true;
 
     requested.resolve();
+    stopping.abort();
     listener?.();
   };
 
@@ -53,6 +60,7 @@ function createStopRequest(): StopRequest {
   return {
     isRequested: () => isRequested,
     requested: requested.promise,
+    signal: stopping.signal,
     onRequest: (next) => {
       listener = next;
 
@@ -79,6 +87,9 @@ interface PartContext {
   deployment: Deployment;
   environment: StartOptions['environment'];
   hostBinary: string;
+
+  // aborts when a stop is requested
+  stopSignal: AbortSignal;
 }
 
 const startOrder = [startIngest, startAPI, startHost];
@@ -111,6 +122,7 @@ async function runParts(options: StartOptions, stopRequest: StopRequest): Promis
     deployment: deployment.value,
     environment: options.environment,
     hostBinary: host.value,
+    stopSignal: stopRequest.signal,
   };
 
   const started: StartedPart[] = [];
@@ -172,6 +184,7 @@ async function startIngest(context: PartContext): Promise<StartedPart> {
     deployment: context.deployment,
     environment: context.environment,
     exitOnSignal: false,
+    signal: context.stopSignal,
   });
 
   return { name: 'ingest', stop: () => stopInProcess(stop) };

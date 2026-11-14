@@ -204,6 +204,14 @@ infinite retention on a stream that already exists. s2-lite, the S2 server a dep
 old records from a stream that has the default retention. Ingest then reads the
 [saved cursors](./pull-paths.md#cursors).
 
+When S2 fails one of these calls, ingest logs the error, waits, and runs them all again from the
+first. This covers a refused connection, a 5xx answer, a 408 and a 429. The wait doubles after each
+failure, up to a cap. After a set number of failures in a row, ingest logs the last error and
+exits 1. [`pick-start-step.ts`](../../../packages/ingest/src/serve/pick-start-step.ts) holds the
+first wait, the cap and the limit, which equal those of the [host's retry](../consumers/host.md). It
+exits 1 at once on any other 4xx answer, such as the one for a wrong access token, because a second
+try fails the same way. A stop signal during a wait ends ingest at once.
+
 Ingest takes no lock across processes. Two processes of one deployment would each keep their own
 recent bodies, timers, source locks and resync marks, so a deployment runs one.
 

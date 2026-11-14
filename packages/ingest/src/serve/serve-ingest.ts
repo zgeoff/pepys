@@ -1,3 +1,4 @@
+import { setTimeout as wait } from 'node:timers/promises';
 import { checkDeployment, createLogger, listReceiveRoutes } from '@pepys/kit';
 import type { Deployment, SourceDefinition, StreamName } from '@pepys/kit';
 import { makeShutdownHandler } from '@pepys/schema';
@@ -10,6 +11,7 @@ import { formatPullStart } from '../pull/cursors/format-pull-start.ts';
 import { readSavedCursors } from '../pull/cursors/read-saved-cursors.ts';
 import { createIngest } from '../receive/create-ingest.ts';
 import { readImpIdentitySenderProof } from '../sender-proof/imp-identity/read-imp-identity-sender-proof.ts';
+import { runStartWithRetry } from './run-start-with-retry.ts';
 import { startPullTimers } from './start-pull-timers.ts';
 
 interface ServeIngestOptions {
@@ -18,11 +20,14 @@ interface ServeIngestOptions {
 
   // false leaves SIGINT and SIGTERM to the caller, who stops ingest through the returned function
   exitOnSignal?: boolean;
+
+  // aborts a start that still waits for the fact log, for a caller that owns the stop signals
+  signal?: AbortSignal;
 }
 
-// The ingest process of a deployment. It exits 1 at start on a failed deployment check, on any
-// missing variable, or on a trust folder it cannot load, so no route ever runs with an empty secret.
-// A path whose trust documents or audience are unset starts, and refuses every delivery.
+// The ingest process of a deployment. It exits 1 at start on a failed deployment check, a missing
+// variable, or a trust folder it cannot load, so no route ever runs with an empty secret. A stop
+// before ingest listens ends the start, and the returned function then stops nothing.
 export async function serveIngest(options: ServeIngestOptions): Promise<() => Promise<void>> {
   const logger = createLogger(process.stderr);
   const checked = checkDeployment(options.deployment);
@@ -52,14 +57,58 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
     process.exit(1);
   }
 
-  // The S2 adapter creates the basin and each missing stream, so no setup command creates streams.
-  const log = await createS2FactLog({
-    ...config.value.s2,
-    streams: [...collectStreams(sources), cursorStream],
-    logger,
-  });
+  const starting = new AbortController();
 
-  const pulls = await readSavedCursors(log, collectTimedPulls(sources));
+  let stop = (): Promise<void> => Promise.resolve(starting.abort());
+
+  if (options.exitOnSignal !== false) {
+    const shutdown = makeShutdownHandler({
+      stop: () => stop(),
+      logError: (message, error) => {
+        logger.error(message, error);
+      },
+      exit: (code) => process.exit(code),
+    });
+
+    for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+      process.on(signal, () => {
+        void shutdown();
+      });
+    }
+  }
+
+  // The S2 adapter creates the basin and each missing stream, so no setup command creates streams.
+  const started = await runStartWithRetry(
+    async () => {
+      const log = await createS2FactLog({
+        ...config.value.s2,
+        streams: [...collectStreams(sources), cursorStream],
+        logger,
+      });
+
+      return { log, pulls: await readSavedCursors(log, collectTimedPulls(sources)) };
+    },
+    {
+      wait,
+      signal:
+        options.signal === undefined
+          ? starting.signal
+          : AbortSignal.any([starting.signal, options.signal]),
+      logger,
+    },
+  );
+
+  if (started.kind === 'stopped') {
+    return () => Promise.resolve();
+  }
+
+  if (started.kind === 'failed') {
+    logger.error('the fact log failed the start of ingest', started.error);
+    process.exit(1);
+  }
+
+  const log = started.value.log;
+  const pulls = started.value.pulls;
 
   const ingest = createIngest({
     deployment: checked.value,
@@ -90,29 +139,11 @@ export async function serveIngest(options: ServeIngestOptions): Promise<() => Pr
 
   console.log(`ingest listening on ${server.hostname}:${server.port}`);
 
-  const stop = async (): Promise<void> => {
+  stop = async (): Promise<void> => {
     await stopPulls();
 
     await server.stop();
   };
-
-  if (options.exitOnSignal === false) {
-    return stop;
-  }
-
-  const shutdown = makeShutdownHandler({
-    stop,
-    logError: (message, error) => {
-      logger.error(message, error);
-    },
-    exit: (code) => process.exit(code),
-  });
-
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.on(signal, () => {
-      void shutdown();
-    });
-  }
 
   return stop;
 }
