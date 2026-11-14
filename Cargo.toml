@@ -19,7 +19,7 @@ prost = "=0.14.4"
 # The S3 signing alone: the Garage adapter sends each request through hyper-util.
 rusty-s3 = { version = "=0.11.0", default-features = false, features = ["rustcrypto"] }
 s2-api = "=0.44.1"
-s2-sdk = "=0.35.3"
+s2-sdk = "=0.44.1"
 serde = { version = "=1.0.229", features = ["derive"] }
 # float_roundtrip parses each number to the nearest double, as JavaScript's JSON.parse does. The
 # default parse is faster and can land one double off, which gives a row a key that TypeScript
