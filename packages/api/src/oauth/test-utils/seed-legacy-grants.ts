@@ -28,8 +28,6 @@ interface LegacyAuthState {
   readonly passkeyID: PasskeyID;
 }
 
-const OWNER_ID = 'owner-row-0000000000000000000000';
-
 // The OAuth server's file as pepys 0.4.0 left it: one owner user row under
 // every token, each token carrying its grant's authorization code ID. Written
 // directly, since the server that wrote it is gone.
@@ -40,6 +38,21 @@ export function seedLegacyGrants(
 ): LegacyAuthState {
   const sqlite = new Database(path, { create: true });
 
+  // one transaction, since each statement on its own commits and syncs the file
+  try {
+    return sqlite.transaction(() => seedLegacyState(sqlite, grants, now))();
+  } finally {
+    sqlite.close();
+  }
+}
+
+const OWNER_ID = 'owner-row-0000000000000000000000';
+
+function seedLegacyState(
+  sqlite: Database,
+  grants: readonly LegacyGrantInput[],
+  now: number,
+): LegacyAuthState {
   for (const statement of readLegacySchema()) {
     sqlite.run(statement);
   }
@@ -144,8 +157,6 @@ export function seedLegacyGrants(
     `insert into pepys_passkey (id, public_key, counter, transports, created_at, last_used_at) values (?, 'cHVibGljLWtleQ', 3, '["internal"]', ?, null)`,
     [passkeyID, at],
   );
-
-  sqlite.close();
 
   return {
     grants: seeded,
