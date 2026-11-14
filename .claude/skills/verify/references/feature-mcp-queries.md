@@ -74,4 +74,10 @@ record no verdict there: `done` counts on `local`.
    form `github:pull_request:<number>`. `get_entity` takes an entity ID or an `owner/repo#number`
    alias, and the alias picks a public pull request that stays.
 
-4. Run `bun verify detach`.
+4. Run `bun verify detach`. Expect `data.run`, the run's ID.
+5. Remove the run's copy of the secret: wringer keeps each secret a run handles in the run's
+   `secrets.ndjson`, to scrub it from the evidence, and leaves the file after `detach`.
+
+   ```bash
+   rm .wringer/runs/<run>/secrets.ndjson
+   ```
