@@ -44,6 +44,5 @@ bun verify stream read host
   request facts, from every journey of the run, at offsets 0 to `saved_offset`, and the consumer
   applied each of them once.
 - `stream read host` holds a line that starts `github_pull_request` and ends
-  `no swap, the version is current`. The host deploys a new version of a consumer when its code
-  changes. This line shows that the host kept the consumer it had, with its database and saved
-  offset.
+  `no swap, the version is current`: the host kept the consumer it had, with its database and saved
+  offset. It deploys a new version of a consumer only when the consumer's code changes.

@@ -129,9 +129,9 @@ command points that command alone.
 `bun run test:e2e:prepare` builds the host and the consumers. The host is the Rust process that runs
 each consumer. A consumer is plug-in code that turns facts into its own SQLite database. After you
 change the host or a consumer, run `bun run test:e2e:prepare` again, then `bun verify up --restart`.
-`up` starts the e2e deployment, the test deployment of `packages/cli/e2e/fixtures/`, on s2-lite, the
-local fact log, and Garage, the local blob store, with an empty store folder. `down` removes
-everything that `up` started.
+`up` starts the e2e deployment from `packages/cli/e2e/fixtures/`, with an empty store folder. It
+runs on s2-lite, the local fact log, and Garage, the local blob store. `down` removes everything
+that `up` started.
 
 Run the host-restart-recovery journey last: it stops the host and starts it again.
 
