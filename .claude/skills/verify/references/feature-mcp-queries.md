@@ -80,7 +80,7 @@ verdict there either: run `done` on `local` only. When a read fails, give its `d
    Expect: `server: "pepys"` and six tools, each with `inReadTools: true`: `get_entity`,
    `neighbourhood`, `github_pull_request_delivery`, `telemetry_session_model_requests`,
    `boxxy_cost_to_land` and `boxxy_stage_time`. Then `get_entity` gives `isError: false`, and
-   `structuredContent.result.entity.id` is `github:pull_request:5309377864`. `get_entity` takes an
+   `structuredContent.entity.id` is `github:pull_request:5309377864`. `get_entity` takes an
    `owner/repo#number` alias as well as an entity ID. Pull request #229 is merged, so its entity
    stays in the deployed store.
 
