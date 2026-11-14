@@ -1,4 +1,5 @@
 import { $ } from 'bun';
+import invariant from 'tiny-invariant';
 import { StackInterruptedError } from './stack-interrupted-error.ts';
 
 interface GarageAccess {
@@ -166,11 +167,14 @@ async function startStack(compose: Compose, stop: AbortSignal, s2Port: number): 
 
 const garageBucket = 'facts';
 
-async function createGarageBucket(compose: Compose, stop: AbortSignal): Promise<void> {
-  const runGarage = (args: readonly string[]): Promise<$.ShellOutput> =>
-    compose(['exec', '-T', 'garage', '/garage', ...args]);
+type RunGarage = (args: readonly string[]) => Promise<$.ShellOutput>;
 
-  const nodeID = await waitForGarageNodeID(runGarage, stop);
+async function createGarageBucket(compose: Compose, stop: AbortSignal): Promise<void> {
+  const runGarage: RunGarage = (args) => compose(['exec', '-T', 'garage', '/garage', ...args]);
+
+  await waitForGarageRPC(runGarage, stop);
+
+  const nodeID = await readGarageNodeID(runGarage);
 
   await runGarage(['layout', 'assign', '-z', 'dc1', '-c', '1G', nodeID]);
   await runGarage(['layout', 'apply', '--version', '1']);
@@ -194,30 +198,37 @@ async function createGarageBucket(compose: Compose, stop: AbortSignal): Promise<
 
 const healthTimeoutMs = 60_000;
 
-async function waitForGarageNodeID(
-  runGarage: (args: readonly string[]) => Promise<$.ShellOutput>,
-  stop: AbortSignal,
-): Promise<string> {
+// `garage node id` reads the node key from the metadata folder without asking the daemon, and the
+// daemon writes that key before it listens for RPC, so only a command sent over RPC shows it is up.
+async function waitForGarageRPC(runGarage: RunGarage, stop: AbortSignal): Promise<void> {
   const deadline = Date.now() + healthTimeoutMs;
 
   while (Date.now() < deadline) {
     stop.throwIfAborted();
 
-    const output = await runGarage(['node', 'id', '-q']).then(
-      (result) => result.stdout.toString(),
-      () => '',
+    const answered = await runGarage(['status']).then(
+      () => true,
+      () => false,
     );
 
-    const [nodeID] = output.trim().split('@');
-
-    if (nodeID !== undefined && nodeID !== '') {
-      return nodeID;
+    if (answered) {
+      return;
     }
 
     await Bun.sleep(250);
   }
 
-  throw new Error('Garage did not report a node ID before the deadline');
+  throw new Error('Garage did not answer RPC before the deadline');
+}
+
+async function readGarageNodeID(runGarage: RunGarage): Promise<string> {
+  const output = await runGarage(['node', 'id', '-q']);
+
+  const [nodeID = ''] = output.stdout.toString().trim().split('@');
+
+  invariant(nodeID !== '', 'Garage answered RPC but printed no node ID');
+
+  return nodeID;
 }
 
 async function waitForHealth(s2Endpoint: string, stop: AbortSignal): Promise<void> {
