@@ -323,7 +323,7 @@
     "oxlint-tsgolint": "7.0.2005",
     "scriptc": "0.4.5",
     "tiny-invariant": "1.3.3",
-    "tombi": "1.10.0",
+    "tombi": "1.11.0",
     "ts-pattern": "5.9.2",
     "tslib": "2.9.1",
     "tsrs": "0.15.0-ts7.1.0-dev.20260929",
@@ -788,23 +788,23 @@
 
     "@stylistic/eslint-plugin": ["@stylistic/eslint-plugin@5.10.0", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.9.1", "@typescript-eslint/types": "^8.56.0", "eslint-visitor-keys": "^4.2.1", "espree": "^10.4.0", "estraverse": "^5.3.0", "picomatch": "^4.0.3" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0" } }, "sha512-nPK52ZHvot8Ju/0A4ucSX1dcPV2/1clx0kLcH5wDmrE4naKso7TUC/voUyU1O9OTKTrR6MYip6LP0ogEMQ9jPQ=="],
 
-    "@tombi-toml/cli-darwin-arm64": ["@tombi-toml/cli-darwin-arm64@1.10.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-AIz4JvKw3n1K+fFfV0jDaxOhtJ33eIw35w33jZVrO7n47vSrCVZtMTxA4KknYCdcJBd+MMUwF0XUKCK+6xCDbg=="],
+    "@tombi-toml/cli-darwin-arm64": ["@tombi-toml/cli-darwin-arm64@1.11.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-/LEwYvF5b96vbLeZfsK3+AMcJHFM1qYFLClNo5aPj+37nb/P1crLYF7pKGlpU07+5rjOWAyHenql3kIq+Gncyw=="],
 
-    "@tombi-toml/cli-darwin-x64": ["@tombi-toml/cli-darwin-x64@1.10.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-17UuX2B7ua2T0TeVJZA1p7SLqLoxRz2Eew92pEAtxyB/NBJepeabKUl7U18JaLmYOmGWR3Z92BM8y2hC6IlUpg=="],
+    "@tombi-toml/cli-darwin-x64": ["@tombi-toml/cli-darwin-x64@1.11.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-sTd/3dr0JijRho5KwnfavmuuLiAFUTzMw5xha4KkGm7bANjDxsxa1jsIxZunAErs+G70r/bA6doDBPpZfvQ6pw=="],
 
-    "@tombi-toml/cli-linux-arm64": ["@tombi-toml/cli-linux-arm64@1.10.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-VFV7qXirHQv+AxTVebTuRlIfWftdYmsB6DZytDln0jq4gBcnYCWMjHV+yYWJBRugmkBMV6br4Onh/UzxtzEc4w=="],
+    "@tombi-toml/cli-linux-arm64": ["@tombi-toml/cli-linux-arm64@1.11.0", "", { "os": "linux", "cpu": "arm64", "libc": "glibc" }, "sha512-wUvOiRJrlGHS+btCcrXLSUXi6oyuSmd/5FplSMH4H0C/Z2QtHKAzFM9r38P4Gvda2T9AK6WPbPu1MXYOfVDoBA=="],
 
-    "@tombi-toml/cli-linux-arm64-musl": ["@tombi-toml/cli-linux-arm64-musl@1.10.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-JLYvF/v8WaOXuRaer7UJfBfUxITb2kXppqpmGkcntN92KhhgkdgEt3H9gHSvEJBXaX6TK+Pwrauq+aCe1GS5LA=="],
+    "@tombi-toml/cli-linux-arm64-musl": ["@tombi-toml/cli-linux-arm64-musl@1.11.0", "", { "os": "linux", "cpu": "arm64", "libc": "musl" }, "sha512-1vypIG6W+B3wI4ybmvIFULgR6F4KjG4+xHQi3qd/xlqKDpRG0XrtC/cR479aC896vd4qaLH+YR1FyYSWI8g+0w=="],
 
-    "@tombi-toml/cli-linux-x64": ["@tombi-toml/cli-linux-x64@1.10.0", "", { "os": "linux", "cpu": "x64" }, "sha512-vyO2jby6TpXxc59c4ZaSrfOGJbZRPUsh1xls5+uiCXIabxK6mf9/pw6BJPpaxnDmLdcbM52L8/ZiJ6Ub8z5wqA=="],
+    "@tombi-toml/cli-linux-x64": ["@tombi-toml/cli-linux-x64@1.11.0", "", { "os": "linux", "cpu": "x64", "libc": "glibc" }, "sha512-kuTIMsrCejJar74FUIOldlBU7huMrhl6BPKu+JiDQI7fWF1UklzL4HxaTYR8TD22wu0Wksww3I1A5Gsav/hgZA=="],
 
-    "@tombi-toml/cli-linux-x64-musl": ["@tombi-toml/cli-linux-x64-musl@1.10.0", "", { "os": "linux", "cpu": "x64" }, "sha512-MyDVQY/25FlgOFFc+aFTmoDXJO8Bb0WBsK1XgfXcnOJoRm/BsWpkv/Xg60MYgMZqwdhRKfBCUiXJEFC+jHzxMw=="],
+    "@tombi-toml/cli-linux-x64-musl": ["@tombi-toml/cli-linux-x64-musl@1.11.0", "", { "os": "linux", "cpu": "x64", "libc": "musl" }, "sha512-bXiYDa0VX3u9pHXJoI+70I2NhNwcNC3owdFLCgcAid+jqGH6ysD/kn5JwGdlCHDJkFDtl2oPKIA/BFiRbeunAQ=="],
 
-    "@tombi-toml/cli-sunos-x64": ["@tombi-toml/cli-sunos-x64@1.10.0", "", { "os": "sunos", "cpu": "x64" }, "sha512-SQp+kAtcbAq4oe9+z1QX/oBQHR3hy451aT7fy32M/0gcJumrDoTVf91yvD+7Nf3qt0JTDqTpHq2/739LNrkCDg=="],
+    "@tombi-toml/cli-sunos-x64": ["@tombi-toml/cli-sunos-x64@1.11.0", "", { "os": "sunos", "cpu": "x64" }, "sha512-IIYaXZfWFHy6uMGlo3H3mWS0I+3mvlG4xl00uJJ36RDDRhu1efnHQgzRlLiOrRRYtroQB9F6zOxPdwKUkQPxJA=="],
 
-    "@tombi-toml/cli-win32-arm64": ["@tombi-toml/cli-win32-arm64@1.10.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-8Q1H3nvPpyvb6/6P6fgML2zyexGPzmhUzO8uQhW9pADBibixZkvOMBc8Yd5JKyA1+fECx65GZgcqi9LIV5ZF8g=="],
+    "@tombi-toml/cli-win32-arm64": ["@tombi-toml/cli-win32-arm64@1.11.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-EDGnijGW/MJoTO5/fwMu5LAcDSnM9G7SOjbHaed3iKY6gzqo35TjQbU7kgzI1CjdC6vKAmmdadVg8AmZ/ZNoQA=="],
 
-    "@tombi-toml/cli-win32-x64": ["@tombi-toml/cli-win32-x64@1.10.0", "", { "os": "win32", "cpu": "x64" }, "sha512-BYtsm57E4kSBuGAQ8B5mdwuP1RiIaMtXLAuMswv5gws34OX77p1tyZze76E+fOvNdCtxMxfL2EA+wAf/AxuIdQ=="],
+    "@tombi-toml/cli-win32-x64": ["@tombi-toml/cli-win32-x64@1.11.0", "", { "os": "win32", "cpu": "x64" }, "sha512-f9BMN6N/saI8FXXJwSw3XrLNEhwetGvR8RlUoeFvFTXhOJXZAsczTCJWda7/tIDNexgtvmbDa99NfVIneuZouA=="],
 
     "@ts-rs/darwin-arm64": ["@ts-rs/darwin-arm64@0.15.0-ts7.1.0-dev.20260929", "", { "os": "darwin", "cpu": "arm64" }, "sha512-gm84JKgef1CdiWvWdjJKiXyGhMu/k7BJP2xI5Dju2RSJp5W58cfThTWNJ5Mq7fnixGlOzSRegvKooBjRLQMJPQ=="],
 
@@ -1268,7 +1268,7 @@
 
     "tldts-core": ["tldts-core@7.4.19", "", {}, "sha512-goNXV6Ho9TIOfpJZanTd6CKG5DyYgYAL+k+22T0SLh8l6+KHIfBUPFuePuSZv05UttIaaLmI9tb7TmGIdK5AkQ=="],
 
-    "tombi": ["tombi@1.10.0", "", { "optionalDependencies": { "@tombi-toml/cli-darwin-arm64": "1.10.0", "@tombi-toml/cli-darwin-x64": "1.10.0", "@tombi-toml/cli-linux-arm64": "1.10.0", "@tombi-toml/cli-linux-arm64-musl": "1.10.0", "@tombi-toml/cli-linux-x64": "1.10.0", "@tombi-toml/cli-linux-x64-musl": "1.10.0", "@tombi-toml/cli-sunos-x64": "1.10.0", "@tombi-toml/cli-win32-arm64": "1.10.0", "@tombi-toml/cli-win32-x64": "1.10.0" }, "bin": { "tombi": "bin/tombi" } }, "sha512-stBbw84tRNxHQv6J2yiO/xsqbLulyUB8O0imQ/8lRkwfuePDLjKxcRnM7dBobMidcMTKPQ9u8eANoFzmHvNp5w=="],
+    "tombi": ["tombi@1.11.0", "", { "optionalDependencies": { "@tombi-toml/cli-darwin-arm64": "1.11.0", "@tombi-toml/cli-darwin-x64": "1.11.0", "@tombi-toml/cli-linux-arm64": "1.11.0", "@tombi-toml/cli-linux-arm64-musl": "1.11.0", "@tombi-toml/cli-linux-x64": "1.11.0", "@tombi-toml/cli-linux-x64-musl": "1.11.0", "@tombi-toml/cli-sunos-x64": "1.11.0", "@tombi-toml/cli-win32-arm64": "1.11.0", "@tombi-toml/cli-win32-x64": "1.11.0" }, "bin": { "tombi": "bin/tombi" } }, "sha512-HxYPIlHR0W8ILX5hdR3kXoa2dQKjUPBC4goLkyLCHkEiJKuAwVjgOoi92gX8UmRVd40q7d21FqeY29AZSPZufA=="],
 
     "tough-cookie": ["tough-cookie@6.0.2", "", { "dependencies": { "tldts": "^7.0.5" } }, "sha512-exgYmnmL/sJpR3upZfXG5PoatXQii55xAiXGXzY+sROLZ/Y+SLcp9PgJNI9Vz37HpQ74WvDcLT8eqm+kV3FzrA=="],
 
