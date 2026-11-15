@@ -19,7 +19,6 @@ import { checkContainers } from './doctor/check-containers.ts';
 import { checkHost } from './doctor/check-host.ts';
 import { checkMCPDoor } from './doctor/check-mcp-door.ts';
 import { checkMCPSignIn } from './doctor/check-mcp-sign-in.ts';
-import { makeLocalCheck } from './doctor/make-local-check.ts';
 import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
 import { createLocalMCPClient } from './local/create-local-mcp-client.ts';
 import { parseRunEndpoints } from './parse-run-endpoints.ts';
@@ -30,7 +29,6 @@ import { writeTelemetryExport } from './write-telemetry-export.ts';
 import { writeVoyage } from './write-voyage.ts';
 
 const noInput = z.strictObject({});
-const skippedSchema = z.strictObject({ skipped: z.string() });
 const projectSchema = z.strictObject({ project: z.string() });
 const answeredURLSchema = z.strictObject({ url: z.string() });
 const apiAnsweredSchema = z.strictObject({ answered: z.string() });
@@ -325,44 +323,50 @@ export function createVerifyRegistry(): Wringer {
     .check({
       name: 'docker',
       input: noInput,
-      data: z.union([projectSchema, skippedSchema]),
+      data: projectSchema,
       timeoutMs: 10_000,
-      run: makeLocalCheck((run) => checkContainers(run)),
+      targets: ['local'],
+      run: (_input, ctx) => checkContainers(parseRunEndpoints(ctx.endpoints)),
     })
     .check({
       name: 's2-lite',
       input: noInput,
-      data: z.union([answeredURLSchema, skippedSchema]),
+      data: answeredURLSchema,
       timeoutMs: 5000,
-      run: makeLocalCheck((run) => checkAnswers(run, 's2-lite')),
+      targets: ['local'],
+      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 's2-lite'),
     })
     .check({
       name: 'garage',
       input: noInput,
-      data: z.union([answeredURLSchema, skippedSchema]),
+      data: answeredURLSchema,
       timeoutMs: 5000,
-      run: makeLocalCheck((run) => checkAnswers(run, 'garage')),
+      targets: ['local'],
+      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 'garage'),
     })
     .check({
       name: 'ingest',
       input: noInput,
-      data: z.union([answeredURLSchema, skippedSchema]),
+      data: answeredURLSchema,
       timeoutMs: 5000,
-      run: makeLocalCheck((run) => checkAnswers(run, 'ingest')),
+      targets: ['local'],
+      run: (_input, ctx) => checkAnswers(parseRunEndpoints(ctx.endpoints), 'ingest'),
     })
     .check({
       name: 'api',
       input: noInput,
-      data: z.union([apiAnsweredSchema, skippedSchema]),
+      data: apiAnsweredSchema,
       timeoutMs: 10_000,
-      run: makeLocalCheck((_run, ctx) => checkAPI(ctx.drivers.http)),
+      targets: ['local'],
+      run: (_input, ctx) => checkAPI(ctx.drivers.http),
     })
     .check({
       name: 'host',
       input: noInput,
-      data: z.union([hostStateSchema, skippedSchema]),
+      data: hostStateSchema,
       timeoutMs: hostCheckTimeoutMs + 5000,
-      run: makeLocalCheck((run) => checkHost(run, hostCheckTimeoutMs)),
+      targets: ['local'],
+      run: (_input, ctx) => checkHost(parseRunEndpoints(ctx.endpoints), hostCheckTimeoutMs),
     })
     .check({
       name: 'mcp-door',

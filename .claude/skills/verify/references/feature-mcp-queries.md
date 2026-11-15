@@ -49,14 +49,17 @@ Each field below sits under `data`.
 
 ## On prod
 
-`prod` is the deployed pepys, and only reads. Run no action and no `caught-up` there. Record no
-verdict there either: run `done` on `local` only. When a read fails, give its `data` in your reply.
+Run these steps after a deploy, against the deployed pepys. Run no action and no `caught-up` there.
+`prod` refuses each write.
+
+- When a step fails, give its `data` or `error` in your reply. Skip `done`, and still run step 6.
+- Run no `publish` after these steps. The deployed store's data stays out of a public PR.
 
 1. Run `bun verify use --target prod`, then `bun verify use --feature mcp-queries`.
 2. Start the run with the secret of the read client `service:wringer-ro`. 1Password keeps the secret
-   in the item `pepys verify prod mcp client` of pepys's vault. Set the variable on the `attach`
-   command alone, and never print it. `attach` starts the run's supervisor, which keeps the secret
-   and signs in for each later `mcp` command.
+   in the item `pepys verify prod mcp client` of pepys's vault. Set `PEPYS_PROD_MCP_SECRET` on the
+   `attach` command alone, and never print it. `attach` starts the run's supervisor, which keeps the
+   secret and signs in for each later `mcp` command.
 
    ```bash
    PEPYS_PROD_MCP_SECRET="$(op read 'op://pepys/pepys verify prod mcp client/credential')" bun verify attach
@@ -65,10 +68,12 @@ verdict there either: run `done` on `local` only. When a read fails, give its `d
    Expect: `ok: true` and `data.status` `running`.
 
 3. Run `bun verify doctor`. On `prod`, `mcp-door` checks that `/mcp` answers, and `mcp-sign-in`
-   checks that the client signs in. The checks of the `local` stack pass there without running.
+   checks that the client signs in. The doctor reports each check of the `local` stack as `skipped`
+   there.
 
-   Expect: `data.passed: true`. When `mcp-sign-in` fails, check that the deployed service-token file
-   holds the client's digest, and that the secret came from the right item.
+   Expect: `data.passed: true`. When `mcp-sign-in` fails, report it, and run step 6. Either the
+   secret came from another item, or the deployed API's file of service clients lacks the digest of
+   this secret.
 
 4. Run the two reads:
 
@@ -77,12 +82,16 @@ verdict there either: run `done` on `local` only. When a read fails, give its `d
    bun verify mcp call get_entity --args '{"id":"zgeoff/pepys#229"}'
    ```
 
-   Expect: `server: "pepys"` and six tools, each with `inReadTools: true`: `get_entity`,
-   `neighbourhood`, `github_pull_request_delivery`, `telemetry_session_model_requests`,
-   `boxxy_cost_to_land` and `boxxy_stage_time`. Then `get_entity` gives `isError: false`, and
-   `structuredContent.entity.id` is `github:pull_request:5309377864`. `get_entity` takes an
-   `owner/repo#number` alias as well as an entity ID. Pull request #229 is merged, so its entity
-   stays in the deployed store.
+   Expect: `server: "pepys"` and exactly these six tools, each with `inReadTools: true`:
+   - `get_entity`, `neighbourhood`, `github_pull_request_delivery` and
+     `telemetry_session_model_requests`;
+   - `boxxy_cost_to_land` and `boxxy_stage_time`, from the boxxy plug-in, which the deployment
+     installs in place of `local`'s logbook plug-in.
 
-5. Run `bun verify detach`, then `bun verify use --target local`. `detach` removes the run's
+   Then `get_entity` gives `isError: false`, and `structuredContent.entity.id` is
+   `github:pull_request:5309377864`. `get_entity` takes an `owner/repo#number` alias as well as an
+   entity ID. Pull request #229 is merged, so its entity stays in the deployed store.
+
+5. Run `bun verify done`. Expect: `ok: true`. The verdict and its evidence stay in `.wringer/`.
+6. Run `bun verify detach`, then `bun verify use --target local`. `detach` removes the run's
    `secrets.ndjson`, where the run keeps the secret to scrub it from the evidence.
