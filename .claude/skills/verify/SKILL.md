@@ -128,14 +128,14 @@ command points that command alone.
 | `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
 | `prod`  | `bun verify use --target prod`, then `bun verify attach`                               | read-only  |
 
-`bun run test:e2e:prepare` builds the host and the consumers that it runs. After you change either,
-run the build again, then `bun verify up --restart`. `up` starts the e2e deployment from
-`packages/cli/e2e/fixtures/` with no data, on s2-lite and Garage. `down` removes it.
+`bun run test:e2e:prepare` builds the host and the consumers it runs. After you change the host or a
+consumer, build again, then run `bun verify up --restart`. `up` starts the e2e deployment from
+`packages/cli/e2e/fixtures/` with no data, and `down` removes it.
 
 Run host-restart-recovery last: it restarts the host.
 
 After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
-`prod` takes only the `mcp` commands.
+On `prod`, read only through the `bun verify mcp` commands.
 
 <!-- /repo -->
 
@@ -151,11 +151,11 @@ only the name of a group, such as `action`: run `bun verify <group> --help` for 
 
 <!-- repo: commands -->
 
-- Run `bun verify caught-up` after the last send and before the first read. The host applies each
-  fact after ingest stores it, so a read straight after a send can miss it.
+- Run `bun verify caught-up` between the last send and the first read: the host applies each fact
+  after ingest stores it.
 - Each `db query` reads a copy of the `github_pull_request` consumer's database.
-- `stream read host` reads the host's log since the last `use`. `host-reads` lists the host's reads
-  from s2-lite since then.
+- `stream read host` reads the host's log since the last `use --feature`. `host-reads` lists the
+  host's reads from the fact log since then.
 - After `stop-host`, the host stays stopped until `start-host`, and `caught-up` and `doctor` fail.
 
 <!-- /repo -->
@@ -167,9 +167,9 @@ only the name of a group, such as `action`: run `bun verify <group> --help` for 
 The registry, [`create-verify-registry.ts`](../../../scripts/verify/create-verify-registry.ts),
 declares the targets, actions, commands, doctor checks and features. It reads each feature's `paths`
 and the `.ignore` list from [`feature-paths.ts`](../../../scripts/verify/feature-paths.ts). Add a
-glob to the `.ignore` list only for files that no journey runs. For each new feature glob, add an
-entry to [`skill-gate.json`](../../skill-gate.json), with the glob as `match` and `verify` as its
-skill.
+glob to the `.ignore` list only for files the running app never reads. For each new feature glob,
+add an entry to [`skill-gate.json`](../../skill-gate.json), with the glob as `match` and `verify` as
+its skill.
 
 <!-- /repo -->
 
