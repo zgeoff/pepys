@@ -1,11 +1,12 @@
 # The verify registry
 
-Read this before you add a feature, change a feature's `paths`, or add a glob to the `.ignore` list.
+Edit a feature's globs in [`feature-paths.ts`](../../../../scripts/verify/feature-paths.ts), and
+everything else about a feature in
+[`create-verify-registry.ts`](../../../../scripts/verify/create-verify-registry.ts), which reads the
+globs from `feature-paths.ts`.
 
-The registry, [`create-verify-registry.ts`](../../../../scripts/verify/create-verify-registry.ts),
-declares the targets, actions, commands, doctor checks and features. It reads each feature's `paths`
-and the `.ignore` list from [`feature-paths.ts`](../../../../scripts/verify/feature-paths.ts).
-
-- Add a glob to the `.ignore` list only for files the running app never reads.
-- For each new feature glob, add an entry to [`skill-gate.json`](../../../skill-gate.json), with the
-  glob as `match` and `verify` as its skill.
+- Add a glob to `ignoredPaths` only for files that no journey runs. A change to an ignored file
+  skips the gate.
+- For each new feature glob, add a gate to [`skill-gate.json`](../../../skill-gate.json), with the
+  glob as `match` and `["verify"]` as `skills`. The gate makes an agent load this skill before it
+  edits a file the glob matches. When you change or remove a glob, change or remove its gate too.

@@ -131,13 +131,14 @@ that command alone. A command with neither runs on the registry's first target, 
 | `local` | `bun run test:e2e:prepare`, then `bun verify use --target local`, then `bun verify up` | read-write |
 | `prod`  | `bun verify use --target prod`, then `bun verify attach`                               | read-only  |
 
-`bun run test:e2e:prepare` builds the host and its consumers. After you change either, run it again,
-then `bun verify up --restart`. `up` starts the e2e deployment with no data, and `down` removes it.
+`bun run test:e2e:prepare` builds the Rust host and the plug-ins' consumers. After you change
+either, run it before `bun verify up --restart`, or the restart runs the old build. Ingest and the
+API run from source. `up` starts the deployment empty.
 
 Run host-restart-recovery last: it restarts the host.
 
 After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
-On `prod`, read only through the `bun verify mcp` commands.
+On `prod`, run the `bun verify mcp` commands alone.
 
 <!-- /repo -->
 
@@ -156,7 +157,6 @@ only the name of a group, such as `action`: run `bun verify <group> --help` for 
 - Run `bun verify caught-up` between the last send and the first read: the host applies each fact
   after ingest stores it.
 - `db query` reads a copy of the `github_pull_request` consumer's database.
-- `stream read host` reads the host's log since the last `use --feature`.
 - After `stop-host`, the host stays stopped until `start-host`, and `caught-up` and `doctor` fail.
 
 <!-- /repo -->
