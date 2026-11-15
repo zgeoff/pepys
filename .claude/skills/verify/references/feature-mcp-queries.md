@@ -49,8 +49,8 @@ Each field below sits under `data`.
 
 ## On prod
 
-`prod` is the deployed pepys, and only reads. Run no action and no `caught-up` there. Record no
-verdict there either: run `done` on `local` only. When a read fails, give its `data` in your reply.
+`prod` is the deployed pepys, and only reads. Run no action and no `caught-up` there. When a read
+fails, give its `data` in your reply, and skip `done`.
 
 1. Run `bun verify use --target prod`, then `bun verify use --feature mcp-queries`.
 2. Start the run with the secret of the read client `service:wringer-ro`. 1Password keeps the secret
@@ -65,7 +65,8 @@ verdict there either: run `done` on `local` only. When a read fails, give its `d
    Expect: `ok: true` and `data.status` `running`.
 
 3. Run `bun verify doctor`. On `prod`, `mcp-door` checks that `/mcp` answers, and `mcp-sign-in`
-   checks that the client signs in. The checks of the `local` stack pass there without running.
+   checks that the client signs in. The doctor reports each check of the `local` stack as `skipped`
+   there.
 
    Expect: `data.passed: true`. When `mcp-sign-in` fails, check that the deployed service-token file
    holds the client's digest, and that the secret came from the right item.
@@ -84,5 +85,7 @@ verdict there either: run `done` on `local` only. When a read fails, give its `d
    `owner/repo#number` alias as well as an entity ID. Pull request #229 is merged, so its entity
    stays in the deployed store.
 
-5. Run `bun verify detach`, then `bun verify use --target local`. `detach` removes the run's
+5. Run `bun verify done`. Expect: `ok: true`. `prod` keeps its evidence in `.wringer/`, since the
+   deployed store's data must stay out of a public PR.
+6. Run `bun verify detach`, then `bun verify use --target local`. `detach` removes the run's
    `secrets.ndjson`, where the run keeps the secret to scrub it from the evidence.
