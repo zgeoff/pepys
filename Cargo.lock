@@ -2300,7 +2300,7 @@ dependencies = [
  "hyper-util",
  "prost",
  "rusty-s3",
- "s2-api 0.44.1",
+ "s2-api 0.44.3",
  "s2-sdk",
  "serde",
  "serde_json",
@@ -2911,9 +2911,9 @@ dependencies = [
 
 [[package]]
 name = "s2-api"
-version = "0.44.1"
+version = "0.44.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48a533e0d359aaafad5a7b3e8ad3350e199a1a88e5b2fbadebd872d4da0bdf12"
+checksum = "80352c30793203d110feb2ad3c6fc9b28b8aea5c4723d1d64123b5ccdaaac4b5"
 dependencies = [
  "base64ct",
  "bytes",
