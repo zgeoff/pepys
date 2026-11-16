@@ -11,6 +11,7 @@ import { readPackageRoot } from './read-package-root.ts';
 
 export interface BuildTools {
   scriptc: string;
+  scriptcRuntimePack: string;
   zig: string;
   wasmTools: string;
 }
@@ -95,6 +96,10 @@ async function runScriptc(run: ScriptcRun): Promise<Result<undefined, string>> {
       env: {
         ...process.env,
         SCRIPTC_TARGET: 'wasm32-wasi',
+
+        // Unset, scriptc takes the first runtime pack in a node_modules above the work folder: in a
+        // git worktree, the parent checkout's, which can be another scriptc version's.
+        SCRIPTC_RUNTIME_PACK: run.tools.scriptcRuntimePack,
         PATH: `${dirname(run.tools.zig)}:${process.env['PATH'] ?? ''}`,
       },
       stdout: 'pipe',

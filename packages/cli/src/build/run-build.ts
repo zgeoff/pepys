@@ -16,9 +16,10 @@ import { pickGlueStep } from './pick-glue-step.ts';
 import { readPackageRoot } from './read-package-root.ts';
 import { writeBuildManifest } from './write-build-manifest.ts';
 
-// scriptc comes with the CLI; a tool that the machine lacks is undefined
+// scriptc and its runtime pack come with the CLI; a tool that the machine lacks is undefined
 export interface BuildToolPaths {
   scriptc: string;
+  scriptcRuntimePack: string;
   zig: string | undefined;
   wasmTools: string | undefined;
 }

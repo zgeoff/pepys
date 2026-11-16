@@ -15,7 +15,12 @@ async function setupTest() {
   await Bun.write(join(root, 'package.json'), '{ "name": "stub-plugin", "type": "module" }');
 
   // no machine running this test needs zig or wasm-tools
-  const tools = { scriptc: join(root, 'no-scriptc'), zig: undefined, wasmTools: undefined };
+  const tools = {
+    scriptc: join(root, 'no-scriptc'),
+    scriptcRuntimePack: join(root, 'no-runtime'),
+    zig: undefined,
+    wasmTools: undefined,
+  };
 
   return {
     root,

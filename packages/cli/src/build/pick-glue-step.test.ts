@@ -10,7 +10,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       committed: new Map([['/plug/gen/tide.sql', 'sql']]),
       isCheck: true,
       out: undefined,
-      tools: { scriptc: '/bin/scriptc', zig: undefined, wasmTools: undefined },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: undefined,
+        wasmTools: undefined,
+      },
     },
     { kind: 'done', write: [], outcome: { kind: 'fresh', count: 1 } },
   ],
@@ -24,7 +29,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       committed: new Map([['/plug/gen/tide.sql', 'old sql']]),
       isCheck: true,
       out: '/plug/build',
-      tools: { scriptc: '/bin/scriptc', zig: '/bin/zig', wasmTools: '/bin/wasm-tools' },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: '/bin/zig',
+        wasmTools: '/bin/wasm-tools',
+      },
     },
     {
       kind: 'done',
@@ -45,7 +55,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       ]),
       isCheck: false,
       out: undefined,
-      tools: { scriptc: '/bin/scriptc', zig: undefined, wasmTools: undefined },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: undefined,
+        wasmTools: undefined,
+      },
     },
     {
       kind: 'done',
@@ -64,7 +79,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       committed: new Map(),
       isCheck: false,
       out: '/plug/build',
-      tools: { scriptc: '/bin/scriptc', zig: undefined, wasmTools: '/bin/wasm-tools' },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: undefined,
+        wasmTools: '/bin/wasm-tools',
+      },
     },
     {
       kind: 'done',
@@ -79,7 +99,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       committed: new Map(),
       isCheck: false,
       out: '/plug/build',
-      tools: { scriptc: '/bin/scriptc', zig: '/bin/zig', wasmTools: undefined },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: '/bin/zig',
+        wasmTools: undefined,
+      },
     },
     {
       kind: 'done',
@@ -97,7 +122,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       committed: new Map([['/plug/gen/tide-boundary.ts', 'ts']]),
       isCheck: false,
       out: '/plug/build',
-      tools: { scriptc: '/bin/scriptc', zig: '/bin/zig', wasmTools: '/bin/wasm-tools' },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: '/bin/zig',
+        wasmTools: '/bin/wasm-tools',
+      },
     },
     {
       kind: 'compile',
@@ -105,7 +135,12 @@ test.each<[string, GlueStepInput, GlueStep]>([
       written: ['/plug/gen/tide.sql'],
       unchanged: ['/plug/gen/tide-boundary.ts'],
       out: '/plug/build',
-      tools: { scriptc: '/bin/scriptc', zig: '/bin/zig', wasmTools: '/bin/wasm-tools' },
+      tools: {
+        scriptc: '/bin/scriptc',
+        scriptcRuntimePack: '/lib/runtime',
+        zig: '/bin/zig',
+        wasmTools: '/bin/wasm-tools',
+      },
     },
   ],
 ])('it picks the step for %s', (_title, input, expected) => {
