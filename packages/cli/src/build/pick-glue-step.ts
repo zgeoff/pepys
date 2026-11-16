@@ -69,6 +69,6 @@ export function pickGlueStep(input: GlueStepInput): GlueStep {
     written,
     unchanged,
     out: input.out,
-    tools: { scriptc: input.tools.scriptc, zig, wasmTools },
+    tools: { ...input.tools, zig, wasmTools },
   };
 }
