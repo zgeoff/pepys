@@ -56,6 +56,7 @@ export const ignoredPaths = [
   'deny.toml',
   'rustfmt.toml',
   '.config/**',
+  '.agents/**',
   '.claude/**',
   '.codex/**',
   '.github/**',
