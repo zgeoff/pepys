@@ -13,10 +13,10 @@ calls that list the registry's `.ignore` list.
 - Put the features and the globs in any order. A changed file counts for every feature whose glob
   matches it. The order of the features sets only the row order of `bun verify features` and the
   report.
-- For each new feature path, add an entry to [`skill-gate.json`](../../../skill-gate.json), with the
-  glob as `match` and `["verify"]` as `skills`. The skill-gate hook reads that file, and blocks an
-  edit to a matching file until you load this skill. It is a separate check from `bun verify gate`.
-  When you change or remove a path, change or remove its entry too. An `ignoredPaths` glob needs no
-  entry.
+- For each new feature path, add an entry to
+  [`skill-gate.json`](../../../../.claude/skill-gate.json), with the glob as `match` and
+  `["verify"]` as `skills`. The skill-gate hook reads that file, and blocks an edit to a matching
+  file until you load this skill. It is a separate check from `bun verify gate`. When you change or
+  remove a path, change or remove its entry too. An `ignoredPaths` glob needs no entry.
 - After you add a feature, write its file under `references/`, and run the steps in
   [Edit the skill and the registry](../SKILL.md#edit-the-skill-and-the-registry).

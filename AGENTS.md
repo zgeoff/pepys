@@ -6,7 +6,8 @@ and change streams. `docs/README.md` indexes the docs.
 
 ## Required reading
 
-The rules a task needs are not repeated here. Load the skill for the work before starting it.
+The rules a task needs are not repeated here. Load the skill for the work before starting it. The
+skills are in `.agents/skills/`, and `.claude/skills` links to that folder.
 
 | Skill                  | Load before                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------- |
@@ -16,17 +17,17 @@ The rules a task needs are not repeated here. Load the skill for the work before
 | `project-testing`      | the same, beside `testing` — pepys's test regime                                                  |
 | `docs-writing`         | writing or editing any committed prose: `docs/`, READMEs, this file, skills                       |
 | `project-docs-writing` | the same, beside `docs-writing` — where spikes live and when they go                              |
-| `skill-writing`        | writing or editing a skill under `.claude/skills/`                                                |
+| `skill-writing`        | writing or editing a skill under `.agents/skills/`                                                |
 | `cold-read`            | checking a skill you wrote or changed, before its PR                                              |
 | `deslop`               | editing the prose of a skill you wrote or changed, before its PR                                  |
 | `ci-design`            | adding or changing a CI workflow, a required check, a package script CI runs, or a dependency pin |
 
 When you write or edit a skill:
 
-1. Load the `skill-writing`, `cold-read` and `deslop` skills from `.claude/skills/`. repo-sync
-   delivers them there at the `zgeoff/skills` commit that `zgeoff/tools` pins, so install none of
-   them yourself.
-2. Do every step in the "Check it" section of `.claude/skills/skill-writing/SKILL.md`. In its last
+1. Load the `skill-writing`, `cold-read` and `deslop` skills from `.agents/skills/`, which
+   `.claude/skills` links to. repo-sync delivers them there at the `zgeoff/skills` commit that
+   `zgeoff/tools` pins, so install none of them yourself.
+2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. In its last
    step, you fill in the `## Checks` section of the PR template.
 
 ## Repo structure
@@ -90,7 +91,7 @@ docs/
 - Every crate version lives once in `[workspace.dependencies]` of the root `Cargo.toml`, as an exact
   `=x.y.z` pin, and a crate depends on it with `workspace = true`. `Cargo.lock` is committed.
 - Pin each crate, and each Bun package, by the
-  [Dependency exceptions](.claude/skills/ci-design/SKILL.md#dependency-exceptions) rule in
+  [Dependency exceptions](.agents/skills/ci-design/SKILL.md#dependency-exceptions) rule in
   ci-design. For a crate you pin by hand, read the release age off crates.io yourself: `bun install`
   holds back only a Bun package younger than the `minimumReleaseAge` in `bunfig.toml`, and pepys
   sets no release age for cargo.
