@@ -46,6 +46,7 @@ serves [`GET /health`](#get-health) too.
 <PEPYS_FORWARDER_SPOOL_DIR>/
   2026-03-02-logs.jsonl          one spool file per UTC day of receipt, mode 0600
   positions.json                 the send loop's position in each spool file
+  forwarder.lock                 the lock of the one forwarder that runs on the folder
   failed/2026-03-02-logs.jsonl   the lines of that day's spool file that ingest refused
 ```
 
@@ -232,6 +233,9 @@ WantedBy=default.target
 - The file of the machine's ID holds the issuer name too. `install` never replaces a key or an ID
   that the identity folder holds, and exits 1 when `--issuer` differs from the stored name. A second
   run therefore prints the same trust document, and writes the unit again.
+- `install` prints the trust document only after an `fsync` of the key file, of the file of the
+  machine's ID, and of the identity folder, so the deployment never trusts a key that a power
+  failure took from the machine.
 
 ### The package
 
@@ -271,6 +275,12 @@ The receiver:
 
 - The receiver answers 200 to a log export only after the append of the line returns. It never waits
   for the send loop, and never reads `positions.json`.
+- The append returns once a power failure cannot lose the line: after an `fsync` of the spool file
+  and, on the first append of the process to that file, an `fsync` of the spool folder, which holds
+  the file's name.
+- One forwarder runs on a spool folder. `run` holds a kernel lock on `forwarder.lock` from its start
+  to its end, and a second `run` on the same folder logs an error and exits 1. The kernel drops the
+  lock when the process ends, however it ends.
 - The receiver sets no size limit of its own. An export over the limits of ingest's telemetry path,
   4,194,304 bytes or 1,000 records, gets 413 from ingest and goes to the `failed` file.
 
@@ -302,9 +312,12 @@ The files of the send loop:
   line.
 - A line that the send loop does not send, by the rule under [The spool files](#the-spool-files),
   goes to the `failed` file with a null status.
+- The send loop moves the position past a line that goes to the `failed` file only after an `fsync`
+  of that file and of the `failed` folder. A power failure therefore never leaves a line that is in
+  neither file's unsent part.
 - The send loop writes `positions.json` after each line it moves past, by a write to a temporary
-  file and a rename. When the process ends between an answer and that write, the next run sends one
-  export again.
+  file of its own name, an `fsync` of it, a rename, and an `fsync` of the spool folder. When the
+  process ends between an answer and that write, the next run sends one export again.
 - With no `positions.json`, every file starts at offset 0. When the file does not parse, or holds an
   offset past the end of its spool file, the send loop enters `stopped` with a null status and sends
   nothing, so the owner decides between a repair and a resend of the spool.
@@ -385,7 +398,6 @@ Each line below is one test:
   loop's state.
 - The file format of the private key and of the machine's ID.
 - The request timeout, and whether the send loop sends a gzip body.
-- Whether the receiver calls `fsync` after an append.
 - How the send loop learns of a new line: a poll of the spool folder, or a signal inside the
   process.
 - Whether `install` refuses to write a unit for a bin file in a cache that `bunx` can delete.

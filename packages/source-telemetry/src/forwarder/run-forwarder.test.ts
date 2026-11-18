@@ -102,14 +102,97 @@ test('it receives an export and answers GET /health with send off when no ingest
   expect({
     export: [exported.status, await exported.json()],
     health: [health.status, await health.json()],
-    names: names.map((name) => name.endsWith('-logs.jsonl')),
+    names: names.map((name) => name.replace(/^\d{4}-\d{2}-\d{2}/u, '<day>')),
     ua: z.object({ ua: z.unknown() }).parse(JSON.parse(text)).ua,
     exitCode: await running,
   }).toStrictEqual({
     export: [200, {}],
     health: [200, { send: 'off', failed: 0 }],
-    names: [true],
+    names: ['<day>-logs.jsonl', 'forwarder.lock'],
     ua: 'codex/1.0',
+    exitCode: 0,
+  });
+});
+
+test('it exits 1 at start when another forwarder runs on the same spool folder, and leaves that one running', async () => {
+  const ctx = await setupTest();
+
+  const running = ctx.run({});
+
+  await ctx.waitForServer(ctx.url);
+
+  const secondExitCode = await ctx.run({ PEPYS_FORWARDER_PORT: '0' });
+  const health = await fetch(`${ctx.url}/health`);
+
+  ctx.stop.abort();
+
+  expect({
+    secondExitCode,
+    logged: ctx.lines.some((line) => line.includes('another forwarder runs on the spool folder')),
+    health: health.status,
+    exitCode: await running,
+  }).toStrictEqual({
+    secondExitCode: 1,
+    logged: true,
+    health: 200,
+    exitCode: 0,
+  });
+});
+
+test('it starts on a spool folder whose lock file names a forwarder that no longer runs', async () => {
+  const ctx = await setupTest();
+
+  await Bun.write(
+    join(ctx.environment.PEPYS_FORWARDER_SPOOL_DIR, 'forwarder.lock'),
+    JSON.stringify({
+      pid: 4321,
+      host: 'study-pc',
+      token: 'an-earlier-run',
+      acquiredAt: '2026-03-01T08:00:00.000Z',
+    }),
+  );
+
+  const running = ctx.run({});
+
+  await ctx.waitForServer(ctx.url);
+
+  const health = await fetch(`${ctx.url}/health`);
+
+  ctx.stop.abort();
+
+  expect({ health: health.status, exitCode: await running }).toStrictEqual({
+    health: 200,
+    exitCode: 0,
+  });
+});
+
+test('it starts again on the spool folder of a forwarder that stopped', async () => {
+  const ctx = await setupTest();
+
+  const first = ctx.run({});
+
+  await ctx.waitForServer(ctx.url);
+
+  ctx.stop.abort();
+
+  await first;
+
+  const again = new AbortController();
+
+  const second = runForwarder({
+    environment: ctx.environment,
+    logger: createLogger({ write: (line) => ctx.lines.push(line) }),
+    signal: again.signal,
+  });
+
+  await ctx.waitForServer(ctx.url);
+
+  const health = await fetch(`${ctx.url}/health`);
+
+  again.abort();
+
+  expect({ health: health.status, exitCode: await second }).toStrictEqual({
+    health: 200,
     exitCode: 0,
   });
 });
