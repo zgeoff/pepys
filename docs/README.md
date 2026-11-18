@@ -51,6 +51,9 @@
   routes, and the listeners that check them.
 - [GitHub tables for six more kinds](./design/github-tables.md) — the consumers, tables, aliases and
   links of repositories, reviews, review comments, review threads, issue comments and issues.
+- [The telemetry forwarder](./design/telemetry-forwarder/README.md) — the program that sends a
+  machine's OTLP exports to ingest, and the route in ingest whose only check is the machine's
+  identity token.
 - [Spikes](../research/README.md) — the experiments that settle the design's open questions.
 
 ## Decisions
