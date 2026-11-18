@@ -23,6 +23,16 @@ export const telemetrySource = defineSource({
       audienceEnv: 'PEPYS_IMP_IDENTITY_AUDIENCE',
       issuersEnv: 'PEPYS_IMP_IDENTITY_ISSUERS',
     },
+    senderRoutes: [
+      {
+        route: '/forwarded/v1/logs',
+        sender: {
+          kind: 'imp-identity',
+          audienceEnv: 'PEPYS_TELEMETRY_FORWARDER_AUDIENCE',
+          issuersEnv: 'PEPYS_TELEMETRY_FORWARDER_ISSUERS',
+        },
+      },
+    ],
     products,
 
     // atc stamps it on every record of a session it runs

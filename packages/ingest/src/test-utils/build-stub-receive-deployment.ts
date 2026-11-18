@@ -112,6 +112,16 @@ export function buildStubReceiveDeployment(): StubReceiveDeployment {
         audienceEnv: 'BEACON_AUDIENCE',
         issuersEnv: 'BEACON_ISSUERS',
       },
+      senderRoutes: [
+        {
+          route: '/beacon/forwarded',
+          sender: {
+            kind: 'imp-identity',
+            audienceEnv: 'BEACON_FORWARDER_AUDIENCE',
+            issuersEnv: 'BEACON_FORWARDER_ISSUERS',
+          },
+        },
+      ],
       read: readBeaconReadings,
     },
   });

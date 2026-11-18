@@ -44,6 +44,34 @@ function setupTest() {
 
       return read.value.map((item) => item.fact);
     },
+    buildNestedBodyRequest: (
+      route: string,
+      levels: number,
+      extraAttributes: Record<string, string>,
+    ) => {
+      const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
+        {
+          'event.name': 'codex.turn_cost',
+          'event.timestamp': '2026-11-11T02:21:30.000Z',
+          ...extraAttributes,
+        },
+      ]);
+
+      const text = JSON.stringify(exported).replace(
+        '"body":{}',
+        `"body":${'['.repeat(levels)}0${']'.repeat(levels)}`,
+      );
+
+      return new Request(`http://ingest.test${route}`, {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer tide-key',
+          'imp-identity': 'token-4',
+          'content-type': 'application/json',
+        },
+        body: text,
+      });
+    },
     readAnswer: async (response: Response) => {
       const body: unknown = await response.json();
 
@@ -283,3 +311,133 @@ test('it answers 200 with {} to an export whose records are all dropped, and log
     ],
   });
 });
+
+test('it stores an export on the sender route with no shared token, with the origin of the proven sender', async () => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
+    {
+      'event.name': 'codex.turn_cost',
+      'event.timestamp': '2026-11-11T02:21:30.000Z',
+      'turn.id': 'turn-2',
+    },
+  ]);
+
+  const response = await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const stored = await ctx.readStored();
+
+  expect({ status: response.status, stored }).toStrictEqual({
+    status: 200,
+    stored: [
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          origin: { issuer: 'harbour-host', subject: 'imp-0193' },
+        }),
+      }),
+    ],
+  });
+});
+
+test.each([
+  { route: '/v1/logs', keyed: 'without', attributes: {} },
+  { route: '/forwarded/v1/logs', keyed: 'without', attributes: {} },
+  { route: '/v1/logs', keyed: 'with', attributes: { 'turn.id': 'turn-2' } },
+  { route: '/forwarded/v1/logs', keyed: 'with', attributes: { 'turn.id': 'turn-2' } },
+])(
+  'it answers 422 to a record $keyed a turn.id with a body of 35000 nested arrays on $route, and stores nothing',
+  async (row) => {
+    const ctx = setupTest();
+
+    const response = await ctx.ingest.handleRequest(
+      ctx.buildNestedBodyRequest(row.route, 35_000, row.attributes),
+    );
+
+    expect({
+      answer: await ctx.readAnswer(response),
+      stored: await ctx.readStored(),
+    }).toStrictEqual({
+      answer: {
+        status: 422,
+        body: { error: 'the export holds a record that is nested too deep' },
+      },
+      stored: [],
+    });
+  },
+);
+
+test.each([
+  { levels: 63, route: '/v1/logs', attributes: {}, status: 200, body: {}, stored: 1 },
+  { levels: 63, route: '/forwarded/v1/logs', attributes: {}, status: 200, body: {}, stored: 1 },
+  {
+    levels: 63,
+    route: '/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 200,
+    body: {},
+    stored: 1,
+  },
+  {
+    levels: 63,
+    route: '/forwarded/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 200,
+    body: {},
+    stored: 1,
+  },
+  {
+    levels: 64,
+    route: '/v1/logs',
+    attributes: {},
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/forwarded/v1/logs',
+    attributes: {},
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/forwarded/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+])(
+  'it answers $status on $route to a record whose body nests $levels arrays with attributes $attributes, and stores $stored fact',
+  async (row) => {
+    const ctx = setupTest();
+
+    const response = await ctx.ingest.handleRequest(
+      ctx.buildNestedBodyRequest(row.route, row.levels, row.attributes),
+    );
+
+    const answer = await ctx.readAnswer(response);
+    const stored = await ctx.readStored();
+
+    expect({ answer, stored: stored.length }).toStrictEqual({
+      answer: { status: row.status, body: row.body },
+      stored: row.stored,
+    });
+  },
+);

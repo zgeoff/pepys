@@ -12,9 +12,11 @@ import type {
 } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { isNestedTooDeep } from './is-nested-too-deep.ts';
 import { parseLogsExport } from './parse-logs-export.ts';
 import { readOtlpFacts } from './read-otlp-facts.ts';
 import type { DroppedRecord, OtlpReadOptions, TelemetryFact } from './read-otlp-facts.ts';
+import type { LogsExport } from './types.ts';
 
 type OtlpLogsReceiver = Pick<
   ReceivePath,
@@ -26,11 +28,12 @@ type OtlpLogsReceiver = Pick<
   | 'answer'
   | 'reach'
   | 'sender'
+  | 'senderRoutes'
 > &
   OtlpReadOptions & { check: DeliveryCheck };
 
-// The receive path of OTLP/HTTP logs in JSON. Ingest has checked the method, the size, the token
-// and the sender, and has unpacked a gzip body, before `read` sees the export.
+// The receive path of OTLP/HTTP logs in JSON. Ingest has checked the method, the size, the token or
+// the sender of the route, and has unpacked a gzip body, before `read` sees the export.
 export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
   const { products, sessionAttribute, ...path } = receiver;
 
@@ -54,6 +57,14 @@ export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
 
       // ingest calls `read` on a path with a `sender` only once a sender is proven
       invariant(delivery.sender !== undefined, 'a telemetry export always has a proven sender');
+
+      if (hasRecordNestedTooDeep(body)) {
+        return {
+          kind: 'refused',
+          status: 422,
+          reason: 'the export holds a record that is nested too deep',
+        };
+      }
 
       const read = readOtlpFacts(body, { products, sessionAttribute });
 
@@ -81,6 +92,14 @@ function parseJSON(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function hasRecordNestedTooDeep(body: LogsExport): boolean {
+  return body.resourceLogs.some((resourceLogs) =>
+    resourceLogs.scopeLogs.some((scopeLogs) =>
+      scopeLogs.logRecords.some((record) => isNestedTooDeep(record)),
+    ),
+  );
 }
 
 // One line per export: the count of each reason, never the records.

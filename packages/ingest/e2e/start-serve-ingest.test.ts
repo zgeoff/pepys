@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { S2 } from '@s2-dev/streamstore';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
+import { createIdentityIssuer } from '../src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'pepys-serve-'));
@@ -139,6 +140,43 @@ test('it exits 1 and logs the cause when the trust folder of a sender proof cann
         level: 'error',
         message: 'the sender proof cannot start',
         detail: expect.stringMatching(/^BEACON_ISSUERS: /u),
+      },
+    ],
+  });
+});
+
+test('it exits 1 and logs the cause when a sender route and its path trust one issuer', async () => {
+  const ctx = await setupTest();
+
+  const impsFolder = join(ctx.folder, 'imps');
+  const forwardersFolder = join(ctx.folder, 'forwarders');
+
+  const shared = await createIdentityIssuer('harbour-host');
+
+  await Bun.write(join(impsFolder, 'host.json'), JSON.stringify(shared.document));
+  await Bun.write(join(forwardersFolder, 'host.json'), JSON.stringify(shared.document));
+
+  const run = await ctx.runServeIngest({
+    PEPYS_S2_ENDPOINT: 'http://127.0.0.1:1',
+    PEPYS_S2_ACCESS_TOKEN: 'quay-token',
+    PEPYS_S2_BASIN: 'quay',
+    LEDGER_SECRET: 'till-secret',
+    BEACON_TOKEN: 'harbour-key',
+    STRAY_TOKEN: 'stray-key',
+    BEACON_AUDIENCE: 'pepys-ingest',
+    BEACON_ISSUERS: impsFolder,
+    BEACON_FORWARDER_AUDIENCE: 'pepys-forwarders',
+    BEACON_FORWARDER_ISSUERS: forwardersFolder,
+  });
+
+  expect(run).toStrictEqual({
+    exitCode: 1,
+    printed: [],
+    logged: [
+      {
+        level: 'error',
+        message: 'the sender proof cannot start',
+        detail: expect.stringContaining('the sender route /beacon/forwarded of beacon'),
       },
     ],
   });

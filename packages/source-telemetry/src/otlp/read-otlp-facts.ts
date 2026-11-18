@@ -36,7 +36,7 @@ export interface OtlpFacts {
   dropped: readonly DroppedRecord[];
 }
 
-// Pure: one fact per log record of a known product, with an ID that depends on the record alone.
+// Pure. One fact per log record of a known product, with an ID that depends on the record alone.
 export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpFacts {
   const facts: TelemetryFact[] = [];
   const dropped: DroppedRecord[] = [];

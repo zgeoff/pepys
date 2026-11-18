@@ -24,14 +24,17 @@ session it runs.
 Ingest serves the three standard OTLP paths over HTTP at the root of its own URL, because an
 exporter that is given a bare URL adds the path itself:
 
-| Path          | Takes                                           | Stores      |
-| ------------- | ----------------------------------------------- | ----------- |
-| `/v1/logs`    | OTLP JSON, with or without gzip                 | each record |
-| `/v1/metrics` | anything that passes both [checks](#the-checks) | nothing     |
-| `/v1/traces`  | anything that passes both [checks](#the-checks) | nothing     |
+| Path                 | Takes                                           | Stores      |
+| -------------------- | ----------------------------------------------- | ----------- |
+| `/v1/logs`           | OTLP JSON, with or without gzip                 | each record |
+| `/v1/metrics`        | anything that passes both [checks](#the-checks) | nothing     |
+| `/v1/traces`         | anything that passes both [checks](#the-checks) | nothing     |
+| `/forwarded/v1/logs` | OTLP JSON, as `/v1/logs` takes it               | each record |
 
-Ingest answers 200 with `{}` to every export it accepts on any of the three, so an exporter set to
-send all three signals sees each export succeed.
+Ingest answers 200 with `{}` to every export it accepts on any of the three standard paths, so an
+exporter set to send all three signals sees each export succeed. `/forwarded/v1/logs` is a
+[sender route](../ingest/ingest.md#sender-routes) for a machine outside impz, and takes the limits
+below too.
 
 An export holds many records, so `/v1/logs` takes a larger body and more facts than ingest's other
 routes take. The plug-in file,
@@ -44,9 +47,10 @@ limits:
 | facts in one export | 100                 | 1,000      |
 
 An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only when the
-`Content-Type` is not `application/json`, or the body is not OTLP JSON in shape. In an export of the
-right shape, the source's `read` function, which turns the export into facts, skips each resource,
-scope, log record or attribute of the wrong shape, and keeps the rest.
+`Content-Type` is not `application/json`, or the body is not OTLP JSON in shape. It answers 422 to
+an export with a record nested more than 64 levels deep, and stores nothing of it. In an export of
+the right shape, the source's `read` function, which turns the export into facts, skips each
+resource, scope, log record or attribute of the wrong shape, and keeps the rest.
 
 Set each exporter to send JSON, because ingest answers 400 to OTLP protobuf: `http/json` as the
 protocol of Claude Code, and `json` as the protocol of Codex's `otlp-http` exporter. Claude Code
@@ -65,6 +69,19 @@ export is under both limits.
    [the sender proof](../ingest/ingest.md#the-sender-proof) describes.
 3. When either token is missing or fails its check, ingest answers 401, and the exporter drops the
    export.
+
+### The sender route
+
+`/forwarded/v1/logs` has one check: the identity token in the `imp-identity` header. Ingest checks
+it against the folder of trust documents at `PEPYS_TELEMETRY_FORWARDER_ISSUERS` and the audience in
+`PEPYS_TELEMETRY_FORWARDER_AUDIENCE`, with no shared token. Both variables differ from the two of
+the imps, and ingest exits at start when the two groups share an audience, an issuer name or a key.
+With either variable unset, or the folder empty, the route answers 401 and `/v1/logs` works as
+before. The route is `private`, like the telemetry path.
+
+A token of the forwarder group never passes `/v1/logs`, and a token of an imp never passes the
+sender route. A fact from either route takes its `origin` from the verified token. The `origin`
+proves the issuer, and the subject only as far as the issuer's key holder signs it.
 
 `read` takes the issuer and the subject only from the verified identity token. It stores the pair as
 `origin { issuer, subject }` in the payload of every fact of the export, and each consumer copies

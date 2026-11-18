@@ -3,9 +3,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { IdentityTrustDocument } from '@impz/client/identity';
+import invariant from 'tiny-invariant';
 import { buildStubReceiveDeployment } from '../../test-utils/build-stub-receive-deployment.ts';
 import { readImpIdentityTrust } from './read-imp-identity-trust.ts';
 import { createIdentityIssuer } from './test-utils/create-identity-issuer.ts';
+
+interface GroupAudiences {
+  imps: string;
+  forwarders: string;
+}
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'pepys-trust-'));
@@ -14,12 +20,28 @@ async function setupTest() {
     await rm(folder, { recursive: true, force: true });
   });
 
+  const forwarderFolder = await mkdtemp(join(tmpdir(), 'pepys-trust-forwarders-'));
+
+  onTestFinished(async () => {
+    await rm(forwarderFolder, { recursive: true, force: true });
+  });
+
+  const sources = buildStubReceiveDeployment().deployment.sources;
+
   return {
     folder,
+    forwarderFolder,
     read: (environment: Readonly<Record<string, string | undefined>>) =>
+      readImpIdentityTrust({ sources, environment }),
+    readGroups: (audiences: GroupAudiences) =>
       readImpIdentityTrust({
-        sources: buildStubReceiveDeployment().deployment.sources,
-        environment,
+        sources,
+        environment: {
+          BEACON_ISSUERS: folder,
+          BEACON_AUDIENCE: audiences.imps,
+          BEACON_FORWARDER_ISSUERS: forwarderFolder,
+          BEACON_FORWARDER_AUDIENCE: audiences.forwarders,
+        },
       }),
   };
 }
@@ -117,4 +139,99 @@ test('it fails on a folder that cannot be read', async () => {
     ok: false,
     failure: expect.stringContaining('the trust documents cannot be read'),
   });
+});
+
+test('it reads the variables of a sender route beside those of its path', async () => {
+  const ctx = await setupTest();
+  const imps = await createIdentityIssuer('harbour-host');
+  const forwarders = await createIdentityIssuer('study-pc');
+
+  await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
+  await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
+
+  const trust = await ctx.readGroups({ imps: 'pepys-ingest', forwarders: 'pepys-forwarders' });
+
+  expect(trust).toStrictEqual({
+    ok: true,
+    value: {
+      issuers: new Map([
+        ['BEACON_ISSUERS', [imps.document]],
+        ['BEACON_FORWARDER_ISSUERS', [forwarders.document]],
+      ]),
+      audiences: new Map([
+        ['BEACON_AUDIENCE', 'pepys-ingest'],
+        ['BEACON_FORWARDER_AUDIENCE', 'pepys-forwarders'],
+      ]),
+    },
+  });
+});
+
+test('it fails when a sender route and its path have one audience', async () => {
+  const ctx = await setupTest();
+  const imps = await createIdentityIssuer('harbour-host');
+  const forwarders = await createIdentityIssuer('study-pc');
+
+  await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
+  await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
+
+  const trust = await ctx.readGroups({ imps: 'pepys-ingest', forwarders: 'pepys-ingest' });
+
+  expect(trust).toStrictEqual({
+    ok: false,
+    failure: expect.stringContaining('has the same audience as its path'),
+  });
+});
+
+test('it fails when one issuer name is in both folders', async () => {
+  const ctx = await setupTest();
+  const imps = await createIdentityIssuer('harbour-host');
+  const forwarders = await createIdentityIssuer('harbour-host');
+
+  await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
+  await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
+
+  const trust = await ctx.readGroups({ imps: 'pepys-ingest', forwarders: 'pepys-forwarders' });
+
+  expect(trust).toStrictEqual({
+    ok: false,
+    failure: expect.stringContaining('trusts the issuer harbour-host, which its path trusts too'),
+  });
+});
+
+test('it fails when one key is in both folders under two issuer names and two key IDs', async () => {
+  const ctx = await setupTest();
+  const imps = await createIdentityIssuer('harbour-host');
+
+  const [key] = imps.document.keys;
+
+  invariant(key !== undefined, 'the issuer has a key');
+
+  const copy: IdentityTrustDocument = {
+    ...imps.document,
+    issuer: 'study-pc',
+    keys: [{ ...key, kid: 'key-copy' }],
+  };
+
+  await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
+  await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(copy));
+
+  const trust = await ctx.readGroups({ imps: 'pepys-ingest', forwarders: 'pepys-forwarders' });
+
+  expect(trust).toStrictEqual({
+    ok: false,
+    failure: expect.stringContaining('trusts a key of the issuer study-pc'),
+  });
+});
+
+test('it starts when the forwarder side has no audience, even with one issuer name in both folders', async () => {
+  const ctx = await setupTest();
+  const imps = await createIdentityIssuer('harbour-host');
+  const forwarders = await createIdentityIssuer('harbour-host');
+
+  await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
+  await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
+
+  const trust = await ctx.readGroups({ imps: 'pepys-ingest', forwarders: '' });
+
+  expect(trust.ok).toBe(true);
 });

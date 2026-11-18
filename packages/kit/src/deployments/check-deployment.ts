@@ -23,6 +23,7 @@ export function checkDeployment(
   const failures = [
     ...collectKitFailures(deployment.plugins),
     ...collectDuplicates(deployment.plugins, parts),
+    ...collectSharedSenderVariables(parts),
     ...collectReservedNames(deployment.plugins, parts),
     ...collectCoercedFieldFailures(parts),
     ...collectConsumerFailures(deployment.plugins, parts),
@@ -179,7 +180,9 @@ function collectDuplicates(
     const path = owned.item.live;
 
     if (path?.kind === 'receive') {
-      for (const route of [path.route, ...(path.ignoredRoutes ?? [])]) {
+      const senderRoutes = (path.senderRoutes ?? []).map((senderRoute) => senderRoute.route);
+
+      for (const route of [path.route, ...(path.ignoredRoutes ?? []), ...senderRoutes]) {
         names.route.push({ name: route, plugin: owned.plugin });
       }
     }
@@ -260,6 +263,35 @@ const duplicateOfValues: ReadonlySet<string> = new Set<DuplicateOf>([
 
 function isDuplicateOf(text: string): text is DuplicateOf {
   return duplicateOfValues.has(text);
+}
+
+function collectSharedSenderVariables(parts: DeploymentParts): DeploymentFailure[] {
+  const failures: DeploymentFailure[] = [];
+
+  for (const owned of parts.sources) {
+    const path = owned.item.live;
+
+    if (path?.kind !== 'receive' || path.sender === undefined) {
+      continue;
+    }
+
+    const own = new Set([path.sender.audienceEnv, path.sender.issuersEnv]);
+
+    for (const senderRoute of path.senderRoutes ?? []) {
+      const named = [senderRoute.sender.audienceEnv, senderRoute.sender.issuersEnv];
+
+      for (const variable of named.filter((name) => own.has(name))) {
+        failures.push({
+          kind: 'shared-sender-variable',
+          source: owned.item.name,
+          route: senderRoute.route,
+          variable,
+        });
+      }
+    }
+  }
+
+  return failures;
 }
 
 const coreQueryNames: ReadonlySet<string> = new Set(['get_entity', 'neighbourhood']);

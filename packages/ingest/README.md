@@ -14,7 +14,8 @@
 pepys ingest, for Bun: it receives each source's deliveries and appends them to the fact log.
 
 A deployment serves one receive route for each receive path of its sources. Each route checks its
-delivery, and appends the facts it reads to the fact log.
+delivery, and appends the facts it reads to the fact log. A receive path can also declare sender
+routes, which check only a sender's identity token.
 
 ## Install
 
