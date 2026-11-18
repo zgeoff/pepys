@@ -33,7 +33,7 @@ export function pickAnswerAction(status: number | null, serverErrors: number): A
     const count = serverErrors + 1;
 
     return count >= maxServerErrorTries
-      ? { move: 'failed', state: 'stopped', wait: 'none', serverErrors: 0 }
+      ? { move: 'failed', state: 'sending', wait: 'none', serverErrors: 0 }
       : { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: count };
   }
 

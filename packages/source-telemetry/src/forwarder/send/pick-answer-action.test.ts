@@ -10,7 +10,7 @@ test.each([
   [422, 0, { move: 'failed', state: 'sending', wait: 'none', serverErrors: 0 }],
   [500, 0, { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: 1 }],
   [500, 2, { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: 3 }],
-  [500, 3, { move: 'failed', state: 'stopped', wait: 'none', serverErrors: 0 }],
+  [500, 3, { move: 'failed', state: 'sending', wait: 'none', serverErrors: 0 }],
   [401, 1, { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: 1 }],
   [403, 0, { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: 0 }],
   [404, 0, { move: 'stay', state: 'stopped', wait: 'slow', serverErrors: 0 }],
