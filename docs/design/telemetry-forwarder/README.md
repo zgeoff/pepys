@@ -78,8 +78,8 @@ export is in a spool file, whatever the send loop does.
 Stages 1 and 2 are built: the sender route in ingest, the kit and the telemetry plug-in, and the
 forwarder program with its receiver, spool files, identity files, token signer, send loop,
 `GET /health` and `install` command.
-[The telemetry plug-in](../../architecture/plug-ins/telemetry.md#the-forwarder) describes the
-program as built. Stages 3 and 4 are not done.
+[The telemetry forwarder](../../architecture/plug-ins/telemetry-forwarder.md) describes the program
+as built. Stages 3 and 4 are not done.
 
 | Stage | Who                          | Does                                                                                                                         | The machine after it                                                   |
 | ----- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
