@@ -101,9 +101,20 @@ async function setupTest() {
     logger,
   });
 
-  const requests: { body: string; token: string | null; url: string }[] = [];
+  const requests: { body: string; token: string | null; url: string; redirect: string }[] = [];
   const waits: number[] = [];
   const unusedStores = { count: 0 };
+
+  const stopper = new AbortController();
+
+  const requestSeen = Promise.withResolvers<void>();
+
+  // `limit` stops a run after that many sleeps, and `hold` makes a sleep last until the stop
+  const sleeper = {
+    limit: Number.POSITIVE_INFINITY,
+    hold: false,
+    entered: Promise.withResolvers<void>(),
+  };
 
   const signWith = (identity: Identity) => () =>
     signIdentityToken({ identity, audience, nowMs: clock.nowMs, jti: randomUUID() });
@@ -114,19 +125,33 @@ async function setupTest() {
       ingestURL: 'http://ingest.test',
       signToken,
       post: async (request) => {
+        requestSeen.resolve();
+
         requests.push({
           body: await request.clone().text(),
           token: request.headers.get('imp-identity'),
           url: request.url,
+          redirect: request.redirect,
         });
 
         return ingest.handleRequest(request);
       },
       now: () => clock.nowMs,
-      sleep: (waitMs) => {
+      sleep: (waitMs, signal) => {
         waits.push(waitMs);
+        sleeper.entered.resolve();
 
-        return Promise.resolve();
+        if (waits.length >= sleeper.limit) {
+          stopper.abort();
+        }
+
+        if (!sleeper.hold || signal.aborted) {
+          return Promise.resolve();
+        }
+
+        return new Promise<void>((resolve) => {
+          signal.addEventListener('abort', () => resolve(), { once: true });
+        });
       },
       logger,
       failedCount: 0,
@@ -146,6 +171,9 @@ async function setupTest() {
     fault,
     requests,
     waits,
+    sleeper,
+    stopper,
+    requestSeen,
     logLines,
     signWith,
     createLoop,
@@ -726,4 +754,97 @@ test('it logs one error line when it enters the stopped state, and none for a la
   const stopped = ctx.logLines.filter((line) => line.includes('the send loop stopped'));
 
   expect(stopped).toHaveLength(1);
+});
+
+test('it sleeps the retry wait between runs of a 503 and makes no request during a wait', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  ctx.fault.mode = 'unavailable';
+  ctx.sleeper.limit = 4;
+
+  await loop.run(ctx.stopper.signal);
+
+  expect({ waits: ctx.waits, requests: ctx.requests.length }).toStrictEqual({
+    waits: [1000, 2000, 4000, 8000],
+    requests: 4,
+  });
+});
+
+test('it sleeps 15 minutes after a 401, and sends one request per sleep', async () => {
+  const ctx = await setupTest();
+  const stranger = await ctx.createStranger();
+
+  const loop = ctx.createLoop(ctx.signWith(stranger));
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  ctx.sleeper.limit = 2;
+
+  await loop.run(ctx.stopper.signal);
+
+  expect({ waits: ctx.waits, requests: ctx.requests.length }).toStrictEqual({
+    waits: [900_000, 900_000],
+    requests: 2,
+  });
+});
+
+test('it wakes an idle loop when a line arrives, and sends it', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  ctx.sleeper.hold = true;
+
+  const running = loop.run(ctx.stopper.signal);
+
+  await ctx.sleeper.entered.promise;
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  loop.wake();
+
+  await ctx.requestSeen.promise;
+
+  ctx.stopper.abort();
+
+  await running;
+
+  expect({ requests: ctx.requests.length, waits: ctx.waits[0] }).toStrictEqual({
+    requests: 1,
+    waits: 1000,
+  });
+});
+
+test('it sends nothing when an older file holds a position past its end, whatever the newest file holds', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeExport(ctx.clock.nowMs - 24 * ctx.hourMs, 'old-1');
+  await ctx.writeExport(ctx.clock.nowMs, 'new-1');
+
+  await writePositions(ctx.spoolDir, { '2026-03-01-logs.jsonl': { offset: 1_000_000 } });
+
+  const wait = await loop.step();
+
+  expect({ wait, requests: ctx.requests.length, state: loop.readState().send }).toStrictEqual({
+    wait: 900_000,
+    requests: 0,
+    state: 'stopped',
+  });
+});
+
+test('it sends each request with redirect handling set to manual, so a 3xx is an answer', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+  await loop.step();
+
+  expect(ctx.requests.map((request) => request.redirect)).toStrictEqual(['manual']);
 });

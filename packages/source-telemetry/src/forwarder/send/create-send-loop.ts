@@ -294,6 +294,11 @@ async function readUnsent(
 ): Promise<Found> {
   const newest = files[0]?.name;
 
+  // a bad position stops the loop whichever file holds it, so the owner decides before any send
+  if (files.some((file) => (positions[file.name]?.offset ?? 0) > file.size)) {
+    return { kind: 'bad-position' };
+  }
+
   for (const file of files) {
     const offset = positions[file.name]?.offset ?? 0;
 
@@ -333,6 +338,7 @@ async function send(
         method: 'POST',
         headers: { 'content-type': 'application/json', 'imp-identity': token },
         body: requestBody,
+        redirect: 'manual',
         signal: AbortSignal.timeout(options.requestTimeoutMs),
       }),
     );
