@@ -75,7 +75,8 @@ export is in a spool file, whatever the send loop does.
 
 ## Stages
 
-No stage is built yet.
+Stage 2 is built in part: the sender route, which ingest, the kit and the telemetry plug-in now
+hold. The forwarder's identity files, token signer, send loop and `install` command are not built.
 
 | Stage | Who                          | Does                                                                                                                         | The machine after it                                                   |
 | ----- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |

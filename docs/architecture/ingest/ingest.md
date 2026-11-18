@@ -55,8 +55,8 @@ At each step, ingest either sends a response and stops, or goes on to the next s
    the body as it reads it, so a body with no `content-length` still stops at the limit.
 2. Ingest runs the delivery check on the bytes as sent, before any code of the source runs. The
    check is an HMAC-SHA256 signature of the body, or a token in a header. A delivery that fails the
-   check gets 401.
-3. When the path needs a proven sender, ingest calls the [sender proof](#the-sender-proof). Ingest
+   check gets 401. A [sender route](#sender-routes) skips this step.
+3. When the route needs a proven sender, ingest calls the [sender proof](#the-sender-proof). Ingest
    responds 401 when the call returns no sender or throws.
 4. When ingest stored the same body on this path in the last hour, it sends the response it sent the
    first time, and appends nothing.
@@ -160,6 +160,29 @@ ingest gives the source's `read` the token's issuer, which signed the token, and
 identity the token was issued to. Each `read` in this repo writes the two as `origin` in the payload
 of each fact, over any `origin` the body held. In a fact from a proven sender, `origin` is then the
 one part that the sender did not write. Ingest never checks that a `read` does this.
+
+### Sender routes
+
+A receive path can declare `senderRoutes`: more routes into the same path, each with a sender proof
+as its only check. A sender route takes the path's limits, encodings, `read`, answer, `reach` and
+recent bodies of its own, and keeps the path's resync marks. Ingest skips step 2 on it and reads no
+secret for it. It answers 405 and 413 as the path's route does, then 401 without a proven sender,
+then runs the steps from step 4 on. The sender route names its own audience and folder variables,
+and `read` gets the sender that the route proved. A sender route has no ignored routes.
+
+The deployment check refuses a sender route with the same `route` as another route, and a sender
+route that names the audience variable or the folder variable of its path's own `sender`. With
+either variable of a sender route unset, the route answers 401 and every other route works.
+
+Ingest compares the two groups by the values it loaded, and exits 1 at start with the reason when:
+
+- the audience of a sender route equals the audience of its path;
+- an issuer name is in a trust document of both folders;
+- a key is in a trust document of both folders, by its RFC 7638 SHA-256 thumbprint, whatever its
+  `kid`.
+
+A pair in which either side has no audience or no document is skipped, because that side refuses
+every request. No token therefore passes both a sender route and its path.
 
 ## Pull paths
 
