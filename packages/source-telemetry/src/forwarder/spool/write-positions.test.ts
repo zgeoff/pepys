@@ -29,3 +29,21 @@ test('#writePositions writes positions.json with mode 0600 and leaves no tempora
     names: ['positions.json'],
   });
 });
+
+test('#writePositions leaves one whole positions.json and no temporary file after two writes at once', async () => {
+  const ctx = await setupTest();
+
+  const written = await Promise.allSettled([
+    writePositions(ctx.folder, { 'a-logs.jsonl': { offset: 3 } }),
+    writePositions(ctx.folder, { 'a-logs.jsonl': { offset: 3 } }),
+  ]);
+
+  const text = await readFile(join(ctx.folder, 'positions.json'), 'utf8');
+  const names = await readdir(ctx.folder);
+
+  expect({ written: written.map((result) => result.status), text, names }).toStrictEqual({
+    written: ['fulfilled', 'fulfilled'],
+    text: '{"a-logs.jsonl":{"offset":3}}',
+    names: ['positions.json'],
+  });
+});

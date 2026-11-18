@@ -1,6 +1,9 @@
-import { chmod, mkdir, writeFile } from 'node:fs/promises';
+import { chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Result } from '@pepys/kit';
+import { createSyncedFolder } from '../create-synced-folder.ts';
+import { syncFolder } from '../sync-folder.ts';
+import { writeSyncedFile } from '../write-synced-file.ts';
 import {
   keyFileName,
   machineFileName,
@@ -17,8 +20,8 @@ interface IdentityCreation {
   randomID: () => string;
 }
 
-// Makes the key and the machine's ID that the folder lacks. It never replaces a key or an ID, and
-// fails when the stored issuer name differs from the one given.
+// Makes the key and the machine's ID that the folder lacks, and returns once both are on disk. It
+// never replaces a key or an ID, and fails when the stored issuer name differs from the one given.
 export async function createIdentity(
   creation: IdentityCreation,
 ): Promise<Result<Identity, string>> {
@@ -35,7 +38,7 @@ export async function createIdentity(
     };
   }
 
-  await mkdir(creation.folder, { recursive: true, mode: 0o700 });
+  await createSyncedFolder(creation.folder, 0o700);
   await chmod(creation.folder, 0o700);
 
   let key = files.value.key;
@@ -48,11 +51,13 @@ export async function createIdentity(
   };
 
   if (files.value.machine === null) {
-    await writeFile(join(creation.folder, machineFileName), `${JSON.stringify(machine)}\n`, {
-      mode: 0o600,
+    await writeSyncedFile(join(creation.folder, machineFileName), `${JSON.stringify(machine)}\n`, {
       flag: 'wx',
+      mode: 0o600,
     });
   }
+
+  await syncFolder(creation.folder);
 
   return { ok: true, value: await importIdentity(key, machine) };
 }
@@ -67,9 +72,9 @@ async function writeNewKey(folder: string): Promise<PrivateKeyJWK> {
 
   const key = privateKeySchema.parse(jwk);
 
-  await writeFile(join(folder, keyFileName), `${JSON.stringify(key)}\n`, {
-    mode: 0o600,
+  await writeSyncedFile(join(folder, keyFileName), `${JSON.stringify(key)}\n`, {
     flag: 'wx',
+    mode: 0o600,
   });
 
   return key;
