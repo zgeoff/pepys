@@ -63,6 +63,11 @@ Each family has its own stream, `facts.github.<family>`. The plug-in stores the 
 builds, for a later consumer to replay, because GitHub redelivers a webhook only within a fixed
 [window](https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks).
 
+The plug-in stores a `workflow_run` delivery only when its action is `completed`, and ignores the
+`requested` and `in_progress` deliveries of the run. Each delivery holds the whole run, and the
+`completed` one holds the result and every time of the run. The family lists all three types, so a
+consumer can read a stream that holds `requested` and `in_progress` facts.
+
 The `github_release`, `github_deploy` and `github_pull_request` consumers each write a table of
 their own name. The `github_ref` consumer writes only `github_commit`, one row per commit of a push.
 The `github_pull_request` consumer also writes `github_release_bump`, one row for each URL of the
