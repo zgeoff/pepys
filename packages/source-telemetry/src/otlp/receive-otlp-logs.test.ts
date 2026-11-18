@@ -373,23 +373,70 @@ test.each([
 );
 
 test.each([
-  { levels: 63, status: 200, stored: 1, attributes: {} },
-  { levels: 64, status: 422, stored: 0, attributes: {} },
-  { levels: 63, status: 200, stored: 1, attributes: { 'turn.id': 'turn-2' } },
-  { levels: 64, status: 422, stored: 0, attributes: { 'turn.id': 'turn-2' } },
+  { levels: 63, route: '/v1/logs', attributes: {}, status: 200, body: {}, stored: 1 },
+  { levels: 63, route: '/forwarded/v1/logs', attributes: {}, status: 200, body: {}, stored: 1 },
+  {
+    levels: 63,
+    route: '/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 200,
+    body: {},
+    stored: 1,
+  },
+  {
+    levels: 63,
+    route: '/forwarded/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 200,
+    body: {},
+    stored: 1,
+  },
+  {
+    levels: 64,
+    route: '/v1/logs',
+    attributes: {},
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/forwarded/v1/logs',
+    attributes: {},
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
+  {
+    levels: 64,
+    route: '/forwarded/v1/logs',
+    attributes: { 'turn.id': 'turn-2' },
+    status: 422,
+    body: { error: 'the export holds a record that is nested too deep' },
+    stored: 0,
+  },
 ])(
-  'it answers $status to a record whose body nests $levels arrays with attributes $attributes, and stores $stored fact',
+  'it answers $status on $route to a record whose body nests $levels arrays with attributes $attributes, and stores $stored fact',
   async (row) => {
     const ctx = setupTest();
 
     const response = await ctx.ingest.handleRequest(
-      ctx.buildNestedBodyRequest('/v1/logs', row.levels, row.attributes),
+      ctx.buildNestedBodyRequest(row.route, row.levels, row.attributes),
     );
 
+    const answer = await ctx.readAnswer(response);
     const stored = await ctx.readStored();
 
-    expect({ status: response.status, stored: stored.length }).toStrictEqual({
-      status: row.status,
+    expect({ answer, stored: stored.length }).toStrictEqual({
+      answer: { status: row.status, body: row.body },
       stored: row.stored,
     });
   },

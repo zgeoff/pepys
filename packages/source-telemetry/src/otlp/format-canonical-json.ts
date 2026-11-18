@@ -1,31 +1,11 @@
 import { isRecord } from '@zgeoff/std';
+import invariant from 'tiny-invariant';
+import { maxNestingDepth } from './is-nested-too-deep.ts';
 
 // JSON with the keys of every object sorted and no white space, so one value has one text whatever
-// the key order the exporter wrote. It throws `NestedTooDeepError` for a value nested more than 64
-// levels deep.
+// the key order the exporter wrote.
 export function formatCanonicalJSON(value: unknown): string {
   return JSON.stringify(toSortedValue(value, 0));
-}
-
-const maxDepth = 64;
-
-// Throws `NestedTooDeepError` for a value nested more than 64 levels deep, without building a copy.
-export function assertNotNestedTooDeep(value: unknown): void {
-  walkDepth(value, 0);
-}
-
-function walkDepth(value: unknown, depth: number): void {
-  if (!Array.isArray(value) && !isRecord(value)) {
-    return;
-  }
-
-  if (depth >= maxDepth) {
-    throw new NestedTooDeepError();
-  }
-
-  for (const item of Array.isArray(value) ? value : Object.values(value)) {
-    walkDepth(item, depth + 1);
-  }
 }
 
 function toSortedValue(value: unknown, depth: number): unknown {
@@ -33,9 +13,8 @@ function toSortedValue(value: unknown, depth: number): unknown {
     return value;
   }
 
-  if (depth >= maxDepth) {
-    throw new NestedTooDeepError();
-  }
+  // the walk is recursive, and the stack holds it only for a value the route has checked
+  invariant(depth < maxNestingDepth, 'the caller checks the nesting depth of the value first');
 
   if (Array.isArray(value)) {
     return value.map((item: unknown) => toSortedValue(item, depth + 1));
@@ -47,13 +26,4 @@ function toSortedValue(value: unknown, depth: number): unknown {
       .toSorted()
       .map((key) => [key, toSortedValue(value[key], depth + 1)] as const),
   );
-}
-
-// The walk is recursive, and a body of tens of thousands of nested arrays would exhaust the stack.
-export class NestedTooDeepError extends Error {
-  constructor() {
-    super(`the value nests more than ${maxDepth} levels deep`);
-
-    this.name = 'NestedTooDeepError';
-  }
 }

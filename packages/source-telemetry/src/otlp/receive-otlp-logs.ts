@@ -12,10 +12,11 @@ import type {
 } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
-import { NestedTooDeepError } from './format-canonical-json.ts';
+import { isNestedTooDeep } from './is-nested-too-deep.ts';
 import { parseLogsExport } from './parse-logs-export.ts';
 import { readOtlpFacts } from './read-otlp-facts.ts';
 import type { DroppedRecord, OtlpReadOptions, TelemetryFact } from './read-otlp-facts.ts';
+import type { LogsExport } from './types.ts';
 
 type OtlpLogsReceiver = Pick<
   ReceivePath,
@@ -57,15 +58,15 @@ export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
       // ingest calls `read` on a path with a `sender` only once a sender is proven
       invariant(delivery.sender !== undefined, 'a telemetry export always has a proven sender');
 
-      const read = readFactsOrNull(body, { products, sessionAttribute });
-
-      if (read === null) {
+      if (hasRecordNestedTooDeep(body)) {
         return {
           kind: 'refused',
           status: 422,
           reason: 'the export holds a record that is nested too deep',
         };
       }
+
+      const read = readOtlpFacts(body, { products, sessionAttribute });
 
       if (read.dropped.length > 0) {
         source.log.warn(
@@ -93,19 +94,12 @@ function parseJSON(text: string): unknown {
   }
 }
 
-function readFactsOrNull(
-  body: NonNullable<ReturnType<typeof parseLogsExport>>,
-  options: OtlpReadOptions,
-): ReturnType<typeof readOtlpFacts> | null {
-  try {
-    return readOtlpFacts(body, options);
-  } catch (error) {
-    if (error instanceof NestedTooDeepError) {
-      return null;
-    }
-
-    throw error;
-  }
+function hasRecordNestedTooDeep(body: LogsExport): boolean {
+  return body.resourceLogs.some((resourceLogs) =>
+    resourceLogs.scopeLogs.some((scopeLogs) =>
+      scopeLogs.logRecords.some((record) => isNestedTooDeep(record)),
+    ),
+  );
 }
 
 // One line per export: the count of each reason, never the records.

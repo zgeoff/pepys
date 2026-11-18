@@ -88,16 +88,16 @@ live: receiveOtlpLogs({
 
 These files change:
 
-| Package            | File                                                                 | Change                                                                                  |
-| ------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `kit`              | `src/sources/types.ts`, `src/index.ts`                               | `senderRoutes` and `SenderRoute`                                                        |
-| `kit`              | `src/deployments/check-deployment.ts`, its `types.ts`                | the two refusals under [Constraints](#constraints)                                      |
-| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`             | one `ReceiveRoute` per sender route, with `stores` true                                 |
-| `ingest`           | `src/receive/create-ingest.ts`                                       | one handler per sender route, with recent bodies of its own                             |
-| `ingest`           | `src/receive/make-receive-handler.ts`                                | the handler of a sender route skips the delivery check, and proves the route's `sender` |
-| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts`           | reads the two variables of each sender route too                                        |
-| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts`           | passes `senderRoutes` through, and declares the route                                   |
-| `source-telemetry` | `src/otlp/format-canonical-json.ts`, `src/otlp/receive-otlp-logs.ts` | [an export that `read` cannot read gets 422](#an-export-that-read-cannot-read)          |
+| Package            | File                                                              | Change                                                                                  |
+| ------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `kit`              | `src/sources/types.ts`, `src/index.ts`                            | `senderRoutes` and `SenderRoute`                                                        |
+| `kit`              | `src/deployments/check-deployment.ts`, its `types.ts`             | the two refusals under [Constraints](#constraints)                                      |
+| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`          | one `ReceiveRoute` per sender route, with `stores` true                                 |
+| `ingest`           | `src/receive/create-ingest.ts`                                    | one handler per sender route, with recent bodies of its own                             |
+| `ingest`           | `src/receive/make-receive-handler.ts`                             | the handler of a sender route skips the delivery check, and proves the route's `sender` |
+| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts`        | reads the two variables of each sender route too                                        |
+| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts`        | passes `senderRoutes` through, and declares the route                                   |
+| `source-telemetry` | `src/otlp/is-nested-too-deep.ts`, `src/otlp/receive-otlp-logs.ts` | [an export that `read` cannot read gets 422](#an-export-that-read-cannot-read)          |
 
 - The builder of stage 2 adds the route to [Ingest](../../architecture/ingest/ingest.md) and
   [The telemetry plug-in](../../architecture/plug-ins/telemetry.md), and to the READMEs of the three
@@ -124,11 +124,13 @@ either side has no audience or no document, because that side refuses every requ
 
 The telemetry source builds a fact ID from a record with `formatCanonicalJSON`, which walks the
 record to any depth. A record `body` that nests tens of thousands of arrays exhausts the stack,
-`read` throws, and ingest answers 500 to every resend of the export. Stage 2 changes both files:
+`read` throws, and ingest answers 500 to every resend of the export. Stage 2 adds a check:
 
-- `formatCanonicalJSON` throws a named error for a value nested more than 64 levels deep.
-- The `read` of `receiveOtlpLogs` catches that error, and refuses the export with 422 and the reason
-  `the export holds a record that is nested too deep`.
+- `isNestedTooDeep` returns true for a value nested more than 64 levels deep. It walks the value
+  with a loop, so no depth exhausts the stack.
+- The `read` of `receiveOtlpLogs` calls `isNestedTooDeep` on every record before it builds a fact
+  ID, whether or not the record has an event key. For a record nested too deep, it refuses the
+  export with 422 and the reason `the export holds a record that is nested too deep`.
 
 ### The trust document
 
