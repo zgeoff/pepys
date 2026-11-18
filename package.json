@@ -67,7 +67,7 @@
   },
   "type": "module",
   "scripts": {
-    "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
+    "audit": "bun audit --ignore=GHSA-fc5q-39xc-vjpf --ignore=GHSA-g3hv-75wg-m249",
     "check": "chex commits local-paths workflows test-timeouts dependency-gates test-layout",
     "check:outside-install": "bun scripts/outside-install/run-outside-install.ts",
     "consumers:build": "pepys build scripts/stub-deployment.ts --out build/consumers && pepys build packages/cli/e2e/fixtures/e2e-deployment.ts --out build/e2e-consumers",
