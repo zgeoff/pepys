@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger } from '@pepys/kit';
 import invariant from 'tiny-invariant';
+import { z } from 'zod';
 import { createIdentity } from './identity/create-identity.ts';
 import { runForwarder } from './run-forwarder.ts';
 
@@ -100,7 +101,7 @@ test('it receives an export and answers GET /health with send off when no ingest
     export: [exported.status, await exported.json()],
     health: [health.status, await health.json()],
     names: names.map((name) => name.endsWith('-logs.jsonl')),
-    ua: JSON.parse(text).ua,
+    ua: z.object({ ua: z.unknown() }).parse(JSON.parse(text)).ua,
     exitCode: await running,
   }).toStrictEqual({
     export: [200, {}],

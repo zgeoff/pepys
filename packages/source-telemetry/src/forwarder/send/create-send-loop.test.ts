@@ -9,6 +9,7 @@ import { checkDeployment, createLogger } from '@pepys/kit';
 import type { StreamName, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { z } from 'zod';
 import { telemetryPlugin } from '../../telemetry-plugin.ts';
 import { buildLogsExport } from '../../test-utils/build-logs-export.ts';
 import { buildTrustDocument } from '../identity/build-trust-document.ts';
@@ -511,7 +512,11 @@ test('it sends from the saved position after a restart, and sends no earlier lin
 
   const bodies = ctx.requests.map((request) => request.body);
 
-  expect(bodies).toStrictEqual(lines.map((line) => JSON.stringify(JSON.parse(line).body)));
+  expect(bodies).toStrictEqual(
+    lines.map((line) =>
+      JSON.stringify(z.object({ body: z.unknown() }).parse(JSON.parse(line)).body),
+    ),
+  );
 });
 
 test('it moves a line that gets a 400 to failed, sends the next line, and counts one failed line in GET /health', async () => {

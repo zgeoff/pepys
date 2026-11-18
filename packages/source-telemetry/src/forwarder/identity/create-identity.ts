@@ -38,8 +38,11 @@ export async function createIdentity(
   await mkdir(creation.folder, { recursive: true, mode: 0o700 });
   await chmod(creation.folder, 0o700);
 
-  const storedKey = files.value.key;
-  const key = storedKey === null ? await writeNewKey(creation.folder) : storedKey;
+  let key = files.value.key;
+
+  if (key === null) {
+    key = await writeNewKey(creation.folder);
+  }
 
   const machine = files.value.machine ?? {
     issuer: creation.issuer,

@@ -90,7 +90,13 @@ export async function runForwarder(dependencies: RunDependencies): Promise<numbe
   const sending = loop?.run(dependencies.signal);
   const stopped = Promise.withResolvers<void>();
 
-  dependencies.signal.addEventListener('abort', () => stopped.resolve(), { once: true });
+  dependencies.signal.addEventListener(
+    'abort',
+    () => {
+      stopped.resolve();
+    },
+    { once: true },
+  );
 
   if (dependencies.signal.aborted) {
     stopped.resolve();
