@@ -44,6 +44,27 @@ function setupTest() {
 
       return read.value.map((item) => item.fact);
     },
+    buildNestedBodyRequest: (route: string, levels: number) => {
+      // no key attribute, so the fact ID comes from a hash of the record
+      const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
+        { 'event.name': 'codex.turn_cost', 'event.timestamp': '2026-11-11T02:21:30.000Z' },
+      ]);
+
+      const text = JSON.stringify(exported).replace(
+        '"body":{}',
+        `"body":${'['.repeat(levels)}0${']'.repeat(levels)}`,
+      );
+
+      return new Request(`http://ingest.test${route}`, {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer tide-key',
+          'imp-identity': 'token-4',
+          'content-type': 'application/json',
+        },
+        body: text,
+      });
+    },
     readAnswer: async (response: Response) => {
       const body: unknown = await response.json();
 
@@ -283,3 +304,77 @@ test('it answers 200 with {} to an export whose records are all dropped, and log
     ],
   });
 });
+
+test('it stores an export on the sender route with no shared token, with the origin of the proven sender', async () => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
+    {
+      'event.name': 'codex.turn_cost',
+      'event.timestamp': '2026-11-11T02:21:30.000Z',
+      'turn.id': 'turn-2',
+    },
+  ]);
+
+  const response = await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const stored = await ctx.readStored();
+
+  expect({ status: response.status, stored }).toStrictEqual({
+    status: 200,
+    stored: [
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          origin: { issuer: 'harbour-host', subject: 'imp-0193' },
+        }),
+      }),
+    ],
+  });
+});
+
+test.each([{ route: '/v1/logs' }, { route: '/forwarded/v1/logs' }])(
+  'it answers 422 to an export with a record body of 35000 nested arrays on $route, and stores nothing',
+  async (row) => {
+    const ctx = setupTest();
+
+    const response = await ctx.ingest.handleRequest(ctx.buildNestedBodyRequest(row.route, 35_000));
+
+    expect({
+      answer: await ctx.readAnswer(response),
+      stored: await ctx.readStored(),
+    }).toStrictEqual({
+      answer: {
+        status: 422,
+        body: { error: 'the export holds a record that is nested too deep' },
+      },
+      stored: [],
+    });
+  },
+);
+
+test.each([
+  { levels: 63, status: 200, stored: 1 },
+  { levels: 64, status: 422, stored: 0 },
+])(
+  'it answers $status to a record whose body nests $levels arrays, and stores $stored fact',
+  async (row) => {
+    const ctx = setupTest();
+
+    const response = await ctx.ingest.handleRequest(
+      ctx.buildNestedBodyRequest('/v1/logs', row.levels),
+    );
+
+    const stored = await ctx.readStored();
+
+    expect({ status: response.status, stored: stored.length }).toStrictEqual({
+      status: row.status,
+      stored: row.stored,
+    });
+  },
+);

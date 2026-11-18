@@ -12,6 +12,7 @@ import type {
 } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
 import invariant from 'tiny-invariant';
+import { NestedTooDeepError } from './format-canonical-json.ts';
 import { parseLogsExport } from './parse-logs-export.ts';
 import { readOtlpFacts } from './read-otlp-facts.ts';
 import type { DroppedRecord, OtlpReadOptions, TelemetryFact } from './read-otlp-facts.ts';
@@ -26,11 +27,12 @@ type OtlpLogsReceiver = Pick<
   | 'answer'
   | 'reach'
   | 'sender'
+  | 'senderRoutes'
 > &
   OtlpReadOptions & { check: DeliveryCheck };
 
-// The receive path of OTLP/HTTP logs in JSON. Ingest has checked the method, the size, the token
-// and the sender, and has unpacked a gzip body, before `read` sees the export.
+// The receive path of OTLP/HTTP logs in JSON. Ingest has checked the method, the size, the token or
+// the sender of the route, and has unpacked a gzip body, before `read` sees the export.
 export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
   const { products, sessionAttribute, ...path } = receiver;
 
@@ -55,7 +57,15 @@ export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
       // ingest calls `read` on a path with a `sender` only once a sender is proven
       invariant(delivery.sender !== undefined, 'a telemetry export always has a proven sender');
 
-      const read = readOtlpFacts(body, { products, sessionAttribute });
+      const read = readFactsOrNull(body, { products, sessionAttribute });
+
+      if (read === null) {
+        return {
+          kind: 'refused',
+          status: 422,
+          reason: 'the export holds a record that is nested too deep',
+        };
+      }
 
       if (read.dropped.length > 0) {
         source.log.warn(
@@ -80,6 +90,21 @@ function parseJSON(text: string): unknown {
     return value;
   } catch {
     return undefined;
+  }
+}
+
+function readFactsOrNull(
+  body: NonNullable<ReturnType<typeof parseLogsExport>>,
+  options: OtlpReadOptions,
+): ReturnType<typeof readOtlpFacts> | null {
+  try {
+    return readOtlpFacts(body, options);
+  } catch (error) {
+    if (error instanceof NestedTooDeepError) {
+      return null;
+    }
+
+    throw error;
   }
 }
 
