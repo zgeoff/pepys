@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { z } from 'zod';
 import { runInstall } from './run-install.ts';
 
 async function setupTest() {
@@ -41,7 +42,7 @@ async function setupTest() {
         'utf8',
       );
 
-      const machine: Record<string, string> = JSON.parse(text);
+      const machine = z.record(z.string(), z.string()).parse(JSON.parse(text));
 
       return machine['id'] ?? 'missing';
     },
@@ -51,7 +52,7 @@ async function setupTest() {
         'utf8',
       );
 
-      const key: Record<string, string> = JSON.parse(text);
+      const key = z.record(z.string(), z.string()).parse(JSON.parse(text));
 
       return key['d'] ?? 'missing';
     },

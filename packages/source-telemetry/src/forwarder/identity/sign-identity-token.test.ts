@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import invariant from 'tiny-invariant';
+import { z } from 'zod';
 import { buildKeyID } from './build-key-id.ts';
 import { createIdentity } from './create-identity.ts';
 import { signIdentityToken } from './sign-identity-token.ts';
@@ -57,10 +58,12 @@ test('#signIdentityToken writes the header and the claims of the design, with ia
   const token = await ctx.sign(1_794_355_200_000, 'jti-1');
 
   const [header = '', claims = ''] = token.split('.');
+  const headerJSON = Buffer.from(header, 'base64url').toString();
+  const claimsJSON = Buffer.from(claims, 'base64url').toString();
 
   expect({
-    header: JSON.parse(Buffer.from(header, 'base64url').toString()),
-    claims: JSON.parse(Buffer.from(claims, 'base64url').toString()),
+    header: z.unknown().parse(JSON.parse(headerJSON)),
+    claims: z.unknown().parse(JSON.parse(claimsJSON)),
   }).toStrictEqual({
     header: { alg: 'ES256', kid: buildKeyID(ctx.identity.publicKey) },
     claims: {
