@@ -234,6 +234,9 @@
     "packages/source-telemetry": {
       "name": "@pepys/source-telemetry",
       "version": "0.4.4",
+      "bin": {
+        "pepys-telemetry-forwarder": "./src/forwarder-bin.ts",
+      },
       "dependencies": {
         "@pepys/kit": "workspace:*",
         "@zgeoff/std": "catalog:",
