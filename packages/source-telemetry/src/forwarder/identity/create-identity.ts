@@ -40,9 +40,7 @@ export async function createIdentity(
 
   let key = files.value.key;
 
-  if (key === null) {
-    key = await writeNewKey(creation.folder);
-  }
+  key ??= await writeNewKey(creation.folder);
 
   const machine = files.value.machine ?? {
     issuer: creation.issuer,

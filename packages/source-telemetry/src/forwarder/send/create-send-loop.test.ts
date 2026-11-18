@@ -166,7 +166,13 @@ async function setupTest() {
         }
 
         return new Promise<void>((resolve) => {
-          signal.addEventListener('abort', () => resolve(), { once: true });
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true },
+          );
         });
       },
       logger,
@@ -227,7 +233,7 @@ async function setupTest() {
 
       invariant(read.ok, 'the stream exists');
 
-      return read.value.map((item) => `${item.fact.id}`);
+      return read.value.map((item): string => item.fact.id);
     },
     readPositionOffset: async (name: string) => {
       const positions = await readPositions(spoolDir);
@@ -269,7 +275,7 @@ async function setupTest() {
       ]);
 
       return texts.map((text) => {
-        const key: Record<string, string> = JSON.parse(text);
+        const key = z.record(z.string(), z.string()).parse(JSON.parse(text));
 
         return key['d'] ?? 'missing';
       });
@@ -456,7 +462,7 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
     offset: await ctx.readSize(ctx.today),
     failed: [
       {
-        line: JSON.parse(first),
+        line: z.unknown().parse(JSON.parse(first)),
         failed: {
           at: '2026-03-02T10:00:00.000Z',
           status: 500,

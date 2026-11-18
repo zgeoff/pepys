@@ -35,7 +35,9 @@ async function setupTest() {
 
   const lines: string[] = [];
 
-  onTestFinished(() => stop.abort());
+  onTestFinished(() => {
+    stop.abort();
+  });
 
   const environment = {
     PEPYS_FORWARDER_PORT: String(port),
