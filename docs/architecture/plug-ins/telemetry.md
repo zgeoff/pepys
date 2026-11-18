@@ -87,6 +87,13 @@ proves the issuer, and the subject only as far as the issuer's key holder signs 
 `origin { issuer, subject }` in the payload of every fact of the export, and each consumer copies
 the pair into its `origin_issuer` and `origin_subject` columns. One origin stands for one machine.
 
+## The forwarder
+
+A machine outside impz sends its exports through [the forwarder](./telemetry-forwarder.md), a
+program in this package. It spools each export on the machine, and sends it to the
+[sender route](#the-sender-route) with an identity token that the machine signs with its own key, so
+the deployment holds no shared token for it.
+
 ## One record becomes one fact
 
 `read` first finds the product that wrote the record, and the event. It tries Claude Code, then
