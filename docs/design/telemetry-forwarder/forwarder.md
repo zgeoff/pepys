@@ -65,7 +65,7 @@ type Positions = Record<string, Position>;
 
 interface Position {
   offset: number; // the byte offset of the first line not yet sent
-  sentAt?: string; // when the send loop passed the last line of a file of an earlier day
+  sentAt?: string; // when the send loop first found this file of an earlier day with no unsent line
 }
 
 // One line of a file under `failed/`.
@@ -203,9 +203,6 @@ pepys-telemetry-forwarder install --issuer study-pc --audience forwarder.pepys.e
 
 ```ini
 # the unit that `install` writes
-[Unit]
-Description=pepys telemetry forwarder
-
 [Service]
 ExecStart=<bun> <bin> run
 Environment=PEPYS_FORWARDER_ISSUER=study-pc
@@ -221,8 +218,6 @@ WantedBy=default.target
 - `<bun>` is the absolute path of the bun that runs `install`. `<bin>` is the absolute path of the
   package's bin file, with each symbolic link resolved. The unit therefore runs the installed
   version, by path, whatever the user's path holds later.
-- `install` exits 1, and writes nothing, when its bin file is under the system's temporary folder,
-  where `bunx` keeps a package: a later `bunx` run can delete that copy.
 - `install` needs `--issuer` and `--audience`. `--ingest-url` is optional, and without it the unit
   sets no ingest URL.
 - `install` exits 1 for an issuer name that is not 1 to 128 letters, digits, `.`, `_` or `-`, and
@@ -257,7 +252,8 @@ packages/source-telemetry/src/
   nor `@impz/client`. It adds no dependency to the package.
 - The package's `files` list ships the folder as it ships the rest of `src/`, so the forwarder's
   code type-checks with the options of
-  [the kit's README](../../../packages/kit/README.md#configuration), as all shipped code does.
+  [the kit's README](../../../packages/kit/README.md#configuration), as all shipped code does. The
+  package already ships code that imports `node:` modules beside its consumers, in `src/otlp/`.
 - `bun run check:outside-install` already installs a package with a `bin`, `@pepys/cli`, so a second
   `bin` changes nothing in that check.
 - The package's README gains a section on the forwarder: the install line, the two commands and the
@@ -287,6 +283,9 @@ The order and the waits of the send loop:
   position. The send loop ignores a `retry-after` header.
 - A request that moves the position returns the send loop to `sending`, from `waiting` and from
   `stopped`.
+- A line that gets 500 on every request stays first in its file, and the lines after it wait. To
+  pass it, the owner stops the forwarder, sets the file's `offset` in `positions.json` to the start
+  of the next line, and starts the forwarder.
 - The send loop logs one error line when it enters the `stopped` state, and no line for a later
   request in that state. The receiver keeps running in every state, and the spool keeps every
   export.
@@ -304,9 +303,10 @@ The files of the send loop:
 - With no `positions.json`, every file starts at offset 0. When the file does not parse, or holds an
   offset past the end of its spool file, the send loop enters `stopped` with a null status and sends
   nothing, so the owner decides between a repair and a resend of the spool.
-- The send loop deletes a spool file, and its position, 7 days after the file's `sentAt`. It checks
-  at start and each time it sets a `sentAt`. The history therefore stays on the machine for 7 days
-  after it is sent.
+- The send loop deletes a spool file, and its position, 7 days after the file's `sentAt`. It sets
+  `sentAt` the first time it finds a file of an earlier UTC day with its offset at the end, and it
+  looks at start and after each line it moves past. The history therefore stays on the machine for 7
+  days after it is sent.
 - The send loop never deletes a spool file that holds an unsent line, and never deletes a file under
   `failed/`.
 
@@ -359,10 +359,12 @@ Each line below is one test:
 - **The spool keeps the sink's line format.** The history then loads with no conversion.
 - **One stored export per request.** Ingest's limits and fact IDs are then those of the same export
   sent straight to ingest.
-- **The send loop moves a line to `failed` only on a 4xx that ingest sends for the body.** Every
-  other failure keeps the line in the spool, because the forwarder never sends a line in `failed`
-  again. A fault of a plug-in that makes ingest answer 422 to every export still moves each line to
-  `failed`. The `failed` files keep those lines with ingest's reason, and `GET /health` counts them.
+- **The send loop moves a line to `failed` only on a 400, 413, 415 or 422.** Ingest sends each one
+  only for a body that it refuses again, and a proxy that answers one refuses the body again too.
+  Every other failure keeps the line in the spool, because the forwarder never sends a line in
+  `failed` again. A fault of a plug-in that makes ingest answer 422 to every export still moves each
+  line to `failed`. The `failed` files keep those lines with ingest's reason, and `GET /health`
+  counts them.
 - **The newest file goes first.** A load of the history, or a long outage, never delays the current
   day's exports.
 - **The send loop deletes a file 7 days after it sent the file.** pepys is the durable home of the
@@ -380,6 +382,7 @@ Each line below is one test:
 - Whether the receiver calls `fsync` after an append.
 - How the send loop learns of a new line: a poll of the spool folder, or a signal inside the
   process.
+- Whether `install` refuses to write a unit for a bin file in a cache that `bunx` can delete.
 - How the tests make ingest answer 503 and 500: a `FactLog` of their own, or ingest's stub fact log
   behind a new `./test-utils/*` export of `@pepys/ingest`.
 - The wording of each log line and each error.
@@ -393,4 +396,3 @@ Each line below is one test:
 - A command that sends the lines of a `failed` file again.
 - An alert on a `stopped` send loop or a failed line. `GET /health` shows both, and nothing in this
   design reads it.
-- A test in the e2e lane. The tests above run ingest in the test's own process.
