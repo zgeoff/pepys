@@ -44,10 +44,17 @@ function setupTest() {
 
       return read.value.map((item) => item.fact);
     },
-    buildNestedBodyRequest: (route: string, levels: number) => {
-      // no key attribute, so the fact ID comes from a hash of the record
+    buildNestedBodyRequest: (
+      route: string,
+      levels: number,
+      extraAttributes: Record<string, string>,
+    ) => {
       const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
-        { 'event.name': 'codex.turn_cost', 'event.timestamp': '2026-11-11T02:21:30.000Z' },
+        {
+          'event.name': 'codex.turn_cost',
+          'event.timestamp': '2026-11-11T02:21:30.000Z',
+          ...extraAttributes,
+        },
       ]);
 
       const text = JSON.stringify(exported).replace(
@@ -338,12 +345,19 @@ test('it stores an export on the sender route with no shared token, with the ori
   });
 });
 
-test.each([{ route: '/v1/logs' }, { route: '/forwarded/v1/logs' }])(
-  'it answers 422 to an export with a record body of 35000 nested arrays on $route, and stores nothing',
+test.each([
+  { route: '/v1/logs', keyed: 'without', attributes: {} },
+  { route: '/forwarded/v1/logs', keyed: 'without', attributes: {} },
+  { route: '/v1/logs', keyed: 'with', attributes: { 'turn.id': 'turn-2' } },
+  { route: '/forwarded/v1/logs', keyed: 'with', attributes: { 'turn.id': 'turn-2' } },
+])(
+  'it answers 422 to a record $keyed a turn.id with a body of 35000 nested arrays on $route, and stores nothing',
   async (row) => {
     const ctx = setupTest();
 
-    const response = await ctx.ingest.handleRequest(ctx.buildNestedBodyRequest(row.route, 35_000));
+    const response = await ctx.ingest.handleRequest(
+      ctx.buildNestedBodyRequest(row.route, 35_000, row.attributes),
+    );
 
     expect({
       answer: await ctx.readAnswer(response),
@@ -359,15 +373,17 @@ test.each([{ route: '/v1/logs' }, { route: '/forwarded/v1/logs' }])(
 );
 
 test.each([
-  { levels: 63, status: 200, stored: 1 },
-  { levels: 64, status: 422, stored: 0 },
+  { levels: 63, status: 200, stored: 1, attributes: {} },
+  { levels: 64, status: 422, stored: 0, attributes: {} },
+  { levels: 63, status: 200, stored: 1, attributes: { 'turn.id': 'turn-2' } },
+  { levels: 64, status: 422, stored: 0, attributes: { 'turn.id': 'turn-2' } },
 ])(
-  'it answers $status to a record whose body nests $levels arrays, and stores $stored fact',
+  'it answers $status to a record whose body nests $levels arrays with attributes $attributes, and stores $stored fact',
   async (row) => {
     const ctx = setupTest();
 
     const response = await ctx.ingest.handleRequest(
-      ctx.buildNestedBodyRequest('/v1/logs', row.levels),
+      ctx.buildNestedBodyRequest('/v1/logs', row.levels, row.attributes),
     );
 
     const stored = await ctx.readStored();

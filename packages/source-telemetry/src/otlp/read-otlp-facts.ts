@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { parseEntityID } from '@pepys/kit';
 import type { LogRecordPayload } from '../log-record-family.ts';
 import type { TelemetryProduct } from '../products/types.ts';
-import { formatCanonicalJSON } from './format-canonical-json.ts';
+import { assertNotNestedTooDeep, formatCanonicalJSON } from './format-canonical-json.ts';
 import { toAttributeMap } from './to-attribute-map.ts';
 import type { AttributeValue, LogRecord, LogsExport, OtlpLogRecord } from './types.ts';
 
@@ -36,7 +36,7 @@ export interface OtlpFacts {
   dropped: readonly DroppedRecord[];
 }
 
-// Pure: one fact per log record of a known product, with an ID that depends on the record alone.
+// Pure: throws `NestedTooDeepError` for a record nested too deep, keyed or not. One fact per log record of a known product, with an ID that depends on the record alone.
 export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpFacts {
   const facts: TelemetryFact[] = [];
   const dropped: DroppedRecord[] = [];
@@ -46,6 +46,8 @@ export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpF
 
     for (const scopeLogs of resourceLogs.scopeLogs) {
       for (const raw of scopeLogs.logRecords) {
+        assertNotNestedTooDeep(raw);
+
         const record: LogRecord = {
           scope: { name: scopeLogs.scope.name },
           resource,

@@ -9,6 +9,25 @@ export function formatCanonicalJSON(value: unknown): string {
 
 const maxDepth = 64;
 
+// Throws `NestedTooDeepError` for a value nested more than 64 levels deep, without building a copy.
+export function assertNotNestedTooDeep(value: unknown): void {
+  walkDepth(value, 0);
+}
+
+function walkDepth(value: unknown, depth: number): void {
+  if (!Array.isArray(value) && !isRecord(value)) {
+    return;
+  }
+
+  if (depth >= maxDepth) {
+    throw new NestedTooDeepError();
+  }
+
+  for (const item of Array.isArray(value) ? value : Object.values(value)) {
+    walkDepth(item, depth + 1);
+  }
+}
+
 function toSortedValue(value: unknown, depth: number): unknown {
   if (!Array.isArray(value) && !isRecord(value)) {
     return value;
