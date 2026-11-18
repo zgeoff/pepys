@@ -1,6 +1,8 @@
-import { mkdir, open } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createSyncedFolder } from '../create-synced-folder.ts';
+import { syncFolder } from '../sync-folder.ts';
 import { buildSpoolFileName } from './build-spool-file-name.ts';
 import { toUTCDay } from './to-utc-day.ts';
 
@@ -9,13 +11,17 @@ interface SpoolAppenderOptions {
   now: () => number;
 }
 
-// Appends one line to the spool file of the current UTC day, and returns once the bytes are on
-// disk. Appends run one at a time. A file that ends in a partial line gets a line break first, so
-// the new line starts on a line of its own.
+// Appends one line to the spool file of the current UTC day, and returns once the bytes and the
+// file's name are on disk. Appends run one at a time. A file that ends in a partial line gets a
+// line break first, so the new line starts on a line of its own.
 export function createSpoolAppender(
   options: SpoolAppenderOptions,
 ): (text: string) => Promise<void> {
   let tail: Promise<void> = Promise.resolve();
+
+  // An earlier process can stop between the making of a file and the sync of the folder, so the
+  // first append of this process to each file syncs the folder, whoever made the file.
+  let syncedName: string | null = null;
 
   return async (text) => {
     const previous = tail;
@@ -26,15 +32,22 @@ export function createSpoolAppender(
     await previous;
 
     try {
-      await writeLine(options, text);
+      const name = await writeLine(options, text);
+
+      if (name !== syncedName) {
+        await syncFolder(options.folder);
+
+        syncedName = name;
+      }
     } finally {
       turn.resolve();
     }
   };
 }
 
-async function writeLine(options: SpoolAppenderOptions, text: string): Promise<void> {
-  await mkdir(options.folder, { recursive: true, mode: 0o700 });
+// Returns the name of the file it appended to.
+async function writeLine(options: SpoolAppenderOptions, text: string): Promise<string> {
+  await createSyncedFolder(options.folder, 0o700);
 
   const name = buildSpoolFileName(toUTCDay(options.now()));
 
@@ -51,6 +64,8 @@ async function writeLine(options: SpoolAppenderOptions, text: string): Promise<v
   } finally {
     await file.close();
   }
+
+  return name;
 }
 
 async function endsWithLineBreak(file: FileHandle, size: number): Promise<boolean> {

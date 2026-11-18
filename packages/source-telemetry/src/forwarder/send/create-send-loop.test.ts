@@ -640,6 +640,33 @@ test('it sets sentAt the first time it finds an earlier file with no unsent line
   });
 });
 
+test('it keeps the position of a line that gets a 400 when the failed line cannot be written', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeRawLine(
+    ctx.clock.nowMs,
+    `${JSON.stringify({ received: '2026-03-02T10:00:00.000Z', path: '/v1/logs', ua: null, body: { resourceLogs: 'none' } })}\n`,
+  );
+
+  await Bun.write(join(ctx.spoolDir, 'failed'), 'a file where the failed folder goes');
+
+  const [stepped] = await Promise.allSettled([loop.step()]);
+
+  expect({
+    stepped: stepped.status,
+    requests: ctx.requests.length,
+    offset: await ctx.readPositionOffset(ctx.today),
+    health: await ctx.readHealth(loop),
+  }).toStrictEqual({
+    stepped: 'rejected',
+    requests: 1,
+    offset: 0,
+    health: { status: 200, body: { send: 'sending', failed: 0 } },
+  });
+});
+
 test('it sends nothing and stops when positions.json does not parse', async () => {
   const ctx = await setupTest();
 

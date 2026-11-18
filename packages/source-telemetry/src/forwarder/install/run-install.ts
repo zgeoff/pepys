@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, realpath, writeFile } from 'node:fs/promises';
+import { realpath } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { createSyncedFolder } from '../create-synced-folder.ts';
 import { buildTrustDocument } from '../identity/build-trust-document.ts';
 import { createIdentity } from '../identity/create-identity.ts';
+import { syncFolder } from '../sync-folder.ts';
+import { writeSyncedFile } from '../write-synced-file.ts';
 import { isCachedBin } from './is-cached-bin.ts';
 import { hasControlCharacter, parseInstallArguments } from './parse-install-arguments.ts';
 import { renderUnit } from './render-unit.ts';
@@ -81,9 +84,9 @@ export async function runInstall(dependencies: InstallDependencies): Promise<num
     '.config/systemd/user/pepys-telemetry-forwarder.service',
   );
 
-  await mkdir(dirname(unitPath), { recursive: true });
+  await createSyncedFolder(dirname(unitPath), 0o777);
 
-  await writeFile(
+  await writeSyncedFile(
     unitPath,
     renderUnit({
       bun: dependencies.bunPath,
@@ -93,7 +96,10 @@ export async function runInstall(dependencies: InstallDependencies): Promise<num
       ingestURL: parsed.value.ingestURL,
       copied,
     }),
+    { flag: 'w', mode: 0o666 },
   );
+
+  await syncFolder(dirname(unitPath));
 
   dependencies.stdout.write(`${JSON.stringify(buildTrustDocument(identity.value), null, 2)}\n`);
   dependencies.stderr.write(`issuer: ${identity.value.issuer}\n`);
