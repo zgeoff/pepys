@@ -11,7 +11,7 @@ export interface SpoolLine {
   body: unknown;
 }
 
-export interface Position {
+interface Position {
   // the byte offset of the first line not yet sent
   offset: number;
 

@@ -60,7 +60,7 @@ export async function runForwarder(dependencies: RunDependencies): Promise<numbe
           nowMs: Date.now(),
           jti: randomUUID(),
         }),
-      fetch: readAnswer,
+      post: readAnswer,
       now: () => Date.now(),
       sleep: sleepUntilAborted,
       logger,

@@ -1,7 +1,8 @@
 export const initialRetryWaitMs = 1000;
-export const maxRetryWaitMs = 300_000;
+const maxRetryWaitMs = 300_000;
+
 export const slowRetryWaitMs = 900_000;
-export const maxServerErrorTries = 4;
+const maxServerErrorTries = 4;
 
 export interface AnswerAction {
   // sent: the position moves past the line. failed: the line goes to `failed`, then the position

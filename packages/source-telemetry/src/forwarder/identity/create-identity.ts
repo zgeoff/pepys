@@ -1,7 +1,12 @@
 import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Result } from '@pepys/kit';
-import { keyFileName, machineFileName, readIdentityFiles } from './read-identity-files.ts';
+import {
+  keyFileName,
+  machineFileName,
+  privateKeySchema,
+  readIdentityFiles,
+} from './read-identity-files.ts';
 import type { PrivateKeyJWK } from './read-identity-files.ts';
 import { importIdentity } from './read-identity.ts';
 import type { Identity } from './types.ts';
@@ -59,13 +64,7 @@ async function writeNewKey(folder: string): Promise<PrivateKeyJWK> {
 
   const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
 
-  const key = {
-    kty: 'EC',
-    crv: 'P-256',
-    x: jwk.x ?? '',
-    y: jwk.y ?? '',
-    d: jwk.d ?? '',
-  } as const;
+  const key = privateKeySchema.parse(jwk);
 
   await writeFile(join(folder, keyFileName), `${JSON.stringify(key)}\n`, {
     mode: 0o600,

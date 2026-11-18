@@ -6,11 +6,14 @@ import * as z from 'zod';
 export const keyFileName = 'private-key.json';
 export const machineFileName = 'machine.json';
 
-const privateKeySchema = z.object({
+export const privateKeySchema = z.object({
   kty: z.literal('EC'),
   crv: z.literal('P-256'),
   x: z.string().min(1),
   y: z.string().min(1),
+
+  // RFC 7517 names the private scalar of an EC key `d`
+  // oxlint-disable-next-line eslint/id-length
   d: z.string().min(1),
 });
 

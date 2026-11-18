@@ -27,7 +27,7 @@ interface SendLoopOptions {
   // the base URL of ingest, with no trailing slash
   ingestURL: string;
   signToken: () => Promise<string>;
-  fetch: (request: Request) => Promise<Response>;
+  post: (request: Request) => Promise<Response>;
   now: () => number;
 
   // Resolves after the wait, or at once when the signal aborts.
@@ -226,9 +226,15 @@ interface SpoolFile {
 }
 
 async function readSpoolFiles(folder: string): Promise<SpoolFile[]> {
-  const listing = await readdir(folder);
-
   const files: SpoolFile[] = [];
+  let listing: string[] = [];
+
+  // the receiver makes the folder with the first export
+  try {
+    listing = await readdir(folder);
+  } catch {
+    return files;
+  }
 
   for (const name of collectSpoolFileNames(listing)) {
     const day = findSpoolFileDay(name);
@@ -322,7 +328,7 @@ async function send(
   try {
     const token = await options.signToken();
 
-    const response = await options.fetch(
+    const response = await options.post(
       new Request(`${options.ingestURL}/forwarded/v1/logs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'imp-identity': token },
