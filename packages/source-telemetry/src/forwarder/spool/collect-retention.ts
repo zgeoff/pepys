@@ -1,6 +1,6 @@
 import type { Positions } from './types.ts';
 
-export const retentionMs = 7 * 24 * 3_600_000;
+const retentionMs = 7 * 24 * 3_600_000;
 
 interface SpoolFileFacts {
   name: string;

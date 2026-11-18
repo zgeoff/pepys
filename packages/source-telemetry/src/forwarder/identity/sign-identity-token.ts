@@ -1,10 +1,5 @@
 import type { Identity } from './types.ts';
 
-// How far the token's `iat` lies in the past, so that a machine clock a little ahead of ingest's
-// still passes, and the longest life that the verifier takes.
-export const issuedAtShiftSeconds = 25;
-export const tokenLifeSeconds = 55;
-
 interface TokenInput {
   identity: Identity;
   audience: string;
@@ -12,27 +7,27 @@ interface TokenInput {
   jti: string;
 }
 
-export function buildTokenParts(input: TokenInput) {
-  const issuedAt = Math.floor(input.nowMs / 1000) - issuedAtShiftSeconds;
-
-  return {
-    header: { alg: 'ES256', kid: input.identity.kid },
-    claims: {
-      iss: input.identity.issuer,
-      sub: input.identity.id,
-      aud: input.audience,
-      iat: issuedAt,
-      exp: issuedAt + tokenLifeSeconds,
-      jti: input.jti,
-      imp_name: input.identity.issuer,
-    },
-  };
-}
+// How far the token's `iat` lies in the past, so that a machine clock a little ahead of ingest's
+// still passes, and the longest life that the verifier takes.
+const issuedAtShiftSeconds = 25;
+const tokenLifeSeconds = 55;
 
 // One compact ES256 token. The signature is the 64-byte `r || s` form that WebCrypto returns.
 export async function signIdentityToken(input: TokenInput): Promise<string> {
-  const parts = buildTokenParts(input);
-  const signingInput = `${encodeSegment(parts.header)}.${encodeSegment(parts.claims)}`;
+  const issuedAt = Math.floor(input.nowMs / 1000) - issuedAtShiftSeconds;
+  const header = { alg: 'ES256', kid: input.identity.kid };
+
+  const claims = {
+    iss: input.identity.issuer,
+    sub: input.identity.id,
+    aud: input.audience,
+    iat: issuedAt,
+    exp: issuedAt + tokenLifeSeconds,
+    jti: input.jti,
+    imp_name: input.identity.issuer,
+  };
+
+  const signingInput = `${encodeSegment(header)}.${encodeSegment(claims)}`;
 
   const signature = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
