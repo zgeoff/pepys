@@ -126,11 +126,11 @@ The telemetry source builds a fact ID from a record with `formatCanonicalJSON`, 
 record to any depth. A record `body` that nests tens of thousands of arrays exhausts the stack,
 `read` throws, and ingest answers 500 to every resend of the export. Stage 2 adds a check:
 
-- `isNestedTooDeep` returns true for a value nested more than 64 levels deep. It walks the value
-  with a loop, so no depth exhausts the stack.
+- `isNestedTooDeep` returns true for a value that nests arrays or objects more than 64 levels deep.
+  It walks the value with a loop, so the walk never exhausts the stack.
 - The `read` of `receiveOtlpLogs` calls `isNestedTooDeep` on every record before it builds a fact
-  ID, whether or not the record has an event key. For a record nested too deep, it refuses the
-  export with 422 and the reason `the export holds a record that is nested too deep`.
+  ID. For a record nested too deep, it refuses the export with 422 and the reason
+  `the export holds a record that is nested too deep`.
 
 ### The trust document
 
