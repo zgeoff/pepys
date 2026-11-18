@@ -88,15 +88,16 @@ live: receiveOtlpLogs({
 
 These files change:
 
-| Package            | File                                                       | Change                                                                                  |
-| ------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `kit`              | `src/sources/types.ts`, `src/index.ts`                     | `senderRoutes` and `SenderRoute`                                                        |
-| `kit`              | `src/deployments/check-deployment.ts`, its `types.ts`      | the two refusals under [Constraints](#constraints)                                      |
-| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`   | one `ReceiveRoute` per sender route, with `stores` true                                 |
-| `ingest`           | `src/receive/create-ingest.ts`                             | one handler per sender route, with recent bodies of its own                             |
-| `ingest`           | `src/receive/make-receive-handler.ts`                      | the handler of a sender route skips the delivery check, and proves the route's `sender` |
-| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts` | reads the two variables of each sender route too                                        |
-| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts` | passes `senderRoutes` through, and declares the route                                   |
+| Package            | File                                                                 | Change                                                                                  |
+| ------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `kit`              | `src/sources/types.ts`, `src/index.ts`                               | `senderRoutes` and `SenderRoute`                                                        |
+| `kit`              | `src/deployments/check-deployment.ts`, its `types.ts`                | the two refusals under [Constraints](#constraints)                                      |
+| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`             | one `ReceiveRoute` per sender route, with `stores` true                                 |
+| `ingest`           | `src/receive/create-ingest.ts`                                       | one handler per sender route, with recent bodies of its own                             |
+| `ingest`           | `src/receive/make-receive-handler.ts`                                | the handler of a sender route skips the delivery check, and proves the route's `sender` |
+| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts`           | reads the two variables of each sender route too                                        |
+| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts`           | passes `senderRoutes` through, and declares the route                                   |
+| `source-telemetry` | `src/otlp/format-canonical-json.ts`, `src/otlp/receive-otlp-logs.ts` | [an export that `read` cannot read gets 422](#an-export-that-read-cannot-read)          |
 
 - The builder of stage 2 adds the route to [Ingest](../../architecture/ingest/ingest.md) and
   [The telemetry plug-in](../../architecture/plug-ins/telemetry.md), and to the READMEs of the three
@@ -105,6 +106,29 @@ These files change:
   before.
 - A caller that matches on every value of `ReceiveRoute.check` fails its type check until it handles
   `'sender'`.
+
+### The two groups of trust documents
+
+At start, ingest compares what each sender route trusts with what its path's own `sender` trusts, by
+the values it loaded. It exits 1, with the reason, in each of these cases:
+
+- the audience of the sender route equals the audience of the path;
+- an issuer name is in a trust document of both folders;
+- a key is in a trust document of both folders, by the RFC 7638 SHA-256 thumbprint of the key,
+  whatever its `kid`.
+
+`readImpIdentityTrust` makes the comparison, after it loads both folders. It skips a pair in which
+either side has no audience or no document, because that side refuses every request.
+
+### An export that `read` cannot read
+
+The telemetry source builds a fact ID from a record with `formatCanonicalJSON`, which walks the
+record to any depth. A record `body` that nests tens of thousands of arrays exhausts the stack,
+`read` throws, and ingest answers 500 to every resend of the export. Stage 2 changes both files:
+
+- `formatCanonicalJSON` throws a named error for a value nested more than 64 levels deep.
+- The `read` of `receiveOtlpLogs` catches that error, and refuses the export with 422 and the reason
+  `the export holds a record that is nested too deep`.
 
 ### The trust document
 
@@ -159,6 +183,11 @@ of an issuer in the forwarders' folder, and can reach the route.
 
 ### Who holds a key, and who reaches the route
 
+- Every process on the machine that reaches the forwarder's receiver writes through the route with
+  no key at all. The receiver listens on the loopback address and takes an export with no
+  credential, and the forwarder then signs and sends it. On a machine with one user, those processes
+  are the user's own. A second user of the machine reaches the receiver too.
+
 - Every process that runs as the machine's user can read the key file, a coding agent included.
 - From outside the cluster, only a device on the tailnet reaches the route, through the tailnet
   name. The deployment's public tunnel never forwards the route, because the telemetry path's
@@ -168,14 +197,16 @@ of an issuer in the forwarders' folder, and can reach the route.
 
 ### What the design accepts
 
-A caller with a key and a way to the route can do these things, and the design accepts each one:
+A caller with a key and a way to the route, and a process that posts to the forwarder's receiver,
+can each do these things. The design accepts each one:
 
 - It writes telemetry log records, and no other kind of fact, because the route runs the telemetry
   path's `read`.
 - It writes only under its own issuer, because each fact takes the issuer of its `origin` from the
   verified token.
-- It writes any subject, because the key signs any `sub`. The `origin` of a fact therefore proves
-  the issuer and never the subject, and one issuer stands for one machine.
+- With the key, it writes any subject, because the key signs any `sub`. Through the receiver, it
+  writes under the machine's own subject. The `origin` of a fact therefore proves the issuer and
+  never the subject, and one issuer stands for one machine.
 - It writes any session ID and any time, as
   [the known limits](../../architecture/plug-ins/telemetry.md#known-limits) say of every sender on
   the telemetry path.
@@ -189,6 +220,10 @@ A caller with a key and a way to the route can do these things, and the design a
   55 seconds of life and 5 of leeway. The token never signs the body, and the verifier never checks
   `jti`. TLS on the tailnet name keeps a token from a listener.
 
+The receiver takes no credential because an OTLP exporter has none to give that the same user's
+other processes could not read: an exporter's settings are files and variables of that user. The
+machine is therefore one sender, and the design treats every process of its user as the machine.
+
 To make ingest refuse a key, the owner takes the key's trust document out of the folder and restarts
 ingest. The facts that the key wrote stay in the log, under its origin.
 
@@ -196,8 +231,9 @@ ingest. The facts that the key wrote stay in the log, under its origin.
 
 - A forwarder's token never passes `/v1/logs`. That route needs the shared token too, and an issuer
   in the imps' folder.
-- An imp's token never passes the sender route. The token's issuer is an impd, which has no document
-  in the forwarders' folder, and the token's audience is the imps' audience.
+- An imp's token never passes the sender route. The token's issuer is an impd, and the token's
+  audience is the imps' audience. Ingest refuses to start while an impd's issuer name or key is in
+  the forwarders' folder, or while the two audiences are equal.
 
 ### Why the route answers only on the tailnet
 
@@ -225,6 +261,11 @@ proxy to ingest's whole port, so that rule alone keeps ingest's other routes off
   path's own check and sender, as before. A sender route has no ignored routes.
 - `checkDeployment` refuses a sender route whose `route` equals another route of the deployment,
   with the existing failure for a duplicate route.
+- Ingest exits at start in each case under
+  [The two groups of trust documents](#the-two-groups-of-trust-documents), so no token passes both a
+  sender route and its path.
+- An export with a record nested more than 64 levels deep gets 422 on both routes, and stores
+  nothing.
 - `checkDeployment` refuses a sender route whose `issuersEnv` or `audienceEnv` equals the
   `issuersEnv` or the `audienceEnv` of its path's own `sender`, with `shared-sender-variable`. A
   path with no `sender` of its own can declare a sender route.
@@ -239,6 +280,11 @@ telemetry plug-in's tests. Each line is one test:
 - A token of an issuer in the imps' folder gets 401 on `/forwarded/v1/logs`.
 - With either forwarder variable unset, the sender route answers 401, and `/v1/logs` stores an imp's
   export.
+- Ingest exits at start when the two audience variables hold one audience.
+- Ingest exits at start when one issuer name is in both folders.
+- Ingest exits at start when one key is in both folders under two issuer names and two key IDs.
+- An export with a record `body` of 35,000 nested arrays gets 422, and an export with a record
+  nested 64 levels deep is stored.
 - `checkDeployment` refuses a sender route whose `route` another route has.
 - `checkDeployment` refuses a sender route that names its path's `issuersEnv`.
 

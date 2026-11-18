@@ -99,18 +99,21 @@ imp-identity: <a token signed for this request>
 
 The send loop acts on the answer by the first row of this table, the answer table, that fits:
 
-| The answer                                    | The send loop                                                               |
-| --------------------------------------------- | --------------------------------------------------------------------------- |
-| 2xx                                           | moves the position past the line                                            |
-| 400, 413, 415 or 422                          | appends the line to the `failed` file, and moves the position past it       |
-| 401, 403, 404 or 500                          | enters the `stopped` state, and makes its next request 15 minutes later     |
-| any other answer, a timeout, or no connection | enters the `waiting` state, and makes its next request after the retry wait |
+| The answer                                    | The send loop                                                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 2xx                                           | moves the position past the line                                                                     |
+| 400, 413, 415 or 422                          | appends the line to the `failed` file, and moves the position past it                                |
+| 500                                           | enters the `stopped` state; after the fourth 500 for one line, appends the line to the `failed` file |
+| 401, 403 or 404                               | enters the `stopped` state, and makes its next request 15 minutes later                              |
+| any other answer, a timeout, or no connection | enters the `waiting` state, and makes its next request after the retry wait                          |
 
 Ingest answers 400, 413, 415 or 422 only for a body that it refuses again on a resend, as
 [Retries and status codes](../../architecture/ingest/ingest.md#retries-and-status-codes) says.
-Ingest answers 500 for a fault of the deployment, such as a log that refuses every append. On a 500
-the send loop therefore keeps the line, because the fault would otherwise move every line of the
-spool to `failed`.
+Ingest answers 500 for a fault of the deployment, such as a log that refuses every append, and for a
+body that makes a source's `read` throw. The send loop cannot tell the two apart, so it sends a line
+that got 500 four times, 15 minutes apart. After the fourth 500 it moves the line to `failed`. A
+fault of the deployment therefore moves at most one line to `failed` every 45 minutes, and a body
+that ingest never reads holds its file for 45 minutes.
 
 ### `GET /health`
 
@@ -283,9 +286,11 @@ The order and the waits of the send loop:
   position. The send loop ignores a `retry-after` header.
 - A request that moves the position returns the send loop to `sending`, from `waiting` and from
   `stopped`.
-- A line that gets 500 on every request stays first in its file, and the lines after it wait. To
-  pass it, the owner stops the forwarder, sets the file's `offset` in `positions.json` to the start
-  of the next line, and starts the forwarder.
+- The send loop counts the 500 answers of the line it sends, in memory. The count returns to 0 when
+  the position moves, and when the process starts.
+- The receiver takes an export from any process that reaches its port, with no credential.
+  [Who can write through the route](./sender-route.md#who-can-write-through-the-route) gives what
+  that allows.
 - The send loop logs one error line when it enters the `stopped` state, and no line for a later
   request in that state. The receiver keeps running in every state, and the spool keeps every
   export.
@@ -345,7 +350,9 @@ Each line below is one test:
 - A token signed by a key that is not in the trust document gets 401, the send loop enters `stopped`
   with the position unchanged, and `GET /health` answers 503.
 - A `stopped` send loop that then gets a 200 moves the position on, and `GET /health` answers 200.
-- A 500 answer leaves the line in the spool, and the send loop enters `stopped`.
+- Three 500 answers leave the line in the spool, with the send loop in `stopped`. The fourth appends
+  the line to the `failed` file with the status 500 and ingest's reason, and the send loop sends the
+  next line.
 - A process that ends in the middle of a file, and starts again, sends from the saved position and
   sends no earlier line.
 - A 400 answer appends the line to the `failed` file, the send loop sends the next line, and
@@ -357,14 +364,13 @@ Each line below is one test:
 ## Decisions
 
 - **The spool keeps the sink's line format.** The history then loads with no conversion.
-- **One stored export per request.** Ingest's limits and fact IDs are then those of the same export
-  sent straight to ingest.
-- **The send loop moves a line to `failed` only on a 400, 413, 415 or 422.** Ingest sends each one
-  only for a body that it refuses again, and a proxy that answers one refuses the body again too.
-  Every other failure keeps the line in the spool, because the forwarder never sends a line in
-  `failed` again. A fault of a plug-in that makes ingest answer 422 to every export still moves each
-  line to `failed`. The `failed` files keep those lines with ingest's reason, and `GET /health`
-  counts them.
+- **The send loop moves a line to `failed` on a 400, 413, 415 or 422, and on the fourth 500.**
+  Ingest sends each 4xx only for a body that it refuses again, and a proxy that answers one refuses
+  the body again too. A 500 gets four requests over 45 minutes, so one body that ingest cannot read
+  never holds a file for good, and an outage of the deployment costs few lines. Every other failure
+  keeps the line in the spool, because the forwarder never sends a line in `failed` again. A fault
+  of a plug-in that makes ingest answer 422 to every export still moves each line to `failed`. The
+  `failed` files keep those lines with ingest's reason, and `GET /health` counts them.
 - **The newest file goes first.** A load of the history, or a long outage, never delays the current
   day's exports.
 - **The send loop deletes a file 7 days after it sent the file.** pepys is the durable home of the
@@ -390,9 +396,6 @@ Each line below is one test:
 ## Out of scope
 
 - Metrics and traces. The receiver answers them and stores nothing, because ingest stores neither.
-- A second machine. Each machine would run its own install with its own issuer name; nothing here is
-  tested with two.
-- A change of the machine's key. A new key is a new trust document and a restart of ingest.
 - A command that sends the lines of a `failed` file again.
 - An alert on a `stopped` send loop or a failed line. `GET /health` shows both, and nothing in this
   design reads it.

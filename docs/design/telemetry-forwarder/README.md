@@ -61,8 +61,10 @@ export is in a spool file, whatever the send loop does.
 - **The machine signs its own identity token, and holds no shared token.** The private key stays on
   the machine, and the deployment holds only the public half. A person who takes the machine gets
   the machine's key, and gets nothing that lets them send as an imp.
-- **Every process of the machine's user can send as the machine.** Each one can read the key file, a
-  coding agent included.
+- **Every process on the machine can send as the machine.** The receiver takes an export from any
+  process that reaches its loopback port, with no credential, and each process of the machine's user
+  can read the key file, a coding agent included. The design accepts both: an exporter has no
+  credential that the same user's other processes could not read, so the machine is one sender.
   [Who can write through the route](./sender-route.md#who-can-write-through-the-route) gives what
   such a process can write.
 - **The forwarder ships inside `@pepys/source-telemetry`.** npm already has that package, so the
