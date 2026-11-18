@@ -49,36 +49,51 @@ bunx pepys build deployment.ts --out build
 
 ## The forwarder
 
-The forwarder sends the telemetry of a machine outside impz to ingest. It takes each OTLP log export
-on a loopback port, appends it to a spool file, and sends it to ingest's sender route with an
+This package ships [the forwarder](../../docs/architecture/plug-ins/telemetry-forwarder.md), the
+program `pepys-telemetry-forwarder`, for a machine that impz does not run, such as the owner's PC.
+It spools each OTLP log export of a coding agent, and sends it to the
+[sender route](../../docs/architecture/plug-ins/telemetry.md#the-sender-route) of ingest with an
 identity token that the machine signs with its own key.
 
-```sh
-bun add --global --exact @pepys/source-telemetry@<version>
+1. Install the package for the machine's user, and run `install`. It makes the machine's key and ID,
+   writes a systemd user unit that it never starts, and prints the machine's trust document, its
+   issuer name and public key.
 
-pepys-telemetry-forwarder install --issuer study-pc --audience forwarder.pepys.example \
-  --ingest-url https://ingest.tailnet.example
-pepys-telemetry-forwarder run
-```
+   ```sh
+   bun add --global --exact @pepys/source-telemetry@<version>
+   pepys-telemetry-forwarder install --issuer study-pc --audience forwarder.pepys.example \
+     --ingest-url https://ingest.tailnet.example > study-pc.json
+   ```
 
-`install` makes the key and the machine's ID, writes a systemd user unit, and prints the trust
-document for the deployment on stdout. It enables and starts nothing. `run` starts the receiver, and
-the send loop when an ingest URL is set. Run one forwarder per spool folder: a second `run` on the
-same folder exits 1.
+2. Copy `study-pc.json` into ingest's folder at `PEPYS_TELEMETRY_FORWARDER_ISSUERS`.
+3. Start the unit, which runs `pepys-telemetry-forwarder run`:
+   `systemctl --user enable --now pepys-telemetry-forwarder.service`.
+4. Point the agent's OTLP exporter at `http://127.0.0.1:4318`.
 
-| Variable                       | Holds                                                         | Default                                    |
-| ------------------------------ | ------------------------------------------------------------- | ------------------------------------------ |
-| `PEPYS_FORWARDER_HOST`         | the address the receiver listens on                           | `127.0.0.1`                                |
-| `PEPYS_FORWARDER_PORT`         | the port the receiver listens on                              | `4318`                                     |
-| `PEPYS_FORWARDER_SPOOL_DIR`    | the spool folder                                              | `~/.local/state/pepys-telemetry-forwarder` |
-| `PEPYS_FORWARDER_IDENTITY_DIR` | the folder of the private key and the machine's ID, mode 0700 | `~/.config/pepys-telemetry-forwarder`      |
-| `PEPYS_FORWARDER_INGEST_URL`   | the base URL of the tailnet name that reaches ingest          | none                                       |
-| `PEPYS_FORWARDER_ISSUER`       | the machine's issuer name                                     | none                                       |
-| `PEPYS_FORWARDER_AUDIENCE`     | the audience of each token                                    | none                                       |
+`run` takes no flags and reads the variables below. `install` writes the last three into the unit
+from its flags, and copies each of the first four that is set in its own environment. To start `run`
+by hand, set them yourself. A second `run` on the same spool folder exits 1.
 
-`GET /health` answers `{"send":"sending","failed":0}`. `send` is `off` with no ingest URL, then
-`sending`, `waiting` or `stopped`, and `failed` counts the lines that ingest refused. It answers 503
-only when `send` is `stopped`.
+| Variable                       | Holds                                                                            | Default                                    |
+| ------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------ |
+| `PEPYS_FORWARDER_HOST`         | the address the receiver listens on                                              | `127.0.0.1`                                |
+| `PEPYS_FORWARDER_PORT`         | the port the receiver listens on                                                 | `4318`                                     |
+| `PEPYS_FORWARDER_SPOOL_DIR`    | the spool folder                                                                 | `~/.local/state/pepys-telemetry-forwarder` |
+| `PEPYS_FORWARDER_IDENTITY_DIR` | the folder of the private key and the machine's ID, mode 0700                    | `~/.config/pepys-telemetry-forwarder`      |
+| `PEPYS_FORWARDER_INGEST_URL`   | the URL of ingest, `https://<host>`; unset, the forwarder only receives          | none                                       |
+| `PEPYS_FORWARDER_ISSUER`       | the `issuer` of the trust document; needed with an ingest URL                    | none                                       |
+| `PEPYS_FORWARDER_AUDIENCE`     | the deployment's `PEPYS_TELEMETRY_FORWARDER_AUDIENCE`; needed with an ingest URL | none                                       |
+
+The receiver answers `GET /health` on the same port with `{"send":"sending","failed":0}`: the state
+of the send loop, and the count of lines that ingest refused for good. It answers 503 when `send` is
+`stopped`, and 200 otherwise.
+
+| `send`    | Means                                                                            |
+| --------- | -------------------------------------------------------------------------------- |
+| `off`     | no ingest URL is set; the spool keeps each export for a later `run` with one     |
+| `sending` | ingest took the last export                                                      |
+| `waiting` | ingest gave no answer, or a 503; the send loop tries again after a short wait    |
+| `stopped` | ingest answered 401, 403, 404 or 500; the send loop tries again every 15 minutes |
 
 ## Documentation
 

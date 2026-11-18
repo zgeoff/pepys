@@ -1,55 +1,146 @@
 # The telemetry forwarder
 
-A machine outside impz sends its exports through the forwarder, a program in
-`@pepys/source-telemetry`. The agent's exporter posts to the forwarder on the machine's loopback
-address. The forwarder appends each export to a spool file, one file per UTC day, and sends it from
-there to the [sender route](./telemetry.md#the-sender-route) with an identity token that the machine
-signs with its own key. The deployment holds only the public half of the key, in a trust document
-that `install` prints.
+A coding agent on the owner's PC exports its OTLP log records to a program on the same machine, the
+forwarder, and the forwarder sends them on to pepys. The PC needs the forwarder because the PC holds
+no identity that ingest trusts: [impz](../ingest/ingest.md#the-sender-proof) gives each of its
+virtual machines an identity token, and a machine outside impz has none. The forwarder makes a key
+for the machine, and signs a token of the same form with it.
 
-The receiver and the send loop share only the spool files. The receiver answers 200 to a log export
-once its line is on disk, whatever ingest does, so an outage of ingest costs no export, Codex's
-included, which never sends an export again. It answers metrics and traces 200 and stores nothing,
-as ingest stores neither, and answers 415, 400 or 503 for a wrong content type, a body that is no
-JSON and a failed append.
+The forwarder is the program `pepys-telemetry-forwarder` of `@pepys/source-telemetry`, with two
+commands. `run` starts its two parts:
 
-One forwarder runs on a spool folder. `run` holds a kernel lock on `forwarder.lock` in the folder
-from its start to its end, so a second `run` on the same folder exits 1, and the lock of a process
-that died holds nobody back. Every file that the forwarder makes or renames is on disk, with its
-name in its folder, before the forwarder acts on it: a spool line before the 200, a `failed` line
-before the position moves past it, and `positions.json` before the next line goes out.
+- The receiver takes each export from the agent's exporter on the machine's loopback address, and
+  appends it to a spool file.
+- The send loop reads the spool files, and posts each export to the
+  [sender route](./telemetry.md#the-sender-route) of ingest.
 
-- **Spool.** Each line holds the receipt time, the path, the `user-agent` and the parsed body, in
-  the line format of the script that the forwarder replaces, so its files load with no conversion.
-  `positions.json` holds the byte offset of the first unsent line of each file. A line that ingest
-  refuses for good, or that the forwarder cannot send, goes to the file of the same name under
-  `failed/` with the reason. A sent file is deleted a week after the send loop first found it sent,
-  and a file under `failed/` is never deleted.
-- **Send loop.** One request is in flight, and the newest file with an unsent line goes first, so a
-  load of history never delays today's exports. A 2xx moves the position. A 400, 413, 415 or 422
-  moves the line to `failed`. A 500 stops the loop, and after the fourth 500 for one line the line
-  goes to `failed`. A 401, 403 or 404 stops it with a slow retry. Any other answer, or none, waits
-  with a doubling back-off. No request goes out during a wait. The loop holds a last line with no
-  line break in the newest file, which the receiver may still be writing, and sends it from an older
-  file. It stops and sends nothing when `positions.json` does not parse or holds an offset past the
-  end of a file, so the owner decides between a repair and a resend.
-- **Identity.** The key and the machine's ID live in files that only the machine's user can read.
-  The token's `iat` lies a little in the past, so a machine clock that runs ahead of ingest's still
-  passes. The header `imp-identity` and the claim `imp_name` keep impz's names, because ingest
-  checks the token with the verifier that checks an imp's token.
-- **Health.** `GET /health` answers the send state, `off`, `sending`, `waiting` or `stopped`, with
-  the count of failed lines, and answers 503 only in `stopped`. With no ingest URL the forwarder
-  runs the receiver alone, and the state stays `off`.
+`install` sets a machine up, as [Identity and install](#identity-and-install) describes.
 
-`install` makes the key and the machine's ID when the identity folder holds none, writes a systemd
-user unit that runs the installed bin file by its absolute path, and prints the trust document. It
-enables and starts nothing, and never replaces a key or an ID, so a second run prints the same
-document. [The package README](../../../packages/source-telemetry/README.md#the-forwarder) lists the
-settings.
+## The receiver
 
-A resend of an export changes nothing in the store, because each fact ID comes from the record. It
-can add a second copy to the fact log after ingest's recent-body window has passed. Every process of
-the machine's user can post to the receiver and read the key, so the machine is one sender, and the
-forwarder holds no shared token.
-[The sender route](../../design/telemetry-forwarder/sender-route.md#who-can-write-through-the-route)
-gives what a caller can write through it.
+The receiver's answer to an exporter depends only on the append to the spool file, never on ingest.
+The receiver answers 200 to a log export once the export's line is on disk, so an outage of ingest
+loses no export. The exporter of Codex, one of the agents, never sends a failed export a second
+time. A receiver that waited on ingest before it answered would therefore lose Codex's exports in
+every outage.
+
+| The request                                    | The receiver answers       |
+| ---------------------------------------------- | -------------------------- |
+| a log export, stored                           | 200                        |
+| a log export, and the append fails             | 503                        |
+| a body that is not JSON                        | 400                        |
+| a content type other than `application/json`   | 415                        |
+| a metrics or traces export                     | 200, and it stores nothing |
+| `GET /health`, with the send loop in `stopped` | 503, with the send state   |
+| `GET /health`, in every other state            | 200, with the send state   |
+
+The receiver stores no metrics and no traces because ingest stores neither. The body of
+`GET /health` holds the [send state](#the-send-loop) and the count of lines in the `failed` files.
+With no ingest URL set, `run` starts the receiver alone, and the send state is `off`.
+
+## The spool folder
+
+The receiver and the send loop share only the files of the spool folder. The receiver therefore
+stores exports while the send loop waits on ingest, and the send loop sends the spool while no
+export arrives.
+
+| File                       | Holds                                                         | Written by    |
+| -------------------------- | ------------------------------------------------------------- | ------------- |
+| `<UTC day>-logs.jsonl`     | one export per line, for the exports received on that day     | the receiver  |
+| `positions.json`           | for each spool file, the byte offset of its first unsent line | the send loop |
+| `failed/<spool file name>` | each line of that spool file that the send loop gave up on    | the send loop |
+| `forwarder.lock`           | the lock of the `run` process                                 | `run`         |
+
+A line holds the time of receipt, the path `/v1/logs`, the exporter's `user-agent` and the export as
+parsed JSON. The send loop never deletes a file under `failed/`. It deletes a spool file of an
+earlier day a week after it first finds the file with no unsent line, and it keeps the time of that
+find in `positions.json`, so a restart of `run` leaves the week as it was. A line that the send loop
+gave up on counts as sent.
+
+At most one `run` process works on a spool folder, because two send loops would each overwrite the
+positions that the other wrote. `run` holds a kernel lock on `forwarder.lock` for as long as it
+runs, and a second `run` on the same folder logs an error and exits 1. The kernel frees the lock
+when the process ends, so a `run` that crashed never blocks the next one.
+
+The forwarder calls `fsync` on each file it writes, and on the folder that lists a file it made or
+renamed, before it acts on the write. A power failure therefore loses nothing that the forwarder has
+acted on:
+
+- The receiver answers 200 only after the sync of the export's line.
+- The send loop moves the position past a line that it gave up on only after the sync of the line's
+  copy under `failed/`.
+- The send loop sends the next line only after the sync of the new `positions.json`, which it writes
+  to a temporary file and renames.
+
+## The send loop
+
+The send loop has one request in flight. Before each request it picks the newest spool file that
+holds an unsent line, and sends the first unsent line of that file. An export of today therefore
+never waits behind the unsent lines of earlier days. The send loop has two waits, and the code sets
+the length of each. The retry wait doubles after each answer of the table's last row, up to a limit,
+and returns to its first length when the position moves. The slow wait is one fixed length, longer
+than that limit. The send loop acts on each answer of ingest by the first row that fits:
+
+| Ingest answers             | The send loop                                                     | Send state |
+| -------------------------- | ----------------------------------------------------------------- | ---------- |
+| 2xx                        | moves the position past the line, and sends the next line at once | `sending`  |
+| 400, 413, 415 or 422       | copies the line to `failed/`, moves the position, and goes on     | `sending`  |
+| 500, the first three times | keeps the line, and sends it again after the slow wait            | `stopped`  |
+| 500, the fourth time       | copies the line to `failed/`, moves the position, and goes on     | `sending`  |
+| 401, 403 or 404            | keeps the line, and sends it again after the slow wait            | `stopped`  |
+| any other answer, or none  | keeps the line, and sends it again after the retry wait           | `waiting`  |
+
+- Ingest answers 400, 413, 415 or 422 only for a body that it refuses on every resend, so the send
+  loop gives up on the line at once.
+- A 500 can come from a fault of the deployment or from one export, so the send loop tries the line
+  four times before it gives up on it. It counts the 500 answers of a line in memory.
+- A 401, 403 or 404 means that the deployment does not trust the machine or has no sender route. The
+  owner repairs that, so the send loop keeps every line.
+
+The send loop sends no request during a wait, whatever the receiver stores. In `stopped`,
+`GET /health` answers 503, because most answers of that state need the owner: a deployment that does
+not trust the machine, or a fault of the deployment.
+
+Three cases need no answer from ingest:
+
+- The send loop copies a line to `failed/`, with no request, when the line is not a JSON object that
+  holds the path `/v1/logs` and an export.
+- The send loop leaves the last line of the newest spool file unsent while the line has no line
+  break at its end, because the receiver can still be writing that line. In an older spool file, the
+  send loop sends a last line with no line break.
+- The send loop enters `stopped` and sends nothing when `positions.json` does not parse, or holds an
+  offset past the end of its spool file. It reads the file again after each slow wait. The owner
+  then repairs the file, or deletes it, and the send loop sends every spool file again from its
+  start.
+
+When the forwarder sends an export a second time, the tables that the queries read stay the same,
+because
+[each fact ID comes from the export's own record](./telemetry.md#one-record-becomes-one-fact), and
+the host applies a fact ID once. Ingest drops a body that it stored in the last hour.
+[A later resend](../ingest/ingest.md#why-a-fact-id-comes-from-the-signed-body) adds a second copy of
+the facts to the fact log, the record of every fact that ingest stored, and changes nothing else.
+
+## Identity and install
+
+`install` makes a P-256 key and a random machine ID in the identity folder,
+`PEPYS_FORWARDER_IDENTITY_DIR`, in files that only the machine's user can read. The machine ID is
+the subject of each token. It writes a systemd user unit that runs `run`, and prints the machine's
+trust document: the issuer name that the owner gave `install`, and the public half of the key. The
+owner adds that document to the [folder of trust documents](./telemetry.md#the-sender-route) of the
+deployment, which is how ingest comes to trust the machine. The deployment never holds the private
+half.
+
+`install` enables and starts nothing, and never replaces a key or a machine ID that the identity
+folder holds. A second `install` therefore prints the same trust document.
+[The package README](../../../packages/source-telemetry/README.md#the-forwarder) gives the commands
+and the settings.
+
+The send loop signs a new token for each request. The token's `iat` is earlier than the machine's
+clock by a fixed shift, because ingest refuses a token whose `iat` is ahead of its own clock, and
+the clock of a PC can run ahead. The header is named `imp-identity` and the claim `imp_name`, as
+impz names them, because ingest checks the token with the verifier that checks a token from impz.
+
+Every process of the machine's user can post to the receiver, and can read the key. Ingest can
+therefore tell one machine from another, and cannot tell the processes of one machine apart.
+[Who can write through the route](../../design/telemetry-forwarder/sender-route.md#who-can-write-through-the-route)
+lists what that lets a process write.
