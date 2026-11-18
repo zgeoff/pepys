@@ -87,6 +87,62 @@ proves the issuer, and the subject only as far as the issuer's key holder signs 
 `origin { issuer, subject }` in the payload of every fact of the export, and each consumer copies
 the pair into its `origin_issuer` and `origin_subject` columns. One origin stands for one machine.
 
+## The forwarder
+
+A machine outside impz sends its exports through the forwarder, a program in
+`@pepys/source-telemetry` that replaces a script which only appended each export to a file. The
+agent's exporter posts to the forwarder on the machine's loopback address. The forwarder appends
+each export to a spool file, one file per UTC day, and sends it from there to the
+[sender route](#the-sender-route) with an identity token that the machine signs with its own key.
+The deployment holds only the public half of the key, in a trust document that `install` prints.
+
+The receiver and the send loop share only the spool files. The receiver answers 200 to an export
+once its line is on disk, whatever ingest does, so an outage of ingest costs no export, even one
+from Codex, which never sends an export again.
+
+- **Receiver.** It answers `POST /v1/logs`, `/v1/metrics` and `/v1/traces`. It stores logs only, and
+  answers metrics and traces 200 with nothing stored, as ingest stores neither. It answers 415 to a
+  body that is not `application/json`, 400 to a body that is no JSON or a corrupt gzip body, and 503
+  when the append fails.
+- **Spool.** Each line of `<day>-logs.jsonl` holds the receipt time, the path, the `user-agent` and
+  the parsed body. `positions.json` holds the byte offset of the first unsent line of each file. A
+  line that ingest refuses for good goes to the file of the same name under `failed/`, with ingest's
+  reason. The send loop deletes a file 7 days after it sent the last line of an earlier day, and
+  never deletes a file under `failed/`.
+- **Send loop.** It has one request in flight, and picks the newest file that holds an unsent line,
+  so an export of today never waits behind history. It sends one line per request, and acts on the
+  answer: a 2xx moves the position; a 400, 413, 415 or 422 moves the line to `failed`; a 500 stops
+  the loop and moves the line to `failed` after the fourth 500, 15 minutes apart; a 401, 403 or 404
+  stops it and retries 15 minutes later; any other answer or no answer waits 1 second, doubling to
+  300 seconds, before the next request. A request that moves the position returns the loop to
+  `sending`. The loop reads a last line with no line break only in an older file, because the
+  receiver may still be writing the newest file.
+- **Identity.** The key and the machine's ID live in the identity folder, in files of mode 0600. The
+  ES256 token carries `iat` 25 seconds in the past and `exp` 55 seconds after that, so it passes
+  while the machine's clock is at most 30 seconds ahead of ingest's, or 35 seconds behind it. The
+  claim `imp_name` and the header `imp-identity` keep impz's names, because ingest checks the token
+  with the verifier that checks an imp's token.
+- **Health.** `GET /health` answers
+  `{"send": "off" | "sending" | "waiting" | "stopped", "failed": n}`, with `status` and `since`
+  while waiting or stopped. It answers 503 only in the `stopped` state.
+
+`install` makes the key and the machine's ID when the identity folder holds none, writes a systemd
+user unit that runs the installed bin file by its absolute path, and prints the trust document on
+stdout. It enables and starts nothing, and never replaces a key or an ID. Run twice, it prints the
+same document.
+
+A resend of an export changes nothing in the store, because each fact ID comes from the record. It
+can add a second copy to the fact log once ingest's hour of recent bodies has passed. Every process
+of the machine's user can post to the receiver and read the key, so the machine is one sender. The
+forwarder holds no shared token.
+[The sender route](../../design/telemetry-forwarder/sender-route.md#who-can-write-through-the-route)
+gives what a caller can write through it.
+
+The forwarder reads `PEPYS_FORWARDER_HOST`, `PEPYS_FORWARDER_PORT`, `PEPYS_FORWARDER_SPOOL_DIR`,
+`PEPYS_FORWARDER_IDENTITY_DIR`, `PEPYS_FORWARDER_INGEST_URL`, `PEPYS_FORWARDER_ISSUER` and
+`PEPYS_FORWARDER_AUDIENCE`. With no ingest URL, it runs the receiver alone and `send` stays `off`.
+[The package README](../../../packages/source-telemetry/README.md#the-forwarder) lists the defaults.
+
 ## One record becomes one fact
 
 `read` first finds the product that wrote the record, and the event. It tries Claude Code, then

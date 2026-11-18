@@ -47,6 +47,38 @@ bunx pepys build deployment.ts --out build
 - `sessionModelRequestsQuery`: the query `telemetry_session_model_requests`, which returns the model
   requests of one session that the named sender stored.
 
+## The forwarder
+
+The forwarder sends the telemetry of a machine outside impz to ingest. It takes each OTLP log export
+on a loopback port, appends it to a spool file, and sends it to ingest's sender route with an
+identity token that the machine signs with its own key.
+
+```sh
+bun add --global --exact @pepys/source-telemetry@<version>
+
+pepys-telemetry-forwarder install --issuer study-pc --audience forwarder.pepys.example \
+  --ingest-url https://ingest.tailnet.example
+pepys-telemetry-forwarder run
+```
+
+`install` makes the key and the machine's ID, writes a systemd user unit, and prints the trust
+document for the deployment on stdout. It enables and starts nothing. `run` starts the receiver, and
+the send loop when an ingest URL is set.
+
+| Variable                       | Holds                                                         | Default                                    |
+| ------------------------------ | ------------------------------------------------------------- | ------------------------------------------ |
+| `PEPYS_FORWARDER_HOST`         | the address the receiver listens on                           | `127.0.0.1`                                |
+| `PEPYS_FORWARDER_PORT`         | the port the receiver listens on                              | `4318`                                     |
+| `PEPYS_FORWARDER_SPOOL_DIR`    | the spool folder                                              | `~/.local/state/pepys-telemetry-forwarder` |
+| `PEPYS_FORWARDER_IDENTITY_DIR` | the folder of the private key and the machine's ID, mode 0700 | `~/.config/pepys-telemetry-forwarder`      |
+| `PEPYS_FORWARDER_INGEST_URL`   | the base URL of the tailnet name that reaches ingest          | none                                       |
+| `PEPYS_FORWARDER_ISSUER`       | the machine's issuer name                                     | none                                       |
+| `PEPYS_FORWARDER_AUDIENCE`     | the audience of each token                                    | none                                       |
+
+`GET /health` answers `{"send":"sending","failed":0}`. `send` is `off` with no ingest URL, then
+`sending`, `waiting` or `stopped`, and `failed` counts the lines that ingest refused. It answers 503
+only when `send` is `stopped`.
+
 ## Documentation
 
 The [pepys docs](../../docs/README.md) hold the design of the plug-ins.
