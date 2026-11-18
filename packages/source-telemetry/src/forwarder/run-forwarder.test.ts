@@ -197,3 +197,24 @@ test('it starts the send loop with an ingest URL and an identity, and sends a st
   expect(received.map((request) => request.url)).toStrictEqual(['/forwarded/v1/logs']);
   expect(received[0]?.token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/u);
 });
+
+test('it stores an export larger than the default body limit of Bun and answers 200', async () => {
+  const ctx = await setupTest();
+
+  const running = ctx.run({});
+
+  await ctx.waitForServer(ctx.url);
+
+  const exported = await fetch(`${ctx.url}/v1/logs`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: `{"resourceLogs":[]}${' '.repeat(129 * 1024 * 1024)}`,
+  });
+
+  ctx.stop.abort();
+
+  expect({ status: exported.status, exitCode: await running }).toStrictEqual({
+    status: 200,
+    exitCode: 0,
+  });
+});

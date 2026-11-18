@@ -399,12 +399,15 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
 
   await loop.step();
 
+  const afterFourth = loop.readState();
+
   ctx.fault.mode = 'none';
 
   await loop.step();
 
   expect({
     afterThree,
+    afterFourth,
     offset: await ctx.readPositionOffset(ctx.today),
     failed: await ctx.readFailedLines(ctx.today),
     stored: await ctx.readStoredIDs(),
@@ -419,6 +422,7 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
         failed: 0,
       },
     },
+    afterFourth: { send: 'sending', failed: 1 },
     offset: await ctx.readSize(ctx.today),
     failed: [
       {

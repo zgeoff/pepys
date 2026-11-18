@@ -75,6 +75,9 @@ export async function runForwarder(dependencies: RunDependencies): Promise<numbe
   const server = Bun.serve({
     hostname: listen.host,
     port: listen.port,
+
+    // the design gives the receiver no size limit: ingest refuses an export that is too large
+    maxRequestBodySize: Number.MAX_SAFE_INTEGER,
     fetch: createReceiver({
       append: createSpoolAppender({ folder: listen.spoolDir, now: () => Date.now() }),
       readState,
