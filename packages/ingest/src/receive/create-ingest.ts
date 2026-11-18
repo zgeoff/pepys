@@ -6,6 +6,7 @@ import { makePullRunner } from '../pull/make-pull-runner.ts';
 import type { PullRunner } from '../pull/make-pull-runner.ts';
 import { buildFailureAnswer } from './answers/build-failure-answer.ts';
 import { makeIgnoredRouteHandler, makeReceiveHandler } from './make-receive-handler.ts';
+import type { ReceiveDependencies } from './make-receive-handler.ts';
 import { createRecentBodies } from './recent-bodies/create-recent-bodies.ts';
 import { createResyncMarks } from './resync-marks/create-resync-marks.ts';
 import type { ResyncMarks } from './resync-marks/create-resync-marks.ts';
@@ -60,22 +61,28 @@ export function createIngest(options: IngestOptions): Ingest {
 
     const secret = options.secrets[path.check.secretEnv] ?? '';
 
-    handlers.set(
-      path.route,
-      makeReceiveHandler(source, path, {
-        secret,
-        senderProof: options.senderProof,
-        logger,
-        append,
-        turns,
-        recentBodies: createRecentBodies({
-          capacity: recentBodyCapacity,
-          maxAgeMs: recentBodyMaxAgeMs,
-          now: options.now,
-        }),
-        marks: source.resync === undefined ? null : resync.createSourceMarks(source.name),
+    const createRouteDependencies = (): ReceiveDependencies => ({
+      secret,
+      senderProof: options.senderProof,
+      logger,
+      append,
+      turns,
+      recentBodies: createRecentBodies({
+        capacity: recentBodyCapacity,
+        maxAgeMs: recentBodyMaxAgeMs,
+        now: options.now,
       }),
-    );
+      marks: source.resync === undefined ? null : resync.createSourceMarks(source.name),
+    });
+
+    handlers.set(path.route, makeReceiveHandler(source, path, createRouteDependencies()));
+
+    for (const senderRoute of path.senderRoutes ?? []) {
+      handlers.set(
+        senderRoute.route,
+        makeReceiveHandler(source, path, createRouteDependencies(), senderRoute),
+      );
+    }
 
     for (const route of path.ignoredRoutes ?? []) {
       handlers.set(

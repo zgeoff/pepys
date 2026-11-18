@@ -289,6 +289,129 @@ test.each<[string, () => Deployment, DeploymentFailure]>([
     { kind: 'duplicate', of: 'route', name: '/ledger', plugins: ['ledger', 'ledger'] },
   ],
   [
+    'a sender route whose route another route has',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'beacon',
+          sources: [
+            defineSource({
+              name: 'beacon',
+              families: [],
+              live: {
+                ...receiveFactBatch({
+                  route: '/beacon',
+                  check: { kind: 'token', header: 'authorization', secretEnv: 'BEACON_TOKEN' },
+                }),
+                ignoredRoutes: ['/beacon/pings'],
+                senderRoutes: [
+                  {
+                    route: '/beacon/pings',
+                    sender: {
+                      kind: 'imp-identity',
+                      audienceEnv: 'BEACON_OTHER_AUDIENCE',
+                      issuersEnv: 'BEACON_OTHER_ISSUERS',
+                    },
+                  },
+                ],
+              },
+            }),
+          ],
+        }),
+      ],
+    }),
+    { kind: 'duplicate', of: 'route', name: '/beacon/pings', plugins: ['beacon', 'beacon'] },
+  ],
+  [
+    'a sender route that names its path issuers variable',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'beacon',
+          sources: [
+            defineSource({
+              name: 'beacon',
+              families: [],
+              live: {
+                ...receiveFactBatch({
+                  route: '/beacon',
+                  check: { kind: 'token', header: 'authorization', secretEnv: 'BEACON_TOKEN' },
+                }),
+                sender: {
+                  kind: 'imp-identity',
+                  audienceEnv: 'BEACON_AUDIENCE',
+                  issuersEnv: 'BEACON_ISSUERS',
+                },
+                senderRoutes: [
+                  {
+                    route: '/beacon/own',
+                    sender: {
+                      kind: 'imp-identity',
+                      audienceEnv: 'BEACON_OTHER_AUDIENCE',
+                      issuersEnv: 'BEACON_ISSUERS',
+                    },
+                  },
+                ],
+              },
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'shared-sender-variable',
+      source: 'beacon',
+      route: '/beacon/own',
+      variable: 'BEACON_ISSUERS',
+    },
+  ],
+  [
+    'a sender route that names its path audience variable',
+    () => ({
+      name: 'harbour',
+      plugins: [
+        definePlugin({
+          name: 'beacon',
+          sources: [
+            defineSource({
+              name: 'beacon',
+              families: [],
+              live: {
+                ...receiveFactBatch({
+                  route: '/beacon',
+                  check: { kind: 'token', header: 'authorization', secretEnv: 'BEACON_TOKEN' },
+                }),
+                sender: {
+                  kind: 'imp-identity',
+                  audienceEnv: 'BEACON_AUDIENCE',
+                  issuersEnv: 'BEACON_ISSUERS',
+                },
+                senderRoutes: [
+                  {
+                    route: '/beacon/own',
+                    sender: {
+                      kind: 'imp-identity',
+                      audienceEnv: 'BEACON_AUDIENCE',
+                      issuersEnv: 'BEACON_OTHER_ISSUERS',
+                    },
+                  },
+                ],
+              },
+            }),
+          ],
+        }),
+      ],
+    }),
+    {
+      kind: 'shared-sender-variable',
+      source: 'beacon',
+      route: '/beacon/own',
+      variable: 'BEACON_AUDIENCE',
+    },
+  ],
+  [
     'one fact type in two families',
     () => {
       const opened = z.object({});
@@ -1191,6 +1314,41 @@ test('it accepts an alias table of a text alias key, an entity ID and an update 
                 updatedAt: 'label',
               },
             ],
+          }),
+        ],
+      }),
+    ],
+  };
+
+  expect(checkDeployment(deployment).ok).toBe(true);
+});
+
+test('it accepts a sender route on a path with no sender of its own', () => {
+  const deployment = {
+    name: 'harbour',
+    plugins: [
+      definePlugin({
+        name: 'beacon',
+        sources: [
+          defineSource({
+            name: 'beacon',
+            families: [],
+            live: {
+              ...receiveFactBatch({
+                route: '/beacon',
+                check: { kind: 'token', header: 'authorization', secretEnv: 'BEACON_TOKEN' },
+              }),
+              senderRoutes: [
+                {
+                  route: '/beacon/own',
+                  sender: {
+                    kind: 'imp-identity' as const,
+                    audienceEnv: 'BEACON_AUDIENCE',
+                    issuersEnv: 'BEACON_ISSUERS',
+                  },
+                },
+              ],
+            },
           }),
         ],
       }),

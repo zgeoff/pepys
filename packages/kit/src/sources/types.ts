@@ -58,6 +58,11 @@ export interface ReceivePath {
   // The path needs a proven sender: ingest answers 401 and stores nothing without one.
   readonly sender?: SenderRequirement | undefined;
 
+  // More routes into the same path, each with a sender proof as its only check. A sender route has
+  // the path's limits, encodings, `read`, answer and `reach`. Ingest skips the path's `check` on it,
+  // reads no secret for it, and proves the sender that the route names.
+  readonly senderRoutes?: readonly SenderRoute[] | undefined;
+
   // Pure: it writes nothing.
   readonly read: (delivery: Delivery, source: SourceContext) => Received;
 }
@@ -78,6 +83,11 @@ export interface SenderRequirement {
   readonly kind: 'imp-identity';
   readonly audienceEnv: string;
   readonly issuersEnv: string;
+}
+
+export interface SenderRoute {
+  readonly route: string;
+  readonly sender: SenderRequirement;
 }
 
 export interface Delivery {

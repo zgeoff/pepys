@@ -21,6 +21,16 @@ export function listReceiveRoutes(deployment: Deployment): ReceiveRoute[] {
         stores: route === path.route,
       });
     }
+
+    for (const senderRoute of path.senderRoutes ?? []) {
+      routes.push({
+        source: source.name,
+        route: senderRoute.route,
+        check: 'sender',
+        reach,
+        stores: true,
+      });
+    }
   }
 
   return routes;

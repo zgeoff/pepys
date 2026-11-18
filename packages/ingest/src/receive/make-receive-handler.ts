@@ -7,6 +7,7 @@ import type {
   Sender,
   SenderProof,
   SenderRequirement,
+  SenderRoute,
   SourceDefinition,
 } from '@pepys/kit';
 import { match } from 'ts-pattern';
@@ -39,17 +40,19 @@ type Handler = (request: Request) => Promise<Response>;
 const defaultBodyByteLimit = 1_048_576;
 const defaultFactLimit = 100;
 
-// One delivery on the route of a receive path. Each step answers and stops, or goes on.
+// One delivery on the route of a receive path, or on one of its sender routes, which skips the
+// path's delivery check and proves the route's own sender. Each step answers and stops, or goes on.
 export function makeReceiveHandler(
   source: SourceDefinition,
   path: ReceivePath,
   dependencies: ReceiveDependencies,
+  senderRoute?: SenderRoute,
 ): Handler {
   const byteLimit = path.bodyByteLimit ?? defaultBodyByteLimit;
   const factLimit = path.factLimit ?? defaultFactLimit;
 
   return async (request) => {
-    const checked = await readCheckedDelivery(request, path, dependencies);
+    const checked = await readCheckedDelivery(request, path, dependencies, senderRoute);
 
     if (checked.kind === 'answer') {
       return checked.answer;
@@ -148,12 +151,13 @@ type CheckedDelivery =
   | { kind: 'answer'; answer: Response }
   | { kind: 'checked'; sent: Uint8Array; sender: Sender | undefined };
 
-// 405, 413, then 401 unless the check passes on the bytes as sent, then 401 unless the sender is
-// proven on a path that needs one. No code of the source has seen the delivery yet.
+// 405, 413, then 401 unless the check passes on the bytes as sent (a sender route has none), then
+// 401 unless the sender is proven on a route that needs one. No code of the source has seen the delivery yet.
 async function readCheckedDelivery(
   request: Request,
   path: ReceivePath,
   dependencies: Pick<ReceiveDependencies, 'secret' | 'senderProof' | 'logger'>,
+  senderRoute?: SenderRoute,
 ): Promise<CheckedDelivery> {
   if (request.method !== 'POST') {
     return { kind: 'answer', answer: buildFailureAnswer(405, 'method not allowed') };
@@ -165,15 +169,20 @@ async function readCheckedDelivery(
     return { kind: 'answer', answer: buildFailureAnswer(413, 'body too large') };
   }
 
-  if (!isDeliveryAuthentic(path.check, dependencies.secret, request.headers, sent)) {
+  if (
+    senderRoute === undefined &&
+    !isDeliveryAuthentic(path.check, dependencies.secret, request.headers, sent)
+  ) {
     return { kind: 'answer', answer: buildFailureAnswer(401, 'not authorised') };
   }
 
-  if (path.sender === undefined) {
+  const requirement = senderRoute?.sender ?? path.sender;
+
+  if (requirement === undefined) {
     return { kind: 'checked', sent, sender: undefined };
   }
 
-  const sender = await readProvenSender(path.sender, request.headers, dependencies);
+  const sender = await readProvenSender(requirement, request.headers, dependencies);
 
   if (sender === null) {
     return { kind: 'answer', answer: buildFailureAnswer(401, 'not authorised') };

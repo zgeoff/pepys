@@ -125,12 +125,17 @@ export type DeploymentFailure =
   | { kind: 'nullable-key-column'; consumer: string; table: string; column: string }
 
   // a module's row read passes a one-column key as text, which cannot tell the JSON 3 from "3"
-  | { kind: 'json-key-read'; consumer: string; table: string; column: string };
+  | { kind: 'json-key-read'; consumer: string; table: string; column: string }
+
+  // a sender route names a variable that the `sender` of its own path names
+  | { kind: 'shared-sender-variable'; source: string; route: string; variable: string };
 
 export interface ReceiveRoute {
   source: string;
   route: string;
-  check: DeliveryCheck['kind'];
+
+  // the text 'sender' for a sender route
+  check: DeliveryCheck['kind'] | 'sender';
   reach: 'public' | 'private';
 
   // false for a route that answers and stores nothing

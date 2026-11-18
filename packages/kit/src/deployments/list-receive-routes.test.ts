@@ -59,3 +59,42 @@ test('it lists each receive route with its check and reach, the ignored routes i
     { source: 'meter', route: '/v1/traces', check: 'token', reach: 'private', stores: false },
   ]);
 });
+
+test('it lists each sender route with the check sender, and the reach of its path', () => {
+  const beaconSource = defineSource({
+    name: 'beacon',
+    families: [],
+    live: {
+      ...receiveFactBatch({
+        route: '/v1/logs',
+        check: { kind: 'token', header: 'authorization', secretEnv: 'BEACON_TOKEN' },
+      }),
+      senderRoutes: [
+        {
+          route: '/forwarded/v1/logs',
+          sender: {
+            kind: 'imp-identity',
+            audienceEnv: 'BEACON_FORWARDER_AUDIENCE',
+            issuersEnv: 'BEACON_FORWARDER_ISSUERS',
+          },
+        },
+      ],
+    },
+  });
+
+  const deployment = {
+    name: 'harbour',
+    plugins: [definePlugin({ name: 'beacon', sources: [beaconSource] })],
+  };
+
+  expect(listReceiveRoutes(deployment)).toStrictEqual([
+    { source: 'beacon', route: '/v1/logs', check: 'token', reach: 'private', stores: true },
+    {
+      source: 'beacon',
+      route: '/forwarded/v1/logs',
+      check: 'sender',
+      reach: 'private',
+      stores: true,
+    },
+  ]);
+});
