@@ -85,4 +85,8 @@ export const ignoredPaths = [
   'packages/testing/src/{consumer-entries,fact-index,fact-log,fact-mode,links,memory-store-reader,operations,orders,rows,scope-replace,store-database,test-store,test-utils,utils}/**',
   'packages/mock-network/**',
   'packages/enrichment/**',
+
+  // the telemetry forwarder, which runs on a machine outside the app and posts to ingest
+  'packages/source-telemetry/src/forwarder/**',
+  'packages/source-telemetry/src/forwarder-bin.ts',
 ] as const;
