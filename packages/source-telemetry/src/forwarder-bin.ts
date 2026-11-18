@@ -21,8 +21,13 @@ async function runCommand(args: readonly string[]): Promise<number> {
   if (command === 'run' && rest.length === 0) {
     const stop = new AbortController();
 
-    process.once('SIGINT', () => stop.abort());
-    process.once('SIGTERM', () => stop.abort());
+    process.once('SIGINT', () => {
+      stop.abort();
+    });
+
+    process.once('SIGTERM', () => {
+      stop.abort();
+    });
 
     try {
       return await runForwarder({
