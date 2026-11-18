@@ -55,7 +55,11 @@ async function setupTest() {
   const clock = { nowMs: startMs };
   const logLines: string[] = [];
   const logger = createLogger({ write: (line) => logLines.push(line) });
-  const checked = checkDeployment({ name: 'harbour', plugins: [telemetryPlugin] });
+
+  const checked = checkDeployment({
+    name: 'harbour',
+    plugins: [telemetryPlugin],
+  });
 
   invariant(checked.ok, 'the telemetry deployment passes its check');
 
@@ -101,7 +105,13 @@ async function setupTest() {
     logger,
   });
 
-  const requests: { body: string; token: string | null; url: string; redirect: string }[] = [];
+  const requests: {
+    body: string;
+    token: string | null;
+    url: string;
+    redirect: string;
+  }[] = [];
+
   const waits: number[] = [];
   const unusedStores = { count: 0 };
 
@@ -117,7 +127,12 @@ async function setupTest() {
   };
 
   const signWith = (identity: Identity) => () =>
-    signIdentityToken({ identity, audience, nowMs: clock.nowMs, jti: randomUUID() });
+    signIdentityToken({
+      identity,
+      audience,
+      nowMs: clock.nowMs,
+      jti: randomUUID(),
+    });
 
   const createLoop = (signToken: () => Promise<string>) =>
     createSendLoop({
@@ -352,7 +367,12 @@ test('it stops on a 401 from a key that is not in the trust document, and GET /h
     offset: 0,
     health: {
       status: 503,
-      body: { send: 'stopped', status: 401, since: '2026-03-02T10:00:00.000Z', failed: 0 },
+      body: {
+        send: 'stopped',
+        status: 401,
+        since: '2026-03-02T10:00:00.000Z',
+        failed: 0,
+      },
     },
   });
 });
@@ -395,11 +415,17 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
   await loop.step();
   await loop.step();
 
-  const afterThree = { offset: await ctx.readPositionOffset(ctx.today), state: loop.readState() };
+  const afterThree = {
+    offset: await ctx.readPositionOffset(ctx.today),
+    state: loop.readState(),
+  };
 
   await loop.step();
 
-  const afterFourth = loop.readState();
+  const afterFourth = {
+    state: loop.readState(),
+    health: await ctx.readHealth(loop),
+  };
 
   ctx.fault.mode = 'none';
 
@@ -422,7 +448,10 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
         failed: 0,
       },
     },
-    afterFourth: { send: 'sending', failed: 1 },
+    afterFourth: {
+      state: { send: 'sending', failed: 1 },
+      health: { status: 200, body: { send: 'sending', failed: 1 } },
+    },
     offset: await ctx.readSize(ctx.today),
     failed: [
       {
@@ -436,6 +465,29 @@ test('it keeps a line through three 500 answers, then moves it to failed on the 
     ],
     stored: ['event:telemetry:codex.turn_cost:turn-2'],
     state: { send: 'sending', failed: 1 },
+  });
+});
+
+test('it answers GET /health 200 right after the last pending line moves to failed on the fourth 500', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  ctx.fault.mode = 'refuse';
+
+  await loop.step();
+  await loop.step();
+  await loop.step();
+  await loop.step();
+
+  expect({
+    offset: await ctx.readPositionOffset(ctx.today),
+    health: await ctx.readHealth(loop),
+  }).toStrictEqual({
+    offset: await ctx.readSize(ctx.today),
+    health: { status: 200, body: { send: 'sending', failed: 1 } },
   });
 });
 
@@ -587,10 +639,19 @@ test('it sends nothing and stops when positions.json does not parse', async () =
 
   const wait = await loop.step();
 
-  expect({ wait, requests: ctx.requests.length, state: loop.readState() }).toStrictEqual({
+  expect({
+    wait,
+    requests: ctx.requests.length,
+    state: loop.readState(),
+  }).toStrictEqual({
     wait: 900_000,
     requests: 0,
-    state: { send: 'stopped', status: null, since: '2026-03-02T10:00:00.000Z', failed: 0 },
+    state: {
+      send: 'stopped',
+      status: null,
+      since: '2026-03-02T10:00:00.000Z',
+      failed: 0,
+    },
   });
 });
 
@@ -605,10 +666,19 @@ test('it sends nothing and stops when a position is past the end of its file', a
 
   const wait = await loop.step();
 
-  expect({ wait, requests: ctx.requests.length, state: loop.readState() }).toStrictEqual({
+  expect({
+    wait,
+    requests: ctx.requests.length,
+    state: loop.readState(),
+  }).toStrictEqual({
     wait: 900_000,
     requests: 0,
-    state: { send: 'stopped', status: null, since: '2026-03-02T10:00:00.000Z', failed: 0 },
+    state: {
+      send: 'stopped',
+      status: null,
+      since: '2026-03-02T10:00:00.000Z',
+      failed: 0,
+    },
   });
 });
 
@@ -661,7 +731,10 @@ test('it holds a last line with no line break in the newest file', async () => {
 
   const wait = await loop.step();
 
-  expect({ wait, requests: ctx.requests.length }).toStrictEqual({ wait: null, requests: 0 });
+  expect({ wait, requests: ctx.requests.length }).toStrictEqual({
+    wait: null,
+    requests: 0,
+  });
 });
 
 test('it sends a last line with no line break in an older file', async () => {
@@ -694,7 +767,10 @@ test('it ignores a file in the spool folder that is not a spool file', async () 
 
   const wait = await loop.step();
 
-  expect({ wait, requests: ctx.requests.length }).toStrictEqual({ wait: null, requests: 0 });
+  expect({ wait, requests: ctx.requests.length }).toStrictEqual({
+    wait: null,
+    requests: 0,
+  });
 });
 
 test('it requests /forwarded/v1/logs with an identity token that carries the claims of the design', async () => {
@@ -831,11 +907,17 @@ test('it sends nothing when an older file holds a position past its end, whateve
   await ctx.writeExport(ctx.clock.nowMs - 24 * ctx.hourMs, 'old-1');
   await ctx.writeExport(ctx.clock.nowMs, 'new-1');
 
-  await writePositions(ctx.spoolDir, { '2026-03-01-logs.jsonl': { offset: 1_000_000 } });
+  await writePositions(ctx.spoolDir, {
+    '2026-03-01-logs.jsonl': { offset: 1_000_000 },
+  });
 
   const wait = await loop.step();
 
-  expect({ wait, requests: ctx.requests.length, state: loop.readState().send }).toStrictEqual({
+  expect({
+    wait,
+    requests: ctx.requests.length,
+    state: loop.readState().send,
+  }).toStrictEqual({
     wait: 900_000,
     requests: 0,
     state: 'stopped',
