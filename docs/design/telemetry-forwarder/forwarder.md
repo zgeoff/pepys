@@ -391,7 +391,6 @@ Each line below is one test:
 - Whether `install` refuses to write a unit for a bin file in a cache that `bunx` can delete.
 - How the tests make ingest answer 503 and 500: a `FactLog` of their own, or ingest's stub fact log
   behind a new `./test-utils/*` export of `@pepys/ingest`.
-- The wording of each log line and each error.
 
 ## Out of scope
 
