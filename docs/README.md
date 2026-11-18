@@ -34,6 +34,8 @@
   and resync pulls, deploys and the delivery query.
 - [The telemetry plug-in](./architecture/plug-ins/telemetry.md) — the OTLP paths, the sender proof,
   the consumers and the session query.
+- [The telemetry forwarder](./architecture/plug-ins/telemetry-forwarder.md) — the receiver, spool
+  files, send loop, identity token and `install` command of a machine outside impz.
 
 ## Runbooks
 
