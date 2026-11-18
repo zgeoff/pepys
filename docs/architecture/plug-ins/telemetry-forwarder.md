@@ -13,6 +13,12 @@ included, which never sends an export again. It answers metrics and traces 200 a
 as ingest stores neither, and answers 415, 400 or 503 for a wrong content type, a body that is no
 JSON and a failed append.
 
+One forwarder runs on a spool folder. `run` holds a kernel lock on `forwarder.lock` in the folder
+from its start to its end, so a second `run` on the same folder exits 1, and the lock of a process
+that died holds nobody back. Every file that the forwarder makes or renames is on disk, with its
+name in its folder, before the forwarder acts on it: a spool line before the 200, a `failed` line
+before the position moves past it, and `positions.json` before the next line goes out.
+
 - **Spool.** Each line holds the receipt time, the path, the `user-agent` and the parsed body, in
   the line format of the script that the forwarder replaces, so its files load with no conversion.
   `positions.json` holds the byte offset of the first unsent line of each file. A line that ingest

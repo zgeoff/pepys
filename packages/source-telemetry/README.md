@@ -63,7 +63,8 @@ pepys-telemetry-forwarder run
 
 `install` makes the key and the machine's ID, writes a systemd user unit, and prints the trust
 document for the deployment on stdout. It enables and starts nothing. `run` starts the receiver, and
-the send loop when an ingest URL is set.
+the send loop when an ingest URL is set. Run one forwarder per spool folder: a second `run` on the
+same folder exits 1.
 
 | Variable                       | Holds                                                         | Default                                    |
 | ------------------------------ | ------------------------------------------------------------- | ------------------------------------------ |
