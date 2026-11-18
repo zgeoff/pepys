@@ -248,6 +248,12 @@ export const githubEventRules: Readonly<Record<string, GithubEventRule>> = {
         return 'invalid';
       }
 
+      // GitHub sends the whole run with each action, and the last one holds the result and every
+      // time of the run, so the earlier actions add only size.
+      if (parsed.data.action !== 'completed') {
+        return 'ignored';
+      }
+
       return pickFields(workflowRunFamily, `github.workflow_run.${parsed.data.action}`, {
         entity: `github:workflow_run:${parsed.data.workflow_run.id}`,
         actor: parsed.data.sender,

@@ -223,6 +223,16 @@ test.each([
     event: 'release',
     body: { action: 'archived', release: { id: 5, created_at: '2026-10-01T09:00:00Z' } },
   },
+  {
+    row: 'a workflow run that is in progress',
+    event: 'workflow_run',
+    body: { action: 'in_progress', workflow_run: { id: 61, updated_at: '2026-10-01T09:00:00Z' } },
+  },
+  {
+    row: 'a workflow run that was requested',
+    event: 'workflow_run',
+    body: { action: 'requested', workflow_run: { id: 61, updated_at: '2026-10-01T09:00:00Z' } },
+  },
   { row: 'an event with no rule', event: 'ping', body: { zen: 'Keep it calm.', hook_id: 31 } },
 ])('it ignores $row', (row) => {
   const ctx = setupTest();
