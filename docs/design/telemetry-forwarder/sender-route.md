@@ -3,21 +3,22 @@
 - **Status:** agreed
 
 Ingest gains one more URL for telemetry exports, `/forwarded/v1/logs`, for
-[the forwarder](./forwarder.md) on a machine that is no imp. A request there needs no shared token:
-ingest checks only the identity token that the machine signed. The route leads into the telemetry
+[the forwarder](./forwarder.md) on a machine outside impz. A request to it needs no shared token:
+ingest checks only the identity token that the machine signed. The URL leads into the telemetry
 plug-in's existing receive path, and has trust documents and an audience of its own.
-[The design's README](./README.md) says what an imp and a trust document are, why the route exists,
-and the stages.
+[The design's README](./README.md) defines impz, impd, the trust document, the deployment and the
+tailnet, and gives the stages.
 
-These docs own the terms that this one uses:
+This doc uses the words of [Ingest](../../architecture/ingest/ingest.md):
 
-- [Ingest](../../architecture/ingest/ingest.md) covers a receive path, its delivery check,
-  [the sender proof](../../architecture/ingest/ingest.md#the-sender-proof) with its audience and its
-  folder of trust documents, and the recent bodies that ingest keeps.
-- [The telemetry plug-in](../../architecture/plug-ins/telemetry.md) covers the path `/v1/logs` and
-  its two checks.
-- [The host](../../architecture/consumers/host.md) covers the process that applies each fact ID
-  once.
+- A **receive path** is what a source declares for the deliveries that senders post to it. A
+  **route** is a URL path that ingest serves for a receive path, such as `/v1/logs`.
+- The **delivery check** of a receive path is a signature of the body, or a token in a header.
+- The [**sender proof**](../../architecture/ingest/ingest.md#the-sender-proof) checks a sender's
+  identity token against an audience and a folder of trust documents, which two variables of ingest
+  name.
+- The **recent bodies** of a route are the bodies it stored in the last hour, which ingest keeps so
+  that a resend appends nothing.
 
 ## Shape
 
@@ -35,28 +36,35 @@ flowchart LR
 
 ### Sender routes in the kit
 
+A receive path can declare sender routes: more routes into the same path, each with a sender proof
+as its only check.
+
 ```ts
 // kit, the sources
 interface ReceivePath {
   // …existing fields
 
-  // More routes into this path. A sender route has the path's limits, encodings, `read`, answer
-  // and `reach`. It skips the path's `check`, reads no secret, and proves its own sender.
+  // A sender route has the path's limits, encodings, `read`, answer and `reach`. Ingest skips the
+  // path's `check` on it, reads no secret for it, and proves the sender that the route names.
   readonly senderRoutes?: readonly SenderRoute[] | undefined;
 }
 
 interface SenderRoute {
   readonly route: string;
-
-  // Its two variables differ from those of the path's own `sender`.
   readonly sender: SenderRequirement;
 }
 
 // kit, the deployments. One entry of `listReceiveRoutes`.
 interface ReceiveRoute {
   // …existing fields
-  check: DeliveryCheck['kind'] | 'sender'; // 'sender' for a sender route, whose `stores` is true
+  check: DeliveryCheck['kind'] | 'sender'; // the text 'sender' for a sender route
 }
+
+// kit, the deployments. One more failure of `checkDeployment`.
+type DeploymentFailure =
+  // …existing kinds
+  // a sender route names a variable that the `sender` of its own path names
+  { kind: 'shared-sender-variable'; source: string; route: string; variable: string };
 ```
 
 The telemetry source declares one sender route:
@@ -80,25 +88,28 @@ live: receiveOtlpLogs({
 
 These files change:
 
-| Package            | File                                                       | Change                                                                               |
-| ------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `kit`              | `src/sources/types.ts`, `src/index.ts`                     | `senderRoutes` and `SenderRoute`                                                     |
-| `kit`              | `src/deployments/check-deployment.ts`                      | the two refusals under [Constraints](#constraints)                                   |
-| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`   | one `ReceiveRoute` per sender route                                                  |
-| `ingest`           | `src/receive/create-ingest.ts`                             | one handler per sender route, which keeps recent bodies of its own                   |
-| `ingest`           | `src/receive/make-receive-handler.ts`                      | the handler of a sender route skips the delivery check and proves the route's sender |
-| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts` | reads the two variables of each sender route too                                     |
-| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts` | passes `senderRoutes` through, and declares the route                                |
+| Package            | File                                                       | Change                                                                                  |
+| ------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `kit`              | `src/sources/types.ts`, `src/index.ts`                     | `senderRoutes` and `SenderRoute`                                                        |
+| `kit`              | `src/deployments/check-deployment.ts`, its `types.ts`      | the two refusals under [Constraints](#constraints)                                      |
+| `kit`              | `src/deployments/list-receive-routes.ts`, its `types.ts`   | one `ReceiveRoute` per sender route, with `stores` true                                 |
+| `ingest`           | `src/receive/create-ingest.ts`                             | one handler per sender route, with recent bodies of its own                             |
+| `ingest`           | `src/receive/make-receive-handler.ts`                      | the handler of a sender route skips the delivery check, and proves the route's `sender` |
+| `ingest`           | `src/sender-proof/imp-identity/read-imp-identity-trust.ts` | reads the two variables of each sender route too                                        |
+| `source-telemetry` | `src/otlp/receive-otlp-logs.ts`, `src/telemetry-plugin.ts` | passes `senderRoutes` through, and declares the route                                   |
 
-The two architecture docs, Ingest and The telemetry plug-in, change with them. `ReceiveRoute.check`
-gains a value, which breaks a caller that matches on every value, so the release that holds the
-change says so.
+- The builder of stage 2 adds the route to [Ingest](../../architecture/ingest/ingest.md) and
+  [The telemetry plug-in](../../architecture/plug-ins/telemetry.md), and to the READMEs of the three
+  packages where they describe a receive path.
+- `kitVersion` stays 1: a plug-in built with the earlier kit declares no sender route, and loads as
+  before.
+- A caller that matches on every value of `ReceiveRoute.check` fails its type check until it handles
+  `'sender'`.
 
 ### The trust document
 
-A trust document is one `.json` file in the folder at `PEPYS_TELEMETRY_FORWARDER_ISSUERS`, for one
-machine that runs a forwarder. The forwarder's `install` command prints it on that machine, and the
-owner adds it to the deployment:
+`install`, a command of the forwarder, prints the machine's trust document on the machine. The owner
+adds it, as one `.json` file, to the folder that `PEPYS_TELEMETRY_FORWARDER_ISSUERS` names:
 
 ```json
 {
@@ -123,104 +134,117 @@ owner adds it to the deployment:
 
 ### What the deployment needs
 
-In [stage 3](./README.md#stages), the owner adds these to the deployment, in the deployment's own
-repo:
+In [stage 3](./README.md#stages), the owner changes the deployment's configuration in these ways:
 
-- **The two variables of ingest.** `PEPYS_TELEMETRY_FORWARDER_ISSUERS` names a folder that holds the
-  forwarders' trust documents and nothing else. `PEPYS_TELEMETRY_FORWARDER_AUDIENCE` holds an
+- **Set the two variables of ingest.** `PEPYS_TELEMETRY_FORWARDER_ISSUERS` names a folder that holds
+  the forwarders' trust documents and no other file. `PEPYS_TELEMETRY_FORWARDER_AUDIENCE` holds an
   audience that differs from the audience of the imps.
-- **A restart of ingest for each change to the folder.** Ingest reads the folder at start only.
-  Ingest exits at start when a document fails the loader's check, or when two documents in the
-  folder name one issuer.
-- **A name on the tailnet that reaches the sender route alone.** The name resolves only on the
-  tailnet and has a TLS certificate. A proxy serves it, and passes a request for the URL path
+- **Restart ingest after each change to the folder.** Ingest reads the folder at start only. It
+  exits at start when a document fails the loader's check, or when two documents in the folder name
+  one issuer.
+- **Add a name on the tailnet for the sender route.** The name resolves only on the tailnet and has
+  a TLS certificate. A proxy serves the name, and passes only a request for the URL path
   `/forwarded/v1/logs` to ingest's port. The proxy answers 404 itself to every other URL path of the
-  name.
-- **A rule in the network policy** that admits the proxy to ingest's port.
-- **The sender route in each list of ingest's routes that the deployment keeps**, when it keeps one.
-- **Room for the history on the volume of the fact log**, before [stage 4](./README.md#stages) loads
-  it.
+  name, and takes a body of 4,194,304 bytes, the limit of the telemetry path.
+- **Admit the proxy to ingest's port** in the network policy.
+- **Add the sender route to the list of ingest's routes** that the deployment's build compares with
+  `listReceiveRoutes`, when the deployment keeps such a list.
+- **Give the volume of the fact log room for the history**, the exports that the sink stored, before
+  stage 4 sends them.
 
 ## Who can write through the route
 
 The route has no shared secret. A caller can write through it when the caller holds the private key
-of an issuer in the forwarders' folder, and can reach the route. The key file is readable by every
-process that runs as the machine's user, a coding agent included.
+of an issuer in the forwarders' folder, and can reach the route.
 
-Such a caller can do these things:
+### Who holds a key, and who reaches the route
 
-- It writes telemetry log records, and nothing else, because the route runs the telemetry path's
-  `read`.
-- It writes only under its own issuer, because each fact takes the issuer of its origin from the
+- Every process that runs as the machine's user can read the key file, a coding agent included.
+- From outside the cluster, only a device on the tailnet reaches the route, through the tailnet
+  name. The deployment's public tunnel never forwards the route, because the telemetry path's
+  `reach` is `private`.
+- Inside the cluster, each pod that the network policy admits to ingest's port, and each process on
+  the node, reaches the route without the proxy. None of them holds a forwarder's key.
+
+### What the design accepts
+
+A caller with a key and a way to the route can do these things, and the design accepts each one:
+
+- It writes telemetry log records, and no other kind of fact, because the route runs the telemetry
+  path's `read`.
+- It writes only under its own issuer, because each fact takes the issuer of its `origin` from the
   verified token.
-- It picks the subject of that origin, because the key signs any `sub`. One issuer therefore stands
-  for one machine: every subject under an issuer is that machine's word.
-- It picks the session ID and the time of each record, as
-  [the known limits](../../architecture/plug-ins/telemetry.md#known-limits) say of every sender.
-- It hides a true record when it sends a record with the same fact ID first, because the host
-  applies the first copy of a fact ID. It needs the record's own key for that, such as the request
-  ID of a model request. Every sender on the telemetry path can do the same.
+- It writes any subject, because the key signs any `sub`. The `origin` of a fact therefore proves
+  the issuer and never the subject, and one issuer stands for one machine.
+- It writes any session ID and any time, as
+  [the known limits](../../architecture/plug-ins/telemetry.md#known-limits) say of every sender on
+  the telemetry path.
+- It hides a true record when it first sends a record with the same fact ID, because
+  [the host](../../architecture/consumers/host.md#a-fact-mode-batch) applies only the first copy of
+  a fact ID. To do that it must know the value the fact ID is built from, such as the request ID of
+  a model request. Every sender on the telemetry path can do the same.
 - It sends as many requests as it likes, each within the path's limits of 4,194,304 bytes and 1,000
   records.
+- It sends one token with any body, any number of times, until 60 seconds after the token's `iat`:
+  55 seconds of life and 5 of leeway. The token never signs the body, and the verifier never checks
+  `jti`. TLS on the tailnet name keeps a token from a listener.
 
-The token has these limits:
+To make ingest refuse a key, the owner takes the key's trust document out of the folder and restarts
+ingest. The facts that the key wrote stay in the log, under its origin.
 
-- The token never signs the body, and the verifier never checks `jti`. One token therefore passes
-  with any body, any number of times, until 60 seconds after its `iat`. TLS on the tailnet name
-  keeps the token from a listener.
-- A forwarder's token never passes `/v1/logs`. That path needs the shared token too, and an issuer
+### What keeps the two groups of senders apart
+
+- A forwarder's token never passes `/v1/logs`. That route needs the shared token too, and an issuer
   in the imps' folder.
-- An imp's token never passes the sender route. Its issuer, the impd that runs the imp, has no
-  document in the forwarders' folder, and its audience differs.
+- An imp's token never passes the sender route. The token's issuer is an impd, which has no document
+  in the forwarders' folder, and the token's audience is the imps' audience.
 
-To end a key, the owner takes its trust document out of the folder and restarts ingest. The facts
-that the key wrote stay in the log, under its origin.
+### Why the route answers only on the tailnet
 
-The sender route stays off the public tunnel, and is reached only by the tailnet name, for these
-reasons:
-
-- Ingest reads a body of up to 4,194,304 bytes before it checks the sender, so on a public route any
-  caller makes ingest read that much per request.
-- The key is the route's only check. While the route answers only on the tailnet, a person who
+- Ingest reads a body of up to 4,194,304 bytes before it checks the sender. On a public name, any
+  caller could make ingest read that much per request.
+- The key is the only thing ingest checks. While the route answers only on the tailnet, a person who
   copies the key still needs a device on the tailnet to use it.
-- The network policy admits the proxy to ingest's whole port. Only the proxy's own rule for the one
-  URL path keeps ingest's other routes off the tailnet name.
 
-Each pod that the network policy admits to ingest's port, and each process on the node, reaches the
-sender route too, without the proxy. None of them holds a forwarder's key.
+The proxy's rule for the one URL path matters for a second reason: the network policy admits the
+proxy to ingest's whole port, so that rule alone keeps ingest's other routes off the tailnet name.
 
 ## Constraints
 
-- The path `/v1/logs` keeps both of its checks, whatever the two forwarder variables hold.
+- The route `/v1/logs` keeps both of its checks, whatever the two forwarder variables hold.
 - While either forwarder variable is unset or empty, or the folder holds no document, the sender
-  route answers 401 to every request, and ingest starts as before.
-- The handler of a sender route answers 405 and 413 as the path does, then 401 without a proven
-  sender, and then runs the path's steps from the recent-body step on.
-- `read` gets the sender that the route proved, so each fact of the route carries the origin
+  route answers 401 to every request. Ingest still starts, and every other route works.
+- The handler of a sender route answers 405 and 413 as the path's handler does, then 401 without a
+  proven sender. It then runs every later step of the path's handler, from the recent-body step on,
+  resync marks included.
+- `read` gets the sender that the route proved, so each fact of the route carries the `origin`
   `{ issuer, subject }` of the forwarder's token.
-- The telemetry path's `reach` is `private`, so the sender route is `private`: the deployment's
-  public tunnel never forwards it.
-- A route of the path's `ignoredRoutes` is no sender route. It keeps the path's own check and
-  sender.
-- `checkDeployment` refuses a sender route whose name another route of the deployment has.
-- `checkDeployment` refuses a sender route whose `issuersEnv` or `audienceEnv` equals that of the
-  path's own `sender`, so the two groups of senders never share a folder or an audience variable.
+- A sender route takes the `reach` of its path. The telemetry path's `reach` is `private`, so the
+  sender route is `private`.
+- Ingest serves each of the path's `ignoredRoutes`, here `/v1/metrics` and `/v1/traces`, with the
+  path's own check and sender, as before. A sender route has no ignored routes.
+- `checkDeployment` refuses a sender route whose `route` equals another route of the deployment,
+  with the existing failure for a duplicate route.
+- `checkDeployment` refuses a sender route whose `issuersEnv` or `audienceEnv` equals the
+  `issuersEnv` or the `audienceEnv` of its path's own `sender`, with `shared-sender-variable`. A
+  path with no `sender` of its own can declare a sender route.
 
-The tests of the sender route sit beside ingest's receive tests and the telemetry plug-in's tests.
-Each line is one test:
+The tests of the sender route sit beside ingest's receive tests, the kit's deployment tests and the
+telemetry plug-in's tests. Each line is one test:
 
 - A request with a good identity token and no `authorization` header stores its records, with the
-  token's issuer and subject as their origin.
+  token's issuer and subject as their `origin`.
 - A request with no `imp-identity` header gets 401.
 - A forwarder's token with the shared token gets 401 on `/v1/logs`.
 - A token of an issuer in the imps' folder gets 401 on `/forwarded/v1/logs`.
 - With either forwarder variable unset, the sender route answers 401, and `/v1/logs` stores an imp's
   export.
-- `checkDeployment` refuses each of the two cases above.
+- `checkDeployment` refuses a sender route whose `route` another route has.
+- `checkDeployment` refuses a sender route that names its path's `issuersEnv`.
 
 ## Decisions
 
-- **The forwarders have a route, a folder and an audience of their own.** The imps' path keeps both
+- **The forwarders have a route, a folder and an audience of their own.** The imps' route keeps both
   of its checks, and a key of one group never passes the other group's route.
 - **A sender route is part of the receive path, never a second source.** A fact ID holds the name of
   its source, so one record gets one fact ID on either route.
@@ -234,7 +258,7 @@ Each line is one test:
 
 ## Open questions
 
-- **How does the proxy limit the tailnet name to one URL path?** A spike in the deployment's repo
-  settles it: the proxy's rule must match `/forwarded/v1/logs` exactly, and every other URL path of
-  the name must get the proxy's 404. Until then, the owner adds no tailnet name, and stage 3 does
-  not finish.
+- **How does the proxy limit the tailnet name to one URL path?** A spike in the owner's
+  infrastructure repo settles it, and no one has run it. The spike passes when the proxy sends
+  `/forwarded/v1/logs` to ingest and answers 404 itself to every other URL path of the name. Until
+  then, the owner adds no tailnet name, and stage 3 does not finish.
