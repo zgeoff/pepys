@@ -19,12 +19,17 @@ interface GithubDeliveryParameters {
 
   // absent: the pull request is open
   mergedAt?: string;
+
+  // absent: the author is a person and the pull request has no description. Given: the author is a
+  // bot, as a dependency update bot is, and the pull request has this description.
+  botBody?: string;
 }
 
 // The body of one `pull_request` webhook delivery of an invented pull request, before it is signed.
 export function buildGithubDelivery(parameters: GithubDeliveryParameters): GithubDelivery {
   const number = parameters.number ?? 12;
   const mergedAt = parameters.mergedAt ?? null;
+  const botBody = parameters.botBody;
 
   const body = JSON.stringify({
     action: parameters.action,
@@ -32,6 +37,7 @@ export function buildGithubDelivery(parameters: GithubDeliveryParameters): Githu
     pull_request: {
       ...buildPullRequestFields(number, parameters.updatedAt),
       title: parameters.title,
+      ...(botBody === undefined ? {} : { user: { id: 4401, type: 'Bot' }, body: botBody }),
       state: mergedAt === null ? 'open' : 'closed',
       draft: false,
       merged: mergedAt !== null,

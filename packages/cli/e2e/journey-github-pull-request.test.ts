@@ -70,20 +70,24 @@ function setupTest() {
       store.withConsumers([githubPullRequestConsumer], (db) =>
         db.selectFrom('github_pull_request').selectAll().orderBy('id').execute(),
       ),
+    readReleaseBumps: () =>
+      store.withConsumers([githubPullRequestConsumer], (db) =>
+        db.selectFrom('github_release_bump').selectAll().orderBy('release_tag').execute(),
+      ),
     readOffsets: () => readOffsets(store, githubPullRequestConsumer),
     readChangeOperations: () => readChangeOperations(store, githubPullRequestConsumer),
   };
 }
 
-test('it appends three records after four deliveries, because ingest drops the repeat of a stored body', async () => {
+test('it appends five records after six deliveries, because ingest drops the repeat of a stored body', async () => {
   const ctx = setupTest();
 
   const response = await ctx.readTail();
 
-  expect(response.tail.seqNum).toBe(3);
+  expect(response.tail.seqNum).toBe(5);
 });
 
-test('it stores the row of the newest pull request update, not the older one that arrived out of order', async () => {
+test('it stores the row of the newest update of each pull request, not the older one of pull request 12 that arrived out of order', async () => {
   const ctx = setupTest();
 
   const result: unknown = await ctx.readPullRequests();
@@ -108,6 +112,23 @@ test('it stores the row of the newest pull request update, not the older one tha
         merged_at: null,
         payload: expect.any(String),
       },
+      {
+        id: 'github:pull_request:1874433022',
+        number: 13,
+        repository_id: 'github:repo:902',
+        title: 'Bump the harbour kit',
+        state: 'open',
+        is_draft: 0,
+        is_merged: 0,
+        author_id: 'github:user:4401',
+        url: 'https://github.example/Acme/Harbour/pull/13',
+        merge_commit_sha: null,
+        created_at: '2026-10-01T08:00:00Z',
+        updated_at: '2026-10-03T10:00:00Z',
+        closed_at: null,
+        merged_at: null,
+        payload: expect.any(String),
+      },
     ],
   });
 });
@@ -119,11 +140,11 @@ test("it records the stream's last sequence number as the consumer's offset", as
 
   expect(result).toStrictEqual({
     ok: true,
-    value: [{ stream: toTagged<StreamName>('facts.github.pull_request'), lastSeqNum: 2 }],
+    value: [{ stream: toTagged<StreamName>('facts.github.pull_request'), lastSeqNum: 4 }],
   });
 });
 
-test('it writes the row and alias inserts, then their updates from the newer fact, to the change log', async () => {
+test('it writes the row, alias and bump inserts, then their updates from the newer fact, to the change log', async () => {
   const ctx = setupTest();
 
   const result = await ctx.readChangeOperations();
@@ -137,6 +158,35 @@ test('it writes the row and alias inserts, then their updates from the newer fac
       { key: '["github:pull_request:1874433021"]', operation: 'update' },
       { key: '["https://github.example/acme/harbour/pull/12"]', operation: 'update' },
       { key: '["acme/harbour#12"]', operation: 'update' },
+      { key: '["github:pull_request:1874433022"]', operation: 'insert' },
+      { key: '["https://github.example/acme/harbour/pull/13"]', operation: 'insert' },
+      { key: '["acme/harbour#13"]', operation: 'insert' },
+      { key: '["github:pull_request:1874433022","acme/kit","v2.0.0"]', operation: 'insert' },
+      { key: '["github:pull_request:1874433022"]', operation: 'update' },
+      { key: '["https://github.example/acme/harbour/pull/13"]', operation: 'update' },
+      { key: '["acme/harbour#13"]', operation: 'update' },
+      { key: '["github:pull_request:1874433022","acme/kit","v2.0.0"]', operation: 'delete' },
+      { key: '["github:pull_request:1874433022","acme/kit","v1.9.0"]', operation: 'insert' },
+    ],
+  });
+});
+
+// The second delivery of pull request 13 names another release than the first. The consumer finds
+// the first release only in the payload the host stored, so a bump row of v2.0.0 left behind shows
+// the consumer ignored it.
+test('it keeps only the release bump of the newest body, which the consumer finds in the stored payload', async () => {
+  const ctx = setupTest();
+
+  const result = await ctx.readReleaseBumps();
+
+  expect(result).toStrictEqual({
+    ok: true,
+    value: [
+      {
+        pull_request_id: toTagged<EntityID>('github:pull_request:1874433022'),
+        release_repository: 'acme/kit',
+        release_tag: 'v1.9.0',
+      },
     ],
   });
 });

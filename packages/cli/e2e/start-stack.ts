@@ -111,7 +111,27 @@ async function runDeployment(options: DeploymentOptions): Promise<void> {
     updatedAt: '2026-10-01T09:30:00Z',
   });
 
-  for (const delivery of [opened, synchronized, opened, outOfOrder]) {
+  // Pull request 13 is a bot's: its second body names another release than its first, so the
+  // consumer has to rebuild the bump rows from the payload that the host stored with the first.
+  const bumpOpened = buildGithubDelivery({
+    deliveryID: 'github-pr-delivery-4',
+    action: 'opened',
+    title: 'Bump the harbour kit',
+    updatedAt: '2026-10-03T09:00:00Z',
+    number: 13,
+    botBody: 'Updates the kit. Release notes: https://github.com/acme/kit/releases/tag/v2.0.0',
+  });
+
+  const bumpEdited = buildGithubDelivery({
+    deliveryID: 'github-pr-delivery-5',
+    action: 'edited',
+    title: 'Bump the harbour kit',
+    updatedAt: '2026-10-03T10:00:00Z',
+    number: 13,
+    botBody: 'Updates the kit. Release notes: https://github.com/acme/kit/releases/tag/v1.9.0',
+  });
+
+  for (const delivery of [opened, synchronized, opened, outOfOrder, bumpOpened, bumpEdited]) {
     await writeGithubDelivery(webhookURL, delivery);
   }
 

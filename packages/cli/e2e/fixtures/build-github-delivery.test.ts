@@ -70,3 +70,37 @@ test('it builds a merged pull request with the number, closed at its merge time'
     sender: { id: 4401 },
   });
 });
+
+test('it builds a pull request from a bot whose description is the given text', () => {
+  const delivery = buildGithubDelivery({
+    deliveryID: 'd-3',
+    action: 'opened',
+    title: 'Bump the kit',
+    updatedAt: '2026-10-03T09:00:00Z',
+    number: 13,
+    botBody: 'Release notes: https://github.com/acme/kit/releases/tag/v2.0.0',
+  });
+
+  expect(JSON.parse(delivery.body)).toStrictEqual({
+    action: 'opened',
+    number: 13,
+    pull_request: {
+      id: 1_874_433_022,
+      number: 13,
+      title: 'Bump the kit',
+      state: 'open',
+      draft: false,
+      merged: false,
+      merge_commit_sha: null,
+      html_url: 'https://github.example/Acme/Harbour/pull/13',
+      user: { id: 4401, type: 'Bot' },
+      body: 'Release notes: https://github.com/acme/kit/releases/tag/v2.0.0',
+      base: { repo: { id: 902 } },
+      created_at: '2026-10-01T08:00:00Z',
+      updated_at: '2026-10-03T09:00:00Z',
+      closed_at: null,
+      merged_at: null,
+    },
+    sender: { id: 4401 },
+  });
+});
