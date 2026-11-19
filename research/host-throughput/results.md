@@ -1,7 +1,7 @@
 # Host throughput: results
 
-The [README](README.md) holds the question and the answer. Every figure is one run, read once, with
-no repeat, so treat a difference under about 20 % as noise.
+The [README](README.md) holds the question and the answer. Each figure is one run, and the spread of
+each figure is unknown.
 
 ## Method
 
