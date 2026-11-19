@@ -2,6 +2,7 @@ import type { ConsumerDeclaration } from '@pepys/kit';
 import {
   DummyDriver,
   Kysely,
+  RawNode,
   SelectQueryNode,
   SqliteAdapter,
   SqliteIntrospector,
@@ -19,6 +20,12 @@ export function buildSharedViewsPlugin(attached: readonly ConsumerDeclaration[])
 
   return {
     transformQuery: (args) => {
+      if (RawNode.is(args.node)) {
+        assertNoSharedViewName(args.node);
+
+        return args.node;
+      }
+
       if (!SelectQueryNode.is(args.node)) {
         return args.node;
       }
@@ -83,4 +90,39 @@ function collectSharedViews(attached: readonly ConsumerDeclaration[]): WithNode 
   invariant(withNode !== undefined, 'a query with two common table expressions has a with node');
 
   return withNode;
+}
+
+class SharedViewInRawSQLError extends Error {
+  readonly view: string;
+
+  constructor(view: string) {
+    super(
+      `Raw SQL names the shared view "${view}", which exists only on queries built with the query builder. Build this query with the query builder, or name one file's own table as <consumer>.entity.`,
+    );
+
+    this.name = 'SharedViewInRawSQLError';
+    this.view = view;
+  }
+}
+
+// A raw query names a shared view when `entity` or `link_effective` appears outside a single-quoted
+// string and is not the name after a dot, which is a file's own table.
+const sharedViewName = /(?<![\w.]|\.")(?<view>entity|link_effective)(?!\w)/u;
+
+function assertNoSharedViewName(node: RawNode): void {
+  for (const fragment of node.sqlFragments) {
+    const view = sharedViewName.exec(fragment.replaceAll(/'(?:[^']|'')*'/gu, "''"))?.groups?.[
+      'view'
+    ];
+
+    if (view !== undefined) {
+      throw new SharedViewInRawSQLError(view);
+    }
+  }
+
+  for (const parameter of node.parameters) {
+    if (RawNode.is(parameter)) {
+      assertNoSharedViewName(parameter);
+    }
+  }
 }
