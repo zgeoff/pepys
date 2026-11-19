@@ -94,7 +94,6 @@ mod tests {
     const CHILD_DIRECTORY: &str = "PEPYS_LOCK_TEST_CHILD_DIRECTORY";
     const CHILD_NAME: &str = "PEPYS_LOCK_TEST_CHILD_NAME";
     const TURNS: usize = 4;
-    const LIMIT: Duration = Duration::from_secs(4);
 
     /// The body of the second process, which the test below starts by running this test binary
     /// again on this one test. In a normal run no variable is set, and it does nothing.
@@ -133,6 +132,8 @@ mod tests {
 
     #[tokio::test]
     async fn it_keeps_a_second_process_from_writing_while_this_one_holds_the_lock() {
+        // Under the 5 s slow-timeout of nextest's default profile, so a failure prints its message.
+        let deadline = std::time::Instant::now() + Duration::from_secs(4);
         let directory = tempfile::tempdir().expect("a directory");
         let held = WriterLock::acquire(directory.path(), Duration::ZERO)
             .await
@@ -152,13 +153,17 @@ mod tests {
         // A child that waits for the lock says so, and writes nothing meanwhile.
         let said = collect_stderr(&mut child);
 
-        wait_for("the child never waited for the lock", LIMIT, async || {
-            said.lock()
-                .expect("the lines")
-                .iter()
-                .any(|line| line.contains("waiting for the writer lock"))
-                .then_some(())
-        })
+        wait_for(
+            "the child never waited for the lock",
+            deadline,
+            async || {
+                said.lock()
+                    .expect("the lines")
+                    .iter()
+                    .any(|line| line.contains("waiting for the writer lock"))
+                    .then_some(())
+            },
+        )
         .await;
 
         assert!(!directory.path().join("turns.log").exists());

@@ -463,7 +463,7 @@ mod two_stream_scope {
 
 mod second_process {
     use std::process::{Child, Command, Stdio};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use super::{
         LEDGER_STREAM, build_host_config, create_s2_log, read_expected_ledger_state,
@@ -474,7 +474,6 @@ mod second_process {
     use crate::test_utils::{collect_stderr, wait_for};
 
     const BASIN: &str = "second-process-up";
-    const LIMIT: Duration = Duration::from_secs(10);
 
     /// A host process that the test kills when it ends, whatever the outcome.
     struct HostProcess(Child);
@@ -507,6 +506,8 @@ mod second_process {
     // to wait: it deploys nothing until the test lets go, then it deploys the journey.
     #[tokio::test(flavor = "multi_thread")]
     async fn it_makes_the_up_of_a_second_process_wait_for_the_writer_lock() {
+        // Under the 15 s slow-timeout of nextest's e2e profile, so a failure prints its message.
+        let deadline = Instant::now() + Duration::from_secs(12);
         let bodies = read_journey_bodies();
         let log = create_s2_log(BASIN, &[LEDGER_STREAM.to_owned()]).await;
 
@@ -542,7 +543,7 @@ mod second_process {
 
         wait_for(
             "the second process never waited for the lock",
-            LIMIT,
+            deadline,
             async || {
                 said.lock()
                     .expect("the lines")
@@ -570,7 +571,7 @@ mod second_process {
 
         let status = wait_for(
             "the second process never took the lock",
-            LIMIT,
+            deadline,
             async || host.0.try_wait().expect("the host's state"),
         )
         .await;
@@ -586,7 +587,7 @@ mod second_process {
 mod s2_crash {
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::{Arc, Mutex};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
@@ -602,8 +603,6 @@ mod s2_crash {
     use crate::fact_log::s2::S2Log;
     use crate::fact_log::{AppendOutcome, FactLog, RejectReason, StoredFact};
     use crate::test_utils::wait_for;
-
-    const LIMIT: Duration = Duration::from_secs(10);
 
     const OPEN: u8 = 0;
     const RESET: u8 = 1;
@@ -845,6 +844,8 @@ mod s2_crash {
     async fn it_resumes_from_the_committed_offset_after_s2_lite_crashes_during_a_read() {
         const BASIN: &str = "s2-crash-during-read";
 
+        // Under the 15 s slow-timeout of nextest's e2e profile, so a failure prints its message.
+        let deadline = Instant::now() + Duration::from_secs(12);
         let bodies = read_journey_bodies();
         let direct = create_s2_log(BASIN, &[LEDGER_STREAM.to_owned()]).await;
         let s2 = CrashingS2::start(&read_variable("PEPYS_S2_ENDPOINT")).await;
@@ -870,7 +871,7 @@ mod s2_crash {
 
         wait_for(
             "the task never applied the second batch",
-            LIMIT,
+            deadline,
             async || (read_stored_offset(&config, LEDGER_STREAM).await == Some(4)).then_some(()),
         )
         .await;
@@ -881,7 +882,7 @@ mod s2_crash {
             .await
             .expect("the third batch");
 
-        wait_for("the task never reported the crash", LIMIT, async || {
+        wait_for("the task never reported the crash", deadline, async || {
             (!task.failures.lock().expect("the failures").is_empty()).then_some(())
         })
         .await;
@@ -902,7 +903,7 @@ mod s2_crash {
         let restarted = spawn_task(&config);
         let last = bodies.len() as u64 - 1;
 
-        wait_for("the restarted task never caught up", LIMIT, async || {
+        wait_for("the restarted task never caught up", deadline, async || {
             (read_stored_offset(&config, LEDGER_STREAM).await == Some(last)).then_some(())
         })
         .await;

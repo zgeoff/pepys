@@ -364,23 +364,23 @@ pub fn read_fixture_files(port: &str) -> Vec<String> {
     names
 }
 
-/// Runs `check` every 25 ms until it gives a value, and panics with `what` after `limit`.
+/// Runs `check` every 25 ms until it gives a value, and panics with `what` at `deadline`. A test
+/// takes one deadline when it starts, below its nextest profile's `slow-timeout`, and passes it to
+/// each wait, so a failure prints `what` before nextest ends the test.
 ///
 /// # Panics
-/// When `check` gives none within `limit`.
+/// When `check` gives none before `deadline`.
 pub async fn wait_for<T>(
     what: &str,
-    limit: Duration,
+    deadline: Instant,
     mut check: impl AsyncFnMut() -> Option<T>,
 ) -> T {
-    let started = Instant::now();
-
     loop {
         if let Some(found) = check().await {
             return found;
         }
 
-        assert!(started.elapsed() < limit, "{what}");
+        assert!(Instant::now() < deadline, "{what}");
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
 }
