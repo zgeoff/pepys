@@ -39,7 +39,7 @@
       "@zgeoff/format-codemod": "0.3.6",
       "@zgeoff/mcp-auth": "0.2.3",
       "@zgeoff/oxlint-config": "0.10.10",
-      "@zgeoff/rig": "0.2.4",
+      "@zgeoff/rig": "0.2.6",
       "@zgeoff/std": "0.4.4",
       "@zgeoff/testing": "0.3.1",
       "elysia": "2.0.0-rc.4",
