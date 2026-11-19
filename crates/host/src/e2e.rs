@@ -600,7 +600,7 @@ mod s2_crash {
     use crate::database::open_store;
     use crate::error::HostError;
     use crate::fact_log::s2::S2Log;
-    use crate::fact_log::{AppendOutcome, FactLog, StoredFact};
+    use crate::fact_log::{AppendOutcome, FactLog, RejectReason, StoredFact};
     use crate::test_utils::wait_for;
 
     const LIMIT: Duration = Duration::from_secs(10);
@@ -942,13 +942,14 @@ mod s2_crash {
             .expect("the first facts");
         s2.crash_by_silence();
 
-        let outcome = through_crash
-            .append_batch(LEDGER_STREAM, &bodies[3..], 3)
-            .await;
-
-        assert!(
-            matches!(outcome, Ok(AppendOutcome::Unknown) | Err(_)),
-            "{outcome:?}"
+        // No answer comes back before the client's request timeout, so the writer cannot tell
+        // whether s2-lite stored the batch.
+        assert_eq!(
+            through_crash
+                .append_batch(LEDGER_STREAM, &bodies[3..], 3)
+                .await
+                .expect("an outcome"),
+            AppendOutcome::Unknown
         );
 
         s2.restart().await;
@@ -962,13 +963,13 @@ mod s2_crash {
         assert_eq!(tail, bodies.len() as u64);
 
         // The writer's retry names the tail it saw, so s2-lite refuses it as a second copy.
-        assert!(matches!(
+        assert_eq!(
             through_crash
                 .append_batch(LEDGER_STREAM, &bodies[3..], 3)
                 .await
                 .expect("an outcome"),
-            AppendOutcome::Rejected(_)
-        ));
+            AppendOutcome::Rejected(RejectReason::TailMismatch)
+        );
 
         let stored = through_crash
             .read(LEDGER_STREAM, 0, bodies.len() + 5)
