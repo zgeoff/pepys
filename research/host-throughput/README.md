@@ -24,14 +24,51 @@ a scope?
 
 ## Run it
 
+Run these from the repo root. Cargo runs the test from `crates/host`, so the manifest paths are
+absolute.
+
 ```bash
 export PEPYS_ZIG_BIN=<zig 0.16.0> PEPYS_WASM_TOOLS_BIN=<wasm-tools 1.262.0>
 bun run consumers:build
+cargo build --release --bin pepys
 cargo test --release -p pepys-host --no-run
-PEPYS_BENCH_CONSUMERS=build/consumers/consumers.json PEPYS_BENCH_CONSUMER=ledger_account \
+```
+
+A scope-mode run reads the manifest of the stub deployment, `build/consumers/consumers.json`:
+
+```bash
+PEPYS_BENCH_CONSUMERS="$PWD/build/consumers/consumers.json" PEPYS_BENCH_CONSUMER=ledger_account \
   PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=1000 \
   bun scripts/e2e/run-with-stack.ts \
   cargo test --release -p pepys-host throughput -- --ignored --nocapture
+```
+
+A fact-mode run reads the manifest of the e2e deployment, `build/e2e-consumers/consumers.json`,
+which holds `logbook_voyage`:
+
+```bash
+PEPYS_BENCH_CONSUMERS="$PWD/build/e2e-consumers/consumers.json" PEPYS_BENCH_CONSUMER=logbook_voyage \
+  PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=10000 \
+  bun scripts/e2e/run-with-stack.ts \
+  cargo test --release -p pepys-host throughput -- --ignored --nocapture
+```
+
+To time the `pepys` binary, seed the stream without an `up`, then time `pepys up` against the same
+basin, all inside one stack. The seed step prints `basin <name>`:
+
+```bash
+bun scripts/e2e/run-with-stack.ts sh -c '
+  export PEPYS_BENCH_SEED_ONLY=1 PEPYS_BENCH_CONSUMER=ledger_account \
+    PEPYS_BENCH_CONSUMERS="$PWD/build/consumers/consumers.json" \
+    PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=1000
+  basin=$(cargo test --release -p pepys-host throughput -- --ignored --nocapture |
+    sed -n "s/^basin \([^:]*\):.*/\1/p")
+  store=$(mktemp -d)
+  time PEPYS_S2_BASIN="$basin" PEPYS_STORE_DIR="$store" \
+    PEPYS_CONSUMERS="$PWD/build/consumers/consumers.json" \
+    target/release/pepys up ledger_account
+  rm -rf "$store"
+'
 ```
 
 The bench is the ignored test in [`throughput.rs`](../../crates/host/src/e2e/throughput.rs). Its
