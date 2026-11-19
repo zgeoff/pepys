@@ -17,9 +17,10 @@ a scope?
   one scope.
 - A single scope of 10000 facts averages 2.3 s per batch, and its `up` took almost 4 minutes. The
   host recomputes the whole scope in every batch that holds one of its facts, as designed, so a
-  scope that long is a limit for a deployment, not a crash. No run crashed, and the runs timed `up`
-  without reading the rows.
+  scope that long is a limit for a deployment. No run crashed, and the runs timed `up` without
+  reading the rows.
 
+Each figure is one run, and its spread is unknown.
 [host.md](../../docs/architecture/consumers/host.md#limits) states each limit.
 
 ## Run it
