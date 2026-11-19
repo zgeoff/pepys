@@ -3,7 +3,8 @@
 pub mod stub_s2;
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
@@ -361,6 +362,52 @@ pub fn read_fixture_files(port: &str) -> Vec<String> {
     names.sort();
 
     names
+}
+
+/// Runs `check` every 25 ms until it gives a value, and panics with `what` at `deadline`. A test
+/// takes one deadline when it starts, below its nextest profile's `slow-timeout`, and passes it to
+/// each wait, so a failure prints `what` before nextest ends the test.
+///
+/// # Panics
+/// When `check` gives none before `deadline`.
+pub async fn wait_for<T>(
+    what: &str,
+    deadline: Instant,
+    mut check: impl AsyncFnMut() -> Option<T>,
+) -> T {
+    loop {
+        if let Some(found) = check().await {
+            return found;
+        }
+
+        assert!(Instant::now() < deadline, "{what}");
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+}
+
+/// Reads the stderr of `child`, which the test piped, line by line on a thread of its own, and
+/// returns the lines read so far. The thread ends when the child closes its stderr.
+///
+/// # Panics
+/// When the child's stderr is not piped.
+#[must_use]
+#[allow(clippy::expect_used)]
+pub fn collect_stderr(child: &mut std::process::Child) -> Arc<Mutex<Vec<String>>> {
+    use std::io::BufRead;
+
+    let stderr = child.stderr.take().expect("a piped stderr");
+    let lines = Arc::new(Mutex::new(Vec::new()));
+    let kept = Arc::clone(&lines);
+
+    std::thread::spawn(move || {
+        for line in std::io::BufReader::new(stderr).lines() {
+            let Ok(line) = line else { return };
+
+            kept.lock().expect("the lines").push(line);
+        }
+    });
+
+    lines
 }
 
 #[cfg(test)]

@@ -523,7 +523,7 @@ async fn run_consumer(config: HostConfig, consumer: String) -> Result<(), HostEr
 /// After a store or log error the batch has rolled back, so the task reopens the version and runs
 /// the pass again from the committed offsets, as [`pick_recovery`] decides. Any other error ends
 /// the task.
-async fn run_task(
+pub(crate) async fn run_task(
     config: &HostConfig,
     log: &impl FactLog,
     consumer: &str,
@@ -2541,6 +2541,198 @@ mod tests {
                 ("another current version", false),
                 ("this version current", true),
             ]
+        );
+    }
+
+    const ACCOUNT_STREAM: &str = "facts.ledger.account";
+    const ENTRY_STREAM: &str = "facts.ledger.entry";
+
+    /// A module whose account row shows what the host handed it: the IDs of the scope's facts in
+    /// the order it read them, the sum of their amounts, and the time of the last fact it read.
+    struct TotalRunner;
+
+    impl ScopeRunner for TotalRunner {
+        fn apply_scope(
+            &mut self,
+            scope: &str,
+            facts: Arc<dyn crate::scope::FactSource>,
+        ) -> Result<String, HostError> {
+            let read: Vec<serde_json::Value> =
+                serde_json::from_slice(&facts.read_scope_facts(scope)?)?;
+            let order: Vec<&str> = read.iter().filter_map(|fact| fact["id"].as_str()).collect();
+            let balance: i64 = read
+                .iter()
+                .filter_map(|fact| fact["payload"]["amount"].as_i64())
+                .sum();
+
+            Ok(json!([{"upsert": {"ledger_account": {
+                "id": scope, "name": order.join(" "), "balance": balance, "is_closed": false,
+                "opened_at": null, "updated_at": read.last().map(|fact| fact["at"].clone())
+            }}}])
+            .to_string())
+        }
+    }
+
+    fn ledger_fact(
+        id: &str,
+        kind: &str,
+        account: &str,
+        at: &str,
+        payload: &serde_json::Value,
+    ) -> String {
+        json!({
+            "id": format!("event:ledger:{id}"), "type": kind, "v": 1, "api": "ledger/1",
+            "entity": format!("ledger:account:{account}"), "at": at, "payload": payload
+        })
+        .to_string()
+    }
+
+    /// Catches a `TotalRunner` version up on `log`, whose streams the manifest lists, and returns
+    /// its account rows, the offset of each stream and the stream of each indexed fact.
+    async fn catch_up_totals(
+        streams: &[&str],
+        log: &MemoryLog,
+    ) -> (Vec<Row>, Vec<Option<u64>>, Vec<(String, i64)>) {
+        let directory = tempfile::tempdir().expect("a directory");
+        let mut manifest = stub_scope_manifest();
+
+        manifest.input = ConsumerInput::Scope {
+            scope_kind: "ledger:account".to_owned(),
+            streams: streams.iter().map(|stream| (*stream).to_owned()).collect(),
+        };
+
+        let manifest = Arc::new(manifest);
+        let mut version = Version {
+            store: open_version_store(directory.path(), &manifest)
+                .await
+                .expect("a store"),
+            runner: Runner::Scope {
+                runner: Box::new(TotalRunner),
+                scope_kind: "ledger:account".to_owned(),
+            },
+            manifest: Arc::clone(&manifest),
+        };
+
+        catch_up(&mut version, log).await.expect("a catch up");
+
+        let rows = read_all_tables(&version.store, &manifest)
+            .await
+            .expect("the rows");
+        let mut offsets = Vec::new();
+
+        for stream in streams {
+            offsets.push(
+                read_offset(&version.store, stream)
+                    .await
+                    .expect("an offset"),
+            );
+        }
+
+        let mut indexed = version
+            .store
+            .connection
+            .query(
+                "SELECT stream, count(*) FROM scope_fact GROUP BY stream ORDER BY stream",
+                (),
+            )
+            .await
+            .expect("a query");
+        let mut counts = Vec::new();
+
+        while let Some(row) = indexed.next().await.expect("a row") {
+            counts.push((row.get(0).expect("a stream"), row.get(1).expect("a count")));
+        }
+
+        (rows["ledger_account"].clone(), offsets, counts)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_hands_a_scope_that_spans_two_streams_its_facts_in_time_order() {
+        let at = |time: &str| format!("2026-11-01T{time}Z");
+        let account = |id, kind, account, time| {
+            let body = ledger_fact(id, kind, account, &at(time), &json!({}));
+
+            (ACCOUNT_STREAM, body)
+        };
+        let entry = |id, account, time, amount: i64| {
+            let payload = json!({"amount": amount});
+            let body = ledger_fact(id, "ledger.entry.posted", account, &at(time), &payload);
+
+            (ENTRY_STREAM, body)
+        };
+        // The facts of two accounts in time order: account facts on one stream and entries on the
+        // other, so that no stream alone is in time order for a scope.
+        let facts = [
+            account("1", "ledger.account.opened", "a", "09:00:00"),
+            entry("2", "a", "09:30:00", 5),
+            account("3", "ledger.account.opened", "b", "09:40:00"),
+            entry("4", "b", "09:45:00", 7),
+            account("5", "ledger.account.renamed", "a", "10:00:00"),
+            entry("6", "a", "10:30:00", 3),
+            account("7", "ledger.account.renamed", "a", "10:45:00"),
+        ];
+        let split = MemoryLog::new(&[ACCOUNT_STREAM.to_owned(), ENTRY_STREAM.to_owned()]);
+        let whole = MemoryLog::new(&[ACCOUNT_STREAM.to_owned()]);
+
+        for stream in [ACCOUNT_STREAM, ENTRY_STREAM] {
+            let bodies: Vec<String> = facts
+                .iter()
+                .filter(|(held_by, _)| *held_by == stream)
+                .map(|(_, body)| body.clone())
+                .collect();
+
+            split
+                .append_batch(stream, &bodies, 0)
+                .await
+                .expect("an append");
+        }
+
+        let bodies: Vec<String> = facts.iter().map(|(_, body)| body.clone()).collect();
+
+        whole
+            .append_batch(ACCOUNT_STREAM, &bodies, 0)
+            .await
+            .expect("an append");
+
+        let (split_rows, split_offsets, split_counts) =
+            catch_up_totals(&[ACCOUNT_STREAM, ENTRY_STREAM], &split).await;
+        let (whole_rows, _, _) = catch_up_totals(&[ACCOUNT_STREAM], &whole).await;
+
+        // The name of each row is the order the runner read the facts in: the facts of the two
+        // streams merge by time, so account `a` reads its last rename after the entry at 10:30.
+        assert_eq!(
+            split_rows
+                .iter()
+                .map(|row| (
+                    row["id"].clone(),
+                    row["name"].clone(),
+                    row["balance"].clone(),
+                    row["updated_at"].clone()
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    json!("ledger:account:a"),
+                    json!(
+                        "event:ledger:1 event:ledger:2 event:ledger:5 event:ledger:6 event:ledger:7"
+                    ),
+                    json!(8),
+                    json!("2026-11-01T10:45:00Z")
+                ),
+                (
+                    json!("ledger:account:b"),
+                    json!("event:ledger:3 event:ledger:4"),
+                    json!(7),
+                    json!("2026-11-01T09:45:00Z")
+                ),
+            ]
+        );
+        assert_eq!(split_rows, whole_rows);
+        // each stream's own offset and its own indexed records: a batch holds one stream's records
+        assert_eq!(split_offsets, vec![Some(3), Some(2)]);
+        assert_eq!(
+            split_counts,
+            vec![(ACCOUNT_STREAM.to_owned(), 4), (ENTRY_STREAM.to_owned(), 3)]
         );
     }
 

@@ -35,6 +35,8 @@ s2-api.workspace = true
 # The hidden feature lets a test hand the client the simulated network's connector.
 s2-sdk = { workspace = true, features = ["_hidden"] }
 tempfile.workspace = true
+# The crash proxy of the e2e lane relays bytes between two sockets.
+tokio = { workspace = true, features = ["io-util", "net"] }
 tower-service.workspace = true
 turmoil.workspace = true
 

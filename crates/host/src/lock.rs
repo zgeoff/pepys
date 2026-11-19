@@ -37,6 +37,13 @@ impl WriterLock {
                         return Err(HostError::Locked(directory.display().to_string()));
                     }
 
+                    if waited.is_zero() {
+                        eprintln!(
+                            "pepys: waiting for the writer lock of {}",
+                            directory.display()
+                        );
+                    }
+
                     tokio::time::sleep(step).await;
                     waited += step;
                 }
@@ -50,6 +57,7 @@ impl WriterLock {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::test_utils::{collect_stderr, wait_for};
 
     #[tokio::test]
     async fn it_refuses_a_second_writer_until_the_first_lets_go() {
@@ -80,6 +88,105 @@ mod tests {
             WriterLock::acquire(directory.path(), Duration::ZERO)
                 .await
                 .is_ok()
+        );
+    }
+
+    const CHILD_DIRECTORY: &str = "PEPYS_LOCK_TEST_CHILD_DIRECTORY";
+    const CHILD_NAME: &str = "PEPYS_LOCK_TEST_CHILD_NAME";
+    const TURNS: usize = 4;
+    const CHILD_TEST: &str =
+        "lock::tests::it_writes_in_turns_as_the_second_process_of_the_lock_test";
+
+    /// The body of the second process, which the test below starts by running this test binary
+    /// again on this one ignored test. A normal run skips it.
+    #[tokio::test]
+    #[ignore = "the second process of the lock test, which that test starts"]
+    async fn it_writes_in_turns_as_the_second_process_of_the_lock_test() {
+        let directory = std::env::var(CHILD_DIRECTORY).expect("the lock test's directory");
+        let name = std::env::var(CHILD_NAME).expect("the lock test's name for this process");
+
+        write_turns(Path::new(&directory), &name).await;
+    }
+
+    /// Takes the lock for each of `TURNS` turns and, while it holds it, writes a `begin` line, waits
+    /// and writes an `end` line to the shared file.
+    async fn write_turns(directory: &Path, name: &str) {
+        use std::io::Write;
+
+        for _ in 0..TURNS {
+            let lock = WriterLock::acquire(directory, Duration::from_secs(4))
+                .await
+                .expect("the lock");
+            let mut file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(directory.join("turns.log"))
+                .expect("the turns file");
+
+            writeln!(file, "begin {name}").expect("a line");
+            tokio::time::sleep(Duration::from_millis(40)).await;
+            writeln!(file, "end {name}").expect("a line");
+            drop(lock);
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn it_keeps_a_second_process_from_writing_while_this_one_holds_the_lock() {
+        // Under the 5 s slow-timeout of nextest's default profile, so a failure prints its message.
+        let deadline = std::time::Instant::now() + Duration::from_secs(4);
+        let directory = tempfile::tempdir().expect("a directory");
+        let held = WriterLock::acquire(directory.path(), Duration::ZERO)
+            .await
+            .expect("the lock");
+        let mut child = std::process::Command::new(std::env::current_exe().expect("this binary"))
+            .args(["--ignored", "--exact", CHILD_TEST, "--nocapture"])
+            .env(CHILD_DIRECTORY, directory.path())
+            .env(CHILD_NAME, "child")
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("a second process");
+
+        // A child that waits for the lock says so, and writes nothing meanwhile.
+        let said = collect_stderr(&mut child);
+
+        wait_for(
+            "the child never waited for the lock",
+            deadline,
+            async || {
+                said.lock()
+                    .expect("the lines")
+                    .iter()
+                    .any(|line| line.contains("waiting for the writer lock"))
+                    .then_some(())
+            },
+        )
+        .await;
+
+        assert!(!directory.path().join("turns.log").exists());
+
+        drop(held);
+
+        // The two processes then take turns for as long as the child runs: the parent's turns and
+        // the child's never overlap in the file.
+        write_turns(directory.path(), "parent").await;
+
+        assert!(child.wait().expect("the child's end").success());
+
+        let turns = std::fs::read_to_string(directory.path().join("turns.log")).expect("the turns");
+        let lines: Vec<&str> = turns.lines().collect();
+
+        assert_eq!(lines.len(), TURNS * 4);
+        assert!(
+            lines.chunks(2).all(|pair| {
+                pair[0].strip_prefix("begin ") == pair[1].strip_prefix("end ")
+                    && pair[0].starts_with("begin ")
+            }),
+            "the processes wrote at the same time:\n{turns}"
+        );
+        assert_eq!(
+            lines.iter().filter(|line| line.ends_with("child")).count(),
+            TURNS * 2
         );
     }
 }
