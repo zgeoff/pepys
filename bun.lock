@@ -728,6 +728,8 @@
 
     "@pepys/source-telemetry": ["@pepys/source-telemetry@workspace:packages/source-telemetry"],
 
+    "@pepys/spike-host-throughput": ["@pepys/spike-host-throughput@workspace:research/host-throughput"],
+
     "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
 
     "@pepys/testing": ["@pepys/testing@workspace:packages/testing"],
