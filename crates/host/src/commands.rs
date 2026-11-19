@@ -2547,8 +2547,8 @@ mod tests {
     const ACCOUNT_STREAM: &str = "facts.ledger.account";
     const ENTRY_STREAM: &str = "facts.ledger.entry";
 
-    /// A module that gives each account the name of the latest named fact of its scope, the sum of
-    /// the amounts of the facts that carry one, and the time of its latest fact.
+    /// A module whose account row shows what the host handed it: the IDs of the scope's facts in
+    /// the order it read them, the sum of their amounts, and the time of the last fact it read.
     struct TotalRunner;
 
     impl ScopeRunner for TotalRunner {
@@ -2559,17 +2559,14 @@ mod tests {
         ) -> Result<String, HostError> {
             let read: Vec<serde_json::Value> =
                 serde_json::from_slice(&facts.read_scope_facts(scope)?)?;
-            let name = read
-                .iter()
-                .rev()
-                .find_map(|fact| fact["payload"]["name"].as_str());
+            let order: Vec<&str> = read.iter().filter_map(|fact| fact["id"].as_str()).collect();
             let balance: i64 = read
                 .iter()
                 .filter_map(|fact| fact["payload"]["amount"].as_i64())
                 .sum();
 
             Ok(json!([{"upsert": {"ledger_account": {
-                "id": scope, "name": name, "balance": balance, "is_closed": false,
+                "id": scope, "name": order.join(" "), "balance": balance, "is_closed": false,
                 "opened_at": null, "updated_at": read.last().map(|fact| fact["at"].clone())
             }}}])
             .to_string())
@@ -2649,23 +2646,28 @@ mod tests {
         (rows["ledger_account"].clone(), offsets, counts)
     }
 
-    /// The six facts of two accounts, in time order across both streams.
-    fn two_account_facts() -> [String; 6] {
-        let at = |time: &str| format!("2026-11-01T{time}Z");
-        let fact = |id: &str, kind: &str, account: &str, time: &str, payload| {
-            ledger_fact(id, kind, account, &at(time), &payload)
+    /// The seven facts of two accounts in time order, each with the stream that holds it: account
+    /// facts on one stream and entries on the other, so that no stream alone is in time order for a
+    /// scope.
+    fn two_account_facts() -> Vec<(&'static str, String)> {
+        let fact = |id: &str, stream, kind: &str, account: &str, time: &str, payload| {
+            let at = format!("2026-11-01T{time}Z");
+
+            (stream, ledger_fact(id, kind, account, &at, &payload))
         };
 
-        [
+        vec![
             fact(
                 "1",
+                ACCOUNT_STREAM,
                 "ledger.account.opened",
                 "a",
                 "09:00:00",
-                json!({"name": "Alpha"}),
+                json!({}),
             ),
             fact(
                 "2",
+                ENTRY_STREAM,
                 "ledger.entry.posted",
                 "a",
                 "09:30:00",
@@ -2673,86 +2675,79 @@ mod tests {
             ),
             fact(
                 "3",
-                "ledger.account.renamed",
-                "a",
-                "10:00:00",
-                json!({"name": "Alpha trust"}),
+                ACCOUNT_STREAM,
+                "ledger.account.opened",
+                "b",
+                "09:40:00",
+                json!({}),
             ),
             fact(
                 "4",
+                ENTRY_STREAM,
+                "ledger.entry.posted",
+                "b",
+                "09:45:00",
+                json!({"amount": 7}),
+            ),
+            fact(
+                "5",
+                ACCOUNT_STREAM,
+                "ledger.account.renamed",
+                "a",
+                "10:00:00",
+                json!({}),
+            ),
+            fact(
+                "6",
+                ENTRY_STREAM,
                 "ledger.entry.posted",
                 "a",
                 "10:30:00",
                 json!({"amount": 3}),
             ),
             fact(
-                "5",
-                "ledger.account.opened",
-                "b",
-                "09:00:00",
-                json!({"name": "Beta"}),
-            ),
-            fact(
-                "6",
-                "ledger.entry.posted",
-                "b",
-                "09:45:00",
-                json!({"amount": 7}),
+                "7",
+                ACCOUNT_STREAM,
+                "ledger.account.renamed",
+                "a",
+                "10:45:00",
+                json!({}),
             ),
         ]
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn it_gives_a_scope_that_spans_two_streams_the_rows_one_stream_gives() {
-        let [
-            opened,
-            posted_early,
-            renamed,
-            posted_late,
-            beta,
-            posted_beta,
-        ] = two_account_facts();
+    async fn it_hands_a_scope_that_spans_two_streams_its_facts_in_time_order() {
+        let facts = two_account_facts();
         let split = MemoryLog::new(&[ACCOUNT_STREAM.to_owned(), ENTRY_STREAM.to_owned()]);
         let whole = MemoryLog::new(&[ACCOUNT_STREAM.to_owned()]);
 
-        for (log, stream, bodies) in [
-            (
-                &split,
-                ACCOUNT_STREAM,
-                vec![opened.clone(), renamed.clone(), beta.clone()],
-            ),
-            (
-                &split,
-                ENTRY_STREAM,
-                vec![
-                    posted_early.clone(),
-                    posted_late.clone(),
-                    posted_beta.clone(),
-                ],
-            ),
-            (
-                &whole,
-                ACCOUNT_STREAM,
-                vec![
-                    opened,
-                    posted_early,
-                    renamed,
-                    posted_late,
-                    beta,
-                    posted_beta,
-                ],
-            ),
-        ] {
-            log.append_batch(stream, &bodies, 0)
+        for stream in [ACCOUNT_STREAM, ENTRY_STREAM] {
+            let bodies: Vec<String> = facts
+                .iter()
+                .filter(|(held_by, _)| *held_by == stream)
+                .map(|(_, body)| body.clone())
+                .collect();
+
+            split
+                .append_batch(stream, &bodies, 0)
                 .await
                 .expect("an append");
         }
+
+        let bodies: Vec<String> = facts.iter().map(|(_, body)| body.clone()).collect();
+
+        whole
+            .append_batch(ACCOUNT_STREAM, &bodies, 0)
+            .await
+            .expect("an append");
 
         let (split_rows, split_offsets, split_counts) =
             catch_up_totals(&[ACCOUNT_STREAM, ENTRY_STREAM], &split).await;
         let (whole_rows, _, _) = catch_up_totals(&[ACCOUNT_STREAM], &whole).await;
 
-        assert_eq!(split_rows, whole_rows);
+        // The name of each row is the order the runner read the facts in: the facts of the two
+        // streams merge by time, so account `a` reads its last rename after the entry at 10:30.
         assert_eq!(
             split_rows
                 .iter()
@@ -2766,23 +2761,26 @@ mod tests {
             vec![
                 (
                     json!("ledger:account:a"),
-                    json!("Alpha trust"),
+                    json!(
+                        "event:ledger:1 event:ledger:2 event:ledger:5 event:ledger:6 event:ledger:7"
+                    ),
                     json!(8),
-                    json!("2026-11-01T10:30:00Z")
+                    json!("2026-11-01T10:45:00Z")
                 ),
                 (
                     json!("ledger:account:b"),
-                    json!("Beta"),
+                    json!("event:ledger:3 event:ledger:4"),
                     json!(7),
                     json!("2026-11-01T09:45:00Z")
                 ),
             ]
         );
+        assert_eq!(split_rows, whole_rows);
         // each stream's own offset and its own indexed records: a batch holds one stream's records
-        assert_eq!(split_offsets, vec![Some(2), Some(2)]);
+        assert_eq!(split_offsets, vec![Some(3), Some(2)]);
         assert_eq!(
             split_counts,
-            vec![(ACCOUNT_STREAM.to_owned(), 3), (ENTRY_STREAM.to_owned(), 3)]
+            vec![(ACCOUNT_STREAM.to_owned(), 4), (ENTRY_STREAM.to_owned(), 3)]
         );
     }
 

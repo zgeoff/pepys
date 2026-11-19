@@ -37,6 +37,13 @@ impl WriterLock {
                         return Err(HostError::Locked(directory.display().to_string()));
                     }
 
+                    if waited.is_zero() {
+                        eprintln!(
+                            "pepys: waiting for the writer lock of {}",
+                            directory.display()
+                        );
+                    }
+
                     tokio::time::sleep(step).await;
                     waited += step;
                 }
@@ -50,6 +57,7 @@ impl WriterLock {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::test_utils::{collect_stderr, wait_for};
 
     #[tokio::test]
     async fn it_refuses_a_second_writer_until_the_first_lets_go() {
@@ -86,6 +94,7 @@ mod tests {
     const CHILD_DIRECTORY: &str = "PEPYS_LOCK_TEST_CHILD_DIRECTORY";
     const CHILD_NAME: &str = "PEPYS_LOCK_TEST_CHILD_NAME";
     const TURNS: usize = 4;
+    const LIMIT: Duration = Duration::from_secs(4);
 
     /// The body of the second process, which the test below starts by running this test binary
     /// again on this one test. In a normal run no variable is set, and it does nothing.
@@ -96,7 +105,6 @@ mod tests {
             return;
         };
 
-        std::fs::write(Path::new(&directory).join("child.ready"), b"").expect("a ready file");
         write_turns(Path::new(&directory), &name).await;
     }
 
@@ -137,21 +145,21 @@ mod tests {
             ])
             .env(CHILD_DIRECTORY, directory.path())
             .env(CHILD_NAME, "child")
+            .stderr(std::process::Stdio::piped())
             .spawn()
             .expect("a second process");
 
-        let started = std::time::Instant::now();
+        // A child that waits for the lock says so, and writes nothing meanwhile.
+        let said = collect_stderr(&mut child);
 
-        while !directory.path().join("child.ready").exists() {
-            assert!(
-                started.elapsed() < Duration::from_secs(4),
-                "the child never started"
-            );
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-
-        // The child is now waiting for the lock, and writes nothing while this process holds it.
-        tokio::time::sleep(Duration::from_millis(300)).await;
+        wait_for("the child never waited for the lock", LIMIT, async || {
+            said.lock()
+                .expect("the lines")
+                .iter()
+                .any(|line| line.contains("waiting for the writer lock"))
+                .then_some(())
+        })
+        .await;
 
         assert!(!directory.path().join("turns.log").exists());
 

@@ -312,6 +312,17 @@ fn read_expected_ledger_state() -> serde_json::Value {
     )
 }
 
+async fn read_stored_offset(config: &crate::commands::HostConfig, stream: &str) -> Option<u64> {
+    let store =
+        crate::database::open_store(&config.store_dir.join("ledger_account/current/consumer.db"))
+            .await
+            .expect("the store");
+
+    crate::database::read_offset(&store, stream)
+        .await
+        .expect("an offset")
+}
+
 mod scope_journey {
     use super::{LEDGER_STREAM, build_host_config, create_s2_log, read_variable};
     use crate::commands::up;
@@ -355,9 +366,104 @@ mod scope_journey {
     }
 }
 
+mod two_stream_scope {
+    use std::path::{Path, PathBuf};
+
+    use serde_json::Value;
+
+    use super::{
+        LEDGER_STREAM, build_host_config, create_s2_log, read_expected_ledger_state,
+        read_journey_bodies, read_ledger_state, read_stored_offset, read_variable,
+    };
+    use crate::commands::up;
+    use crate::fact_log::FactLog;
+
+    const BASIN: &str = "scope-two-streams";
+    const ENTRY_STREAM: &str = "facts.ledger.entry";
+
+    /// A copy of the build's `consumers.json` in `directory` that lists both streams as the input
+    /// of the ledger consumer, with a copy of its module. The compiled module reads its facts
+    /// through the host, so it runs the same on two streams as on one.
+    fn write_two_stream_consumers(directory: &Path) -> PathBuf {
+        let source = super::read_consumers_file();
+        let mut file: Value =
+            serde_json::from_str(&std::fs::read_to_string(&source).expect("consumers.json"))
+                .expect("a consumers file");
+        let listed = file["consumers"]
+            .as_array_mut()
+            .expect("the consumers")
+            .iter_mut()
+            .find(|listed| listed["name"] == "ledger_account")
+            .expect("the ledger consumer");
+        let module = listed["path"].as_str().expect("a path").to_owned();
+
+        listed["manifest"]["input"]["streams"] = serde_json::json!([LEDGER_STREAM, ENTRY_STREAM]);
+
+        let copy = directory.join(&module);
+
+        std::fs::create_dir_all(copy.parent().expect("a folder")).expect("a module folder");
+        std::fs::copy(source.parent().expect("a folder").join(&module), copy).expect("a module");
+
+        let written = directory.join("consumers.json");
+
+        std::fs::write(&written, file.to_string()).expect("a consumers file");
+
+        written
+    }
+
+    // The journey's entries go on a second stream and the rest stays on the first. The compiled
+    // module reads facts in any order, so this test checks the rows of the two streams against the
+    // test store's rows, and each stream's own offset; the order of the merge is in a unit test of
+    // the host.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_gives_a_compiled_scope_that_reads_two_streams_the_rows_that_the_test_store_gives() {
+        let (entries, others): (Vec<String>, Vec<String>) =
+            read_journey_bodies().into_iter().partition(|body| {
+                serde_json::from_str::<Value>(body).expect("a body")["type"]
+                    == "ledger.entry.posted"
+            });
+        let log = create_s2_log(BASIN, &[LEDGER_STREAM.to_owned(), ENTRY_STREAM.to_owned()]).await;
+
+        log.append_batch(LEDGER_STREAM, &others, 0)
+            .await
+            .expect("the account facts");
+        log.append_batch(ENTRY_STREAM, &entries, 0)
+            .await
+            .expect("the entry facts");
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let mut config = build_host_config(
+            BASIN,
+            read_variable("PEPYS_S2_ENDPOINT"),
+            directory.path().join("store"),
+        );
+
+        config.consumers = write_two_stream_consumers(&directory.path().join("build"));
+
+        up(&config, Some("ledger_account"), None)
+            .await
+            .expect("an up");
+
+        assert_eq!(
+            read_ledger_state(&config).await,
+            read_expected_ledger_state()
+        );
+        assert_eq!(
+            (
+                read_stored_offset(&config, LEDGER_STREAM).await,
+                read_stored_offset(&config, ENTRY_STREAM).await
+            ),
+            (
+                Some(others.len() as u64 - 1),
+                Some(entries.len() as u64 - 1)
+            )
+        );
+    }
+}
+
 mod second_process {
     use std::process::{Child, Command, Stdio};
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     use super::{
         LEDGER_STREAM, build_host_config, create_s2_log, read_expected_ledger_state,
@@ -365,8 +471,10 @@ mod second_process {
     };
     use crate::fact_log::FactLog;
     use crate::lock::WriterLock;
+    use crate::test_utils::{collect_stderr, wait_for};
 
     const BASIN: &str = "second-process-up";
+    const LIMIT: Duration = Duration::from_secs(10);
 
     /// A host process that the test kills when it ends, whatever the outcome.
     struct HostProcess(Child);
@@ -424,12 +532,26 @@ mod second_process {
                 .env("PEPYS_STORE_DIR", &config.store_dir)
                 .env("PEPYS_CONSUMERS", &config.consumers)
                 .stdout(Stdio::null())
+                .stderr(Stdio::piped())
                 .spawn()
                 .expect("a host process"),
         );
 
-        // Time enough for the process to read the whole log and reach the lock.
-        tokio::time::sleep(Duration::from_secs(4)).await;
+        // A process that waits for the lock says so, after it read the whole log.
+        let said = collect_stderr(&mut host.0);
+
+        wait_for(
+            "the second process never waited for the lock",
+            LIMIT,
+            async || {
+                said.lock()
+                    .expect("the lines")
+                    .iter()
+                    .any(|line| line.contains("waiting for the writer lock"))
+                    .then_some(())
+            },
+        )
+        .await;
 
         assert!(
             host.0.try_wait().expect("the host's state").is_none(),
@@ -446,19 +568,12 @@ mod second_process {
 
         drop(held);
 
-        let started = Instant::now();
-
-        let status = loop {
-            if let Some(status) = host.0.try_wait().expect("the host's state") {
-                break status;
-            }
-
-            assert!(
-                started.elapsed() < Duration::from_secs(20),
-                "the second process never took the lock"
-            );
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        };
+        let status = wait_for(
+            "the second process never took the lock",
+            LIMIT,
+            async || host.0.try_wait().expect("the host's state"),
+        )
+        .await;
 
         assert!(status.success());
         assert_eq!(
@@ -471,7 +586,7 @@ mod second_process {
 mod s2_crash {
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
@@ -479,12 +594,16 @@ mod s2_crash {
 
     use super::{
         LEDGER_STREAM, build_host_config, create_s2_log, read_expected_ledger_state,
-        read_journey_bodies, read_ledger_state, read_variable,
+        read_journey_bodies, read_ledger_state, read_stored_offset, read_variable,
     };
     use crate::commands::{HostConfig, run_task, up};
-    use crate::database::{open_store, read_offset};
+    use crate::database::open_store;
+    use crate::error::HostError;
     use crate::fact_log::s2::S2Log;
-    use crate::fact_log::{AppendOutcome, FactLog};
+    use crate::fact_log::{AppendOutcome, FactLog, StoredFact};
+    use crate::test_utils::wait_for;
+
+    const LIMIT: Duration = Duration::from_secs(10);
 
     const OPEN: u8 = 0;
     const RESET: u8 = 1;
@@ -628,29 +747,99 @@ mod s2_crash {
         tokio::select! { () = request => {}, () = answer => {} }
     }
 
-    async fn read_stored_offset(config: &HostConfig) -> Option<u64> {
-        let store = open_store(&config.store_dir.join("ledger_account/current/consumer.db"))
-            .await
-            .expect("the store");
-
-        read_offset(&store, LEDGER_STREAM).await.expect("an offset")
+    /// A log that gives the reads of the host to `S2Log` and keeps each one, as the sequence number
+    /// it starts at and the count it asks for.
+    struct RecordingLog {
+        inner: S2Log,
+        reads: Arc<Mutex<Vec<(u64, usize)>>>,
     }
 
-    async fn wait_for<T>(what: &str, mut check: impl AsyncFnMut() -> Option<T>) -> T {
-        let started = Instant::now();
+    impl FactLog for RecordingLog {
+        async fn append_batch(
+            &self,
+            stream: &str,
+            bodies: &[String],
+            expected_tail: u64,
+        ) -> Result<AppendOutcome, HostError> {
+            self.inner.append_batch(stream, bodies, expected_tail).await
+        }
 
-        loop {
-            if let Some(found) = check().await {
-                return found;
-            }
+        async fn read(
+            &self,
+            stream: &str,
+            from: u64,
+            count: usize,
+        ) -> Result<Vec<StoredFact>, HostError> {
+            self.reads.lock().expect("the reads").push((from, count));
 
-            assert!(started.elapsed() < Duration::from_secs(40), "{what}");
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            self.inner.read(stream, from, count).await
+        }
+
+        async fn read_tail(&self, stream: &str) -> Result<u64, HostError> {
+            self.inner.read_tail(stream).await
         }
     }
 
-    // s2-lite dies while the host's task reads: the task reports the failure and stays alive, and a
-    // host that is killed in the middle of it resumes from the offset it committed, with each fact
+    /// The task of the ledger consumer, with the failures that it reports and the reads that it
+    /// makes.
+    struct RunningTask {
+        handle: JoinHandle<Result<(), HostError>>,
+        failures: Arc<Mutex<Vec<String>>>,
+        reads: Arc<Mutex<Vec<(u64, usize)>>>,
+    }
+
+    /// Runs the task of the ledger consumer on `config` until the test aborts it.
+    fn spawn_task(config: &HostConfig) -> RunningTask {
+        let failures = Arc::new(Mutex::new(Vec::new()));
+        let reads = Arc::new(Mutex::new(Vec::new()));
+        let task = tokio::spawn({
+            let (config, failures, reads) =
+                (config.clone(), Arc::clone(&failures), Arc::clone(&reads));
+
+            async move {
+                let log = RecordingLog {
+                    inner: S2Log::connect(&config.s2).expect("a log"),
+                    reads,
+                };
+
+                run_task(&config, &log, "ledger_account", |error, _| {
+                    failures
+                        .lock()
+                        .expect("the failures")
+                        .push(error.to_string());
+                })
+                .await
+            }
+        });
+
+        RunningTask {
+            handle: task,
+            failures,
+            reads,
+        }
+    }
+
+    async fn read_change_log_batches(config: &HostConfig) -> i64 {
+        let store = open_store(&config.store_dir.join("ledger_account/current/consumer.db"))
+            .await
+            .expect("the store");
+        let mut rows = store
+            .connection
+            .query("SELECT count(*) FROM change_log", ())
+            .await
+            .expect("a query");
+
+        rows.next()
+            .await
+            .expect("a row")
+            .expect("a count")
+            .get(0)
+            .expect("a number")
+    }
+
+    // s2-lite dies while the host's task reads, after the task committed a batch beyond the offset
+    // of its first pass: the task reports the failure and stays alive. A host that is killed then
+    // resumes at the offset of the committed batch, reads only what follows it, and each fact is
     // applied once.
     #[tokio::test(flavor = "multi_thread")]
     async fn it_resumes_from_the_committed_offset_after_s2_lite_crashes_during_a_read() {
@@ -670,64 +859,63 @@ mod s2_crash {
             .await
             .expect("an up");
 
-        assert_eq!(read_stored_offset(&config).await, Some(2));
+        assert_eq!(read_stored_offset(&config, LEDGER_STREAM).await, Some(2));
+
+        let task = spawn_task(&config);
 
         direct
-            .append_batch(LEDGER_STREAM, &bodies[3..], 3)
+            .append_batch(LEDGER_STREAM, &bodies[3..5], 3)
             .await
-            .expect("the rest");
+            .expect("the second batch");
+
+        wait_for(
+            "the task never applied the second batch",
+            LIMIT,
+            async || (read_stored_offset(&config, LEDGER_STREAM).await == Some(4)).then_some(()),
+        )
+        .await;
+
         s2.crash_by_reset();
+        direct
+            .append_batch(LEDGER_STREAM, &bodies[5..], 5)
+            .await
+            .expect("the third batch");
 
-        let failures = Arc::new(Mutex::new(Vec::new()));
-        let task = {
-            let (config, failures) = (config.clone(), Arc::clone(&failures));
-
-            tokio::spawn(async move {
-                let log = S2Log::connect(&config.s2).expect("a log");
-
-                run_task(&config, &log, "ledger_account", |error, _| {
-                    failures
-                        .lock()
-                        .expect("the failures")
-                        .push(error.to_string());
-                })
-                .await
-            })
-        };
-
-        wait_for("the task never reported the crash", async || {
-            (!failures.lock().expect("the failures").is_empty()).then_some(())
+        wait_for("the task never reported the crash", LIMIT, async || {
+            (!task.failures.lock().expect("the failures").is_empty()).then_some(())
         })
         .await;
 
-        assert!(!task.is_finished(), "the task ended instead of retrying");
+        assert!(
+            !task.handle.is_finished(),
+            "the task ended instead of retrying"
+        );
 
-        // The host dies in the middle of the retry.
-        task.abort();
-        let _ = task.await;
+        // The host is killed while its task waits to retry.
+        task.handle.abort();
+        let _ = task.handle.await;
 
-        assert_eq!(read_stored_offset(&config).await, Some(2));
+        assert_eq!(read_stored_offset(&config, LEDGER_STREAM).await, Some(4));
 
         s2.restart().await;
 
-        let restarted = tokio::spawn({
-            let config = config.clone();
-
-            async move {
-                let log = S2Log::connect(&config.s2).expect("a log");
-
-                run_task(&config, &log, "ledger_account", |_, _| {}).await
-            }
-        });
+        let restarted = spawn_task(&config);
         let last = bodies.len() as u64 - 1;
 
-        wait_for("the restarted task never caught up", async || {
-            (read_stored_offset(&config).await == Some(last)).then_some(())
+        wait_for("the restarted task never caught up", LIMIT, async || {
+            (read_stored_offset(&config, LEDGER_STREAM).await == Some(last)).then_some(())
         })
         .await;
-        restarted.abort();
-        let _ = restarted.await;
+        restarted.handle.abort();
+        let _ = restarted.handle.await;
 
+        // One read, of exactly the facts after the committed batch.
+        assert_eq!(
+            *restarted.reads.lock().expect("the reads"),
+            vec![(5, bodies.len() - 5)]
+        );
+        // One batch for each of the three passes that applied facts.
+        assert_eq!(read_change_log_batches(&config).await, 3);
         assert_eq!(
             read_ledger_state(&config).await,
             read_expected_ledger_state()
