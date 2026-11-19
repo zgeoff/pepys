@@ -6,6 +6,7 @@ const everyJourney = [
   'packages/cli/src/{build,utils,test-utils}/**',
   'packages/cli/e2e/fixtures/**',
   'packages/testing/src/ledger/**',
+  'packages/testing/src/dock/**',
   'crates/host/**',
   'stack/**',
 ] as const;

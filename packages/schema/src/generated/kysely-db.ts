@@ -83,6 +83,14 @@ export interface LedgerEntryRow {
   posted_at: string;
 }
 
+export interface DockBerthRow {
+  id: EntityID;
+  arrivals: number;
+  tonnes: number;
+  read_order: string;
+  updated_at: string;
+}
+
 export interface DB {
   github_pull_request: GithubPullRequestRow;
   github_pull_request_alias: GithubPullRequestAliasRow;
@@ -92,4 +100,5 @@ export interface DB {
   github_deploy: GithubDeployRow;
   ledger_account: LedgerAccountRow;
   ledger_entry: LedgerEntryRow;
+  dock_berth: DockBerthRow;
 }

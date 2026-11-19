@@ -23,6 +23,7 @@
         "packages/source-*/src/consumers/*.ts",
         "packages/*/src/test-utils/*/consumers/*.ts",
         "packages/testing/src/ledger/consumers/*.ts",
+        "packages/testing/src/dock/consumers/*.ts",
         "packages/cli/e2e/fixtures/*/src/consumers/*.ts"
       ],
       "rules": {
@@ -162,6 +163,7 @@
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
     "packages/testing/src/ledger/generated/**",
+    "packages/testing/src/dock/generated/**",
     "packages/cli/e2e/fixtures/*/src/generated/**"
   ]
 }
