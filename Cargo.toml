@@ -36,7 +36,7 @@ turmoil = "=0.7.2"
 # both crates list their other default features instead.
 turso = { version = "=0.8.3", default-features = false, features = ["mimalloc"] }
 url = "=2.5.8"
-wasmtime.version = "=50.0.1"
+wasmtime.version = "=50.0.2"
 wasmtime.default-features = false
 wasmtime.features = [
   "addr2line",
@@ -65,7 +65,7 @@ wasmtime.features = [
   "wat",
   "wit-parser",
 ]
-wasmtime-wasi = "=50.0.1"
+wasmtime-wasi = "=50.0.2"
 
 [workspace.lints.clippy]
 expect_used = "warn"
