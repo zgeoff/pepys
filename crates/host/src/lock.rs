@@ -94,15 +94,16 @@ mod tests {
     const CHILD_DIRECTORY: &str = "PEPYS_LOCK_TEST_CHILD_DIRECTORY";
     const CHILD_NAME: &str = "PEPYS_LOCK_TEST_CHILD_NAME";
     const TURNS: usize = 4;
+    const CHILD_TEST: &str =
+        "lock::tests::it_writes_in_turns_as_the_second_process_of_the_lock_test";
 
     /// The body of the second process, which the test below starts by running this test binary
-    /// again on this one test. In a normal run no variable is set, and it does nothing.
+    /// again on this one ignored test. A normal run skips it.
     #[tokio::test]
+    #[ignore = "the second process of the lock test, which that test starts"]
     async fn it_writes_in_turns_as_the_second_process_of_the_lock_test() {
-        let (Ok(directory), Ok(name)) = (std::env::var(CHILD_DIRECTORY), std::env::var(CHILD_NAME))
-        else {
-            return;
-        };
+        let directory = std::env::var(CHILD_DIRECTORY).expect("the lock test's directory");
+        let name = std::env::var(CHILD_NAME).expect("the lock test's name for this process");
 
         write_turns(Path::new(&directory), &name).await;
     }
@@ -139,11 +140,7 @@ mod tests {
             .await
             .expect("the lock");
         let mut child = std::process::Command::new(std::env::current_exe().expect("this binary"))
-            .args([
-                "--exact",
-                "lock::tests::it_writes_in_turns_as_the_second_process_of_the_lock_test",
-                "--nocapture",
-            ])
+            .args(["--ignored", "--exact", CHILD_TEST, "--nocapture"])
             .env(CHILD_DIRECTORY, directory.path())
             .env(CHILD_NAME, "child")
             .stderr(std::process::Stdio::piped())
