@@ -18,4 +18,5 @@ cites a deleted spike links the commit that last held it.
 
 | Spike                                 | What it answers                                                             |
 | ------------------------------------- | --------------------------------------------------------------------------- |
+| [host-throughput](host-throughput/)   | how fast the host applies long streams and how scope length slows a batch   |
 | [source-retention](source-retention/) | how long GitHub keeps webhook deliveries and a Gmail history ID stays valid |

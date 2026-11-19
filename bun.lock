@@ -261,6 +261,10 @@
         "@zgeoff/std": "catalog:",
       },
     },
+    "research/host-throughput": {
+      "name": "@pepys/spike-host-throughput",
+      "version": "0.0.0",
+    },
     "research/source-retention": {
       "name": "@pepys/spike-source-retention",
       "version": "0.0.0",
