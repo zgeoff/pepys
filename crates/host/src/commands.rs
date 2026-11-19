@@ -523,7 +523,7 @@ async fn run_consumer(config: HostConfig, consumer: String) -> Result<(), HostEr
 /// After a store or log error the batch has rolled back, so the task reopens the version and runs
 /// the pass again from the committed offsets, as [`pick_recovery`] decides. Any other error ends
 /// the task.
-async fn run_task(
+pub(crate) async fn run_task(
     config: &HostConfig,
     log: &impl FactLog,
     consumer: &str,
@@ -2649,51 +2649,69 @@ mod tests {
         (rows["ledger_account"].clone(), offsets, counts)
     }
 
+    /// The six facts of two accounts, in time order across both streams.
+    fn two_account_facts() -> [String; 6] {
+        let at = |time: &str| format!("2026-11-01T{time}Z");
+        let fact = |id: &str, kind: &str, account: &str, time: &str, payload| {
+            ledger_fact(id, kind, account, &at(time), &payload)
+        };
+
+        [
+            fact(
+                "1",
+                "ledger.account.opened",
+                "a",
+                "09:00:00",
+                json!({"name": "Alpha"}),
+            ),
+            fact(
+                "2",
+                "ledger.entry.posted",
+                "a",
+                "09:30:00",
+                json!({"amount": 5}),
+            ),
+            fact(
+                "3",
+                "ledger.account.renamed",
+                "a",
+                "10:00:00",
+                json!({"name": "Alpha trust"}),
+            ),
+            fact(
+                "4",
+                "ledger.entry.posted",
+                "a",
+                "10:30:00",
+                json!({"amount": 3}),
+            ),
+            fact(
+                "5",
+                "ledger.account.opened",
+                "b",
+                "09:00:00",
+                json!({"name": "Beta"}),
+            ),
+            fact(
+                "6",
+                "ledger.entry.posted",
+                "b",
+                "09:45:00",
+                json!({"amount": 7}),
+            ),
+        ]
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn it_gives_a_scope_that_spans_two_streams_the_rows_one_stream_gives() {
-        let opened = ledger_fact(
-            "1",
-            "ledger.account.opened",
-            "a",
-            "2026-11-01T09:00:00Z",
-            &json!({"name": "Alpha"}),
-        );
-        let posted_early = ledger_fact(
-            "2",
-            "ledger.entry.posted",
-            "a",
-            "2026-11-01T09:30:00Z",
-            &json!({"amount": 5}),
-        );
-        let renamed = ledger_fact(
-            "3",
-            "ledger.account.renamed",
-            "a",
-            "2026-11-01T10:00:00Z",
-            &json!({"name": "Alpha trust"}),
-        );
-        let posted_late = ledger_fact(
-            "4",
-            "ledger.entry.posted",
-            "a",
-            "2026-11-01T10:30:00Z",
-            &json!({"amount": 3}),
-        );
-        let beta = ledger_fact(
-            "5",
-            "ledger.account.opened",
-            "b",
-            "2026-11-01T09:00:00Z",
-            &json!({"name": "Beta"}),
-        );
-        let posted_beta = ledger_fact(
-            "6",
-            "ledger.entry.posted",
-            "b",
-            "2026-11-01T09:45:00Z",
-            &json!({"amount": 7}),
-        );
-
+        let [
+            opened,
+            posted_early,
+            renamed,
+            posted_late,
+            beta,
+            posted_beta,
+        ] = two_account_facts();
         let split = MemoryLog::new(&[ACCOUNT_STREAM.to_owned(), ENTRY_STREAM.to_owned()]);
         let whole = MemoryLog::new(&[ACCOUNT_STREAM.to_owned()]);
 
