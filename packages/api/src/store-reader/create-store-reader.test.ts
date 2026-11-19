@@ -355,7 +355,7 @@ test('it refuses a write to an attached file', async () => {
 
   await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
-  expect(
+  await expect(
     ctx.store.withConsumers([harbourVesselConsumer], (db) =>
       // oxlint-disable-next-line zgeoff/seed-only -- the write the reader must refuse
       db.deleteFrom('harbour_vessel').execute(),
@@ -408,7 +408,7 @@ test.each(['entity', 'link_effective', 'ENTITY', 'Link_Effective'])(
 
     await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
 
-    expect(
+    await expect(
       ctx.store.withConsumers([harbourVesselConsumer], (db) =>
         sql`select id from ${sql.raw(view)}`.execute(db),
       ),
