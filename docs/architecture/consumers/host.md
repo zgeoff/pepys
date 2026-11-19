@@ -209,9 +209,10 @@ with a release build and a local S2, one run per case. Treat the figures as orde
   facts. See [Fact mode](../../../research/host-throughput/results.md#fact-mode) and
   [many short scopes](../../../research/host-throughput/results.md#scope-mode-many-short-scopes).
 - **Scope length.** The time of a scope-mode batch grows faster than the length of the scopes it
-  touches: a scope 2.3 times longer made a batch 4.5 times slower, between scopes of 1500 and 3500
-  facts. The same 10000 facts took 35 times longer in one scope than in 1000 scopes. A deployment
-  that expects a scope of thousands of facts must expect a long replay. See
+  touches. In one scope, a batch took 214 ms on average while the scope grew from 1000 to 2000
+  facts, 953 ms from 2000 to 5000, and 3984 ms from 5000 to 10000. The same 10000 facts took 35
+  times longer in one scope than in 1000 scopes. A deployment that expects a scope of thousands of
+  facts must expect a long replay. See
   [Scope length](../../../research/host-throughput/results.md#scope-mode-scope-length). The cause
   inside the batch is open: the spike did not profile it.
 - **Replay time.** An `up` takes the number of facts divided by the rates above, so 100000 facts

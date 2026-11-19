@@ -88,10 +88,10 @@ length:
 | 2000 to 5000     | 953 ms                   | 3500                       |
 | 5000 to 10000    | 3984 ms                  | 7500                       |
 
-Time per batch grows 4.5 times from a scope of 1500 to one of 3500, which is 2.3 times longer, and
-4.2 times from 3500 to 7500, which is 2.1 times longer. The cause is not measured: the host reads
-and replaces the whole scope in every batch, and no run profiled which part, the module, the rewrite
-of the rows or the index, grows fastest.
+Each interval ends at a scope 2 to 2.5 times longer than the last, and its average time per batch is
+about 4 times that of the interval before. The cause is not measured: the host reads and replaces
+the whole scope in every batch, and no run profiled which part, the module, the rewrite of the rows
+or the index, grows fastest.
 
 The same 10000 facts at several scope lengths:
 
