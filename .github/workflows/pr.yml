@@ -7,9 +7,13 @@ on:
   push:
     branches: [main]
 
+# a newer pull request run cancels the older one, but each push to main gets a
+# group of its own and is never cancelled, so every merged commit is tested
 concurrency:
-  group: pr-${{ github.ref }}
-  cancel-in-progress: true
+  group:
+    ${{ github.event_name == 'pull_request' && format('{0}-{1}', github.workflow, github.ref) ||
+    format('{0}-push-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
