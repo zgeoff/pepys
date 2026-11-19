@@ -261,6 +261,10 @@
         "@zgeoff/std": "catalog:",
       },
     },
+    "research/host-throughput": {
+      "name": "@pepys/spike-host-throughput",
+      "version": "0.0.0",
+    },
     "research/source-retention": {
       "name": "@pepys/spike-source-retention",
       "version": "0.0.0",
@@ -723,6 +727,8 @@
     "@pepys/source-github": ["@pepys/source-github@workspace:packages/source-github"],
 
     "@pepys/source-telemetry": ["@pepys/source-telemetry@workspace:packages/source-telemetry"],
+
+    "@pepys/spike-host-throughput": ["@pepys/spike-host-throughput@workspace:research/host-throughput"],
 
     "@pepys/spike-source-retention": ["@pepys/spike-source-retention@workspace:research/source-retention"],
 

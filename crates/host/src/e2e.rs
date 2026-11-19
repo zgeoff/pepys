@@ -58,6 +58,8 @@ fn connect_garage() -> GarageBlobStore {
     .expect("a Garage client")
 }
 
+mod throughput;
+
 mod fact_log_s2 {
     use super::create_s2_log;
     use crate::fact_log::fixtures::{Fixture, run_fact_log_fixture};
