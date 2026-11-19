@@ -6,7 +6,7 @@
   "scripts": {
     "github": "bun run-github-probe.ts",
     "gmail": "bun run-gmail-probe.ts",
-    "typecheck": "tsrs --noEmit"
+    "typecheck": "tsrs --fast --noEmit"
   },
   "dependencies": {
     "zod": "4.6.7"
