@@ -82,4 +82,101 @@ mod tests {
                 .is_ok()
         );
     }
+
+    const CHILD_DIRECTORY: &str = "PEPYS_LOCK_TEST_CHILD_DIRECTORY";
+    const CHILD_NAME: &str = "PEPYS_LOCK_TEST_CHILD_NAME";
+    const TURNS: usize = 4;
+
+    /// The body of the second process, which the test below starts by running this test binary
+    /// again on this one test. In a normal run no variable is set, and it does nothing.
+    #[tokio::test]
+    async fn it_writes_in_turns_as_the_second_process_of_the_lock_test() {
+        let (Ok(directory), Ok(name)) = (std::env::var(CHILD_DIRECTORY), std::env::var(CHILD_NAME))
+        else {
+            return;
+        };
+
+        std::fs::write(Path::new(&directory).join("child.ready"), b"").expect("a ready file");
+        write_turns(Path::new(&directory), &name).await;
+    }
+
+    /// Takes the lock for each of `TURNS` turns and, while it holds it, writes a `begin` line, waits
+    /// and writes an `end` line to the shared file.
+    async fn write_turns(directory: &Path, name: &str) {
+        use std::io::Write;
+
+        for _ in 0..TURNS {
+            let lock = WriterLock::acquire(directory, Duration::from_secs(4))
+                .await
+                .expect("the lock");
+            let mut file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(directory.join("turns.log"))
+                .expect("the turns file");
+
+            writeln!(file, "begin {name}").expect("a line");
+            tokio::time::sleep(Duration::from_millis(40)).await;
+            writeln!(file, "end {name}").expect("a line");
+            drop(lock);
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn it_keeps_a_second_process_from_writing_while_this_one_holds_the_lock() {
+        let directory = tempfile::tempdir().expect("a directory");
+        let held = WriterLock::acquire(directory.path(), Duration::ZERO)
+            .await
+            .expect("the lock");
+        let mut child = std::process::Command::new(std::env::current_exe().expect("this binary"))
+            .args([
+                "--exact",
+                "lock::tests::it_writes_in_turns_as_the_second_process_of_the_lock_test",
+                "--nocapture",
+            ])
+            .env(CHILD_DIRECTORY, directory.path())
+            .env(CHILD_NAME, "child")
+            .spawn()
+            .expect("a second process");
+
+        let started = std::time::Instant::now();
+
+        while !directory.path().join("child.ready").exists() {
+            assert!(
+                started.elapsed() < Duration::from_secs(4),
+                "the child never started"
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+
+        // The child is now waiting for the lock, and writes nothing while this process holds it.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        assert!(!directory.path().join("turns.log").exists());
+
+        drop(held);
+
+        // The two processes then take turns for as long as the child runs: the parent's turns and
+        // the child's never overlap in the file.
+        write_turns(directory.path(), "parent").await;
+
+        assert!(child.wait().expect("the child's end").success());
+
+        let turns = std::fs::read_to_string(directory.path().join("turns.log")).expect("the turns");
+        let lines: Vec<&str> = turns.lines().collect();
+
+        assert_eq!(lines.len(), TURNS * 4);
+        assert!(
+            lines.chunks(2).all(|pair| {
+                pair[0].strip_prefix("begin ") == pair[1].strip_prefix("end ")
+                    && pair[0].starts_with("begin ")
+            }),
+            "the processes wrote at the same time:\n{turns}"
+        );
+        assert_eq!(
+            lines.iter().filter(|line| line.ends_with("child")).count(),
+            TURNS * 2
+        );
+    }
 }

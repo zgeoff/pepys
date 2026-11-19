@@ -2544,6 +2544,230 @@ mod tests {
         );
     }
 
+    const ACCOUNT_STREAM: &str = "facts.ledger.account";
+    const ENTRY_STREAM: &str = "facts.ledger.entry";
+
+    /// A module that gives each account the name of the latest named fact of its scope, the sum of
+    /// the amounts of the facts that carry one, and the time of its latest fact.
+    struct TotalRunner;
+
+    impl ScopeRunner for TotalRunner {
+        fn apply_scope(
+            &mut self,
+            scope: &str,
+            facts: Arc<dyn crate::scope::FactSource>,
+        ) -> Result<String, HostError> {
+            let read: Vec<serde_json::Value> =
+                serde_json::from_slice(&facts.read_scope_facts(scope)?)?;
+            let name = read
+                .iter()
+                .rev()
+                .find_map(|fact| fact["payload"]["name"].as_str());
+            let balance: i64 = read
+                .iter()
+                .filter_map(|fact| fact["payload"]["amount"].as_i64())
+                .sum();
+
+            Ok(json!([{"upsert": {"ledger_account": {
+                "id": scope, "name": name, "balance": balance, "is_closed": false,
+                "opened_at": null, "updated_at": read.last().map(|fact| fact["at"].clone())
+            }}}])
+            .to_string())
+        }
+    }
+
+    fn ledger_fact(
+        id: &str,
+        kind: &str,
+        account: &str,
+        at: &str,
+        payload: &serde_json::Value,
+    ) -> String {
+        json!({
+            "id": format!("event:ledger:{id}"), "type": kind, "v": 1, "api": "ledger/1",
+            "entity": format!("ledger:account:{account}"), "at": at, "payload": payload
+        })
+        .to_string()
+    }
+
+    /// Catches a `TotalRunner` version up on `log`, whose streams the manifest lists, and returns
+    /// its account rows, the offset of each stream and the stream of each indexed fact.
+    async fn catch_up_totals(
+        streams: &[&str],
+        log: &MemoryLog,
+    ) -> (Vec<Row>, Vec<Option<u64>>, Vec<(String, i64)>) {
+        let directory = tempfile::tempdir().expect("a directory");
+        let mut manifest = stub_scope_manifest();
+
+        manifest.input = ConsumerInput::Scope {
+            scope_kind: "ledger:account".to_owned(),
+            streams: streams.iter().map(|stream| (*stream).to_owned()).collect(),
+        };
+
+        let manifest = Arc::new(manifest);
+        let mut version = Version {
+            store: open_version_store(directory.path(), &manifest)
+                .await
+                .expect("a store"),
+            runner: Runner::Scope {
+                runner: Box::new(TotalRunner),
+                scope_kind: "ledger:account".to_owned(),
+            },
+            manifest: Arc::clone(&manifest),
+        };
+
+        catch_up(&mut version, log).await.expect("a catch up");
+
+        let rows = read_all_tables(&version.store, &manifest)
+            .await
+            .expect("the rows");
+        let mut offsets = Vec::new();
+
+        for stream in streams {
+            offsets.push(
+                read_offset(&version.store, stream)
+                    .await
+                    .expect("an offset"),
+            );
+        }
+
+        let mut indexed = version
+            .store
+            .connection
+            .query(
+                "SELECT stream, count(*) FROM scope_fact GROUP BY stream ORDER BY stream",
+                (),
+            )
+            .await
+            .expect("a query");
+        let mut counts = Vec::new();
+
+        while let Some(row) = indexed.next().await.expect("a row") {
+            counts.push((row.get(0).expect("a stream"), row.get(1).expect("a count")));
+        }
+
+        (rows["ledger_account"].clone(), offsets, counts)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_gives_a_scope_that_spans_two_streams_the_rows_one_stream_gives() {
+        let opened = ledger_fact(
+            "1",
+            "ledger.account.opened",
+            "a",
+            "2026-11-01T09:00:00Z",
+            &json!({"name": "Alpha"}),
+        );
+        let posted_early = ledger_fact(
+            "2",
+            "ledger.entry.posted",
+            "a",
+            "2026-11-01T09:30:00Z",
+            &json!({"amount": 5}),
+        );
+        let renamed = ledger_fact(
+            "3",
+            "ledger.account.renamed",
+            "a",
+            "2026-11-01T10:00:00Z",
+            &json!({"name": "Alpha trust"}),
+        );
+        let posted_late = ledger_fact(
+            "4",
+            "ledger.entry.posted",
+            "a",
+            "2026-11-01T10:30:00Z",
+            &json!({"amount": 3}),
+        );
+        let beta = ledger_fact(
+            "5",
+            "ledger.account.opened",
+            "b",
+            "2026-11-01T09:00:00Z",
+            &json!({"name": "Beta"}),
+        );
+        let posted_beta = ledger_fact(
+            "6",
+            "ledger.entry.posted",
+            "b",
+            "2026-11-01T09:45:00Z",
+            &json!({"amount": 7}),
+        );
+
+        let split = MemoryLog::new(&[ACCOUNT_STREAM.to_owned(), ENTRY_STREAM.to_owned()]);
+        let whole = MemoryLog::new(&[ACCOUNT_STREAM.to_owned()]);
+
+        for (log, stream, bodies) in [
+            (
+                &split,
+                ACCOUNT_STREAM,
+                vec![opened.clone(), renamed.clone(), beta.clone()],
+            ),
+            (
+                &split,
+                ENTRY_STREAM,
+                vec![
+                    posted_early.clone(),
+                    posted_late.clone(),
+                    posted_beta.clone(),
+                ],
+            ),
+            (
+                &whole,
+                ACCOUNT_STREAM,
+                vec![
+                    opened,
+                    posted_early,
+                    renamed,
+                    posted_late,
+                    beta,
+                    posted_beta,
+                ],
+            ),
+        ] {
+            log.append_batch(stream, &bodies, 0)
+                .await
+                .expect("an append");
+        }
+
+        let (split_rows, split_offsets, split_counts) =
+            catch_up_totals(&[ACCOUNT_STREAM, ENTRY_STREAM], &split).await;
+        let (whole_rows, _, _) = catch_up_totals(&[ACCOUNT_STREAM], &whole).await;
+
+        assert_eq!(split_rows, whole_rows);
+        assert_eq!(
+            split_rows
+                .iter()
+                .map(|row| (
+                    row["id"].clone(),
+                    row["name"].clone(),
+                    row["balance"].clone(),
+                    row["updated_at"].clone()
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    json!("ledger:account:a"),
+                    json!("Alpha trust"),
+                    json!(8),
+                    json!("2026-11-01T10:30:00Z")
+                ),
+                (
+                    json!("ledger:account:b"),
+                    json!("Beta"),
+                    json!(7),
+                    json!("2026-11-01T09:45:00Z")
+                ),
+            ]
+        );
+        // each stream's own offset and its own indexed records: a batch holds one stream's records
+        assert_eq!(split_offsets, vec![Some(2), Some(2)]);
+        assert_eq!(
+            split_counts,
+            vec![(ACCOUNT_STREAM.to_owned(), 3), (ENTRY_STREAM.to_owned(), 3)]
+        );
+    }
+
     #[test]
     fn it_picks_a_read_count_of_at_most_one_batch_until_the_stop() {
         let cases = [
