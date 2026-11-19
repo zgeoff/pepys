@@ -309,7 +309,7 @@
     "@zgeoff/oxlint-config": "0.10.9",
     "@zgeoff/rig": "0.2.4",
     "@zgeoff/std": "0.4.3",
-    "@zgeoff/testing": "0.3.0",
+    "@zgeoff/testing": "0.3.1",
     "elysia": "2.0.0-rc.4",
     "exact-mirror": "1.2.7",
     "knip": "6.44.2",
@@ -916,7 +916,7 @@
 
     "@zgeoff/std": ["@zgeoff/std@0.4.3", "", {}, "sha512-wCaqH8+vrkR+6R/grWUUDraryyFY1NW0Gjbhg85bXX38k9Q+N3aHFu+Yc+EjzZ/Sp9n5aJnCvZqbO5F2mUjWAg=="],
 
-    "@zgeoff/testing": ["@zgeoff/testing@0.3.0", "", { "dependencies": { "bun-pty": "0.6.0" } }, "sha512-9oeaSUJ3XtoXzYwBgT5DtiHA2OgjyzeFsggIzNGdTUrrDMfwytB3HCA0kGCnVNh/o84nqli4jvDD5eYWWv6QeA=="],
+    "@zgeoff/testing": ["@zgeoff/testing@0.3.1", "", { "dependencies": { "bun-pty": "0.6.0" } }, "sha512-QpmnTW0GyU2Sw+3taXhNNw8c8dKD+EpirZ/7Bx9RxjTGz/2tEspAR7CHdafYPn5Bak/93tU0akxSOZ9HsJ0usA=="],
 
     "acorn": ["acorn@8.19.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="],
 
