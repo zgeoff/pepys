@@ -302,7 +302,7 @@
     "@zgeoff/agent-hooks": "0.2.14",
     "@zgeoff/bun-test-extended": "0.2.4",
     "@zgeoff/chex": "0.3.6",
-    "@zgeoff/commitlint-config": "0.1.0",
+    "@zgeoff/commitlint-config": "0.1.2",
     "@zgeoff/diet": "0.2.3",
     "@zgeoff/format-codemod": "0.3.6",
     "@zgeoff/mcp-auth": "0.2.3",
@@ -900,7 +900,7 @@
 
     "@zgeoff/chex": ["@zgeoff/chex@0.3.6", "", { "dependencies": { "@zgeoff/std": "0.4.3", "oxc-parser": "0.158.0", "ts-pattern": "5.9.2" }, "bin": { "chex": "src/cli.ts" } }, "sha512-rLT7OwIk4WWmRJvdJufAzWTg1yDaGUGBtDBgLEUM43/wZAqMe4t66kC4U7tU6OfvhO4BivCBcvkBBRrpyvqnOw=="],
 
-    "@zgeoff/commitlint-config": ["@zgeoff/commitlint-config@0.1.0", "", { "peerDependencies": { "@commitlint/cli": ">=21.0.0" } }, "sha512-HEx06TxSmccoaQDNH8Honuv/pxp6I4GU8XpBvWGnibPLf3EKTskc9gJVdKMy43dox4t2i288vTC/mWHmWufUkg=="],
+    "@zgeoff/commitlint-config": ["@zgeoff/commitlint-config@0.1.2", "", { "peerDependencies": { "@commitlint/cli": ">=21.0.0" } }, "sha512-D5OJIMD4wBDJ4ad1z8LubHoRQNYDRtwu3LCGZj9m2TLmnpLuuN82/myTx6U7pBSteUGpqH19EJhTIthLCi1Vvg=="],
 
     "@zgeoff/diet": ["@zgeoff/diet@0.2.3", "", { "bin": { "diet": "diet.sh" } }, "sha512-/UHiaa0sMLCNtvpr/puCJFRX9OpKJ020OF4STNyc1ncTVGAdPOeSt0TcTeVuU2fqDkl9pHeLgP7dW2MrXoc8Cg=="],
 
