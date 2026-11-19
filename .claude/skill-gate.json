@@ -10,6 +10,7 @@
     { "match": "packages/cli/src/{build,utils,test-utils}/**", "skills": ["verify"] },
     { "match": "packages/cli/e2e/fixtures/**", "skills": ["verify"] },
     { "match": "packages/testing/src/ledger/**", "skills": ["verify"] },
+    { "match": "packages/testing/src/dock/**", "skills": ["verify"] },
     { "match": "crates/host/**", "skills": ["verify"] },
     { "match": "stack/**", "skills": ["verify"] },
     { "match": "packages/source-github/**", "skills": ["verify"] },

@@ -438,6 +438,62 @@
               ],
               "schema": "CREATE TABLE \"ledger_account\" (\n  \"id\" TEXT NOT NULL,\n  \"name\" TEXT,\n  \"balance\" INTEGER NOT NULL,\n  \"is_closed\" INTEGER NOT NULL,\n  \"opened_at\" TEXT,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE TABLE \"ledger_entry\" (\n  \"id\" TEXT NOT NULL,\n  \"account_id\" TEXT NOT NULL,\n  \"amount\" INTEGER NOT NULL,\n  \"rate\" REAL NOT NULL,\n  \"memo\" TEXT NOT NULL,\n  \"details\" TEXT NOT NULL,\n  \"posted_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE INDEX \"ledger_entry_account_id_idx\" ON \"ledger_entry\" (\"account_id\");\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'ledger:account' AS \"kind\",\n  \"name\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"ledger_account\"\nUNION ALL\nSELECT\n  \"id\" AS \"id\",\n  'ledger:entry' AS \"kind\",\n  \"memo\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"posted_at\" AS \"updated_at\"\nFROM \"ledger_entry\";\n"
             }
+          },
+          {
+            "name": "dock_berth",
+            "module": "7b83de5ff7e6180e6d03edcc1f609051942af7a37e835894b0de25bf6e58f4dd",
+            "path": "dock_berth/7b83de5ff7e6180e6d03edcc1f609051942af7a37e835894b0de25bf6e58f4dd.wasm",
+            "pins": {},
+            "version": "f6eed42d4ae9b9a50f0e46d3dfb4d630cdace83d2f9173577ff20ed1f3703d01",
+            "manifest": {
+              "name": "dock_berth",
+              "input": {
+                "mode": "scope",
+                "scopeKind": "dock:berth",
+                "streams": ["facts.dock.arrival", "facts.dock.load"]
+              },
+              "exports": {
+                "init": "dock_berth_init",
+                "apply": "dock_berth_apply_scope"
+              },
+              "imports": [
+                {
+                  "kind": "scope_facts",
+                  "length": "readScopeFactsLength",
+                  "into": "readScopeFactsInto"
+                }
+              ],
+              "tables": {
+                "dock_berth": {
+                  "columns": {
+                    "id": {
+                      "kind": "entityID",
+                      "nullable": false
+                    },
+                    "arrivals": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "tonnes": {
+                      "kind": "integer",
+                      "nullable": false
+                    },
+                    "read_order": {
+                      "kind": "text",
+                      "nullable": false
+                    },
+                    "updated_at": {
+                      "kind": "timestamp",
+                      "nullable": false
+                    }
+                  },
+                  "primaryKey": ["id"],
+                  "indexes": []
+                }
+              },
+              "links": [],
+              "schema": "CREATE TABLE \"dock_berth\" (\n  \"id\" TEXT NOT NULL,\n  \"arrivals\" INTEGER NOT NULL,\n  \"tonnes\" INTEGER NOT NULL,\n  \"read_order\" TEXT NOT NULL,\n  \"updated_at\" TEXT NOT NULL,\n  PRIMARY KEY (\"id\")\n);\n\nCREATE VIEW \"entity\" AS\nSELECT\n  \"id\" AS \"id\",\n  'dock:berth' AS \"kind\",\n  \"read_order\" AS \"title\",\n  NULL AS \"url\",\n  NULL AS \"actor\",\n  \"updated_at\" AS \"updated_at\"\nFROM \"dock_berth\";\n"
+            }
           }
         ]
       },

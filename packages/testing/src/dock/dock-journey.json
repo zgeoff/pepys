@@ -1,0 +1,47 @@
+{
+  "records": [
+    {
+      "stream": "facts.dock.arrival",
+      "body": "{\"id\":\"event:dock:evt-1\",\"type\":\"dock.arrival.logged\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:a\",\"at\":\"2026-11-01T09:00:00Z\",\"payload\":{\"vessel\":\"Heron\"}}"
+    },
+    {
+      "stream": "facts.dock.load",
+      "body": "{\"id\":\"event:dock:evt-2\",\"type\":\"dock.load.weighed\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:a\",\"at\":\"2026-11-01T09:30:00Z\",\"payload\":{\"tonnes\":5}}"
+    },
+    {
+      "stream": "facts.dock.arrival",
+      "body": "{\"id\":\"event:dock:evt-3\",\"type\":\"dock.arrival.logged\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:b\",\"at\":\"2026-11-01T09:40:00Z\",\"payload\":{\"vessel\":\"Wren\"}}"
+    },
+    {
+      "stream": "facts.dock.load",
+      "body": "{\"id\":\"event:dock:evt-4\",\"type\":\"dock.load.weighed\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:b\",\"at\":\"2026-11-01T09:45:00Z\",\"payload\":{\"tonnes\":7}}"
+    },
+    {
+      "stream": "facts.dock.arrival",
+      "body": "{\"id\":\"event:dock:evt-5\",\"type\":\"dock.arrival.logged\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:a\",\"at\":\"2026-11-01T10:00:00Z\",\"payload\":{\"vessel\":\"Kestrel\"}}"
+    },
+    {
+      "stream": "facts.dock.load",
+      "body": "{\"id\":\"event:dock:evt-6\",\"type\":\"dock.load.weighed\",\"v\":1,\"api\":\"dock/1\",\"entity\":\"dock:berth:a\",\"at\":\"2026-11-01T10:30:00Z\",\"payload\":{\"tonnes\":3}}"
+    }
+  ],
+  "rows": {
+    "dock_berth": [
+      {
+        "id": "dock:berth:a",
+        "arrivals": 2,
+        "tonnes": 8,
+        "read_order": "event:dock:evt-1 event:dock:evt-2 event:dock:evt-5 event:dock:evt-6",
+        "updated_at": "2026-11-01T10:30:00Z"
+      },
+      {
+        "id": "dock:berth:b",
+        "arrivals": 1,
+        "tonnes": 7,
+        "read_order": "event:dock:evt-3 event:dock:evt-4",
+        "updated_at": "2026-11-01T09:45:00Z"
+      }
+    ]
+  },
+  "links": []
+}

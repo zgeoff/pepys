@@ -21,7 +21,7 @@ test('it builds the same files on each call', () => {
   expect(buildGeneratedFiles()).toStrictEqual(buildGeneratedFiles());
 });
 
-test('it builds the files of the github, ledger, telemetry and logbook consumers', () => {
+test('it builds the files of the github, ledger, dock, telemetry and logbook consumers', () => {
   const generated = buildGeneratedFiles();
 
   invariant(generated.ok);
@@ -38,6 +38,8 @@ test('it builds the files of the github, ledger, telemetry and logbook consumers
     'packages/source-github/src/generated/github-deploy.sql',
     'packages/testing/src/ledger/generated/ledger-account-boundary.ts',
     'packages/testing/src/ledger/generated/ledger-account.sql',
+    'packages/testing/src/dock/generated/dock-berth-boundary.ts',
+    'packages/testing/src/dock/generated/dock-berth.sql',
     'packages/source-telemetry/src/generated/telemetry-model-request-boundary.ts',
     'packages/source-telemetry/src/generated/telemetry-model-request.sql',
     'packages/source-telemetry/src/generated/telemetry-turn-cost-boundary.ts',

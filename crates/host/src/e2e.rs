@@ -271,6 +271,14 @@ fn build_host_config(
 
 /// The rows and links of the current `ledger_account` file, as the journey file lists them.
 async fn read_ledger_state(config: &crate::commands::HostConfig) -> serde_json::Value {
+    read_consumer_state(config, "ledger_account").await
+}
+
+/// The rows and links of the current file of `consumer`, as a journey file lists them.
+async fn read_consumer_state(
+    config: &crate::commands::HostConfig,
+    consumer: &str,
+) -> serde_json::Value {
     use serde_json::{Value, json};
 
     use crate::consumer::read_build_manifest;
@@ -282,10 +290,10 @@ async fn read_ledger_state(config: &crate::commands::HostConfig) -> serde_json::
         .expect("consumers.json")
         .consumers
         .into_iter()
-        .find(|listed| listed.name == "ledger_account")
-        .expect("the ledger consumer")
+        .find(|listed| listed.name == consumer)
+        .expect("the consumer")
         .manifest;
-    let store = open_store(&config.store_dir.join("ledger_account/current/consumer.db"))
+    let store = open_store(&config.store_dir.join(consumer).join("current/consumer.db"))
         .await
         .expect("the store");
     let mut rows = serde_json::Map::new();
@@ -456,6 +464,67 @@ mod two_stream_scope {
             (
                 Some(others.len() as u64 - 1),
                 Some(entries.len() as u64 - 1)
+            )
+        );
+    }
+}
+
+/// The dock journey of the Bun test store, whose berth scope reads two streams.
+mod dock_journey {
+    use super::{build_host_config, create_s2_log, read_consumer_state, read_variable};
+    use crate::commands::up;
+    use crate::fact_log::{AppendOutcome, FactLog};
+
+    const JOURNEY: &str = include_str!("../../../packages/testing/src/dock/dock-journey.json");
+    const BASIN: &str = "scope-dock-journey";
+    const ARRIVAL_STREAM: &str = "facts.dock.arrival";
+    const LOAD_STREAM: &str = "facts.dock.load";
+
+    fn read_stream_bodies(journey: &serde_json::Value, stream: &str) -> Vec<String> {
+        journey["records"]
+            .as_array()
+            .expect("the records")
+            .iter()
+            .filter(|record| record["stream"] == stream)
+            .map(|record| record["body"].as_str().expect("a body").to_owned())
+            .collect()
+    }
+
+    // The compiled dock module reads one berth's facts from two streams, and its row names the
+    // facts in the order the host handed them over. A Bun test pins the journey file to the test
+    // store, so a host that reads one stream, or merges the two in another order, gives other rows.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_stores_the_rows_of_the_dock_journey_that_the_test_store_gives_for_two_streams() {
+        let journey: serde_json::Value = serde_json::from_str(JOURNEY).expect("the journey");
+        let arrivals = read_stream_bodies(&journey, ARRIVAL_STREAM);
+        let loads = read_stream_bodies(&journey, LOAD_STREAM);
+        let log = create_s2_log(BASIN, &[ARRIVAL_STREAM.to_owned(), LOAD_STREAM.to_owned()]).await;
+
+        for (stream, bodies) in [(ARRIVAL_STREAM, &arrivals), (LOAD_STREAM, &loads)] {
+            assert_eq!(
+                log.append_batch(stream, bodies, 0)
+                    .await
+                    .expect("an append"),
+                AppendOutcome::Acknowledged {
+                    first_offset: 0,
+                    count: bodies.len() as u64,
+                }
+            );
+        }
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let config = build_host_config(
+            BASIN,
+            read_variable("PEPYS_S2_ENDPOINT"),
+            directory.path().join("store"),
+        );
+
+        up(&config, Some("dock_berth"), None).await.expect("an up");
+
+        assert_eq!(
+            read_consumer_state(&config, "dock_berth").await,
+            crate::test_utils::to_float_numbers(
+                serde_json::json!({"rows": journey["rows"], "links": journey["links"]})
             )
         );
     }

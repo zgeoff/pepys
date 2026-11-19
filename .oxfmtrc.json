@@ -5,6 +5,7 @@
     "packages/*/src/generated/**",
     "packages/*/src/test-utils/*/generated/**",
     "packages/testing/src/ledger/generated/**",
+    "packages/testing/src/dock/generated/**",
     "packages/cli/e2e/fixtures/*/src/generated/**",
     "docs/design/**/sketches/**"
   ],
