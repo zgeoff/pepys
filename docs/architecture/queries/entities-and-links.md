@@ -92,8 +92,10 @@ and these are the shared views:
 
 The shared `entity` has the same name as each file's own `entity` view. Inside the query, SQLite
 resolves the bare name `entity` to the common table expression. The store reader adds the two shared
-views only to a query built with Kysely, the API's query builder. In a query in raw SQL, SQLite
-resolves a bare `entity` to the `entity` view of the first attached file alone.
+views only to a query built with Kysely, the API's query builder. A query in raw SQL that names
+`entity` or `link_effective` throws a `SharedViewInRawSQLError`, and the fix is to build that query
+with the query builder. A raw query may name `<consumer>.entity`, which is one file's own view, and
+any table of a consumer.
 
 A consumer can keep the row of a deleted entity. Take a release that GitHub deletes: the consumer
 stores the delete, and a fact from before the delete can still arrive later. A kept row lets the
