@@ -2646,79 +2646,31 @@ mod tests {
         (rows["ledger_account"].clone(), offsets, counts)
     }
 
-    /// The seven facts of two accounts in time order, each with the stream that holds it: account
-    /// facts on one stream and entries on the other, so that no stream alone is in time order for a
-    /// scope.
-    fn two_account_facts() -> Vec<(&'static str, String)> {
-        let fact = |id: &str, stream, kind: &str, account: &str, time: &str, payload| {
-            let at = format!("2026-11-01T{time}Z");
-
-            (stream, ledger_fact(id, kind, account, &at, &payload))
-        };
-
-        vec![
-            fact(
-                "1",
-                ACCOUNT_STREAM,
-                "ledger.account.opened",
-                "a",
-                "09:00:00",
-                json!({}),
-            ),
-            fact(
-                "2",
-                ENTRY_STREAM,
-                "ledger.entry.posted",
-                "a",
-                "09:30:00",
-                json!({"amount": 5}),
-            ),
-            fact(
-                "3",
-                ACCOUNT_STREAM,
-                "ledger.account.opened",
-                "b",
-                "09:40:00",
-                json!({}),
-            ),
-            fact(
-                "4",
-                ENTRY_STREAM,
-                "ledger.entry.posted",
-                "b",
-                "09:45:00",
-                json!({"amount": 7}),
-            ),
-            fact(
-                "5",
-                ACCOUNT_STREAM,
-                "ledger.account.renamed",
-                "a",
-                "10:00:00",
-                json!({}),
-            ),
-            fact(
-                "6",
-                ENTRY_STREAM,
-                "ledger.entry.posted",
-                "a",
-                "10:30:00",
-                json!({"amount": 3}),
-            ),
-            fact(
-                "7",
-                ACCOUNT_STREAM,
-                "ledger.account.renamed",
-                "a",
-                "10:45:00",
-                json!({}),
-            ),
-        ]
-    }
-
     #[tokio::test(flavor = "multi_thread")]
     async fn it_hands_a_scope_that_spans_two_streams_its_facts_in_time_order() {
-        let facts = two_account_facts();
+        let at = |time: &str| format!("2026-11-01T{time}Z");
+        let account = |id, kind, account, time| {
+            let body = ledger_fact(id, kind, account, &at(time), &json!({}));
+
+            (ACCOUNT_STREAM, body)
+        };
+        let entry = |id, account, time, amount: i64| {
+            let payload = json!({"amount": amount});
+            let body = ledger_fact(id, "ledger.entry.posted", account, &at(time), &payload);
+
+            (ENTRY_STREAM, body)
+        };
+        // The facts of two accounts in time order: account facts on one stream and entries on the
+        // other, so that no stream alone is in time order for a scope.
+        let facts = [
+            account("1", "ledger.account.opened", "a", "09:00:00"),
+            entry("2", "a", "09:30:00", 5),
+            account("3", "ledger.account.opened", "b", "09:40:00"),
+            entry("4", "b", "09:45:00", 7),
+            account("5", "ledger.account.renamed", "a", "10:00:00"),
+            entry("6", "a", "10:30:00", 3),
+            account("7", "ledger.account.renamed", "a", "10:45:00"),
+        ];
         let split = MemoryLog::new(&[ACCOUNT_STREAM.to_owned(), ENTRY_STREAM.to_owned()]);
         let whole = MemoryLog::new(&[ACCOUNT_STREAM.to_owned()]);
 
