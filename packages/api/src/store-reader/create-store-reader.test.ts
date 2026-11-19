@@ -394,7 +394,7 @@ test('it attaches a file whose folder name holds a space, a percent sign, a hash
   expect(result).toStrictEqual({ ok: true, value: { rows: [{ name: 'Tern' }] } });
 });
 
-test.each(['entity', 'link_effective'])(
+test.each(['entity', 'link_effective', 'ENTITY', 'Link_Effective'])(
   'it refuses a raw query that names the shared view %s',
   async (view) => {
     const ctx = await setupTest();
@@ -415,6 +415,31 @@ test.each(['entity', 'link_effective'])(
     ).rejects.toThrowWithMessage(Error, /query builder/u);
   },
 );
+
+test.each([
+  'harbour_vessel.[entity]',
+  'harbour_vessel. entity',
+  'harbour_vessel."entity"',
+  'harbour_vessel.`entity`',
+  'harbour_vessel.ENTITY',
+])('it runs a raw query that qualifies the view as %s', async (table) => {
+  const ctx = await setupTest();
+
+  await createConsumerVersion({
+    storeDirectory: ctx.storeDirectory,
+    consumer: harbourVesselConsumer,
+    version: 'v1',
+    rows: {},
+  });
+
+  await writeCurrentVersion(ctx.storeDirectory, harbourVesselConsumer, 'v1');
+
+  const result = await ctx.store.withConsumers([harbourVesselConsumer], (db) =>
+    sql`select id from ${sql.raw(table)}`.execute(db),
+  );
+
+  expect(result).toStrictEqual({ ok: true, value: { rows: [] } });
+});
 
 test('it runs a raw query that names the entity view of one file and a string that says entity', async () => {
   const ctx = await setupTest();

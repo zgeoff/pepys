@@ -106,8 +106,8 @@ class SharedViewInRawSQLError extends Error {
 }
 
 // A raw query names a shared view when `entity` or `link_effective` appears outside a single-quoted
-// string and is not the name after a dot, which is a file's own table.
-const sharedViewName = /(?<![\w.]|\.")(?<view>entity|link_effective)(?!\w)/u;
+// string, in any letter case, and is not the name after a dot, which is a file's own table.
+const sharedViewName = /(?<!\w|\.[\s"[`]*)(?<view>entity|link_effective)(?!\w)/iu;
 
 function assertNoSharedViewName(node: RawNode): void {
   for (const fragment of node.sqlFragments) {
