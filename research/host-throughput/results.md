@@ -125,3 +125,45 @@ batch by design. The scope length limit is open, and
 - The two-stream dock consumer and the GitHub consumers, and facts with larger payloads.
 - Memory use, the size of the consumer file, and an S2 on another machine.
 - A deployment with several consumers running at once.
+
+## More commands
+
+A scope-mode run reads the manifest of the stub deployment, `build/consumers/consumers.json`:
+
+```bash
+PEPYS_BENCH_CONSUMERS="$PWD/build/consumers/consumers.json" PEPYS_BENCH_CONSUMER=ledger_account \
+  PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=1000 \
+  bun scripts/e2e/run-with-stack.ts \
+  cargo test --release -p pepys-host throughput -- --ignored --nocapture
+```
+
+A fact-mode run reads the manifest of the e2e deployment, `build/e2e-consumers/consumers.json`,
+which holds `logbook_voyage`:
+
+```bash
+PEPYS_BENCH_CONSUMERS="$PWD/build/e2e-consumers/consumers.json" PEPYS_BENCH_CONSUMER=logbook_voyage \
+  PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=10000 \
+  bun scripts/e2e/run-with-stack.ts \
+  cargo test --release -p pepys-host throughput -- --ignored --nocapture
+```
+
+To time the `pepys` binary, seed the stream without an `up`, then time `pepys up` against the same
+basin, all inside one stack. The seed step prints `basin <name>`:
+
+```bash
+bun scripts/e2e/run-with-stack.ts sh -c '
+  export PEPYS_BENCH_SEED_ONLY=1 PEPYS_BENCH_CONSUMER=ledger_account \
+    PEPYS_BENCH_CONSUMERS="$PWD/build/consumers/consumers.json" \
+    PEPYS_BENCH_FACTS=10000 PEPYS_BENCH_ENTITIES=1000
+  basin=$(cargo test --release -p pepys-host throughput -- --ignored --nocapture |
+    sed -n "s/^basin \([^:]*\):.*/\1/p")
+  store=$(mktemp -d)
+  time PEPYS_S2_BASIN="$basin" PEPYS_STORE_DIR="$store" \
+    PEPYS_CONSUMERS="$PWD/build/consumers/consumers.json" \
+    target/release/pepys up ledger_account
+  rm -rf "$store"
+'
+```
+
+The bench is the ignored test in [`throughput.rs`](../../crates/host/src/e2e/throughput.rs). Its
+header lists the variables.
