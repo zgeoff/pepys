@@ -65,7 +65,7 @@ wasmtime.features = [
   "wat",
   "wit-parser",
 ]
-wasmtime-wasi = "=50.0.2"
+wasmtime-wasi = "=50.0.3"
 
 [workspace.lints.clippy]
 expect_used = "warn"
