@@ -30,6 +30,7 @@
     "ts-pattern": "catalog:"
   },
   "devDependencies": {
+    "@impz/testing": "catalog:",
     "zod": "catalog:"
   }
 }

@@ -1,5 +1,6 @@
 import { expect, mock, test } from 'bun:test';
 import { verifyImpIdentity } from '@impz/client/identity';
+import { createTestIdentityIssuer } from '@impz/testing/identity';
 import { createLogger } from '@pepys/kit';
 import type { StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
@@ -8,7 +9,6 @@ import { createMemoryFactLog } from '../../fact-log/memory/create-memory-fact-lo
 import { createIngest } from '../../receive/create-ingest.ts';
 import { buildStubReceiveDeployment } from '../../test-utils/build-stub-receive-deployment.ts';
 import { createImpIdentitySenderProof } from './create-imp-identity-sender-proof.ts';
-import { createIdentityIssuer } from './test-utils/create-identity-issuer.ts';
 import type { ImpIdentityTrust } from './types.ts';
 
 type Verify = typeof verifyImpIdentity;
@@ -71,8 +71,8 @@ function setupTest() {
   return {
     ...base,
     setupGroups: async () => {
-      const imps = await createIdentityIssuer('harbour-host');
-      const forwarders = await createIdentityIssuer('study-pc');
+      const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+      const forwarders = await createTestIdentityIssuer({ issuer: 'study-pc' });
 
       const nowSeconds = 1_794_370_812;
 
@@ -90,10 +90,10 @@ function setupTest() {
       const sign = (issuer: typeof imps, audience: string) =>
         issuer.signToken({
           audience,
-          subject: 'machine-1',
+          id: 'machine-1',
           name: 'study',
-          issuedAtSeconds: nowSeconds,
-          expiresAtSeconds: nowSeconds + 55,
+          iat: nowSeconds,
+          exp: nowSeconds + 55,
         });
 
       return {
@@ -110,7 +110,7 @@ function setupTest() {
 test('it hands the verifier the header, the documents and audience of the path, and the time', async () => {
   const ctx = setupTest();
 
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   const token = 'lamp-head.lamp-body.lamp-seal';
 
@@ -166,7 +166,7 @@ test('it refuses every delivery with 401 when no trust document is configured, a
 test('it refuses every delivery with 401 when no audience is configured, and never calls the verifier', async () => {
   const ctx = setupTest();
 
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   const verify = mock<Verify>(() =>
     Promise.resolve({ issuer: 'harbour-host', id: 'imp-0193', name: 'tidy-otter' }),
@@ -191,7 +191,7 @@ test('it refuses every delivery with 401 when no audience is configured, and nev
 test('it refuses with 401 when the verifier throws, and logs no token', async () => {
   const ctx = setupTest();
 
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   const ingest = ctx.createIngestWith(
     (header) => Promise.reject(new Error(`no key for ${header ?? ''}`)),
@@ -221,7 +221,7 @@ test('it refuses with 401 when the verifier throws, and logs no token', async ()
 test('it refuses the ignored route with 401 when the verifier refuses the token', async () => {
   const ctx = setupTest();
 
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   const ingest = ctx.createIngestWith(() => Promise.resolve(null), {
     issuers: new Map([['BEACON_ISSUERS', [harbour.document]]]),

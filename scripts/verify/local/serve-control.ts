@@ -1,13 +1,13 @@
+import type { TestIdentityIssuer } from '@impz/testing/identity';
 import { implement } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { e2eSecrets } from '../../../packages/cli/e2e/fixtures/e2e-secrets.ts';
-import type { IdentityIssuer } from '../../../packages/ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import { controlContract } from './control-contract.ts';
 import type { HostProcess } from './create-host-process.ts';
 
 interface ControlDependencies {
   host: HostProcess;
-  issuer: IdentityIssuer;
+  issuer: TestIdentityIssuer;
 }
 
 // A token lives 55 s at most, so a send signs a fresh one.
@@ -37,10 +37,10 @@ export function serveControl(dependencies: ControlDependencies): Bun.Server<unde
 
       const token = await dependencies.issuer.signToken({
         audience: e2eSecrets.identityAudience,
-        subject: options.input.subject,
+        id: options.input.subject,
         name: options.input.name,
-        issuedAtSeconds: nowSeconds,
-        expiresAtSeconds: nowSeconds + tokenLifetimeSeconds,
+        iat: nowSeconds,
+        exp: nowSeconds + tokenLifetimeSeconds,
       });
 
       return { token };

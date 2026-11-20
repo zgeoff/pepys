@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createTestIdentityIssuer } from '@impz/testing/identity';
+import type { TestIdentityIssuer } from '@impz/testing/identity';
 import { createS2FactLog } from '@pepys/ingest';
 import { parseFactEnvelope } from '@pepys/kit';
 import type { FactEnvelope, StreamName, StreamOffset } from '@pepys/kit';
@@ -10,8 +12,6 @@ import { toTagged } from '@zgeoff/std';
 import { buildStackEnv } from '../../../../stack/build-stack-env.ts';
 import { withStack } from '../../../../stack/with-stack.ts';
 import type { RunningStack } from '../../../../stack/with-stack.ts';
-import { createIdentityIssuer } from '../../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
-import type { IdentityIssuer } from '../../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import ledgerJourney from '../../../testing/src/ledger/ledger-journey.json' with { type: 'json' };
 import { readFreePort } from '../../src/test-utils/read-free-port.ts';
 import { e2eReadConsumers } from './e2e-read-consumers.ts';
@@ -23,7 +23,7 @@ const consumersPath = join(root, 'build/e2e-consumers/consumers.json');
 export interface E2EStack {
   stack: RunningStack;
   storeDirectory: string;
-  issuer: IdentityIssuer;
+  issuer: TestIdentityIssuer;
   hostBinary: string;
 
   // the origins that ingest and the API listen on, once a caller starts them
@@ -51,7 +51,7 @@ export async function startE2EStack(cleanup: AsyncDisposableStack): Promise<E2ES
 
   cleanup.defer(() => rm(trustDirectory, { recursive: true, force: true }));
 
-  const issuer = await createIdentityIssuer(e2eSecrets.identityIssuer);
+  const issuer = await createTestIdentityIssuer({ issuer: e2eSecrets.identityIssuer });
 
   // ingest reads the trust documents once, at start
   await Bun.write(

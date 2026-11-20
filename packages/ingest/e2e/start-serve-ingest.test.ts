@@ -2,10 +2,10 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createTestIdentityIssuer } from '@impz/testing/identity';
 import { S2 } from '@s2-dev/streamstore';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
-import { createIdentityIssuer } from '../src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'pepys-serve-'));
@@ -151,7 +151,7 @@ test('it exits 1 and logs the cause when a sender route and its path trust one i
   const impsFolder = join(ctx.folder, 'imps');
   const forwardersFolder = join(ctx.folder, 'forwarders');
 
-  const shared = await createIdentityIssuer('harbour-host');
+  const shared = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await Bun.write(join(impsFolder, 'host.json'), JSON.stringify(shared.document));
   await Bun.write(join(forwardersFolder, 'host.json'), JSON.stringify(shared.document));
