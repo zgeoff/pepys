@@ -2,6 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createTestIdentityIssuer } from '@impz/testing/identity';
+import type { TestIdentityIssuer } from '@impz/testing/identity';
 import { createLogger } from '@pepys/kit';
 import type { SourceDefinition, StreamOffset } from '@pepys/kit';
 import { toTagged } from '@zgeoff/std';
@@ -10,8 +12,14 @@ import { createMemoryFactLog } from '../../fact-log/memory/create-memory-fact-lo
 import { createIngest } from '../../receive/create-ingest.ts';
 import { buildStubReceiveDeployment } from '../../test-utils/build-stub-receive-deployment.ts';
 import { readImpIdentitySenderProof } from './read-imp-identity-sender-proof.ts';
-import { createIdentityIssuer } from './test-utils/create-identity-issuer.ts';
-import type { IdentityIssuer, SignedTokens } from './test-utils/create-identity-issuer.ts';
+
+// The tokens a refusal test picks from: a good one, and one that differs from it in one part each.
+interface SignedTokens {
+  good: string;
+  otherIssuer: string;
+  otherAudience: string;
+  forged: string;
+}
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'pepys-identity-'));
@@ -28,7 +36,7 @@ async function setupTest() {
   return {
     folder,
     sources: stub.deployment.sources,
-    writeTrustDocument: (issuer: IdentityIssuer) =>
+    writeTrustDocument: (issuer: TestIdentityIssuer) =>
       Bun.write(join(folder, `${issuer.document.issuer}.json`), JSON.stringify(issuer.document)),
     readSenderProof: (
       sources: readonly SourceDefinition[],
@@ -91,16 +99,16 @@ async function setupTest() {
 
 test('it stores the issuer and subject of a good token as the origin', async () => {
   const ctx = await setupTest();
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await ctx.writeTrustDocument(harbour);
 
   const token = await harbour.signToken({
     audience: 'pepys-ingest',
-    subject: 'imp-0193',
+    id: 'imp-0193',
     name: 'tidy-otter',
-    issuedAtSeconds: 1_794_370_812,
-    expiresAtSeconds: 1_794_370_862,
+    iat: 1_794_370_812,
+    exp: 1_794_370_862,
   });
 
   const delivered = await ctx.deliver(
@@ -163,25 +171,24 @@ test.each([
   },
 ])('it refuses $row with 401 and stores nothing', async (row) => {
   const ctx = await setupTest();
-  const harbour = await createIdentityIssuer('harbour-host');
-  const other = await createIdentityIssuer('other-host');
-  const forger = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+  const other = await createTestIdentityIssuer({ issuer: 'other-host' });
 
   await ctx.writeTrustDocument(harbour);
 
   const claims = {
     audience: 'pepys-ingest',
-    subject: 'imp-0193',
+    id: 'imp-0193',
     name: 'tidy-otter',
-    issuedAtSeconds: 1_794_370_812,
-    expiresAtSeconds: 1_794_370_862,
+    iat: 1_794_370_812,
+    exp: 1_794_370_862,
   };
 
   const tokens: SignedTokens = {
     good: await harbour.signToken(claims),
     otherIssuer: await other.signToken(claims),
     otherAudience: await harbour.signToken({ ...claims, audience: 'lantern-ingest' }),
-    forged: await forger.signToken(claims),
+    forged: await harbour.forge(claims),
   };
 
   const identity = row.pickIdentity(tokens);
@@ -200,16 +207,16 @@ test.each([
 
 test('it puts no token, secret or record in a refusal answer or a log line', async () => {
   const ctx = await setupTest();
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await ctx.writeTrustDocument(harbour);
 
   const token = await harbour.signToken({
     audience: 'lantern-ingest',
-    subject: 'imp-0193',
+    id: 'imp-0193',
     name: 'tidy-otter',
-    issuedAtSeconds: 1_794_370_812,
-    expiresAtSeconds: 1_794_370_862,
+    iat: 1_794_370_812,
+    exp: 1_794_370_862,
   });
 
   const delivered = await ctx.deliver(
@@ -239,16 +246,16 @@ test.each([
   { row: 'no trust folder', audience: 'pepys-ingest' },
 ])('it starts with $row and refuses a signed token with 401', async (row) => {
   const ctx = await setupTest();
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await ctx.writeTrustDocument(harbour);
 
   const token = await harbour.signToken({
     audience: 'pepys-ingest',
-    subject: 'imp-0193',
+    id: 'imp-0193',
     name: 'tidy-otter',
-    issuedAtSeconds: 1_794_370_812,
-    expiresAtSeconds: 1_794_370_862,
+    iat: 1_794_370_812,
+    exp: 1_794_370_862,
   });
 
   const delivered = await ctx.deliver(
@@ -268,16 +275,16 @@ test.each([
   { row: 'an empty audience', audience: '', tokenAudience: '' },
 ])('it starts with a trust folder and $row and refuses a signed token with 401', async (row) => {
   const ctx = await setupTest();
-  const harbour = await createIdentityIssuer('harbour-host');
+  const harbour = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await ctx.writeTrustDocument(harbour);
 
   const token = await harbour.signToken({
     audience: row.tokenAudience,
-    subject: 'imp-0193',
+    id: 'imp-0193',
     name: 'tidy-otter',
-    issuedAtSeconds: 1_794_370_812,
-    expiresAtSeconds: 1_794_370_862,
+    iat: 1_794_370_812,
+    exp: 1_794_370_862,
   });
 
   const delivered = await ctx.deliver(

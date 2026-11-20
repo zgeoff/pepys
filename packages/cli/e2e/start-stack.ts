@@ -6,13 +6,13 @@ import { afterAll, beforeAll } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { TestIdentityIssuer } from '@impz/testing/identity';
 import { createStoreReader } from '@pepys/api';
 import { createFactBatchSender } from '@pepys/kit/send';
 import { waitFor } from '@zgeoff/testing/helpers';
 import { logbookSource } from 'logbook-plugin';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import type { RunningStack } from '../../../stack/with-stack.ts';
-import type { IdentityIssuer } from '../../ingest/src/sender-proof/imp-identity/test-utils/create-identity-issuer.ts';
 import { buildGithubDelivery } from './fixtures/build-github-delivery.ts';
 import { e2eReadConsumers } from './fixtures/e2e-read-consumers.ts';
 import { e2eSecrets } from './fixtures/e2e-secrets.ts';
@@ -65,7 +65,7 @@ afterAll(() => cleanup.disposeAsync());
 interface DeploymentOptions {
   stack: RunningStack;
   storeDirectory: string;
-  issuer: IdentityIssuer;
+  issuer: TestIdentityIssuer;
   environment: Record<string, string | undefined>;
   ingestURL: string;
   apiURL: string;
@@ -204,15 +204,15 @@ async function writeVoyages(url: string): Promise<void> {
 
 // One export of one model request, with the bearer secret and an identity token of the trusted
 // issuer, signed just before the send because a token lives 55 s at most.
-async function writeLogs(url: string, issuer: IdentityIssuer): Promise<void> {
+async function writeLogs(url: string, issuer: TestIdentityIssuer): Promise<void> {
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   const token = await issuer.signToken({
     audience: e2eSecrets.identityAudience,
-    subject: 'imp-7731',
+    id: 'imp-7731',
     name: 'imp-harbour',
-    issuedAtSeconds: nowSeconds,
-    expiresAtSeconds: nowSeconds + 50,
+    iat: nowSeconds,
+    exp: nowSeconds + 50,
   });
 
   // OTLP JSON as Claude Code's exporter writes it: an integer is a JSON number

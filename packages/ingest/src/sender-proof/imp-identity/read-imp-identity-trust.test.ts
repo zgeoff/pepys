@@ -3,10 +3,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { IdentityTrustDocument } from '@impz/client/identity';
+import { createTestIdentityIssuer } from '@impz/testing/identity';
 import invariant from 'tiny-invariant';
 import { buildStubReceiveDeployment } from '../../test-utils/build-stub-receive-deployment.ts';
 import { readImpIdentityTrust } from './read-imp-identity-trust.ts';
-import { createIdentityIssuer } from './test-utils/create-identity-issuer.ts';
 
 interface GroupAudiences {
   imps: string;
@@ -48,8 +48,8 @@ async function setupTest() {
 
 test('it reads each JSON document in the folder that the variable names, and the audience', async () => {
   const ctx = await setupTest();
-  const hostA = await createIdentityIssuer('host-a');
-  const hostB = await createIdentityIssuer('host-b');
+  const hostA = await createTestIdentityIssuer({ issuer: 'host-a' });
+  const hostB = await createTestIdentityIssuer({ issuer: 'host-b' });
 
   await Bun.write(join(ctx.folder, 'host-a.json'), JSON.stringify(hostA.document));
   await Bun.write(join(ctx.folder, 'host-b.json'), JSON.stringify(hostB.document));
@@ -91,7 +91,7 @@ test.each([
   { row: 'an empty audience', audience: '' },
 ])('it holds no audience for $row', async (row) => {
   const ctx = await setupTest();
-  const hostA = await createIdentityIssuer('host-a');
+  const hostA = await createTestIdentityIssuer({ issuer: 'host-a' });
 
   await Bun.write(join(ctx.folder, 'host-a.json'), JSON.stringify(hostA.document));
 
@@ -117,7 +117,7 @@ test.each([
   },
 ])('it fails on $row', async (row) => {
   const ctx = await setupTest();
-  const hostA = await createIdentityIssuer('host-a');
+  const hostA = await createTestIdentityIssuer({ issuer: 'host-a' });
 
   for (const [index, document] of row.buildDocuments(hostA.document).entries()) {
     await Bun.write(join(ctx.folder, `host-${index}.json`), JSON.stringify(document));
@@ -143,8 +143,8 @@ test('it fails on a folder that cannot be read', async () => {
 
 test('it reads the variables of a sender route beside those of its path', async () => {
   const ctx = await setupTest();
-  const imps = await createIdentityIssuer('harbour-host');
-  const forwarders = await createIdentityIssuer('study-pc');
+  const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+  const forwarders = await createTestIdentityIssuer({ issuer: 'study-pc' });
 
   await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
   await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
@@ -168,8 +168,8 @@ test('it reads the variables of a sender route beside those of its path', async 
 
 test('it fails when a sender route and its path have one audience', async () => {
   const ctx = await setupTest();
-  const imps = await createIdentityIssuer('harbour-host');
-  const forwarders = await createIdentityIssuer('study-pc');
+  const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+  const forwarders = await createTestIdentityIssuer({ issuer: 'study-pc' });
 
   await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
   await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
@@ -184,8 +184,8 @@ test('it fails when a sender route and its path have one audience', async () => 
 
 test('it fails when one issuer name is in both folders', async () => {
   const ctx = await setupTest();
-  const imps = await createIdentityIssuer('harbour-host');
-  const forwarders = await createIdentityIssuer('harbour-host');
+  const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+  const forwarders = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
   await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
@@ -200,7 +200,7 @@ test('it fails when one issuer name is in both folders', async () => {
 
 test('it fails when one key is in both folders under two issuer names and two key IDs', async () => {
   const ctx = await setupTest();
-  const imps = await createIdentityIssuer('harbour-host');
+  const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   const [key] = imps.document.keys;
 
@@ -225,8 +225,8 @@ test('it fails when one key is in both folders under two issuer names and two ke
 
 test('it starts when the forwarder side has no audience, even with one issuer name in both folders', async () => {
   const ctx = await setupTest();
-  const imps = await createIdentityIssuer('harbour-host');
-  const forwarders = await createIdentityIssuer('harbour-host');
+  const imps = await createTestIdentityIssuer({ issuer: 'harbour-host' });
+  const forwarders = await createTestIdentityIssuer({ issuer: 'harbour-host' });
 
   await Bun.write(join(ctx.folder, 'imps.json'), JSON.stringify(imps.document));
   await Bun.write(join(ctx.forwarderFolder, 'study.json'), JSON.stringify(forwarders.document));
