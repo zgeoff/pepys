@@ -1,9 +1,9 @@
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { registerTestCleanup } from '@zgeoff/testing';
 import invariant from 'tiny-invariant';
 import { createApp } from '../app/create-app.ts';
 import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
-import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
 import { buildQueryContext } from '../queries/build-query-context.ts';
 import { harbourPlugin } from './harbour/harbour-plugin.ts';
 

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { createHostProcess } from './create-host-process.ts';
 
 function setupTest(argv: readonly string[]) {

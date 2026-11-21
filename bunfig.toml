@@ -36,11 +36,13 @@ minimumReleaseAgeExcludes = [
 ]
 
 [test]
-# registers jest-extended matchers for `bun test`, and the mock network that answers every remote
-# API a test reaches
+# registers jest-extended matchers for `bun test`, the kit's env restore, the mock network that
+# answers every remote API a test reaches, and the default GitHub API handlers
 preload = [
   "@zgeoff/bun-test-extended",
-  "./packages/source-github/src/test-utils/reset-mock-network.ts",
+  "@zgeoff/testing/preload",
+  "./packages/mock-network/src/mock-network.ts",
+  "./packages/source-github/src/test-utils/use-github-api-handlers.ts",
 ]
 # spikes test themselves, and the e2e tests need the stack that `test:e2e` starts; rig's unit run
 # passes ignore patterns of its own, which replace this list, so its config lists the spikes too

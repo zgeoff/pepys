@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { checkDeployment, defineDeployment } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
+import { registerTestCleanup } from '@zgeoff/testing';
 import invariant from 'tiny-invariant';
-import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
 import { buildQueryContext } from '../queries/build-query-context.ts';
 import { harbourPlugin, harbourSource } from './harbour/harbour-plugin.ts';
 import { startAuthorizedMCP } from './start-authorized-mcp.ts';

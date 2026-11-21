@@ -6,7 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@mswjs/interceptors": "catalog:",
-    "msw": "catalog:",
-    "tiny-invariant": "catalog:"
+    "@zgeoff/testing": "catalog:",
+    "msw": "catalog:"
   }
 }

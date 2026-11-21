@@ -1,3 +1,4 @@
+import { claimFreePorts } from '@zgeoff/testing/process';
 import { $ } from 'bun';
 import invariant from 'tiny-invariant';
 import { StackInterruptedError } from './stack-interrupted-error.ts';
@@ -35,8 +36,11 @@ export async function withStack<Result>(
   run: (stack: RunningStack) => Promise<Result>,
 ): Promise<Result> {
   const projectName = `pepys-stack-${crypto.randomUUID().slice(0, 8)}`;
-  const s2Port = readFreePort();
-  const garagePort = readFreePort();
+
+  // a script, not a test, so the run's end releases the claims
+  const ports = claimFreePorts(2, { cleanup: 'manual' });
+  const s2Port = ports.take();
+  const garagePort = ports.take();
 
   const stopController = new AbortController();
 
@@ -109,6 +113,8 @@ export async function withStack<Result>(
     }
   }
 
+  ports.release();
+
   for (const handler of handlers) {
     process.off(handler.signal, handler.listener);
   }
@@ -122,20 +128,6 @@ export async function withStack<Result>(
   }
 
   return settled.value;
-}
-
-function readFreePort(): number {
-  const listener = Bun.listen({
-    hostname: '127.0.0.1',
-    port: 0,
-    socket: { data: () => {} },
-  });
-
-  const port = listener.port;
-
-  listener.stop(true);
-
-  return port;
 }
 
 async function readProjectResources(projectName: string): Promise<string> {

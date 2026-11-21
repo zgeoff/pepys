@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { join } from 'node:path';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { openSharedAuth } from '../../test-utils/open-shared-auth.ts';
 import { setupTempDir } from '../test-utils/setup-temp-dir.ts';
 import { startServiceTokenReloads } from './start-service-token-reloads.ts';

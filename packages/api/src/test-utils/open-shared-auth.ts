@@ -1,10 +1,10 @@
 import { DEFAULT_PATHS, openMCPAuth } from '@zgeoff/mcp-auth';
 import type { MCPAuth, MCPAuthOptions } from '@zgeoff/mcp-auth';
+import { registerTestCleanup } from '@zgeoff/testing';
 import { AUTH_TABLES } from '../oauth/auth-tables.ts';
 import { GRANT_SCOPES } from '../oauth/constants.ts';
 import type { GrantScope } from '../oauth/constants.ts';
 import { openMCPAuthDatabase } from '../oauth/database/open-mcp-auth-database.ts';
-import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
 
 interface SharedAuthTarget {
   // The public origin the server serves, or would serve, and its database file.

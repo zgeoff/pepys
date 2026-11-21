@@ -1,6 +1,6 @@
 import { createStoreReader } from '@pepys/api';
 import { WringerError } from '@wringer/core';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { readLaggingConsumers } from '../../packages/cli/e2e/fixtures/read-lagging-consumers.ts';
 import { createControlClient } from './create-control-client.ts';
 import type { RunEndpoints } from './parse-run-endpoints.ts';

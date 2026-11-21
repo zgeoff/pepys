@@ -1,7 +1,7 @@
 import { join } from 'node:path';
+import { registerTestCleanup } from '@zgeoff/testing';
 import { createApp } from '../app/create-app.ts';
 import { startMCPHTTPServer } from '../oauth/http/start-mcp-http-server.ts';
-import { registerTestCleanup } from '../oauth/test-utils/register-test-cleanup.ts';
 import { setupTempDir } from '../oauth/test-utils/setup-temp-dir.ts';
 import type { QueryContext } from '../queries/types.ts';
 import { authorizeMCPClient } from './authorize-mcp-client.ts';

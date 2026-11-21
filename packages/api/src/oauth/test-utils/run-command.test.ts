@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { runCommand } from './run-command.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
 
