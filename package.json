@@ -30,7 +30,7 @@
       "@wringer/db": "0.1.8",
       "@wringer/gunshi": "0.3.10",
       "@wringer/http": "0.1.9",
-      "@wringer/mcp": "0.1.4",
+      "@wringer/mcp": "0.1.6",
       "@wringer/stream": "0.1.8",
       "@zgeoff/agent-hooks": "0.2.14",
       "@zgeoff/bun-test-extended": "0.2.4",
