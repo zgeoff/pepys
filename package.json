@@ -89,7 +89,6 @@
     "ci:tool-paths": "bun scripts/e2e/write-tool-paths.ts",
     "ci:verify-gate": "bun scripts/verify-gate/run-verify-gate.ts",
     "ci:require-checks": "bun scripts/checks/require-every-check.ts",
-    "ci:lint-title": "bun scripts/pr-title/lint-title.ts",
     "ci:agent-sdk-bump": "bun scripts/agent-sdk-bump/write-agent-sdk-bump.ts",
     "ci:check-release-tag": "bun scripts/release/check-release-tag.ts",
     "ci:pack-packages": "bun scripts/release/write-package-tarballs.ts",
