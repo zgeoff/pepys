@@ -65,7 +65,9 @@ export async function startE2EStack(cleanup: AsyncDisposableStack): Promise<E2ES
   // made outside a test, so the stack's cleanup releases the claim, not the test hook
   const ports = claimFreePorts(2, { cleanup: 'manual' });
 
-  cleanup.defer(() => ports.release());
+  cleanup.defer(() => {
+    ports.release();
+  });
 
   const ingestPort = ports.take();
   const apiPort = ports.take();
