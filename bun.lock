@@ -315,7 +315,7 @@
     "@zgeoff/mcp-auth": "0.2.4",
     "@zgeoff/oxlint-config": "0.10.10",
     "@zgeoff/rig": "0.2.6",
-    "@zgeoff/std": "0.4.4",
+    "@zgeoff/std": "0.4.5",
     "@zgeoff/testing": "0.3.2",
     "elysia": "2.0.0-rc.4",
     "exact-mirror": "1.2.7",
@@ -945,7 +945,7 @@
 
     "@zgeoff/rig": ["@zgeoff/rig@0.2.6", "", { "dependencies": { "@zgeoff/diet": "0.2.3", "@zgeoff/std": "0.4.4", "gunshi": "1.0.0-rc.1", "ts-pattern": "5.9.2", "zod": "4.6.7" }, "bin": { "rig": "src/cli.ts" } }, "sha512-pV/SNB7OV+w8KoI2ZPwTRYAi4xHyuZQGhGty51mzYFd+FL/9AXKMHBJPXBALxu6gcjh4icnYuTnJrHbv2jj62Q=="],
 
-    "@zgeoff/std": ["@zgeoff/std@0.4.4", "", {}, "sha512-AlT4lgjyC0ZhLUxxG0Sg9pxQG/+MIziC7BA9k29QDNt/ubGvB1+RCpTr/LaYkjFxiZnKG42psa4f2cp5BHGyzQ=="],
+    "@zgeoff/std": ["@zgeoff/std@0.4.5", "", {}, "sha512-Z2rD5v0OVXRZTa3Jh2I8zmx9znzvnAa/bC5Ai0NidPh+pfJGfDLmQIVZhshbGXPu/S/9SFdP/chDw+N5Pk/lzg=="],
 
     "@zgeoff/testing": ["@zgeoff/testing@0.3.2", "", { "dependencies": { "bun-pty": "0.6.0" } }, "sha512-Wmj766HmxzhF7Gu0EDNhcC7Evslz1UDEkr3YSZv35enGk2x9viXeH6ZYJFbGpggfOR1dIZEXBY/NFgnR1OL3wg=="],
 
@@ -1411,6 +1411,8 @@
 
     "@orpc/standard-server-peer/@orpc/shared": ["@orpc/shared@1.16.2", "", { "dependencies": { "radash": "^12.1.1", "type-fest": "^5.4.4" }, "peerDependencies": { "@opentelemetry/api": ">=1.9.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-j9EX9FvUcnR4tz5ooheC1R7guNg04UePb0Ws7/3GYEJBCX+8OmXKXiNaytTeUbs1zYZbZqyZrE2/FewBeYu7BA=="],
 
+    "@wringer/core/@zgeoff/std": ["@zgeoff/std@0.4.4", "", {}, "sha512-AlT4lgjyC0ZhLUxxG0Sg9pxQG/+MIziC7BA9k29QDNt/ubGvB1+RCpTr/LaYkjFxiZnKG42psa4f2cp5BHGyzQ=="],
+
     "@wringer/core/xstate": ["xstate@5.33.3", "", {}, "sha512-AnDRjS/GyKHmbA1PyhVCYBqYsA7EGe3KGgeD0ht3NFsXzoz7leX/HQDFX9QlHFJ/ltLHPsgChJYwPzRvB/0b4g=="],
 
     "@wringer/stream/xstate": ["xstate@5.33.3", "", {}, "sha512-AnDRjS/GyKHmbA1PyhVCYBqYsA7EGe3KGgeD0ht3NFsXzoz7leX/HQDFX9QlHFJ/ltLHPsgChJYwPzRvB/0b4g=="],
@@ -1419,7 +1421,7 @@
 
     "@zgeoff/format-codemod/gunshi": ["gunshi@1.0.0-rc.1", "", {}, "sha512-/nSFKVrJHKg9O4ppBl+lOSLDQWmvJ5fG3ldVsdJX8KMtUV2uYwlx/a8OaOWuvniuV28bZDjsB8p6YFtDxSlMcw=="],
 
-    "@zgeoff/mcp-auth/@zgeoff/std": ["@zgeoff/std@0.4.5", "", {}, "sha512-Z2rD5v0OVXRZTa3Jh2I8zmx9znzvnAa/bC5Ai0NidPh+pfJGfDLmQIVZhshbGXPu/S/9SFdP/chDw+N5Pk/lzg=="],
+    "@zgeoff/rig/@zgeoff/std": ["@zgeoff/std@0.4.4", "", {}, "sha512-AlT4lgjyC0ZhLUxxG0Sg9pxQG/+MIziC7BA9k29QDNt/ubGvB1+RCpTr/LaYkjFxiZnKG42psa4f2cp5BHGyzQ=="],
 
     "@zgeoff/rig/gunshi": ["gunshi@1.0.0-rc.1", "", {}, "sha512-/nSFKVrJHKg9O4ppBl+lOSLDQWmvJ5fG3ldVsdJX8KMtUV2uYwlx/a8OaOWuvniuV28bZDjsB8p6YFtDxSlMcw=="],
 
