@@ -2,10 +2,10 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { openMCPAuthAdmin } from '@zgeoff/mcp-auth';
 import type { MCPAuthAdmin } from '@zgeoff/mcp-auth';
+import { systemClock } from '@zgeoff/std';
 import { AUTH_TABLES } from '../auth-tables.ts';
 import { GRANT_SCOPES } from '../constants.ts';
 import { openMCPAuthDatabase } from '../database/open-mcp-auth-database.ts';
-import { systemClock } from '../system-clock.ts';
 
 interface AuthAdmin {
   readonly admin: MCPAuthAdmin;

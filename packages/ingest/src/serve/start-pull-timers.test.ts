@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { createLogger, toStreamName } from '@pepys/kit';
 import type { PullPath } from '@pepys/kit';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { createMemoryFactLog } from '../fact-log/memory/create-memory-fact-log.ts';
 import { collectTimedPulls } from '../pull/collect-timed-pulls.ts';
 import { cursorStream } from '../pull/cursors/cursor-stream.ts';

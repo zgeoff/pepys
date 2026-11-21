@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { registerTestCleanup } from './register-test-cleanup.ts';
+import { registerTestCleanup } from '@zgeoff/testing';
 
 interface TempDir {
   readonly path: string;

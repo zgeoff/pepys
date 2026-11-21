@@ -1,5 +1,5 @@
 import type { SecurityEvent, SecuritySink } from '@zgeoff/mcp-auth';
-import type { Clock } from '../system-clock.ts';
+import type { Clock } from '@zgeoff/std';
 import { formatSecurityEvent } from './format-security-event.ts';
 
 interface SecurityEventLogOptions {

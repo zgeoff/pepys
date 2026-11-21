@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { killProcessGroup } from './kill-process-group.ts';
 
 test('it kills the leader of a group and a child the leader forked', async () => {

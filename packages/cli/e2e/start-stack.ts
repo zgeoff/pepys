@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { TestIdentityIssuer } from '@impz/testing/identity';
 import { createStoreReader } from '@pepys/api';
 import { createFactBatchSender } from '@pepys/kit/send';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import { logbookSource } from 'logbook-plugin';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import type { RunningStack } from '../../../stack/with-stack.ts';

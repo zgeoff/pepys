@@ -1,6 +1,8 @@
 import { DEFAULT_PATHS, openMCPAuth } from '@zgeoff/mcp-auth';
 import type { MCPAuth, Requester } from '@zgeoff/mcp-auth';
 import type { MCPHTTPAppOptions } from '@zgeoff/mcp-auth/elysia';
+import { systemClock } from '@zgeoff/std';
+import type { Clock } from '@zgeoff/std';
 import type { Server } from 'bun';
 import { AUTH_TABLES } from '../auth-tables.ts';
 import { GRANT_SCOPES, SERVICE_TOKEN_PREFIX } from '../constants.ts';
@@ -9,8 +11,6 @@ import { openMCPAuthDatabase } from '../database/open-mcp-auth-database.ts';
 import { createSecurityEventLog } from '../security/create-security-event-log.ts';
 import { readServiceTokenFile } from '../service-tokens/read-service-token-file.ts';
 import { startServiceTokenReloads } from '../service-tokens/start-service-token-reloads.ts';
-import { systemClock } from '../system-clock.ts';
-import type { Clock } from '../system-clock.ts';
 import { isLoopbackHost } from './is-loopback-host.ts';
 import { normalizePublicURL } from './normalize-public-url.ts';
 

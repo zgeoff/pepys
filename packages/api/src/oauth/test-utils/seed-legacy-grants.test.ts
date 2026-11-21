@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { join } from 'node:path';
-import { registerTestCleanup } from './register-test-cleanup.ts';
+import { registerTestCleanup } from '@zgeoff/testing';
 import { seedLegacyGrants } from './seed-legacy-grants.ts';
 import { setupTempDir } from './setup-temp-dir.ts';
 

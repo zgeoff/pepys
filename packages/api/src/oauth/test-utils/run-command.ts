@@ -1,6 +1,6 @@
+import { registerTestCleanup } from '@zgeoff/testing';
 import type { Subprocess } from 'bun';
 import { killProcessGroup } from './kill-process-group.ts';
-import { registerTestCleanup } from './register-test-cleanup.ts';
 
 interface CommandOptions {
   readonly cwd?: string;

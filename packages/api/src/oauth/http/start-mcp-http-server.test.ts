@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
 import invariant from 'tiny-invariant';
 import { authorizeMCPClient } from '../../test-utils/authorize-mcp-client.ts';
 import { readMCPAnswer } from '../../test-utils/read-mcp-answer.ts';

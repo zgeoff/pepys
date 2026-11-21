@@ -2,11 +2,11 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
+import { claimFreePorts } from '@zgeoff/testing/process';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import { buildDeploymentEnvironment } from '../src/test-utils/build-deployment-environment.ts';
-import { readFreePort } from '../src/test-utils/read-free-port.ts';
 
 // A second deployment beside the one the preload runs, on its own ports and store.
 async function setupTest() {
@@ -24,7 +24,7 @@ async function setupTest() {
   return {
     runStart: (
       host: string,
-      ingestPort = readFreePort(),
+      ingestPort = claimFreePorts(1).take(),
       overrides: Readonly<Record<string, string>> = {},
     ) => {
       const child = Bun.spawn(
@@ -40,7 +40,7 @@ async function setupTest() {
               base: process.env,
               hostBinary: host,
               ingestPort,
-              apiPort: readFreePort(),
+              apiPort: claimFreePorts(1).take(),
               storeDirectory,
             }),
             ...overrides,
@@ -101,7 +101,7 @@ test('it exits 0 on SIGTERM while ingest still waits on the fact log', async () 
 
   onTestFinished(() => silent.stop(true));
 
-  const start = ctx.runStart(ctx.hostBinary, readFreePort(), {
+  const start = ctx.runStart(ctx.hostBinary, claimFreePorts(1).take(), {
     PEPYS_S2_ENDPOINT: `http://127.0.0.1:${silent.port}`,
   });
 

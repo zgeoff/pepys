@@ -9,11 +9,11 @@ import { parseFactEnvelope } from '@pepys/kit';
 import type { FactEnvelope, StreamName, StreamOffset } from '@pepys/kit';
 import { consumerBuildManifestSchema } from '@pepys/schema';
 import { toTagged } from '@zgeoff/std';
+import { claimFreePorts } from '@zgeoff/testing/process';
 import { buildStackEnv } from '../../../../stack/build-stack-env.ts';
 import { withStack } from '../../../../stack/with-stack.ts';
 import type { RunningStack } from '../../../../stack/with-stack.ts';
 import ledgerJourney from '../../../testing/src/ledger/ledger-journey.json' with { type: 'json' };
-import { readFreePort } from '../../src/test-utils/read-free-port.ts';
 import { e2eReadConsumers } from './e2e-read-consumers.ts';
 import { e2eSecrets } from './e2e-secrets.ts';
 
@@ -62,8 +62,15 @@ export async function startE2EStack(cleanup: AsyncDisposableStack): Promise<E2ES
   // `run --up` replays the ledger journey at start, so the stream holds it before the start
   await writeLedgerJourney(stack);
 
-  const ingestPort = readFreePort();
-  const apiPort = readFreePort();
+  // made outside a test, so the stack's cleanup releases the claim, not the test hook
+  const ports = claimFreePorts(2, { cleanup: 'manual' });
+
+  cleanup.defer(() => {
+    ports.release();
+  });
+
+  const ingestPort = ports.take();
+  const apiPort = ports.take();
 
   return {
     stack,

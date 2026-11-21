@@ -2,10 +2,10 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { claimFreePorts } from '@zgeoff/testing/process';
 import invariant from 'tiny-invariant';
 import { stopProcessGroup } from '../../../scripts/utils/stop-process-group.ts';
 import { buildDeploymentEnvironment } from '../src/test-utils/build-deployment-environment.ts';
-import { readFreePort } from '../src/test-utils/read-free-port.ts';
 
 async function setupTest() {
   const storeDirectory = await mkdtemp(join(tmpdir(), 'pepys-start-'));
@@ -18,6 +18,8 @@ async function setupTest() {
 
   return {
     runStart: async () => {
+      const ports = claimFreePorts(2);
+
       const child = Bun.spawn(
         [
           'bun',
@@ -29,8 +31,8 @@ async function setupTest() {
           env: buildDeploymentEnvironment({
             base: process.env,
             hostBinary: falseBinary,
-            ingestPort: readFreePort(),
-            apiPort: readFreePort(),
+            ingestPort: ports.take(),
+            apiPort: ports.take(),
             storeDirectory,
           }),
           stdout: 'ignore',
