@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { githubPullRequestConsumer } from '@pepys/source-github';
-import { WringerError, createWringer, local } from '@wringer/core';
+import { WringerError, createHostUploader, createWringer, local } from '@wringer/core';
 import type { Wringer } from '@wringer/core';
 import { db } from '@wringer/db';
 import { http } from '@wringer/http';
@@ -86,9 +86,14 @@ export function createVerifyRegistry(): Wringer {
     .use(db({}))
     .use(stream({}))
     .use(mcp({}))
+    .hook(
+      'upload',
+      createHostUploader({ urlEnv: 'CLOUD_FILES_URL', tokenEnv: 'CLOUD_FILES_TOKEN' }),
+    )
     .target('local', {
       mode: 'launch',
       access: 'read-write',
+      evidence: 'upload',
       host: local(),
       launch: (ctx) => ({
         command: [process.execPath, launcherPath, ctx.runDirectory, createLocalMCPClient()],
