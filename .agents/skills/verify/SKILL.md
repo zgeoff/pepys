@@ -6,7 +6,7 @@ description:
   the verdict that a feature works. Load it before you check a change in the running app, run the
   journey of a feature, or put the verdicts in a PR.'
 metadata:
-  wringer-template: 'sha256:3a8295eb8ec4'
+  wringer-template: 'sha256:c276ebe8d896'
   wringer-command: bun verify
 ---
 
@@ -84,20 +84,26 @@ Read a feature's file before you run its journey.
    - In any other case, such as a `read-only` failure or a bug your change did not cause, skip
      `done` for this feature. List it in your reply with the end state you expected and the `data`
      you got.
-6. Finish each edit to a file that matches the feature's `paths` before you run `done`. An edit
-   after `done` makes the feature's verdict `stale`. A commit alone leaves the verdict as it was.
-   Run `bun verify done` to record a verdict for the feature that `use --feature` set. Expect:
-   `ok: true`. It fails with `check-failed` until a journey command succeeds after `doctor`.
+6. Record the verdict:
+   - Finish each edit to a file that matches the feature's `paths` first. An edit after `done` makes
+     the verdict `stale`. A commit alone leaves the verdict as it was.
+   - Once the end state matches in step 5, run `bun verify done`. Expect: `ok: true`. `done` records
+     a verdict for the feature that `use --feature` set.
+   - `done` checks only that a journey command succeeded after `doctor`, and never reads the end
+     state. Until a journey command succeeds, `done` fails with `check-failed`.
 7. Repeat steps 4 to 6 for each feature with `changed: true`, and for each feature your task names,
    in the order of the table in [References](#references). When the [Targets](#targets) section says
    to run a feature's journey last, run it after every other journey.
 8. Run `bun verify report --human` to read the report. Expect: `verified` on each changed feature
    you did not skip in step 5. Repeat steps 4 to 6 for each `stale` feature.
 9. Push the branch, and open a PR for it when none is open. Without an open PR, `publish` fails and
-   writes nothing. Run `bun verify publish`, even when you skipped a feature. To write to a PR other
-   than the branch's own, add `--pr <number>`. Expect: `ok: true`, and `data.action` of `created`,
-   `replaced` or `unchanged`. It writes the report into the PR's description, the only report the
-   gate reads.
+   writes nothing. Check that `CLOUD_FILES_URL` and `CLOUD_FILES_TOKEN_REF` are both set, and when
+   one is not, stop and report a blocker. Run
+   `(CLOUD_FILES_TOKEN="$(op read "$CLOUD_FILES_TOKEN_REF")" && export CLOUD_FILES_TOKEN && bun verify publish)`,
+   even when you skipped a feature. To write to a PR other than the branch's own, add
+   `--pr <number>` inside the parentheses. Expect: `ok: true`, `data.action` of `created`,
+   `replaced` or `unchanged`, and `data.local` of 0. It writes the report into the PR's description,
+   the only report the gate reads.
 10. End the run: `bun verify down` after `up`, or `bun verify detach` after `attach`.
 
 ## Read the envelope
