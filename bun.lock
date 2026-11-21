@@ -312,7 +312,7 @@
     "@zgeoff/commitlint-config": "0.1.2",
     "@zgeoff/diet": "0.2.3",
     "@zgeoff/format-codemod": "0.3.6",
-    "@zgeoff/mcp-auth": "0.2.4",
+    "@zgeoff/mcp-auth": "0.3.0",
     "@zgeoff/oxlint-config": "0.10.10",
     "@zgeoff/rig": "0.2.6",
     "@zgeoff/std": "0.4.4",
@@ -939,7 +939,7 @@
 
     "@zgeoff/kysely-bun-sqlite": ["@zgeoff/kysely-bun-sqlite@0.3.3", "", { "peerDependencies": { "kysely": ">=0.29.5 <0.30.0" } }, "sha512-zWtn7slj4UsUEfchim81oVLzK+Nm6/O6PsnuM+TiVTqjqxGuZrZkNgNmLWqsx8qdZ7jte3rxt/hy+l4fDGBv9g=="],
 
-    "@zgeoff/mcp-auth": ["@zgeoff/mcp-auth@0.2.4", "", { "dependencies": { "@better-auth/mcp": "1.7.15", "@better-auth/oauth-provider": "1.7.15", "@simplewebauthn/server": "14.1.0", "@zgeoff/kysely-bun-sqlite": "0.3.3", "@zgeoff/std": "0.4.5", "better-auth": "1.7.15", "reflect-metadata": "0.2.2", "ts-pattern": "5.9.2", "type-fest": "5.10.0", "zod": "4.6.7" }, "peerDependencies": { "elysia": ">=2.0.0-rc.3 <3.0.0", "kysely": ">=0.29.5 <0.30.0" }, "optionalPeers": ["elysia"] }, "sha512-U7Hgr2A9orQhH67vbtXGNZpJESi8OEWo9L4/TKKjAD1M6UiN+VWaDXn5gbEPcXLrtw9y2o1xAu947bgEr1mRyw=="],
+    "@zgeoff/mcp-auth": ["@zgeoff/mcp-auth@0.3.0", "", { "dependencies": { "@better-auth/mcp": "1.7.15", "@better-auth/oauth-provider": "1.7.15", "@simplewebauthn/server": "14.1.0", "@zgeoff/kysely-bun-sqlite": "0.3.3", "@zgeoff/std": "0.4.5", "better-auth": "1.7.15", "reflect-metadata": "0.2.2", "ts-pattern": "5.9.2", "type-fest": "5.10.0", "zod": "4.6.7" }, "peerDependencies": { "elysia": ">=2.0.0-rc.3 <3.0.0", "kysely": ">=0.29.5 <0.30.0" }, "optionalPeers": ["elysia"] }, "sha512-PzVTG8JvOMFVJpOmAlWsqrtHa9NSdIZUukLvD69RUdvzzI8D/Y2J3tOhWp/NZUdT6mc5XlNgP5OVl8UdFzZ+lw=="],
 
     "@zgeoff/oxlint-config": ["@zgeoff/oxlint-config@0.10.10", "", { "dependencies": { "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "oxlint": ">=1.78.0" } }, "sha512-JuPnQQdUKfa0Q1pmJcH9DBRPGMjHBkiZaapr7sc1QgMQYQaDQZ3MwZNfiCBmNEWRh3s7R7MC25b+jyUtrnJR4A=="],
 
@@ -1393,6 +1393,8 @@
 
     "@impz/testing/@orpc/server": ["@orpc/server@1.16.2", "", { "dependencies": { "@orpc/client": "1.16.2", "@orpc/contract": "1.16.2", "@orpc/interop": "1.16.2", "@orpc/shared": "1.16.2", "@orpc/standard-server": "1.16.2", "@orpc/standard-server-aws-lambda": "1.16.2", "@orpc/standard-server-fastify": "1.16.2", "@orpc/standard-server-fetch": "1.16.2", "@orpc/standard-server-node": "1.16.2", "@orpc/standard-server-peer": "1.16.2", "cookie": "^1.1.1" }, "peerDependencies": { "crossws": ">=0.3.4", "ws": ">=8.18.1" }, "optionalPeers": ["crossws", "ws"] }, "sha512-GNZp4Ol/EIOJO7SDM9K8NM0qhtbND3hR9Q3Pj6fJxQYI/lV/A+8UkAFrp9bAAf388JsOxFFN3qFxgFOy5GQLag=="],
 
+    "@impz/testing/@zgeoff/mcp-auth": ["@zgeoff/mcp-auth@0.2.4", "", { "dependencies": { "@better-auth/mcp": "1.7.15", "@better-auth/oauth-provider": "1.7.15", "@simplewebauthn/server": "14.1.0", "@zgeoff/kysely-bun-sqlite": "0.3.3", "@zgeoff/std": "0.4.5", "better-auth": "1.7.15", "reflect-metadata": "0.2.2", "ts-pattern": "5.9.2", "type-fest": "5.10.0", "zod": "4.6.7" }, "peerDependencies": { "elysia": ">=2.0.0-rc.3 <3.0.0", "kysely": ">=0.29.5 <0.30.0" }, "optionalPeers": ["elysia"] }, "sha512-U7Hgr2A9orQhH67vbtXGNZpJESi8OEWo9L4/TKKjAD1M6UiN+VWaDXn5gbEPcXLrtw9y2o1xAu947bgEr1mRyw=="],
+
     "@orpc/openapi-client/@orpc/client": ["@orpc/client@1.16.2", "", { "dependencies": { "@orpc/shared": "1.16.2", "@orpc/standard-server": "1.16.2", "@orpc/standard-server-fetch": "1.16.2", "@orpc/standard-server-peer": "1.16.2" } }, "sha512-c1Y6WGXLomRAJfLvSgIp8cEed/pOxVgxrXJYeLPGzItkTQ62pndsaLCSVl+WTJz5uvmpvLt2jtp2IE1noidtUg=="],
 
     "@orpc/openapi-client/@orpc/contract": ["@orpc/contract@1.16.2", "", { "dependencies": { "@orpc/client": "1.16.2", "@orpc/shared": "1.16.2", "@standard-schema/spec": "^1.1.0", "openapi-types": "^12.1.3" } }, "sha512-n2YuNUerGQoS/KSrIFUPxNtFyIDqHVS/OBVlMXXTukeGPfAjVTM9gHhf5EKX9HSdpDHqf/5ken1wlZZTaI4Rlg=="],
@@ -1460,6 +1462,8 @@
     "@impz/testing/@orpc/server/@orpc/shared": ["@orpc/shared@1.16.2", "", { "dependencies": { "radash": "^12.1.1", "type-fest": "^5.4.4" }, "peerDependencies": { "@opentelemetry/api": ">=1.9.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-j9EX9FvUcnR4tz5ooheC1R7guNg04UePb0Ws7/3GYEJBCX+8OmXKXiNaytTeUbs1zYZbZqyZrE2/FewBeYu7BA=="],
 
     "@impz/testing/@orpc/server/cookie": ["cookie@1.1.1", "", {}, "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="],
+
+    "@impz/testing/@zgeoff/mcp-auth/@zgeoff/std": ["@zgeoff/std@0.4.5", "", {}, "sha512-Z2rD5v0OVXRZTa3Jh2I8zmx9znzvnAa/bC5Ai0NidPh+pfJGfDLmQIVZhshbGXPu/S/9SFdP/chDw+N5Pk/lzg=="],
 
     "knip/oxc-parser/@oxc-parser/binding-android-arm-eabi": ["@oxc-parser/binding-android-arm-eabi@0.156.0", "", { "os": "android", "cpu": "arm" }, "sha512-RMq7DKNzEp1T51QKNLTn0NryNEt2IYfh7mZBlIdi2Ju52ltOEDMeIXv0XBpA6dL7j7ChjlcovtGcc1Jv4qMipg=="],
 
