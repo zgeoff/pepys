@@ -44,9 +44,9 @@ bunx pepys build deployment.ts --out build
 
 - `githubPlugin`: the plug-in, to add to a deployment.
 - `githubPullRequestConsumer`: the consumer of pull request facts, with its SQL schema.
-- `githubDelivery`: what a query of another plug-in needs to read when each pull request merged,
-  released and deployed. Pass `consumers` as the query's `reads`, run `select(input).execute(db)`,
-  and give the result's `rows` to `parse`.
+- `githubDelivery`: the parts of the delivery query, for a query of another plug-in that reads when
+  each pull request merged, released and deployed. Pass `consumers` as the query's `reads`, run
+  `select(input).execute(db)`, and give the result's `rows` to `parse`.
 
 ## Documentation
 

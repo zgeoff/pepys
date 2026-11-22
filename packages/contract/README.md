@@ -39,6 +39,7 @@ const around = await api.neighbourhood({ id: 'github:pull_request:9001' });
 ## Features
 
 - `coreContract`: the routes of the core queries, with their input and output schemas.
+- `CoreContract`: the type of `coreContract`, to type a client.
 
 ## Documentation
 

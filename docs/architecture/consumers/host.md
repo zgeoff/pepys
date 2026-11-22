@@ -1,12 +1,13 @@
 # The host
 
-The host is one Rust process, and the only process that writes the tables a deployment serves. Each
-consumer is a pure function from facts to rows, which `pepys build` compiles to a WebAssembly module
-and lists in `consumers.json`. The host reads each consumer's streams from the
-[fact log](../ingest/fact-log.md), runs the module on new facts, and writes the returned operations
-into the consumer's own database file. To deploy a new version, the host builds a new file beside
-the live one by replaying the log, then swaps it in, so a reader never sees a half-built table. The
-host hardcodes no source, table or consumer: it reads each from `consumers.json`.
+The host is a Rust program, and the only program that writes the tables a deployment serves. Each
+consumer is a pure function from facts to rows, which `pepys build` of
+[`@pepys/cli`](../../../packages/cli/README.md) compiles to a WebAssembly module and lists in
+`consumers.json`. The host reads each consumer's streams from the [fact log](../ingest/fact-log.md),
+runs the module on new facts, and writes the returned operations into the consumer's own database
+file. To deploy a new version, the host builds a new file beside the live one by replaying the log,
+then swaps it in, so a reader never sees a half-built table. The host hardcodes no source, table or
+consumer: it reads each from `consumers.json`.
 
 [Plug-ins and the build](./plug-ins-and-build.md) covers `consumers.json`, the manifest of each
 entry, and the modules. [The API](../queries/api.md) covers the reader of the host's files.
@@ -15,7 +16,8 @@ operations, and [decision 0018](../../decisions/0018-preview-and-up.md) records 
 
 ## Commands and the store folder
 
-The binary is `pepys`, and it has three commands:
+The host's binary is also named `pepys`, and a release ships it as `pepys-host-linux-x64`. It has
+three commands:
 
 - `run [--up]` applies new facts to the current version of every consumer in `consumers.json` until
   it is stopped. With `--up`, it deploys every consumer first.
@@ -81,9 +83,10 @@ A failed batch rolls back, and the task then picks one of two outcomes by the er
 
 The `up` of `run --up` retries a store or log error as a task does. After such an error, for example
 a refused S2 connection, `run` prints the consumer and the error, waits, and runs that consumer's
-`up` again from step 1. The waits and the limit are those of a task, and the host counts the failed
-tries of each consumer's `up` on their own. After any other error, or when one consumer's `up`
-reaches the limit, `run` exits 1 before any task starts. The `up` command never retries.
+`up` again from step 1 of [the steps of `up`](./versions.md). The waits and the limit are those of a
+task, and the host counts the failed tries of each consumer's `up` on their own. After any other
+error, or when one consumer's `up` reaches the limit, `run` exits 1 before any task starts. The `up`
+command never retries.
 
 A stopped task stays stopped until the process restarts. The host prints the error, and the other
 tasks keep running. When every task has stopped, `run` exits 1. SIGINT or SIGTERM stops `run` with

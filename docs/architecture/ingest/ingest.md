@@ -47,6 +47,7 @@ flowchart TD
   s4 -- "stored in the last hour: the first response" --> success
   s10 --> success["success response"]
   s1 & s2 & s3 & s5 & s6 & s7 -- fails --> error["error response, nothing appended"]
+  s10 -- fails --> retry["503 or 500, resend fills the gaps"]
 ```
 
 At each step, ingest either sends a response and stops, or goes on to the next step:

@@ -30,7 +30,7 @@ bunx pepys build src/plugin.ts
   ([Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md)).
 - Compile each consumer to WebAssembly, which needs zig and wasm-tools
   ([Build the consumers](../../docs/runbooks/deploying.md#2-build-the-consumers)).
-- Check that every glue file is current, for CI.
+- `pepys build --check`: check that every glue file is current, for CI.
 - `pepys start`: run ingest, the API and the host of a deployment from one command
   ([Start every process with one command](../../docs/runbooks/deploying.md#start-every-process-with-one-command)).
 

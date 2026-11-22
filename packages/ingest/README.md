@@ -45,7 +45,8 @@ PEPYS_S2_ENDPOINT=http://127.0.0.1:8090 PEPYS_S2_BASIN=pepys bun serve-ingest.ts
 - The sender proof port, with the adapter that verifies a worker machine's identity token through
   `@impz/client/identity`.
 - The fact log port, with its S2 and memory adapters.
-- The blob store port, with its Garage and local folder adapters.
+- The blob store port, with its Garage and local folder adapters, for a large file stored beside the
+  log. Ingest's routes write no blob.
 
 ## Documentation
 

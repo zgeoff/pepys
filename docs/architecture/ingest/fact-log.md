@@ -81,13 +81,13 @@ changes the shape of its payload, the consumer reads `api` and handles each shap
 A source builds each fact ID from the data it was sent, so the same data always gives the same ID.
 The envelope check accepts five forms:
 
-| Prefix         | Rest of the ID                                      | Used for                                                     |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------------ |
-| `webhook:`     | the source name, a colon, and a delivery ID         | a webhook delivery                                           |
-| `event:`       | the source name, a colon, and the sender's ID       | one event of a signed fact batch                             |
-| `observation:` | 64 hex digits, a SHA-256 hash of what the poll read | the state of an object that a poll read, and a cursor record |
-| `enrichment:`  | 64 hex digits                                       | an enrichment result                                         |
-| `manual:`      | 64 hex digits                                       | a link or a correction that a person or an agent asserts     |
+| Prefix         | Rest of the ID                                                                       | Used for                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `webhook:`     | the source name, a colon, and a delivery ID                                          | a webhook delivery                                                                                                          |
+| `event:`       | the source name, a colon, and the sender's ID                                        | one event of a signed fact batch                                                                                            |
+| `observation:` | 64 hex digits, a SHA-256 hash of the source, the entity and the source's update time | the state of an object that a poll read, and a cursor record, whose entity names the pull path and whose time is the cursor |
+| `enrichment:`  | 64 hex digits                                                                        | an enrichment result                                                                                                        |
+| `manual:`      | 64 hex digits                                                                        | a link or a correction that a person or an agent asserts                                                                    |
 
 A source name is lowercase letters, digits and `_`, and starts with a letter. The GitHub source puts
 a hash of the body in place of a delivery ID, as
