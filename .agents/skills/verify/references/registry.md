@@ -16,7 +16,7 @@ lists from `feature-paths.ts`, and passes `sharedPaths` to the registry's `.shar
 - Put the features and the globs in any order. A changed file counts for every feature whose glob
   matches it. The order of the features sets only the row order of `bun verify features` and the
   report.
-- For each new feature path, add an entry to
+- For each new feature path and each `sharedPaths` glob, add an entry to
   [`skill-gate.json`](../../../../.claude/skill-gate.json), with the glob as `match` and
   `["verify"]` as `skills`. The skill-gate hook reads that file, and blocks an edit to a matching
   file until you load this skill. It is a separate check from `bun verify gate`. When you change or

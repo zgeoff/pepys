@@ -143,7 +143,7 @@ API run from source. `up` starts the deployment empty.
 Run host-restart-recovery last: it restarts the host.
 
 After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
-On `prod`, run the steps of that section in place of steps 4 to 8, whatever features your task
+On `prod`, run the steps of that section in place of steps 4 to 10, whatever features your task
 names. `prod` checks a deploy, never a change of yours.
 
 <!-- /repo -->
