@@ -51,8 +51,8 @@ entry file too, run by hand.
 
 The release workflow copies each module into the `pepys-host` image under `/modules/<hash>.wasm`.
 When `pepys up` deploys a module, the host first writes it to the modules bucket, which keeps every
-module a store row names ([storage](./storage.md#buckets-and-keys)). The workflow therefore needs no
-route into the cluster.
+module that a store row refers to ([storage](./storage.md#buckets-and-keys)). The workflow therefore
+needs no route into the cluster.
 
 ## The CLI
 
@@ -83,8 +83,8 @@ hand, and a contract test runs the CLI's client against the host, so a route tha
 contract fails the test.
 
 The owner runs the API's own admin commands, such as `clients add` and `passkeys enroll`, with
-`kubectl exec` in the API container, as arguments to the API's entry file, not through the CLI, as
-[serving MCP](../../runbooks/serving-mcp.md#3-add-a-client) sets out.
+`kubectl exec` in the API container, as arguments to the API's entry file, not through the CLI
+([serving MCP](../../runbooks/serving-mcp.md#3-add-a-client)).
 
 The admin routes never check a token. An operator gets inside the pod only with the cluster
 credentials that `kubectl exec` needs. The host's admin port, enrichment's admin port and ingest's
@@ -94,10 +94,10 @@ admin port each admit one other pod, as the NetworkPolicies in [network](#networ
 
 Each runtime secret has an item in the 1Password vault `cloud`, a copy in `cloud-deploy` for the
 apply job, and a reference in the cloud repository's `.env`. Pulumi turns each item into a
-Kubernetes Secret that only its process mounts, as every geoff.cloud workload receives its secrets
+Kubernetes Secret that only its process mounts, as it does for every geoff.cloud workload
 ([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)). The apply
-job refuses a reference to any other vault, so the `pepys` vault holds only the copies that
-development on the owner's machine reads. Each item in the table is named `pepys-<item>` in `cloud`.
+job refuses a reference to any other vault, so the `pepys` vault holds only the copies that the
+owner's machine reads for development. Each item in the table is named `pepys-<item>` in `cloud`.
 The boxxy server, outside the namespace, also holds the `api-boxxy` token, which it sends to the
 API.
 
@@ -132,7 +132,7 @@ Every pepys port is cluster-only except three routes.
 
 - **The GitHub webhook** enters through the cloud repository's shared Cloudflare tunnel. The tunnel
   rule matches the one path `/webhook/github` on `pepys-webhook.geoff.cloud` and sends it to
-  ingest's Service. The route's exposure registry entry names its auth layer: ingest checks the
+  ingest's Service. The route's exposure registry entry records its auth layer: ingest checks the
   webhook signature before it writes anything ([ingest](./ingest.md#github)).
 - **The API's public listener** serves `/mcp` and the sign-in pages through the same tunnel, behind
   the API's own OAuth server, with a Cloudflare Access login in front of the sign-in pages.

@@ -14,9 +14,9 @@ each extracted email text and each pull request and issue text, and writes each 
 consumer projects the vectors into a Turso table.
 
 The API asks enrichment's embed route for a question's vector ([runtime](./runtime.md#network)), so
-every question is embedded with the champion embedding version, the version of the stored vectors,
-and the nearest vectors are the candidates. Turso's exact vector search is fast enough at the volume
-one person produces, so pepys needs no approximate index.
+every question is embedded with the champion embedding version, the version of the stored vectors.
+The nearest vectors are the candidates. Turso's exact vector search is fast enough at the volume one
+person produces, so pepys needs no approximate index.
 
 ## Full-text search
 
@@ -36,5 +36,5 @@ expected order.
 ## Link candidates
 
 Link judgement needs candidate pairs, since Jev judges pairs and never finds them. Hybrid search
-proposes them: the emails nearest to an issue's text within a time window, for example. Jev then
-judges only the top candidates, which keeps model calls to a small fraction of all possible pairs.
+proposes them, such as the emails nearest to an issue's text within a time window. Jev then judges
+only the top candidates, which keeps model calls to a small fraction of all possible pairs.

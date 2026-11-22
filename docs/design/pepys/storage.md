@@ -53,8 +53,8 @@ a missing blob. The fact holds a reference with the hash, the file name, the med
 size. Ingest takes every attachment up to a size limit, because a source can delete a file later and
 Gmail serves attachments only while the message exists.
 
-Deleted email stays in the blobs bucket, because the design keeps tombstones and never deletes
-facts. A real purge, if one is ever needed, removes the blob, since blobs live outside the log.
+Deleted email stays in the blobs bucket, because pepys keeps tombstones and never deletes facts. A
+real purge, if one is ever needed, removes the blob, since blobs live outside the log.
 
 ## Local disks
 
