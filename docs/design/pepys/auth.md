@@ -9,8 +9,8 @@ tokens that scripts and pods send to `/rpc`.
 
 ## Scopes
 
-A grant holds `read`, or `read` and `write`. Each route and each MCP tool behind auth needs one
-scope. The internal port, which [Network](#network) covers, takes no token:
+A grant holds `read`, or `read` and `write`. The internal port, which [Network](#network) covers,
+takes no token. Each route and each MCP tool behind auth needs one of these scopes:
 
 | Scope   | Allows                                                                        |
 | ------- | ----------------------------------------------------------------------------- |
@@ -28,9 +28,9 @@ and the grant ID. A request body never sets them. A manual link takes its origin
 as [links](./links.md) describes, and the API refuses a link with no evidence with HTTP 422.
 
 A label correction from any client joins the labelled data that scores the mail label job, as
-[agent writes](./api.md#agent-writes) sets out. Each correction names its client, so the evaluation
-report counts the corrections per client, and the owner can drop one client's corrections from the
-score.
+[agent writes](./api.md#agent-writes) sets out. Each correction records its client, so the
+evaluation report counts the corrections per client, and the owner can drop one client's corrections
+from the score.
 
 Each write carries a request ID that the client picks, and the fact ID derives from the client ID
 and the request ID, as [fact IDs](./log.md#fact-ids) sets out. A client that retries a write, or an
@@ -57,6 +57,6 @@ and sign-in. This design adds these:
 | Threat                                   | Control                                                                                                                      |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | a stolen access token on a stream        | the stream stops at its next batch once the owner revokes its grant                                                          |
-| a prompt-injected agent writing bad data | every manual fact names its client, so the owner retracts that client's links and drops its corrections from the score       |
+| a prompt-injected agent writing bad data | every manual fact holds its client, so the owner retracts that client's links and drops its corrections from the score       |
 | an MCP client used as a confused deputy  | each token is bound to pepys's resource, pepys never sends a token on to another service, and only `write` tools change data |
 | a replayed write                         | the fact ID derives from the client and the request ID, so a replay writes a duplicate that consumers drop                   |

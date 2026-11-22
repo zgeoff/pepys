@@ -1,13 +1,13 @@
 # Change feed
 
-The change feed tells clients which rows changed. Each consumer file holds a change log, written in
-the same transaction as the batch it describes, and the API serves each change log over the read
-side of the Durable Streams protocol. A dashboard can then hold a live local copy of a table through
-TanStack DB, and an agent can tail "waiting on me" over plain HTTP. A replay rebuilds every row
-exactly, but not the change log in between: the host debounces scope recomputes by time, so a replay
-can merge changes that the live run wrote apart. Every file the host rebuilds, by `pepys up` or by a
-restore, therefore starts a new generation of its stream, and no reader ever reads two histories of
-one file.
+Clients read the change feed to learn which rows changed. Each consumer file holds a change log,
+written in the same transaction as the batch it describes, and the API serves each change log over
+the read side of the Durable Streams protocol. A dashboard can then hold a live local copy of a
+table through TanStack DB, and an agent can tail "waiting on me" over plain HTTP. A replay rebuilds
+every row exactly, but not the change log in between: the host debounces scope recomputes by time,
+so a replay can merge changes that the live run wrote apart. Every file the host rebuilds, by
+`pepys up` or by a restore, therefore starts a new generation of its stream, and no reader ever
+reads two histories of one file.
 
 ## The change log
 
@@ -28,9 +28,9 @@ of pepys never meet those cases.
 
 The API implements the read side of Durable Streams over the change log: a catch-up read from an
 offset, where `-1` means the start and `now` means the tail; long-poll; and server-sent events. Each
-response carries the next offset and whether the reader has reached the tail, and a closed stream
-tells its readers that it is closed. Clients only read, so the production API serves no stream
-creation, append or producer headers.
+response carries the next offset and whether the reader has reached the tail, and each response from
+a closed stream marks the stream as closed. Clients only read, so the production API serves no
+stream creation, append or producer headers.
 
 The Durable Streams repository ships server conformance tests. The API passes their read tests, so
 TypeScript clients and TanStack DB work against it. Each read test creates and fills its own stream

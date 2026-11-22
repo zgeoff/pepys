@@ -3,8 +3,8 @@
 Enrichment is the part of pepys that calls outside the process: git, a MIME parser, a model API, an
 embedding model. It runs as a TypeScript service on Bun, because its time goes to waiting on git,
 disks and networks. Every result returns to the log as a fact, so a replay reads the stored result
-and never repeats the outside call. Enrichment never writes the store, the consumer files: a
-consumer projects each result from its fact. Its own fact-ID lookup file and its blobs sit outside
+and never repeats the outside call. Enrichment never writes the store, which is the consumer files;
+a consumer projects each result from its fact. Its own fact-ID lookup file and its blobs sit outside
 the store.
 
 ## The write-back pattern
@@ -64,8 +64,8 @@ compared the parsers on an invented corpus.
 ### Models
 
 High-volume typed decisions go to Jev, through its API. Jev returns one choice from a set the caller
-defines, with a calibrated probability, which matches labelling an email or judging a candidate
-pair. Jev does not find links: code proposes each candidate pair, and Jev only judges it.
+defines, with a calibrated probability. That fits labelling an email and judging a candidate pair.
+Jev does not find links: code proposes each candidate pair, and Jev only judges it.
 
 The link judgement job asks one question per candidate pair, each with the answers related,
 unrelated and unclear, and sends every pair for one input in one call. One question per pair lets an
