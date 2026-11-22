@@ -1,11 +1,10 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { once } from 'node:events';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger } from '@pepys/kit';
-import invariant from 'tiny-invariant';
+import { waitFor } from '@zgeoff/testing';
+import { claimFreePorts } from '@zgeoff/testing/process';
 import { z } from 'zod';
 import { createIdentity } from './identity/create-identity.ts';
 import { runForwarder } from './run-forwarder.ts';
@@ -17,19 +16,7 @@ async function setupTest() {
     await rm(folder, { recursive: true, force: true });
   });
 
-  const probe = createServer();
-
-  await once(probe.listen(0, '127.0.0.1'), 'listening');
-
-  const address = probe.address();
-
-  invariant(typeof address === 'object' && address !== null, 'the probe listens on a port');
-
-  const port = address.port;
-
-  probe.close();
-
-  await once(probe, 'close');
+  const port = claimFreePorts(1).take();
 
   const stop = new AbortController();
 
@@ -58,15 +45,7 @@ async function setupTest() {
         signal: stop.signal,
       }),
     waitForServer: async (url: string) => {
-      for (let attempt = 0; attempt < 100; attempt += 1) {
-        const answer = await fetch(`${url}/health`).catch(() => null);
-
-        if (answer !== null) {
-          return;
-        }
-
-        await Bun.sleep(10);
-      }
+      await waitFor(() => fetch(`${url}/health`), { label: 'the forwarder answers /health' });
     },
     readSpoolNames: async () => {
       const names = await readdir(environment.PEPYS_FORWARDER_SPOOL_DIR);

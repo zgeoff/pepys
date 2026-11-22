@@ -247,6 +247,7 @@
         "@pepys/cli": "workspace:*",
         "@pepys/ingest": "workspace:*",
         "@pepys/testing": "workspace:*",
+        "@zgeoff/testing": "catalog:",
       },
     },
     "packages/testing": {

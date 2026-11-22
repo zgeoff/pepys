@@ -33,6 +33,7 @@
   "devDependencies": {
     "@pepys/cli": "workspace:*",
     "@pepys/ingest": "workspace:*",
-    "@pepys/testing": "workspace:*"
+    "@pepys/testing": "workspace:*",
+    "@zgeoff/testing": "catalog:"
   }
 }
