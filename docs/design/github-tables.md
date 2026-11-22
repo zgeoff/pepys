@@ -9,10 +9,11 @@ per kind. Each builds a table and an entity view, and all but the repository con
 from each row to its parent. The design also changes the pull request consumer, which gains a link
 to the repository and an alias for the merge commit.
 
-[The GitHub plug-in](../architecture/plug-ins/github.md) covers the families and the pull request
-consumer. [The host](../architecture/consumers/host.md) covers fact mode, scope mode, the reads a
-consumer has and the link check. [Entities and links](../architecture/queries/entities-and-links.md)
-covers entity views, aliases, links and hub link types.
+For the families and the pull request consumer, read
+[the GitHub plug-in](../architecture/plug-ins/github.md). For fact mode, scope mode, the reads a
+consumer has and the link check, read [the host](../architecture/consumers/host.md). For entity
+views, aliases, links and hub link types, read
+[Entities and links](../architecture/queries/entities-and-links.md).
 
 ## Shape
 
@@ -44,10 +45,10 @@ flowchart LR
 | `github_issue_comment`       | `facts.github.pull_request`, `facts.github.issue_comment`   | `comment_on`    |
 | `github_pull_request`        | `facts.github.pull_request`                                 | `in_repository` |
 
-The first six consumers are the ones this design adds. Each runs in fact mode, and
-[The tables](#the-tables) lists the tables each one owns. Scope mode does not fit them: the host
-gives a scope-mode consumer only the facts whose `entity` field is the scope, and the `entity` of a
-review fact or a comment fact is the review or the comment, never the pull request.
+The first six consumers are the ones this design adds. Each runs in fact mode. Its tables are in
+[The tables](#the-tables). Scope mode does not fit them: the host gives a scope-mode consumer only
+the facts whose `entity` field is the scope, and the `entity` of a review fact or a comment fact is
+the review or the comment, never the pull request.
 
 Write each declaration in the shape of the review consumer's, which declares a link type and lists
 it in `links`:
@@ -216,8 +217,8 @@ github_issue_comment_parent   primary key: repository_id, number
 ```
 
 Every consumer in the table below but the thread consumer owns an alias table, named after its
-entity table with `_alias` added. [Aliases](../architecture/queries/entities-and-links.md#aliases)
-gives the columns of an alias table, and the rule by which a consumer writes an alias row.
+entity table with `_alias` added. For the columns of an alias table, and the rule by which a
+consumer writes an alias row, read [Aliases](../architecture/queries/entities-and-links.md#aliases).
 
 | Kind           | Aliases                                                                                |
 | -------------- | -------------------------------------------------------------------------------------- |
@@ -235,7 +236,7 @@ gives the columns of an alias table, and the rule by which a consumer writes an 
 
 Each consumer but the thread consumer keeps one row per object, from the fact with the later time,
 as the `github_pull_request` consumer does. The fact whose row the consumer keeps wins, and the
-other fact loses. [Review threads](#review-threads) holds the thread consumer's rules.
+other fact loses. The thread consumer's rules are in [Review threads](#review-threads).
 
 - A fact's time is its `at`, for every kind but a review. Ingest takes `at` from the object's own
   update time.
@@ -265,9 +266,8 @@ other fact loses. [Review threads](#review-threads) holds the thread consumer's 
 - For a fact that lacks a field the row needs, the consumer returns an empty answer.
 - The issue, review and review comment consumers return the link to the parent in each answer of a
   fact that wins, with `confidence: 1` and the fact's ID as `evidence`. They return no link for a
-  fact that loses. [Review threads](#review-threads) and
-  [Issue comments and their parent](#issue-comments-and-their-parent) hold the link rules of the
-  other two.
+  fact that loses. The link rules of the other two are in [Review threads](#review-threads) and
+  [Issue comments and their parent](#issue-comments-and-their-parent).
 - A consumer never removes the links of a row that GitHub deleted. `neighbourhood` lists a deleted
   row's ID in `unresolved`.
 - A consumer's rows, aliases and links are the same in every arrival order of facts with different
@@ -335,9 +335,9 @@ comment consumer therefore reads the pull request stream, and keeps one row in
 - For a fact that wins, of a merged pull request that has a `merge_commit_sha`, the consumer writes
   the SHA as an alias, by the rule in
   [Aliases](../architecture/queries/entities-and-links.md#aliases).
-- The changed entry file gives the pull request consumer a new version. `pepys up` builds that
-  version by a replay of `facts.github.pull_request` into a file beside the live one, then swaps the
-  file in, as [Versions](../architecture/consumers/host.md#versions) describes.
+- The pull request consumer gets a new version, because its entry file changes. `pepys up` builds
+  that version by a replay of `facts.github.pull_request` into a file beside the live one, then
+  swaps the file in, as [Versions](../architecture/consumers/host.md#versions) describes.
 
 ## Decisions
 
@@ -363,10 +363,10 @@ comment consumer therefore reads the pull request stream, and keeps one row in
 ## Tests
 
 [The test store](../architecture/consumers/plug-ins-and-build.md#the-test-store) runs the consumers
-in memory.
-[Writing an entry file](../architecture/consumers/plug-ins-and-build.md#writing-an-entry-file)
-covers `applyInBothOrders`, which applies a list of facts in order and in reverse, and sets `isSame`
-when both give the same rows and links.
+in memory. `applyInBothOrders`, documented in
+[Writing an entry file](../architecture/consumers/plug-ins-and-build.md#writing-an-entry-file),
+applies a list of facts in order and in reverse, and sets `isSame` when both give the same rows and
+links.
 
 | Test                 | Where                                           | Asserts                                                                                 |
 | -------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -389,7 +389,7 @@ when both give the same rows and links.
 
 ## Stages
 
-Each stage leaves `main` working. In each stage, the builder also does these:
+Each stage leaves `main` working. In each stage, also do these:
 
 - Add the stage's consumers to the plug-in, to the families table of
   [the GitHub plug-in](../architecture/plug-ins/github.md), and to the kinds in
@@ -428,13 +428,13 @@ Each stage leaves `main` working. In each stage, the builder also does these:
 
 ## Open questions
 
-- **Does a stored reply ever answer another reply?** A measurement settles it: a count, over
-  `facts.github.review_comment`, of the replies whose `in_reply_to_id` is the ID of a comment that
-  has an `in_reply_to_id` itself. GitHub's API creates a reply only on a thread's first comment.
-  Until the count, the consumers take `in_reply_to_id` as the thread's first comment, as
+- **Does a stored reply ever answer another reply?** To settle it, count, over
+  `facts.github.review_comment`, the replies whose `in_reply_to_id` is the ID of a comment that has
+  an `in_reply_to_id` itself. GitHub's API creates a reply only on a thread's first comment. Until
+  the count, the consumers take `in_reply_to_id` as the thread's first comment, as
   [Review threads](#review-threads) states.
-- **Does a dismissal change `pull_request.updated_at`?** A measurement settles it: for each stored
-  review with a `submitted` fact and a `dismissed` fact, compare the `pull_request.updated_at` of
-  the two. When the two are equal and the `submitted` fact comes later in the stream, the
+- **Does a dismissal change `pull_request.updated_at`?** To settle it, compare the
+  `pull_request.updated_at` of the `submitted` fact and the `dismissed` fact of each stored review
+  that has both. When the two are equal and the `submitted` fact comes later in the stream, the
   `submitted` fact wins. Until the measurement, the rule that a stored `dismissed` state never
   changes keeps the state right in that case.
