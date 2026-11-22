@@ -1,8 +1,8 @@
 # mcp-queries
 
-Run this journey on `local`, and check its end state: an agent with no person present calls pepys's
-queries as MCP tools at the API's `/mcp`. After a deploy, also run the steps in [On prod](#on-prod)
-against the deployed pepys.
+An agent with no person present calls pepys's queries as MCP tools at the API's `/mcp`. Run this
+journey on `local`, and check its end state. After a deploy, also run the steps in
+[On prod](#on-prod) against the deployed pepys.
 
 The agent signs in as a service client: it trades the client's ID and secret for an access token at
 the API's OAuth server. The `mcp` commands of `bun verify` sign in for you, so you never pass a
@@ -15,9 +15,9 @@ token. On `local`, `bun verify up` mints a service client for the run and adds i
   the sender that `send-telemetry` signs each export as, on every `local` run.
 - Check `data.isError` on each call. A tool that fails still gives `ok: true` on the envelope, with
   `data.isError: true` and the reason in `data.content`.
-- Expect `inReadTools: true` on each tool. `false` means a tool that the target's `readTools` list
-  in [`constants.ts`](../../../../scripts/verify/constants.ts) leaves out, which `prod` refuses to
-  call. Report it as a failure of the feature.
+- Expect `inReadTools: true` on each tool. `false` marks a tool missing from the target's
+  `readTools` list in [`constants.ts`](../../../../scripts/verify/constants.ts), and `prod` refuses
+  to call it. Report it as a failure of the feature.
 
 ## Journey
 
@@ -53,7 +53,7 @@ Run these steps after a deploy, against the deployed pepys. Run no action and no
 `prod` refuses each write.
 
 - When a step fails, give its `data` or `error` in your reply. Skip `done`, and still run step 6.
-- Run no `publish` after these steps. The deployed store's data stays out of a public PR.
+- Run no `publish` after these steps. Keep the deployed store's data out of a public PR.
 
 1. Run `bun verify use --target prod`, then `bun verify use --feature mcp-queries`.
 2. Start the run with the secret of the read client `service:wringer-ro`. 1Password keeps the secret

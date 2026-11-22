@@ -8,9 +8,9 @@ service that stores each one as a fact. The host applies the facts, and the API 
 - Use the IDs the journey uses. `send-webhook` gives a pull request the GitHub ID 1874433009 + its
   number, so pull request #31 has the entity ID `github:pull_request:1874433040`.
 - Expect `deploy` null. The journey sends no deploy webhook.
-- Expect no read to show the review. A real pull request gets one, so the journey sends one, and
-  checks only that `send-webhook` returns `data.sent` 1. The e2e deployment has no consumer of
-  reviews.
+- Expect no read to show the review: the e2e deployment has no consumer of reviews. The journey
+  sends one because a real pull request gets one, and checks only that `send-webhook` returns
+  `data.sent` 1.
 - Compare each time as the same instant. A time may come back with milliseconds, such as
   `2026-10-02T11:00:00.000Z`.
 
