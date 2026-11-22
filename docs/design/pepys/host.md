@@ -37,8 +37,8 @@ wrote it.
 
 ## Preview and up
 
-`pepys up` marks dirty every dependent scope whose input rows the diff changed, once the swap is
-done, so a scope consumer that reads another consumer's rows recomputes what the new version
+Once the swap is done, `pepys up` marks dirty every dependent scope whose input rows the diff
+changed, so a scope consumer that reads another consumer's rows recomputes what the new version
 changed. When a swap is done, the host sends a `consumer.swapped` event over the commit socket
 ([waking readers](#waking-readers)), so the API attaches the new file.
 
