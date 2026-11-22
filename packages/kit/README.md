@@ -18,9 +18,9 @@ A plug-in brings one or more sources of data to pepys, such as GitHub. A source 
 of what happened, which pepys never changes. Each source declares its facts, and the routes and
 timers through which [ingest](../../docs/architecture/ingest/ingest.md) takes them in. The plug-in
 also declares the consumers that turn facts into table rows, and the queries that read the rows. A
-deployment lists the plug-ins that one pepys install runs.
-[What a plug-in declares](../../docs/architecture/consumers/plug-ins-and-build.md#what-a-plug-in-declares)
-explains each part. The package ships its TypeScript source and runs on Bun.
+deployment lists the plug-ins that one pepys install runs. For each part, see
+[What a plug-in declares](../../docs/architecture/consumers/plug-ins-and-build.md#what-a-plug-in-declares).
+The package ships its TypeScript source and runs on Bun.
 
 ## Install
 
@@ -45,8 +45,8 @@ Test the plug-in with [`@pepys/testing`](../testing/README.md), and build it wit
   functions take.
 - `@pepys/kit` also holds `createLogger`, which writes one JSON line per call to any destination,
   such as an object that pushes each line onto an array in a test. Ingest gives its own logger, as
-  `log`, to a source's `read` for each request on a route and to its `pull` on each timer.
-  [Log lines](../../docs/architecture/ingest/ingest.md#log-lines) gives the format.
+  `log`, to a source's `read` for each request on a route and to its `pull` on each timer. For the
+  format, see [Log lines](../../docs/architecture/ingest/ingest.md#log-lines).
 - `@pepys/kit/send` holds `createFactBatchSender`. Give it the source, the URL of the source's
   ingest route and the route's secret. It posts each batch of facts with the proof that the route's
   [delivery check](../../docs/architecture/ingest/ingest.md#a-delivery-step-by-step) asks for: an
@@ -65,8 +65,8 @@ type is `EntityID`. In a query, or in any code outside a consumer, check text wi
   and output of a query. The API serves each query as an MCP tool too, and the tool's JSON Schema
   shows such a field to an MCP client as a plain string.
 
-A consumer imports neither. `pepys build` compiles a consumer from a copy of its package's `src/`
-alone, so the consumer builds its IDs with the functions of its own boundary file.
+Import neither in a consumer. `pepys build` compiles a consumer from a copy of its package's `src/`
+alone, so build a consumer's IDs with the functions of its own boundary file.
 
 ## Configuration
 
@@ -91,6 +91,6 @@ Your compiler checks the kit's source with your `tsconfig.json`, so set at least
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) describe each part of pepys, and
-[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes what a
-plug-in declares.
+Read the [pepys docs](../../docs/README.md) for each part of pepys, and
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) for what a plug-in
+declares.

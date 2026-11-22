@@ -13,7 +13,7 @@
 
 The pepys API, for Bun: typed queries over the store that the host writes.
 
-A deployment serves the core queries and each plug-in's queries over oRPC and as MCP tools.
+It serves a deployment's queries, the core queries and each plug-in's, over oRPC and as MCP tools.
 
 ## Install
 
@@ -35,11 +35,6 @@ serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) });
 PEPYS_STORE_DIR=./store bun serve-api.ts
 ```
 
-To compile the entry with `bun build --compile`, import `@pepys/api` before any other package that
-loads the MCP SDK. Bun's bundler can leave out zod's start-up for the MCP SDK, and `@pepys/api` runs
-it first. With another such package first, the binary exits at start with
-`undefined is not a constructor (evaluating 'new ZodLazy(...)')`.
-
 ```ts
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
@@ -53,6 +48,11 @@ const api: DeploymentClient<typeof deployment> = createORPCClient(
 const pullRequest = await api.get_entity({ id: 'github:pull_request:9001' });
 ```
 
+To compile the entry with `bun build --compile`, import `@pepys/api` before any other package that
+loads the MCP SDK. Bun's bundler can leave out the zod start-up code that the MCP SDK needs, and
+`@pepys/api` runs that code first. With another such package first, the binary exits at start with
+`undefined is not a constructor (evaluating 'new ZodLazy(...)')`.
+
 ## Features
 
 - `serveAPI`, which serves a deployment's queries at `/rpc`, and as MCP tools at `/mcp` behind the
@@ -63,6 +63,6 @@ const pullRequest = await api.get_entity({ id: 'github:pull_request:9001' });
 
 ## Documentation
 
-[The API](../../docs/architecture/queries/api.md) describes the queries, and
-[the OAuth server](../../docs/architecture/queries/oauth-server.md) describes the sign-in in front
-of `/mcp`.
+Read [the API](../../docs/architecture/queries/api.md) for the queries, and
+[the OAuth server](../../docs/architecture/queries/oauth-server.md) for the sign-in in front of
+`/mcp`.
