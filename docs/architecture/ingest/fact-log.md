@@ -2,16 +2,16 @@
 
 The fact log holds every fact pepys has, and it is the one store that nothing can rebuild. Ingest is
 its only writer: ingest turns each delivery from a source into facts and appends them. Ingest reads
-the log only to guard and settle its own appends, and to read its saved cursors at start. The host
-reads the log to run each consumer, the code that builds a consumer's tables from facts, on the
-streams that the consumer declares. This doc covers the streams, the envelope of a fact, and how one
+the log only to guard and settle its own appends, and to load its saved cursors at start. The host
+reads the log to run each consumer on the streams that the consumer declares. A consumer is the code
+that builds its tables from facts. This doc covers the streams, the envelope of a fact, and how one
 append lands once. [The ingest doc](./ingest.md) covers the deliveries, and
 [the host doc](../consumers/host.md) covers the consumers.
 
-The log keeps every record forever and never rewrites one. A copy of a fact is harmless: every fact
-has a deterministic ID, so a fact written twice has the same ID both times, and the host applies
-each fact ID to a consumer once, as [a fact-mode batch](../consumers/host.md#a-fact-mode-batch)
-describes. A copy in the log therefore never changes a row of a consumer's tables.
+The log keeps every record forever and never rewrites one. A copy of a fact in the log never changes
+a row of a consumer's tables: every fact has a deterministic ID, so a fact written twice has the
+same ID both times, and the host applies each fact ID to a consumer once, as
+[a fact-mode batch](../consumers/host.md#a-fact-mode-batch) describes.
 
 s2-lite serves the log. s2-lite is the open-source, single-binary server for S2, a hosted service
 for durable streams, and speaks the same streams API. s2-lite keeps its data in an object storage
@@ -22,9 +22,8 @@ bucket, and acknowledges an append only once the data is durable there. Each ada
 
 A fact family is one kind of thing that a source reports, such as GitHub's pull requests, and each
 fact family has one stream. A stream is named `facts.<source>.<family>`, such as
-`facts.github.pull_request`. A source names a stream after the kind of thing a consumer builds from
-it, never after the name of a webhook event, so that a consumer reads one stream for one kind of
-thing.
+`facts.github.pull_request`. Name a stream after the kind of thing a consumer builds from it, never
+after the name of a webhook event, so that a consumer reads one stream for one kind of thing.
 
 s2-lite orders the records of one stream and gives each a sequence number, which a consumer keeps as
 its offset. The log keeps records of different streams in no order, and a consumer never needs one,
@@ -79,7 +78,7 @@ APIs never return old data, and a field that ingest trimmed would be lost for go
 changes the shape of its payload, the consumer reads `api` and handles each shape it knows.
 
 A source builds each fact ID from the data it was sent, so the same data always gives the same ID.
-The envelope check accepts five forms:
+The envelope check accepts these forms:
 
 | Prefix         | Rest of the ID                                                                       | Used for                                                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
@@ -107,7 +106,7 @@ nothing.
 
 Ingest guards every append of a run. It reads the stream's tail first, and sends the run with that
 offset as the guard: the offset that the run's first record must get. s2-lite stores every fact of
-the run or none, and only when the tail still matches the guard. Each attempt ends in one of three
+the run or none, and only when the tail still matches the guard. Each attempt ends in one of these
 ways:
 
 - **Acknowledged:** the run landed.
@@ -166,11 +165,12 @@ tests cover each way an outcome can be unknown. The Rust memory log can only los
 because the host never appends.
 
 Each port has one folder of fixture files. A fixture file holds a sequence of calls, with the result
-each call must return, and both languages run every file against every adapter. The memory and local
-folder adapters run under `bun test` and `cargo nextest run`, and the S2 and Garage adapters run in
-the e2e lanes, which start s2-lite and Garage in Docker. The TypeScript test runs each file it finds
-in the folder. The Rust test runs a list of files, and fails when the list differs from the folder,
-so a fixture added to the folder fails `cargo nextest run` until the Rust test runs it too.
+each call must return, and the tests in both languages run every file against every adapter. The
+memory and local folder adapters run under `bun test` and `cargo nextest run`, and the S2 and Garage
+adapters run in the e2e lanes, which start s2-lite and Garage in Docker. The TypeScript test runs
+each file it finds in the folder. The Rust test runs a list of files, and fails when the list
+differs from the folder, so a fixture added to the folder fails `cargo nextest run` until the Rust
+test runs it too.
 
 The blob store keeps each file under the SHA-256 of its content, so a read of one hash always
 returns the same bytes. A source can hand ingest blobs beside a fact, outside its envelope. Ingest

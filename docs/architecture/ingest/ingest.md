@@ -14,8 +14,8 @@ Ingest responds to a sender with success only when the fact log holds every fact
 [Retries and status codes](#retries-and-status-codes) gives each failure, and whether a resend of
 the delivery fixes it.
 
-A source declares each of its paths in its plug-in's code, and puts each path in one of four slots,
-by what the path is for:
+Declare each path of a source in its plug-in's code, and put each path in one of four slots, by what
+the path is for:
 
 | Slot     | Kind of path    | What the path is for                                          | Filled in this repo by                            |
 | -------- | --------------- | ------------------------------------------------------------- | ------------------------------------------------- |
@@ -25,8 +25,8 @@ by what the path is for:
 | resync   | pull            | a fresh read of each entity that ingest marked as maybe stale | the GitHub resync pull                            |
 
 Ingest does every step of a delivery itself. The one exception is step 6, where the receive path's
-`read` function, which the source writes, turns the delivery into facts. `read` does no I/O, and
-writes only to the logger that ingest passes it.
+`read` function, which you write for the source, turns the delivery into facts. Do no I/O in `read`,
+and write only to the logger that ingest passes it.
 
 [The fact log](./fact-log.md) covers the appends that ingest makes.
 [The GitHub plug-in](../plug-ins/github.md) and [the telemetry plug-in](../plug-ins/telemetry.md)
@@ -56,7 +56,7 @@ At each step, ingest either sends a response and stops, or goes on to the next s
    the body as it reads it, so a body with no `content-length` still stops at the limit.
 2. Ingest runs the delivery check on the bytes as sent, before any code of the source runs. The
    check is an HMAC-SHA256 signature of the body, or a token in a header. A delivery that fails the
-   check gets 401. A [sender route](#sender-routes) skips this step.
+   check gets 401. Ingest skips this step on a [sender route](#sender-routes).
 3. When the route needs a proven sender, ingest calls the [sender proof](#the-sender-proof). Ingest
    responds 401 when the call returns no sender or throws.
 4. When ingest stored the same body on this path in the last hour, it sends the response it sent the
@@ -75,7 +75,7 @@ At each step, ingest either sends a response and stops, or goes on to the next s
    families: groups of fact types, each with one [stream](./fact-log.md#streams) of the log. A fact
    also gets 422 when it names a stream outside its source's fact families.
 8. A fact that names a blob gets 500. A blob is a large file stored beside the log, and ingest has
-   no blob store. Return no fact that names a blob from `read`.
+   no blob store. From `read`, return no fact that names a blob.
 9. A fact larger than the log takes in [one append](./fact-log.md#one-append) gets 413.
 10. Ingest appends each stream's facts, then sends a response.
 
@@ -103,11 +103,11 @@ status that ingest sends then depends on what the log holds:
 | an append has no acknowledgement after its 5 tries         | the earlier appends on that stream, and perhaps the unacknowledged append | 503    | 1             |
 | the log refuses an append on a stream, or an append throws | the earlier appends on that stream                                        | 500    | none          |
 
-After a 503, send the same delivery again, unchanged. The resend fills in what the first delivery
-left out, because the [host](../consumers/host.md#a-fact-mode-batch) skips a fact whose ID it
-already applied. After a 500 or a 4xx status, a resend of the same bytes fails in the same way. When
-the log refuses an append on one stream and gives no acknowledgement on another, ingest responds
-500, because a resend fails on the first stream again.
+After a 503, send the same delivery again, unchanged. The
+[host](../consumers/host.md#a-fact-mode-batch) skips a fact whose ID it already applied, so it
+applies only the facts that the first delivery left out. After a 500 or a 4xx status, a resend of
+the same bytes fails in the same way. When the log refuses an append on one stream and gives no
+acknowledgement on another, ingest responds 500, because a resend fails on the first stream again.
 
 Ingest queues the appends on each stream, so the appends of two deliveries never mix on one stream.
 Each stream has its own queue, and the streams never wait for each other. A delivery that gets 503
@@ -115,10 +115,10 @@ can leave its facts on one stream and none on another.
 
 ## Why a fact ID comes from the signed body
 
-A source builds every fact ID of a receive path from the body, never from a header. The delivery
-checks never sign a time, so a captured delivery passes its check again at any later time. A replay
-of the body then carries the same fact IDs as the first delivery. The host skips a fact whose ID it
-already applied, so a replay changes no row and no link between entities.
+Build every fact ID of a receive path from the body, never from a header. The delivery checks never
+sign a time, so a captured delivery passes its check again at any later time. A replay of the body
+then carries the same fact IDs as the first delivery. The host skips a fact whose ID it already
+applied, so a replay changes no row and no link between entities.
 
 The two kinds of receive path in this repo build their fact IDs from the body in these ways:
 
@@ -129,7 +129,7 @@ The two kinds of receive path in this repo build their fact IDs from the body in
 - GitHub puts the delivery's ID in a header that GitHub never signs, so the GitHub source hashes the
   body instead.
 
-The recent-body step of a delivery only slows how fast replays grow the log. For each receive path,
+Step 4, the recent-body step, only slows how fast replays grow the log. For each receive path,
 ingest keeps a SHA-256 of each body that it stored, in memory, for one hour, and at most 10,000 of
 them. Ingest keeps the hash on a path whose `answer` setting is `empty` too, and the response it
 keeps is then 200 `{}`. Ingest keeps the hash only once every append of the body has landed. A
@@ -141,12 +141,12 @@ facts to the log, and the host applies none of the copy.
 ## The sender proof
 
 A receive path can require a proven sender: a sender whose identity ingest checks, beside the
-delivery check. The one kind of proof in use checks an identity token from impz. impz runs the
-owner's coding agents, each in an imp, a small virtual machine, and gives each imp a signed identity
-token. [The api-auth design](../../design/api-auth/README.md) describes impz.
+delivery check. The one kind of proof in use is an identity token from impz. impz runs the owner's
+coding agents, each in an imp, a small virtual machine, and gives each imp a signed identity token.
+[The api-auth design](../../design/api-auth/README.md) describes impz.
 
-A path that requires a proven sender declares the kind of proof and two environment variables, which
-the deployment sets:
+On a path that requires a proven sender, declare the kind of proof and two environment variables,
+which the deployment's owner sets:
 
 - the audience: the name a sender's identity token must be issued for;
 - the folder of trust documents: the issuers whose signatures ingest accepts.
@@ -185,7 +185,7 @@ Ingest compares the two groups by the values it loaded, and exits 1 at start wit
 - a key is in a trust document of both folders, by its RFC 7638 SHA-256 thumbprint, whatever its
   `kid`.
 
-A pair in which either side has no audience or no document is skipped, because that side refuses
+Ingest skips a pair in which either side has no audience or no document, because that side refuses
 every request. No token therefore passes both a sender route and its path.
 
 ## Pull paths
@@ -225,22 +225,22 @@ first, and exits 1 on a failure. It then reads these variables:
 When any of them is unset or empty, ingest names every missing variable at once and exits 1. Ingest
 listens on `PEPYS_INGEST_HOST`, 127.0.0.1 by default, and `PEPYS_INGEST_PORT`, 8080 by default.
 
-Before it listens, ingest creates the S2 basin, the namespace that holds every stream, the stream of
-each fact family, and the `facts.cursors` stream. It gives each stream infinite retention, and sets
-infinite retention on a stream that already exists. s2-lite, the S2 server a deployment runs, drops
-old records from a stream that has the default retention. Ingest then reads the
+Before it listens, ingest creates the S2 basin, and in it the stream of each fact family and the
+`facts.cursors` stream. It gives each stream infinite retention, and sets infinite retention on a
+stream that already exists. s2-lite, the S2 server a deployment runs, drops old records from a
+stream that has the default retention. Ingest then reads the
 [saved cursors](./pull-paths.md#cursors).
 
 When S2 fails one of these calls, ingest logs the error, waits, and runs them all again from the
-first. This covers a refused connection, a 5xx answer, a 408 and a 429. The wait doubles after each
-failure, up to a cap. After a set number of failures in a row, ingest logs the last error and
+first. A failure here is a refused connection, a 5xx answer, a 408 or a 429. The wait doubles after
+each failure, up to a cap. After a set number of failures in a row, ingest logs the last error and
 exits 1. [`pick-start-step.ts`](../../../packages/ingest/src/serve/pick-start-step.ts) holds the
-first wait, the cap and the limit, which equal those of the [host's retry](../consumers/host.md). It
-exits 1 at once on any other 4xx answer, such as the one for a wrong access token, because a second
-try fails the same way. A stop signal during a wait ends ingest at once.
+first wait, the cap and the limit, which equal those of the [host's retry](../consumers/host.md).
+Ingest exits 1 at once on any other 4xx answer, such as the one for a wrong access token, because a
+second try fails the same way. A stop signal during a wait ends ingest at once.
 
 Ingest takes no lock across processes. Two processes of one deployment would each keep their own
-recent bodies, timers, source locks and resync marks, so a deployment runs one.
+recent bodies, timers, source locks and resync marks, so run one ingest process per deployment.
 
 ## Known limits
 
