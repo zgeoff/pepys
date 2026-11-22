@@ -2,11 +2,10 @@
 
 Write each new pepys contract by the rules in this doc, so that two agents who implement it from its
 type alone build the same behaviour. A contract is a type or a command signature that one part of
-pepys declares and another part builds against. The built part already sends every call to an
-outside system through a port, as
+pepys declares and another part builds against. Send every call to an outside system through a port,
+as the built part does and
 [the architecture overview](../../architecture/overview.md#concerns-that-cut-across-the-system)
-describes, and new parts keep that rule. This doc holds the rules that the built part does not use
-yet.
+describes. This doc holds the rules that the built part does not use yet.
 
 | Rule                                                | Applies to                                                        |
 | --------------------------------------------------- | ----------------------------------------------------------------- |
@@ -52,8 +51,8 @@ version.
 
 A job promotion gives each consumer that reads the job a new
 [consumer version](./host.md#consumer-versions), which the host builds to the side and swaps. A
-consumer challenger stops at the champion's offset. Facts past that offset reach only the
-challenger, so the diff would count them as changes the challenger's code made.
+consumer challenger stops at the champion's offset, because the diff would otherwise count the newer
+facts as changes the challenger's code made.
 
 An enrichment challenger writes its facts under its own version, and every consumer reads only the
 champion's facts. The owner therefore never sees the challenger's output, and that output cannot
@@ -95,7 +94,7 @@ An enrichment challenger can run on a sample of its input before the owner promo
 model call costs money. A scope is the unit that a job's work belongs to, such as a Gmail thread or
 a pull request. A hash of the scope ID puts each scope in one of 100 buckets, numbered 0 to 99. The
 challenger's version file lists the buckets it runs on and the most model calls the run may make.
-Enrichment refuses a run that would make more before its first call. The owner widens the sample
+Before its first call, enrichment refuses a run that would make more. The owner widens the sample
 with `pepys sample enrich <job>`, and promotion covers the remaining scopes.
 
 The bucket list sits outside the version hash, so widening the sample keeps the facts that the

@@ -9,15 +9,15 @@ manual fact in the log, and the host applies it.
 
 ## Callers
 
-The API's callers reach it on three kinds of route:
+The API's callers reach it on these routes:
 
 - agents reach MCP on a public route, with an OAuth token;
 - the owner's scripts reach oRPC on the owner's tailnet, and pods reach oRPC and MCP inside the
   cluster, each with a service token;
 - enrichment reads the change feed and search on an internal port ([runtime](./runtime.md#network)).
 
-[Auth for the API](../api-auth/README.md) owns which listener serves each route, and which
-credential each listener takes.
+For which listener serves each route, and which credential each listener takes, see
+[Auth for the API](../api-auth/README.md).
 
 | Caller                               | Wants                   | Through         |
 | ------------------------------------ | ----------------------- | --------------- |
@@ -60,4 +60,4 @@ An agent may assert a link, with the agent as its origin. Every manual link, fro
 agent, takes any confidence from 0 to 1 and requires evidence. Queries treat agent links like
 inferred ones and filter them by confidence. An agent may correct a label, because the owner
 classifies mail by working with a model. Every correction counts as labelled data for the mail label
-job, and each one names the client that wrote it.
+job, and each one records the client that wrote it.
