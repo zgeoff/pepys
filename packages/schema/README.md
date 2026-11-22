@@ -13,8 +13,8 @@
 
 The pepys consumer manifest, for Bun: the types and the strict schema of `consumers.json`.
 
-`pepys build` writes `consumers.json`, and the pepys services read it. A plug-in needs only
-[`@pepys/kit`](../kit/README.md).
+`pepys build` writes `consumers.json`, and the pepys services read it. To write a plug-in, you need
+only [`@pepys/kit`](../kit/README.md).
 
 ## Install
 
@@ -38,5 +38,5 @@ const manifest = consumerBuildManifestSchema.parse(await Bun.file('build/consume
 
 ## Documentation
 
-[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes
-`consumers.json` and the build that writes it.
+For `consumers.json` and the build that writes it, read
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md).
