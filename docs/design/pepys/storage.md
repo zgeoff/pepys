@@ -43,14 +43,15 @@ that version with no module.
 ## Blobs
 
 A blob is any file a fact refers to: an email attachment, a raw email message, an image in a pull
-request. Ingest stores each blob under the SHA-256 hash of its content, so the same file sent three
-times is stored once and a read of a blob always returns the same bytes. That property lets
-consumers read blobs without breaking replay.
+request, or the plain text that enrichment extracts from a message. Ingest and enrichment store each
+blob under the SHA-256 hash of its content, so the same file sent three times is stored once and a
+read of a blob always returns the same bytes. That property lets consumers read blobs without
+breaking replay.
 
-Ingest writes the blob before it appends the fact that references it, so a fact never points at a
-missing blob. The fact holds a reference with the hash, the file name, the media type and the size.
-Ingest takes every attachment up to a size limit, because a source can delete a file later and Gmail
-serves attachments only while the message exists.
+Each writer writes the blob before it appends the fact that references it, so a fact never points at
+a missing blob. The fact holds a reference with the hash, the file name, the media type and the
+size. Ingest takes every attachment up to a size limit, because a source can delete a file later and
+Gmail serves attachments only while the message exists.
 
 Deleted email stays in the blobs bucket, because the design keeps tombstones and never deletes
 facts. A real purge, if one is ever needed, removes the blob, since blobs live outside the log.

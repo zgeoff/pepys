@@ -3,13 +3,13 @@
 The built API serves `get_entity`, `neighbourhood` and each plug-in's queries as oRPC routes and MCP
 tools, reads the store, checks no token on `/rpc`, and checks an access token on `/mcp`, as
 [the API](../../architecture/queries/api.md) describes. This design adds the core writes, the search
-and history queries, the deployment catalog, and the callers that reach the API with a credential.
-The API still never writes the store: every write from a person or an agent becomes a manual fact in
-the log, and the host applies it.
+and history queries, the deployment catalog, and a credential for each caller: `/rpc` then takes a
+service token. The API still never writes the store: every write from a person or an agent becomes a
+manual fact in the log, and the host applies it.
 
 ## Callers
 
-The API's callers reach it three ways:
+The API's callers reach it on three kinds of route:
 
 - agents reach MCP on a public route, with an OAuth token;
 - the owner's scripts reach oRPC on the owner's tailnet, and pods reach oRPC and MCP inside the
@@ -52,6 +52,7 @@ it has its own change stream, and an agent can subscribe and act when something 
 The API runs its own OAuth 2.1 server. Each client the owner adds gets its own grant, with the scope
 `read` or the scopes `read` and `write`, and every manual fact records the client that wrote it.
 [Auth](./auth.md) holds the OAuth clients, the flow, the OAuth tokens, the scopes and the threats.
+[Auth for the API](../api-auth/README.md) holds the service tokens and the listeners.
 
 ## Agent writes
 

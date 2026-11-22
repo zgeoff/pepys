@@ -9,7 +9,8 @@ tokens that scripts and pods send to `/rpc`.
 
 ## Scopes
 
-A grant holds `read`, or `read` and `write`. Each route and each MCP tool needs one scope:
+A grant holds `read`, or `read` and `write`. Each route and each MCP tool behind auth needs one
+scope. The internal port, which [Network](#network) covers, takes no token:
 
 | Scope   | Allows                                                                        |
 | ------- | ----------------------------------------------------------------------------- |

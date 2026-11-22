@@ -3,9 +3,9 @@
 Entity IDs, entity views, the shared `entity` view, its filter of deleted rows and the alias table
 of pull requests are built, as
 [entities and links](../../architecture/queries/entities-and-links.md) describes. This design adds
-an alias table beside each other entity table, so a readable reference resolves to an ID, the other
-GitHub kinds, the Gmail entities, people, and a tombstone for each deletion in every source. Each
-source brings the entity consumers for its own kinds.
+the other GitHub kinds, the Gmail entities, people, and a tombstone for each deletion in every
+source. It also adds an alias table beside each other entity table, so a readable reference resolves
+to an ID. Each source brings the entity consumers for its own kinds.
 
 ## Tables and aliases
 
@@ -58,14 +58,14 @@ observations of the label list, because labels have no history API.
 
 Facts name actors by source ID, such as a GitHub user ID or an email address. An identity consumer
 groups the IDs that belong to one person into a `person` entity with same-as links. The owner's own
-IDs come from the deployment's configuration, so the most important person in the graph is never a
-guess. The repository is public, so the IDs never sit in code: ingest reads them from the
-`owner-identity` secret ([runtime](./runtime.md#secrets)) and, when they differ from the last
-`facts.deployment.owner` fact, appends a new one. That fact is an observation of the entity
-`deployment:person:owner`, with the type `deployment.owner.observed` and an observation ID
-([log](./log.md#fact-ids)). The identity consumer reads that fact like any other, so it stays pure
-and a replay gives the same people. Most email senders never match a GitHub account, and they stay
-as a person with an email alias only.
+IDs come from the deployment's configuration, the `owner-identity` secret below, so the most
+important person in the graph is never a guess. The repository is public, so the IDs never sit in
+code: ingest reads them from the `owner-identity` secret ([runtime](./runtime.md#secrets)) and, when
+they differ from the last `facts.deployment.owner` fact, appends a new one. That fact is an
+observation of the entity `deployment:person:owner`, with the type `deployment.owner.observed` and
+an observation ID ([log](./log.md#fact-ids)). The identity consumer reads that fact like any other,
+so it stays pure and a replay gives the same people. Most email senders never match a GitHub
+account, and they stay as a person with an email alias only.
 
 Each link type carries a hub flag, which the plug-in that declares the type sets
 ([the core queries](../../architecture/queries/api.md#the-core-queries)). A person is linked to

@@ -44,9 +44,9 @@ changed. When a swap is done, the host sends a `consumer.swapped` event over the
 
 ## Snapshots
 
-After a checkpoint, the host copies each current file to the snapshots bucket on a schedule. A
-restore downloads the snapshots and replays only the facts after each snapshot's offsets. A restored
-file starts a new generation of its change stream, as `pepys up` does
+On a schedule of its own, the host checkpoints each current file, then copies it to the snapshots
+bucket. A restore downloads the snapshots and replays only the facts after each snapshot's offsets.
+A restored file starts a new generation of its change stream, as `pepys up` does
 ([change feed](./change-feed.md#generations)), because its replayed change log differs from the one
 readers already read.
 

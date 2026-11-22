@@ -4,7 +4,7 @@ This folder holds the design of the parts of pepys that are not built yet, one d
 [Design docs](#design-docs) lists. [The architecture overview](../../architecture/overview.md)
 describes the part that is built, and defines the terms these docs use, such as fact, consumer,
 scope, plug-in and deployment. Where a design here and an architecture doc differ about the built
-part, the architecture doc is right.
+part, the architecture doc is right. Read the doc of a part before you design or build that part.
 
 The question pepys exists to answer is "what is waiting on me, across everything?". Every part below
 keeps the split that the built part keeps: facts are kept forever and never change, and everything

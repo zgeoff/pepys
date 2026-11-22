@@ -88,7 +88,7 @@ The owner runs the API's own admin commands, such as `clients add` and `passkeys
 
 The admin routes never check a token. An operator gets inside the pod only with the cluster
 credentials that `kubectl exec` needs. The host's admin port, enrichment's admin port and ingest's
-admin port each admit one other pod, as [network](#network) lists.
+admin port each admit one other pod, as the NetworkPolicies in [network](#network) list.
 
 ## Secrets
 
@@ -98,6 +98,8 @@ Kubernetes Secret that only its process mounts, as every geoff.cloud workload re
 ([cloud secrets](https://github.com/zgeoff/cloud/blob/main/docs/architecture/secrets.md)). The apply
 job refuses a reference to any other vault, so the `pepys` vault holds only the copies that
 development on the owner's machine reads. Each item in the table is named `pepys-<item>` in `cloud`.
+The boxxy server, outside the namespace, also holds the `api-boxxy` token, which it sends to the
+API.
 
 | Item                | Fields                                        | Mounted by                                |
 | ------------------- | --------------------------------------------- | ----------------------------------------- |
@@ -143,8 +145,9 @@ The API's cluster listener serves `/rpc` and `/mcp` inside the cluster, to the b
 NetworkPolicies and exposure registry entries of the three listeners.
 
 Inside the namespace, enrichment and the pod that runs the host and the API call each other on the
-three internal ports below. The admin ports, which the CLI calls, are in [the CLI](#the-cli). The
-internal routes never check a token, as with the CLI's admin routes.
+three ports below. The host's admin port listens on 127.0.0.1 for the CLI and on the pod address for
+enrichment. [The CLI](#the-cli) lists the admin routes. The internal routes never check a token, as
+with the CLI's admin routes.
 
 | Port                                      | Serves                                                                              | Open to                                |
 | ----------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |

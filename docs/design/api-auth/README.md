@@ -200,7 +200,10 @@ build.
 
 ## Deployment of the public route
 
-Make these changes in the cloud repo.
+These steps put the public route on the API as it is built now, with one listener, so do them before
+[Deploying the listeners](#deploying-the-listeners). Once the listeners are built, the public
+listener binds `PEPYS_API_PUBLIC_HOST`, and `PEPYS_API_HOST` binds the cluster listener. Make these
+changes in the cloud repo.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel to the API's ClusterIP Service, with
    the paths that [the public paths](../../runbooks/serving-mcp.md#1-route-the-public-paths) list.

@@ -69,9 +69,10 @@ the alias table resolves it.
 
 The brands exist only in TypeScript, and the module boundary passes plain strings. The host
 therefore checks every link operation against the same registry, and rejects a link of the wrong
-kinds. An ID carries its kind in its prefix, so the host checks an ID end when the operation
-arrives. A reference written as text names no kind, so its kind is checked when the alias table
-resolves it, and a reference that resolves to the wrong kind is left out of the effective link view.
+kinds. An ID carries its kind in its prefix, so the built host checks an ID end when the operation
+arrives. This design adds the check of a reference end. A reference written as text names no kind,
+so its kind is checked when the alias table resolves it, and a reference that resolves to the wrong
+kind is left out of the effective link view.
 
 ## Manual and agent links
 

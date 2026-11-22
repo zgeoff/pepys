@@ -1,16 +1,16 @@
 # Log
 
-The built log holds one stream per source fact family, as
-[the fact log](../../architecture/ingest/fact-log.md) describes. This design adds three kinds of
-stream, for poller cursors, for manual assertions and for enrichment results, and the rules a poller
-follows when it records events and observations. Every new stream keeps the built log's rules: one
-stream per fact family, kept forever, with a deterministic ID on every fact.
+The built log holds one stream per source fact family, and the `facts.cursors` stream of poller
+positions, as [the fact log](../../architecture/ingest/fact-log.md) describes. This design adds two
+kinds of stream, for manual assertions and for enrichment results, and the rules a poller follows
+when it records events and observations. Every new stream keeps the built log's rules: one stream
+per fact family, kept forever, with a deterministic ID on every fact.
 
 ## Streams
 
 | Stream           | Holds                                               | Written by |
 | ---------------- | --------------------------------------------------- | ---------- |
-| `facts.cursors`  | each poller's position in its source                | ingest     |
+| `facts.cursors`  | each poller's position in its source (built)        | ingest     |
 | `facts.manual`   | links and corrections that people and agents assert | the API    |
 | `facts.enrich.*` | enrichment results                                  | enrichment |
 
@@ -22,22 +22,24 @@ ingest, enrichment and the API append facts, and the host and compaction only re
 
 ## Fact IDs
 
-| Fact kind         | ID                                                          |
-| ----------------- | ----------------------------------------------------------- |
-| source event      | `event:gmail:<history id>:<message id>:<change>` for Gmail  |
-| observation       | a hash of the source, the entity and the source update time |
-| enrichment result | a hash of the job, the job version and the input hash       |
-| manual assertion  | a hash of the client ID and the request ID the client sends |
+| Fact kind             | ID                                                                    |
+| --------------------- | --------------------------------------------------------------------- |
+| source event          | `event:gmail:<history id>:<message id>:<change>` for Gmail            |
+| observation           | a hash of the source, the entity and the source update time           |
+| enrichment result     | a hash of the job, the job version and the input hash                 |
+| manual assertion      | a hash of the client ID and the request ID the client sends           |
+| cursor record (built) | `observation:` and a hash of the source, the pull path and the cursor |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
 webhooks repeat, and neither needs to prevent it at write time.
 
 ## Cursors
 
-A poller records where it is in its source in the `facts.cursors` stream. Each poll writes in a
-fixed order: blobs first, then facts, then one cursor record. A crash between the facts and the
-cursor record makes the poller repeat that range on restart, which writes duplicates that the fact
-IDs make harmless. No transaction spans two streams.
+A poller records where it is in its source in the `facts.cursors` stream, which is built, as
+[the cursor stream](../../architecture/ingest/fact-log.md#the-cursor-stream) describes. Every new
+poller follows its rules. Each poll writes in a fixed order: blobs first, then facts, then one
+cursor record. A crash between the facts and the cursor record makes the poller repeat that range on
+restart, which writes duplicates that the fact IDs make harmless. No transaction spans two streams.
 
 The cursor lives in its own stream because one poller can write several fact streams, and a backfill
 and a live poller can write the same one, so the last record of a fact stream does not identify any
@@ -45,7 +47,7 @@ one poller's position.
 
 ## Events and observations
 
-A fact is either an event or an observation:
+A source fact is either an event or an observation:
 
 - An event records one change exactly as it happened, from a webhook or a source history API.
 - An observation records the full state of an object as a poll saw it.
