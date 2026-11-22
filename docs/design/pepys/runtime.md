@@ -101,16 +101,16 @@ owner's machine reads for development. Each item in the table is named `pepys-<i
 The boxxy server, outside the namespace, also holds the `api-boxxy` token, which it sends to the
 API.
 
-| Item                | Fields                                        | Mounted by                                |
-| ------------------- | --------------------------------------------- | ----------------------------------------- |
-| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest                                    |
-| `github-read-token` | `token`                                       | enrichment                                |
-| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest                                    |
-| `jev`               | `credential`                                  | enrichment                                |
-| `api-owner-pc`      | `token`                                       | the API, as a digest                      |
-| `api-boxxy`         | `token`                                       | the API as a digest, and the boxxy server |
-| `owner-identity`    | `emails`, `github-user-id`                    | ingest                                    |
-| `garage-<service>`  | the access key and secret of one service      | that service                              |
+| Item                | Fields                                        | Mounted by           |
+| ------------------- | --------------------------------------------- | -------------------- |
+| `github-app`        | `client-id`, `private-key`, `webhook-secret`  | ingest               |
+| `github-read-token` | `token`                                       | enrichment           |
+| `gmail`             | `client-id`, `client-secret`, `refresh-token` | ingest               |
+| `jev`               | `credential`                                  | enrichment           |
+| `api-owner-pc`      | `token`                                       | the API, as a digest |
+| `api-boxxy`         | `token`                                       | the API, as a digest |
+| `owner-identity`    | `emails`, `github-user-id`                    | ingest               |
+| `garage-<service>`  | the access key and secret of one service      | that service         |
 
 The owner creates each Garage key once with the Garage CLI, scoped to the buckets in the
 [storage](./storage.md#buckets-and-keys) table, and stores it in `cloud` as
@@ -145,9 +145,10 @@ The API's cluster listener serves `/rpc` and `/mcp` inside the cluster, to the b
 NetworkPolicies and exposure registry entries of the three listeners.
 
 Inside the namespace, enrichment and the pod that runs the host and the API call each other on the
-three ports below. The host's admin port listens on 127.0.0.1 for the CLI and on the pod address for
-enrichment. [The CLI](#the-cli) lists the admin routes. The internal routes never check a token, as
-with the CLI's admin routes.
+ports below, and the CLI in the API container calls the admin ports that [the CLI](#the-cli) lists.
+The host's admin port listens on 127.0.0.1 for the CLI and on the pod address for enrichment.
+[The CLI](#the-cli) lists the admin routes. The internal routes never check a token, as with the
+CLI's admin routes.
 
 | Port                                      | Serves                                                                              | Open to                                |
 | ----------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |

@@ -5,7 +5,7 @@ type alone build the same behaviour. A contract is a type or a command signature
 pepys declares and another part builds against. Send every call to an outside system through a port,
 as the built part does and
 [the architecture overview](../../architecture/overview.md#concerns-that-cut-across-the-system)
-describes. This doc holds the rules that the built part does not use yet.
+describes. The rules in the table below are the ones the built part does not use yet.
 
 | Rule                                                | Applies to                                                        |
 | --------------------------------------------------- | ----------------------------------------------------------------- |
