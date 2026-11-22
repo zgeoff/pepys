@@ -40,7 +40,8 @@ With no ingest URL set, `run` starts the receiver alone, and the send state is `
 
 ## The spool folder
 
-The receiver and the send loop share only the files of the spool folder. The receiver therefore
+The receiver and the send loop pass exports to each other only through the files of the spool
+folder. The receiver reads the send state only to answer `GET /health`. The receiver therefore
 stores exports while the send loop waits on ingest, and the send loop sends the spool while no
 export arrives.
 

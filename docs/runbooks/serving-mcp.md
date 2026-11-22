@@ -118,8 +118,8 @@ unknown command prints the usage of every command and exits 2.
    claude mcp add --transport http --client-id <client_id> --callback-port <port> <server_name> <public_origin>/mcp
    ```
 
-   Give no client secret. The server issues none, because every client is a public client in the
-   OAuth sense.
+   Give no client secret. The server issues none, because each client that `clients add` adds is a
+   public client in the OAuth sense.
 
 7. Start the client, and let it connect. In Claude Code, run `/mcp`, and pick the server to sign in.
 

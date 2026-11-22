@@ -12,10 +12,11 @@ Ingest holds one lock per source, in memory. A run takes the lock of its source 
 starts, so two pull paths of one source never run at the same time, and the pull paths of two
 sources do. A `runPull` call takes the same lock as a timer's run.
 
-A run that finds the lock taken waits, and the waiting runs go in the order they asked. A timer
-starts no run while its last run waits or runs, so each timer has at most one run in the queue. A
-waiting run keeps its turn, because a skipped turn would leave an hourly pull two hours between
-runs. When ingest stops, a waiting run ends, and its pull never starts.
+A run that finds the lock taken waits, and the waiting runs go in the order they asked. A timer that
+fires while its last run waits or runs starts no new run, so each timer has at most one run in the
+queue. The waiting run keeps its place in the queue, because dropping it for the next timer would
+leave an hourly pull two hours between runs. When ingest stops, a waiting run ends, and its pull
+never starts.
 
 A pull's batch goes through the same batch checks and appends as a delivery. When a pull returns a
 fact with a blob, ingest appends nothing from that run, logs the error, and keeps the cursor.

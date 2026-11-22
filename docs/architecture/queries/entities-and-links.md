@@ -6,10 +6,10 @@ consumer, the code in a plug-in that turns facts into rows, returns both, and th
 The host keeps each consumer's rows in a database file of its own, as
 [the host](../consumers/host.md#commands-and-the-store-folder) describes.
 
-A query in pepys reads the entities and links of every source through two shared views, `entity` and
-`link_effective`, whatever consumer wrote the rows. For each query built with Kysely, the API's
-query builder, the API builds the two shared views from the files of the consumers that the query
-reads.
+A Kysely query in pepys reads the entities and links of every source through two shared views,
+`entity` and `link_effective`, whatever consumer wrote the rows. For each query built with Kysely,
+the API's query builder, the API builds the two shared views from the files of the consumers that
+the query reads.
 
 - [Plug-ins and the build](../consumers/plug-ins-and-build.md) covers how a consumer declares its
   tables, entity views and link types.
@@ -117,10 +117,10 @@ GitHub plug-in's own queries skip it too.
 ## Aliases
 
 `get_entity` takes one text input, which holds an entity ID or an alias. Text with the form in
-[Entity IDs](#entity-ids) is an ID: a lowercase source, a `:`, a lowercase kind, a `:`, and a last
-part that is not empty. The API treats any other text as an alias. An alias is the text a person
-writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pull/412` for a pull
-request.
+[Entity IDs](#entity-ids) is an ID: a lowercase source, a `:`, a lowercase kind name, a `:`, and a
+last part that is not empty. The API treats any other text as an alias. An alias is the text a
+person writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pull/412` for a
+pull request.
 
 To keep aliases, a consumer declares a table beside the table of its entity view, named after that
 table with `_alias` added, such as `github_pull_request_alias`. The alias table holds three columns:

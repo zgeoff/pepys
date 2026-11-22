@@ -37,15 +37,15 @@ exporter set to send all three signals sees each export succeed. `/forwarded/v1/
 [sender route](../ingest/ingest.md#sender-routes) for a machine outside impz, and takes the limits
 below too.
 
-An export holds many records, so `/v1/logs` takes a larger body and more facts than ingest's other
-routes take. The plug-in file,
+An export holds many records, so `/v1/logs` and `/forwarded/v1/logs` take a larger body and more
+facts than ingest's other routes take. The plug-in file,
 [`telemetry-plugin.ts`](../../../packages/source-telemetry/src/telemetry-plugin.ts), sets both
 limits:
 
-| Limit               | Default for a route | `/v1/logs` |
-| ------------------- | ------------------- | ---------- |
-| body size, in bytes | 1,048,576           | 4,194,304  |
-| facts in one export | 100                 | 1,000      |
+| Limit               | Default for a route | `/v1/logs` and `/forwarded/v1/logs` |
+| ------------------- | ------------------- | ----------------------------------- |
+| body size, in bytes | 1,048,576           | 4,194,304                           |
+| facts in one export | 100                 | 1,000                               |
 
 An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only when the
 `Content-Type` is not `application/json`, or the body is not OTLP JSON in shape. It answers 422 to
@@ -215,7 +215,7 @@ that machine from outside this plug-in.
   gets the ID of an earlier one, and the host skips the later event with no error.
 - The model request's `agent` column is always null: `read` recognises no attribute from either
   product as the subagent of a request.
-- The log keeps every record of a known product, tool and hook events included, though only model
+- The log keeps every record that `read` keeps, tool and hook events included, though only model
   requests and turn costs become rows.
 - Codex signed in with a ChatGPT account sends no `turn_cost` event, so its sessions have no cost in
   either table. Whether Codex with an API key sends one is not checked.

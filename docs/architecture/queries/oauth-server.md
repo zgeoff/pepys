@@ -36,12 +36,13 @@ flowchart LR
 
 ## The deployment around the server
 
-The API listens behind a proxy, such as a Cloudflare tunnel, that ends TLS and forwards only `/mcp`
-and the OAuth paths. The proxy puts the browser paths behind a login of its own, such as Cloudflare
-Access, and sends a client's requests straight through. Every request from the internet therefore
-reaches the API from the proxy's address. A process on the API's own machine or network reaches the
-API without the proxy, and so without the proxy's login. The server's rules assume that such a
-process exists, and give it a token only after a passkey sign-in, or for a service client's secret.
+The API listens behind a proxy, such as a Cloudflare tunnel, that ends TLS and forwards only `/mcp`,
+`POST /` and the OAuth paths. The proxy puts the browser paths behind a login of its own, such as
+Cloudflare Access, and sends a client's requests straight through. Every request from the internet
+therefore reaches the API from the proxy's address. A process on the API's own machine or network
+reaches the API without the proxy, and so without the proxy's login. The server's rules assume that
+such a process exists, and give it a token only after a passkey sign-in, or for a service client's
+secret.
 
 ## The database and the admin commands
 
