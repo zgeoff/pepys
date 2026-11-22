@@ -1,20 +1,19 @@
 # Deploying pepys
 
-Use this runbook to run pepys from the published `@pepys/*` packages and the released host binary.
-You write a deployment, a TypeScript file that lists the plug-ins to run. Each plug-in brings
-consumers, the code that turns facts into tables. You build each consumer into a WebAssembly module,
-fetch the host, and start s2-lite, ingest, the host and the API. pepys publishes no image, so you
-build your own images from these steps.
-[The architecture overview](../architecture/overview.md#topology) shows how the processes reach each
-other.
+Run pepys from the published `@pepys/*` packages and the released host binary. You write a
+deployment, a TypeScript file that lists the plug-ins to run. Each plug-in brings consumers, the
+code that turns facts into tables. You build each consumer into a WebAssembly module, fetch the
+host, and start s2-lite, ingest, the host and the API. pepys publishes no image, so you build your
+own images from these steps. To see how the processes reach each other, read
+[the architecture overview](../architecture/overview.md#topology).
 
 You need:
 
 - Bun, zig 0.16.0 and wasm-tools 1.262.0, for the build;
 - an s2-lite server, the self-hosted server of the S2 stream API, and the access token it takes;
 - an object storage bucket for s2-lite's data, such as one on Garage, an S3-compatible store;
-- for the host binary, a machine with glibc 2.35 or later and `libgcc_s.so.1`, as
-  [3. Fetch the host](#3-fetch-the-host) lists.
+- for the host binary, a machine with glibc 2.35 or later and `libgcc_s.so.1`; see
+  [3. Fetch the host](#3-fetch-the-host).
 
 ## 1. Write the deployment
 
@@ -33,8 +32,8 @@ You need:
    from `@pepys/ingest`.
 4. Write an API entry file that calls
    `serveAPI({ deployment, environment: process.env, argv: process.argv.slice(2) })` from
-   `@pepys/api`. With the arguments passed on, the same file runs the OAuth server's admin commands,
-   which [Serving MCP](./serving-mcp.md#3-add-a-client) uses.
+   `@pepys/api`. With the arguments passed on, the same file runs the OAuth server's admin commands
+   that you run in [Serving MCP](./serving-mcp.md#3-add-a-client).
 
 ## 2. Build the consumers
 
@@ -75,11 +74,11 @@ Start the processes in the order of the steps. Ingest creates the S2 basin, S2's
 streams, and the fact streams when it starts, and the host reads those streams.
 
 **CAUTION:** The API checks no token on `/rpc`, so anyone who reaches its port reads every row
-through that route. Keep the API port on a private network, and put only `/mcp` and the OAuth paths
-on a public route, as [Serving MCP](./serving-mcp.md) gives. Open to the public internet only the
-ingest routes that a plug-in declares with `reach: 'public'`. Of the plug-ins in this repo, only the
-GitHub plug-in has one, `/webhook/github`. A cluster that admits its node's own addresses before any
-network rule lets every process on that node reach the private routes and the API. Each private
+through that route. Keep the API port on a private network. Put only `/mcp` and the OAuth paths on a
+public route, following [Serving MCP](./serving-mcp.md). Open to the public internet only the ingest
+routes that a plug-in declares with `reach: 'public'`. Of the plug-ins in this repo, only the GitHub
+plug-in has one, `/webhook/github`. When your cluster admits a node's own addresses before any
+network rule, every process on that node can reach the private routes and the API. Each private
 ingest route still checks its secret or its sender proof, but `/rpc` checks nothing.
 
 **CAUTION:** Run one ingest process at a time. To restart ingest, stop the old process before you
@@ -124,8 +123,8 @@ other's marks.
 7. Start the API with `bun <api-entry-file>`.
 
    Expect: the API listens on its port. Until a consumer has a current version, each query that
-   reads that consumer's tables returns HTTP 503. The [API README](../../packages/api/README.md)
-   shows a typed client to call a query.
+   reads that consumer's tables returns HTTP 503. For a typed client to call a query, see the
+   [API README](../../packages/api/README.md).
 
 ### Start every process with one command
 

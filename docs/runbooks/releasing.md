@@ -1,17 +1,17 @@
 # Releasing
 
-Use this runbook to release a version of pepys. A version is every public package on npm, plus the
+Release a version of pepys with the steps below. A version is every public package on npm, plus the
 host binary on the GitHub release of the version's tag. The host is the Rust process that runs a
-deployment, as the [architecture overview](../architecture/overview.md) describes. The release
-workflow, `.github/workflows/release.yml`, packs, publishes and builds. You do the steps below, and
-you act when one of the workflow's jobs fails.
+deployment (see the [architecture overview](../architecture/overview.md)). The release workflow,
+`.github/workflows/release.yml`, packs, publishes and builds. When one of its jobs fails, follow
+[When a job fails](#when-a-job-fails).
 
 In this runbook, `<version>` is the version number with no leading `v`, such as `0.4.0`.
 
 ## Release a version
 
 1. Open one pull request that sets `"version": "<version>"` in the `package.json` of each public
-   package. [Packages in AGENTS.md](../../AGENTS.md#packages) lists the public packages.
+   package. Find the public packages under [Packages in AGENTS.md](../../AGENTS.md#packages).
 2. Install the Bun version in `.bun-version`.
 3. In the same pull request, run `bun install`, and commit the `bun.lock` it writes.
 4. Merge the pull request.
@@ -46,8 +46,8 @@ package, ask a person with publish rights on the `@pepys` npm scope to do these 
    Expect: npm lists the package.
 
 2. On the package's settings page on npmjs.com, add a trusted publisher of type GitHub Actions, with
-   this repo and the workflow file `release.yml`. npm's
-   [trusted publishing](https://docs.npmjs.com/trusted-publishers) page shows the form.
+   this repo and the workflow file `release.yml`. For the form, see npm's
+   [trusted publishing](https://docs.npmjs.com/trusted-publishers) page.
 
 ## When a job fails
 
@@ -66,8 +66,8 @@ takes a second publish of one version. Leave the broken version as it is.
 
 ### Every job reports a version mismatch
 
-Both jobs check the tag against each `package.json` before they publish anything, so a mismatch
-publishes nothing.
+Both jobs check the tag against each `package.json` before they publish anything, so on a mismatch
+neither job publishes.
 
 1. Delete the tag on GitHub and in your clone.
 2. Tag the commit whose `package.json` files carry `<version>`.
@@ -84,9 +84,9 @@ has at `<version>`, and publishes the rest.
   publishes the draft last. A cut-off run therefore leaves only a draft, which no deploy can
   download. Re-run the job. The re-run deletes the draft and makes the release again.
 - **The job reports that `pepys-host-linux-x64` needs a glibc newer than 2.35.** The job makes no
-  release. Every deploy host runs glibc 2.35 or later, as
-  [Fetch the host](./deploying.md#3-fetch-the-host) sets out, and a dependency or toolchain update
-  raised what the binary needs. Find that update in the commits since the last release, such as a
+  release. Every deploy host runs glibc 2.35 or later (see
+  [Fetch the host](./deploying.md#3-fetch-the-host)). A dependency or toolchain update raised the
+  glibc version the binary needs. Find that update in the commits since the last release, such as a
   bump in `Cargo.lock` or `rust-toolchain.toml`. Undo or replace the update on `main`, and release
   the next version.
 - **On a re-run, the job reports that the release's files differ from its new build.** An earlier

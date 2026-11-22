@@ -44,9 +44,10 @@ bun run test
 
 - `bun run typecheck`, `bun run lint` and `bun run test` are the local checks.
 - CI also runs `bun run lint:full`, `bun run deadcode`, `bun run audit`, `bun run check`,
-  `bun run schema:check`, the Rust checks and the e2e lanes. The Commands section of
-  [AGENTS.md](./AGENTS.md) covers each. `bun run check` runs the shared chex checks: the branch's
-  commit messages and local paths, the workflow lint, the test timeouts and the dependency gates.
+  `bun run schema:check`, the Rust checks and the e2e lanes. For what each one does, see the
+  Commands section of [AGENTS.md](./AGENTS.md). `bun run check` runs the shared chex checks: the
+  branch's commit messages and local paths, the workflow lint, the test timeouts and the dependency
+  gates.
 - `bun run format` writes the formatting, and `bun run format:check` verifies it.
 
 ## Layout
@@ -60,4 +61,4 @@ bun run test
 
 ## Documentation
 
-The [docs index](./docs/README.md) lists every doc.
+Find every doc in the [docs index](./docs/README.md).
