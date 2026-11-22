@@ -1,31 +1,37 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { z } from 'zod';
 import { syncFolder } from './sync-folder.ts';
 
-// Makes the folder and each missing folder above it, and returns once their names are on disk. It
-// syncs the folder above one that exists too: an earlier process can stop between the making of
-// the folder and that sync.
-export async function createSyncedFolder(path: string, mode: number): Promise<void> {
-  const firstMade = await mkdir(path, { recursive: true, mode });
+const unreadableError = z.object({ code: z.literal('EACCES') });
+
+// Makes the folder and any missing folder above it, then syncs each folder up to the root: an
+// earlier process can stop before its syncs, and leaves no sign of which folders it made. It
+// stops at a folder above that it cannot read; it gives each folder it makes the owner's read bit.
+export async function createSyncedFolder(
+  path: string,
+  mode: number,
+  sync: (folder: string) => Promise<void> = syncFolder,
+): Promise<void> {
+  await mkdir(path, { recursive: true, mode });
 
   const folder = resolve(path);
-
-  if (firstMade === undefined) {
-    await syncFolder(dirname(folder));
-
-    return;
-  }
-
-  // `mkdir` returns a relative path for a relative one
-  const listing = dirname(resolve(firstMade));
   let current = folder;
 
   for (;;) {
-    await syncFolder(current);
+    try {
+      await sync(current);
+    } catch (error) {
+      if (current !== folder && unreadableError.safeParse(error).success) {
+        return;
+      }
+
+      throw error;
+    }
 
     const parent = dirname(current);
 
-    if (current === listing || parent === current) {
+    if (parent === current) {
       return;
     }
 

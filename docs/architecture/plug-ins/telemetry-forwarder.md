@@ -63,8 +63,9 @@ runs, and a second `run` on the same folder logs an error and exits 1. The kerne
 when the process ends, so a `run` that crashed never blocks the next one.
 
 The forwarder calls `fsync` on each file it writes, and on the folder that lists a file it made or
-renamed, before it acts on the write. A power failure therefore loses nothing that the forwarder has
-acted on:
+renamed, before it acts on the write. When it makes or opens the spool, `failed` or identity folder,
+it also syncs each folder above it up to the root, since an earlier process can have stopped before
+those syncs. A power failure therefore loses nothing that the forwarder has acted on:
 
 - The receiver answers 200 only after the sync of the export's line.
 - The send loop moves the position past a line that it gave up on only after the sync of the line's

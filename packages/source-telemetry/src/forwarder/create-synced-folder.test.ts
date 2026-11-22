@@ -67,3 +67,55 @@ test('it rejects when a file has the name of a folder above', async () => {
 
   expect(createSyncedFolder(join(ctx.folder, 'state', 'spool'), 0o700)).rejects.toThrow();
 });
+
+test('it syncs every folder up to the root when the folders exist, since an earlier process can stop before its syncs', async () => {
+  const ctx = await setupTest();
+
+  const spool = join(ctx.folder, 'state', 'spool');
+
+  await mkdir(spool, { recursive: true });
+
+  const synced: string[] = [];
+
+  await createSyncedFolder(spool, 0o700, (folder) => {
+    synced.push(folder);
+
+    return Promise.resolve();
+  });
+
+  expect(synced.slice(0, 3)).toStrictEqual([spool, join(ctx.folder, 'state'), ctx.folder]);
+  expect(synced.at(-1)).toBe('/');
+});
+
+test('it syncs the folders above the first folder it makes', async () => {
+  const ctx = await setupTest();
+
+  const synced: string[] = [];
+
+  await createSyncedFolder(join(ctx.folder, 'state', 'spool'), 0o700, (folder) => {
+    synced.push(folder);
+
+    return Promise.resolve();
+  });
+
+  expect(synced).toContain(ctx.folder);
+  expect(synced.at(-1)).toBe('/');
+});
+
+test('it stops at a folder above that it cannot read', async () => {
+  const ctx = await setupTest();
+
+  const synced: string[] = [];
+
+  await createSyncedFolder(join(ctx.folder, 'state', 'spool'), 0o700, (folder) => {
+    if (folder === ctx.folder) {
+      return Promise.reject(Object.assign(new Error('permission denied'), { code: 'EACCES' }));
+    }
+
+    synced.push(folder);
+
+    return Promise.resolve();
+  });
+
+  expect(synced).toStrictEqual([join(ctx.folder, 'state', 'spool'), join(ctx.folder, 'state')]);
+});
