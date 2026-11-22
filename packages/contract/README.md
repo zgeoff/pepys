@@ -42,4 +42,5 @@ const around = await api.neighbourhood({ id: 'github:pull_request:9001' });
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the API.
+[The API](../../docs/architecture/queries/api.md) describes the core queries and how the API serves
+them.

@@ -67,4 +67,5 @@ bun test
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the test store.
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes the
+plug-in that the test store runs.

@@ -91,4 +91,6 @@ Your compiler checks the kit's source with your `tsconfig.json`, so set at least
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the kit and of each part of pepys.
+The [pepys docs](../../docs/README.md) describe each part of pepys, and
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes what a
+plug-in declares.

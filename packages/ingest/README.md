@@ -49,4 +49,5 @@ PEPYS_S2_ENDPOINT=http://127.0.0.1:8090 PEPYS_S2_BASIN=pepys bun serve-ingest.ts
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of ingest and the log.
+[Ingest](../../docs/architecture/ingest/ingest.md) describes the routes and the delivery check, and
+[the fact log](../../docs/architecture/ingest/fact-log.md) the streams it appends to.

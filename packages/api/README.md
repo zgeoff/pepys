@@ -63,4 +63,6 @@ const pullRequest = await api.get_entity({ id: 'github:pull_request:9001' });
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the API and the store.
+[The API](../../docs/architecture/queries/api.md) describes the queries, and
+[the OAuth server](../../docs/architecture/queries/oauth-server.md) describes the sign-in in front
+of `/mcp`.

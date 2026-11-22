@@ -38,4 +38,5 @@ const manifest = consumerBuildManifestSchema.parse(await Bun.file('build/consume
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the manifest and the store.
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes
+`consumers.json` and the build that writes it.

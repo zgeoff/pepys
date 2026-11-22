@@ -14,8 +14,9 @@
 
 The pepys GitHub plug-in, for Bun.
 
-The plug-in receives GitHub's webhook deliveries as facts, and builds pull request rows from them
-with its consumer.
+The plug-in receives GitHub's webhook deliveries as facts. Its consumers build tables of pull
+requests, releases, commits and deploys from them, and its delivery query tells when each pull
+request merged, released and deployed.
 
 ## Install
 
@@ -49,4 +50,5 @@ bunx pepys build deployment.ts --out build
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the plug-ins.
+[The GitHub plug-in](../../docs/architecture/plug-ins/github.md) describes the families, the
+consumers and the delivery query.

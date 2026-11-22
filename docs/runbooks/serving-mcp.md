@@ -4,7 +4,7 @@ Use this runbook to serve the API's MCP endpoint, `/mcp`, to the owner's MCP cli
 internet, to add a client, and to revoke a client's access. The API serves `/mcp` only behind its
 own OAuth server, which [The OAuth server](../architecture/queries/oauth-server.md) describes.
 Before you start, run a deployment with the steps in [Deploying pepys](./deploying.md). The API's
-other route, `/rpc`, takes no token, so these steps keep it off the internet.
+typed query route, `/rpc`, takes no token, so these steps keep it off the internet.
 
 These placeholders appear in the steps:
 
@@ -54,7 +54,8 @@ command is no serving process, and shares the first process's `mcp-auth.db`.
    - `PEPYS_API_PUBLIC_URL`: `<public_origin>`, with no path. For a local run, an `http://` origin
      with a loopback host also works.
    - `PEPYS_AUTH_DIR`: a folder on a disk that lasts across restarts. The API keeps `mcp-auth.db`,
-     the OAuth server's database, there. Mount the folder in the API's container only.
+     the OAuth server's database, there, so the grants outlast a restart. Mount the folder in the
+     API's container only, because the file holds every grant and client.
    - `PEPYS_API_HOST`: an address the proxy reaches, such as `0.0.0.0`.
 2. When the proxy rewrites `Host`, set `PEPYS_API_ALLOWED_HOSTS` to the values it sends, split by
    commas.

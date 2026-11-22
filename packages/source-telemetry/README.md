@@ -97,4 +97,5 @@ of the send loop, and the count of lines that ingest refused for good. It answer
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the plug-ins.
+[The telemetry plug-in](../../docs/architecture/plug-ins/telemetry.md) describes the routes, the
+facts and the consumers.
