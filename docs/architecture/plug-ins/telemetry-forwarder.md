@@ -101,7 +101,7 @@ The send loop sends no request during a wait, whatever the receiver stores. In `
 `GET /health` answers 503, because most answers of that state need the owner: a deployment that does
 not trust the machine, or a fault of the deployment.
 
-Three cases need no answer from ingest:
+These cases need no answer from ingest:
 
 - The send loop copies a line to `failed/`, with no request, when the line is not a JSON object that
   holds the path `/v1/logs` and an export.
