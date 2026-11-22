@@ -12,8 +12,8 @@ tool, and a plug-in test runs the same declaration on the test store of `@pepys/
 only reads: each call attaches its files read-only, and rolls back the transaction its handler runs
 in.
 
-The API checks no credential on `/rpc`, so its listen address and the deployment's network rules
-decide who reaches that route. It serves `/mcp` only with `PEPYS_API_PUBLIC_URL` and
+The API checks no credential on `/rpc`, so only its listen address and the deployment's network
+rules limit who reaches that route. It serves `/mcp` only with `PEPYS_API_PUBLIC_URL` and
 `PEPYS_AUTH_DIR` set, and then refuses each MCP request without a valid access token from its OAuth
 server. With `PEPYS_API_PUBLIC_URL` unset, `/mcp` answers 404. With it set and `PEPYS_AUTH_DIR`
 unset, the API exits 1 at start. [The OAuth server](./oauth-server.md) covers the tokens and the
@@ -34,12 +34,12 @@ flowchart LR
   rollback --> answer
 ```
 
-Each call reads a set of consumers that is fixed before the call opens a file. A plug-in query lists
-its consumers in its `reads`. Each of the two [core queries](#the-core-queries) picks its set from
-its input, as that section describes. `get_entity` with an alias runs two calls, each through the
-steps below: one over the consumers with an alias table, then one over the consumer of the entity's
-kind. The API keeps one connection per call, on Turso, the SQLite engine that the host also writes
-with.
+Each call reads a set of consumers that is fixed before the call opens a file. For a plug-in query,
+the set is the consumers in its `reads`. Each of the two [core queries](#the-core-queries) picks its
+set from its input, as that section describes. `get_entity` with an alias runs two calls, each
+through the steps below: one over the consumers with an alias table, then one over the consumer of
+the entity's kind. The API keeps one connection per call, on Turso, the SQLite engine that the host
+also writes with.
 
 1. The call resolves the `current` link of each of its consumers before it opens a file, and keeps
    the version folders it resolved. When `up` swaps a version during the call, the call stays on the
@@ -138,10 +138,10 @@ The kit's deployment check refuses a plug-in query that takes a core query's nam
 also refuses a query whose zod schema has a transform, and the process stops. An MCP tool needs a
 JSON Schema of each input and output, and zod cannot write one for the output of a transform.
 
-`@pepys/api` exports a `DeploymentClient` type, built from `@orpc/contract` types. A caller outside
-the repo that builds a typed client with `@orpc/client` installs it at the version the repo pins for
-every `@orpc/*` package, so the client and the contract share one copy of the oRPC types. The pin is
-a beta of oRPC v2, because v2 is the one major version of oRPC with an MCP integration.
+`@pepys/api` exports a `DeploymentClient` type, built from `@orpc/contract` types. To build a typed
+client outside the repo with `@orpc/client`, install it at the version the repo pins for every
+`@orpc/*` package, so the client and the contract share one copy of the oRPC types. The pin is a
+beta of oRPC v2, because v2 is the one major version of oRPC with an MCP integration.
 
 A query handler reads through Kysely with the `@pepys/kysely-turso` dialect, and the dialect's
 driver queues every query of the call through the call's one connection. A query takes its row types
