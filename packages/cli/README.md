@@ -36,5 +36,5 @@ bunx pepys build src/plugin.ts
 
 ## Documentation
 
-[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md) describes
-`pepys build`.
+To learn how `pepys build` works, read
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md).

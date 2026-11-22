@@ -46,4 +46,4 @@ const books = await db.selectFrom('book').selectAll().execute();
 
 ## Documentation
 
-[The API](../../docs/architecture/queries/api.md) describes the store reader that uses this dialect.
+For the store reader that uses this dialect, read [the API](../../docs/architecture/queries/api.md).
