@@ -1,8 +1,8 @@
 # mcp-queries
 
 Run this journey on `local`, and check its end state: an agent with no person present calls pepys's
-queries as MCP tools at the API's `/mcp`. After a deploy, also run the two reads in
-[On prod](#on-prod) against the deployed pepys.
+queries as MCP tools at the API's `/mcp`. After a deploy, also run the steps in [On prod](#on-prod)
+against the deployed pepys.
 
 The agent signs in as a service client: it trades the client's ID and secret for an access token at
 the API's OAuth server. The `mcp` commands of `bun verify` sign in for you, so you never pass a

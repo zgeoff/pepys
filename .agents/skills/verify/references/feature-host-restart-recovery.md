@@ -5,8 +5,9 @@ has an offset, its sequence number from 0. The host saves the last offset it app
 transaction as the rows that fact changed. When the host starts again, it reads on from the saved
 offset + 1, so it applies each fact once. Ingest keeps storing facts while the host is stopped.
 
-- Start the host again after a failure. When a step fails while the host is stopped, run
-  `bun verify action start-host`, then the journey again from the top.
+- When a step fails while the host is stopped, run `bun verify action start-host` first, so the next
+  attempt starts with the host running. Then do what the step's row in Exit codes says, and run the
+  journey again from the top.
 - Read `progress` as the `github_pull_request` consumer's: `appliedThrough` is its saved offset, and
   `tail` is the offset that the next fact on the stream will get.
 - Run `use` the second time as written. Each `use` marks the current end of the `host` and `s2`

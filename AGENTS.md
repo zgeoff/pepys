@@ -24,12 +24,11 @@ skills are in `.agents/skills/`, and `.claude/skills` links to that folder.
 
 When you write or edit a skill:
 
-1. Load the `skill-writing`, `cold-read` and `deslop` skills from `.agents/skills/`, which
-   `.claude/skills` links to. repo-sync delivers them there at the `zgeoff/skills` commit that
-   `zgeoff/tools` pins, so install none of them yourself.
-2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. In the PR
-   template's `## Checks` section, tick the Deslop and Cold read lines, each with the short hash of
-   the commit you checked, and leave the chex line for CI.
+1. Load the `docs-writing`, `project-docs-writing`, `skill-writing`, `cold-read` and `deslop` skills
+   from `.agents/skills/`, which `.claude/skills` links to. repo-sync delivers them there at the
+   `zgeoff/skills` commit that `zgeoff/tools` pins, so install none of them yourself.
+2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. Its last step
+   fills the `## Checks` section of the PR template.
 
 ## Repo structure
 
@@ -104,8 +103,8 @@ docs/
 
 ## Commands
 
-- `bun run typecheck`, `bun run lint`, and `bun run test` are the local checks. Run `bun test` from
-  the root.
+- `bun run typecheck`, `bun run lint`, and `bun run test` are the local checks. To run one test file
+  with `bun test <path>`, run it from the repo root: the root `bunfig.toml` holds the test preload.
 - `bun run lint:full` adds the type-aware pass and the type check. It runs in CI only, so never run
   it locally.
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo nextest run` are the local Rust
@@ -144,8 +143,8 @@ docs/
   store at `PEPYS_STORE_DIR` and the S2 log at the `PEPYS_S2_` variables.
 - `bun run test:e2e:rust` runs the Rust e2e lane, the fact log and blob store fixtures on s2-lite
   and Garage, in a stack of its own, and the compiled ledger scope consumer through `pepys up`. It
-  needs Docker, `cargo-nextest` and the consumers built. The `e2e` job runs it after the Bun lane.
-  It then runs `bun run test:e2e:outside`.
+  needs Docker, `cargo-nextest` and the consumers built. After the Rust tests, the script runs
+  `bun run test:e2e:outside`. The `e2e` job runs `test:e2e:rust` after the Bun lane.
 - `bun run test:e2e:outside` checks a deployment outside the repo. In an empty folder it installs
   every public package as `check:outside-install` does, runs `pepys build` on a stub deployment,
   compiles the deployment's API entry plain and minified and runs `passkeys` on each binary, and

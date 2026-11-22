@@ -11,10 +11,12 @@
   </p>
 </div>
 
-**WIP**
+A personal data hub for the owner's own data.
 
-sources -> immutable fact log (one stream per fact family, on object storage) -> sandboxed WASM
-consumers -> queryable tables
+pepys ingests data from pluggable sources as immutable facts, in a log on object storage with one
+stream per fact family. Consumers compiled to sandboxed WebAssembly turn the facts into queryable
+tables of entities and the links between them. pepys serves those tables through typed queries, MCP
+and change streams.
 
 ## Packages
 
@@ -31,24 +33,27 @@ consumers -> queryable tables
 
 ## Quick start
 
+Install Bun 1.4.4, the version that `.bun-version` pins, then run:
+
 ```sh
 bun install
 bun run test
 ```
 
-Bun 1.4.4 is the pinned version (`.bun-version`).
-
 ## Checks
 
-- `bun run typecheck` and `bun run lint` are the local checks.
-- `bun run lint:full`, `bun run deadcode`, `bun run audit`, and `bun run check` run in CI.
-  `bun run check` runs the shared chex checks: the branch's commit messages and local paths, the
-  workflow lint, the test timeouts and the dependency gates.
+- `bun run typecheck`, `bun run lint` and `bun run test` are the local checks.
+- CI also runs `bun run lint:full`, `bun run deadcode`, `bun run audit`, `bun run check`,
+  `bun run schema:check`, the Rust checks and the e2e lanes. The Commands section of
+  [AGENTS.md](./AGENTS.md) covers each. `bun run check` runs the shared chex checks: the branch's
+  commit messages and local paths, the workflow lint, the test timeouts and the dependency gates.
 - `bun run format` writes the formatting, and `bun run format:check` verifies it.
 
 ## Layout
 
+- `crates/` holds the Rust crates, one folder each.
 - `packages/` holds the `@pepys/*` workspace packages.
+- `stack/` holds the Docker stack of s2-lite and Garage that the e2e lanes run on.
 - `research/` holds the spikes, one Bun package each.
 - `scripts/` holds the repo tooling.
 - `docs/` holds the documentation.

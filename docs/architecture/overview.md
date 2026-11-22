@@ -74,6 +74,12 @@ The API never writes the store, and the host never writes the fact log.
   `/rpc` and `/mcp`.
 - [The OAuth server](./queries/oauth-server.md) covers how an MCP client gets a grant from the
   owner, and the access token that `/mcp` checks on each request.
+- [The GitHub plug-in](./plug-ins/github.md) covers the webhook, the recovery and resync pulls,
+  deploys and the delivery query.
+- [The telemetry plug-in](./plug-ins/telemetry.md) covers the OTLP routes, the sender's proof, the
+  consumers and the session query.
+- [The telemetry forwarder](./plug-ins/telemetry-forwarder.md) covers the program that sends the
+  OTLP exports of a machine outside the cluster to ingest.
 
 ## Topology
 

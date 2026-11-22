@@ -70,7 +70,8 @@ metadata:
   those paths out.
 - Give each s2-lite test, from Bun or Rust, a basin, the S2 namespace that holds streams. Use a name
   no other test in the same command uses, such as `conformance-<fixture file name>` in
-  [`e2e.rs`](../../../crates/host/src/e2e.rs).
+  [`e2e.rs`](../../../crates/host/src/e2e.rs). Every test in one command shares one s2-lite, so two
+  tests on one basin read each other's records.
 
 ## Fixture files that Bun and Rust share
 
@@ -140,7 +141,7 @@ the ledger plug-in's consumer as `bun run consumers:build` compiled it in `build
 
 - Read the addresses of the Docker services from the same `PEPYS_` variables, which
   [`run-with-stack.ts`](../../../scripts/e2e/run-with-stack.ts) sets. Make the test fail when one is
-  unset.
+  unset, so a run without the stack never passes with the test skipped.
 
 To run them:
 

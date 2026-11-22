@@ -8,11 +8,11 @@ sent.
 
 - Query with the session's entity ID. `send-telemetry` takes the bare name, `s-reef`, and returns
   the entity ID, `telemetry:session:s-reef`.
-- Query with the issuer `harbour-broker` and the subject `verify-agent`. `send-telemetry` takes
-  neither as a flag: it signs each export with the `local` run's own issuer for that subject, and
-  adds the route's bearer token itself.
-- Expect `cache_read_tokens` 0 and `cost_usd` null for a request sent with neither. The consumer
-  stores a missing token count as 0, and a missing cost as null.
+- Query with the issuer `harbour-broker` and the subject `verify-agent`. On every `local` run,
+  `send-telemetry` signs each export as that issuer for that subject, and adds the route's bearer
+  token itself, so you pass it no issuer, subject or token.
+- Expect `cache_read_tokens` 0 and `cost_usd` null for a request sent with no `cacheReadTokens` and
+  no `costUsd`. The consumer stores a missing token count as 0, and a missing cost as null.
 - Expect two requests on a second run too. The consumer keeps one row per request ID.
 - Each request's entity ID holds `claude_code.api_request`, the event that Claude Code logs for a
   model request, which `send-telemetry` sends.

@@ -143,7 +143,7 @@ API run from source. `up` starts the deployment empty.
 Run host-restart-recovery last: it restarts the host.
 
 After a deploy, run the `prod` smoke check in [On prod](references/feature-mcp-queries.md#on-prod).
-On `prod`, run the `bun verify mcp` commands alone.
+On `prod`, run only the steps of that section.
 
 <!-- /repo -->
 
