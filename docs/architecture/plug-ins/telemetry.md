@@ -1,16 +1,17 @@
 # The telemetry plug-in
 
 The telemetry plug-in, `@pepys/source-telemetry`, stores the OpenTelemetry log records that Claude
-Code and Codex export, one fact per record. Its two consumers write two tables: one row for each
-model request, and one row for each turn of a session that reports a cost. A caller adds up what a
-session cost from the two tables without counting anything twice.
+Code and Codex export, one fact per record that names its product, session and time. Its two
+consumers write two tables: one row for each model request, and one row for each turn of a session
+that reports a cost. A caller adds up what a session cost from the two tables without counting
+anything twice.
 
-Each export carries two tokens. An OTLP exporter cannot sign a body, so ingest checks a shared token
-in place of a signature. Ingest also checks the identity token of the machine that sent the export,
-and each fact keeps that machine's identity as its origin. The exporter writes each record's session
-ID itself, so one machine can send records under the session ID of a session that runs on another
-machine. A caller therefore trusts a row for a session only when the row's origin is the machine
-that runs that session.
+Each export to `/v1/logs` carries two tokens. An OTLP exporter cannot sign a body, so ingest checks
+a shared token in place of a signature. Ingest also checks the identity token of the machine that
+sent the export, and each fact keeps that machine's identity as its origin. The exporter writes each
+record's session ID itself, so one machine can send records under the session ID of a session that
+runs on another machine. A caller therefore trusts a row for a session only when the row's origin is
+the machine that runs that session.
 
 atc, the tool that runs agent sessions, stamps an `atc.session.id` attribute on every record of a
 session it runs.
@@ -181,8 +182,8 @@ A test holds that list equal to the list in `products.ts`.
 
 ## The query
 
-The API serves the query `telemetry_session_model_requests` under `/rpc`. It returns the model
-requests of one session, oldest first. The caller passes:
+The API serves the query `telemetry_session_model_requests` under `/rpc` and `/mcp`. It returns the
+model requests of one session, oldest first. The caller passes:
 
 - the session, by its full ID, `telemetry:session:<id>`;
 - the issuer of the origin that runs the session;
@@ -202,8 +203,9 @@ that machine from outside this plug-in.
   It can never write a row under another machine's origin.
 - Every session on one machine has the same origin, so a caller can never use the origin to tell two
   sessions on one machine apart.
-- A machine that cannot prove its identity cannot send telemetry. While the trust documents or the
-  audience are unset, ingest answers 401 to every export, and the exporter drops each one.
+- A machine that cannot prove its identity cannot send telemetry. While a route's trust documents or
+  audience are unset, ingest answers 401 to every export on that route, and the exporter drops each
+  one.
 - Two copies of one record get one fact ID even when a collector rewrote the resource between them,
   because the ID leaves the resource out. When the rewrite changed `atc.session.id`, the two copies
   name two sessions. The host applies the copy that comes first in the stream and skips the second,

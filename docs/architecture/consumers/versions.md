@@ -16,10 +16,10 @@ commands move it along the edges above. The host takes the hash as a name and ne
 `host.db` records each version's state, and is right when it and the `current` link disagree. Its
 state table also allows `previewed` and `removed`, but no command moves a version into either.
 
-Every command starts from the same two steps. It repairs the `current` link from `host.db`, and then
-opens the version: it checks that the SHA-256 of `module.wasm` equals the entry's `module` digest,
-runs the manifest's SQL on the file, and checks the file's tables against the manifest's columns
-before it reads a fact.
+Every command starts by repairing the `current` link from `host.db`. Each time a command opens a
+version, whether the current one or one that `up` just wrote, it checks that the SHA-256 of
+`module.wasm` equals the entry's `module` digest, runs the manifest's SQL on the file, and checks
+the file's tables against the manifest's columns before it reads a fact.
 
 `up` then runs in this order:
 

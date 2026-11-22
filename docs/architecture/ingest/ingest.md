@@ -131,10 +131,11 @@ The two kinds of receive path in this repo build their fact IDs from the body in
 The recent-body step of a delivery only slows how fast replays grow the log. For each receive path,
 ingest keeps a SHA-256 of each body that it stored, in memory, for one hour, and at most 10,000 of
 them. Ingest keeps the hash on a path whose `answer` setting is `empty` too, and the response it
-keeps is then 200 `{}`. Ingest never keeps the hash of a body that it ignored or refused, so a
-resend of that body runs every step again. On a path with a sender proof, the proven sender is part
-of the key, so the same body from two senders counts as two bodies. A replay after the hour, or
-after a restart, adds one more copy of its facts to the log, and the host applies none of the copy.
+keeps is then 200 `{}`. Ingest keeps the hash only once every append of the body has landed. A
+resend of a body that got 503, or that ingest ignored or refused, therefore runs every step again.
+On a path with a sender proof, the proven sender is part of the key, so the same body from two
+senders counts as two bodies. A replay after the hour, or after a restart, adds one more copy of its
+facts to the log, and the host applies none of the copy.
 
 ## The sender proof
 
@@ -164,11 +165,13 @@ one part that the sender did not write. Ingest never checks that a `read` does t
 ### Sender routes
 
 A receive path can declare `senderRoutes`: more routes into the same path, each with a sender proof
-as its only check. A sender route takes the path's limits, encodings, `read`, answer, `reach` and
-recent bodies of its own, and keeps the path's resync marks. Ingest skips step 2 on it and reads no
-secret for it. It answers 405 and 413 as the path's route does, then 401 without a proven sender,
-then runs the steps from step 4 on. The sender route names its own audience and folder variables,
-and `read` gets the sender that the route proved. A sender route has no ignored routes.
+as its only check. A sender route takes the path's limits, encodings, `read`, answer and `reach`,
+the path's mark as public or private. It keeps recent bodies of its own, and shares the path's
+resync marks. Ingest skips step 2 on it and reads no secret for it. It answers 405 and 413 as the
+path's route does, then 401 without a proven sender, then runs the steps from step 4 on. The sender
+route names its own audience and folder variables, and `read` gets the sender that the route proved.
+A sender route has no ignored routes: the extra routes of a path that answer every delivery as
+ignored, such as the OTLP metrics and traces routes, belong to the path's own route only.
 
 The deployment check refuses a sender route with the same `route` as another route, and a sender
 route that names the audience variable or the folder variable of its path's own `sender`. With

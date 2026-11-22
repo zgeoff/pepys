@@ -43,15 +43,16 @@ paths can write the same one, so the last record of a fact stream gives no pull 
 A cursor record has the [envelope of a fact](#the-fact-envelope), so ingest appends it as it appends
 a fact:
 
-| Field     | Holds                                                                 |
-| --------- | --------------------------------------------------------------------- |
-| `id`      | `observation:` and a hash of the source, the pull path and the cursor |
-| `type`    | `ingest.cursor.saved`                                                 |
-| `api`     | `ingest/1`                                                            |
-| `entity`  | `<source>:pull_path:<slot>`, such as `github:pull_path:recovery`      |
-| `at`      | the time on ingest's clock when it built the record                   |
-| `cursor`  | the cursor                                                            |
-| `payload` | `{}`                                                                  |
+| Field     | Holds                                                                         |
+| --------- | ----------------------------------------------------------------------------- |
+| `id`      | `observation:` and a hash of the source, the pull path and the cursor         |
+| `type`    | `ingest.cursor.saved`                                                         |
+| `v`       | 1                                                                             |
+| `api`     | `ingest/1`                                                                    |
+| `entity`  | `<source>:pull_path:<slot>`, such as `github:pull_path:recovery`              |
+| `at`      | the time on ingest's clock when it built the record, as no source time exists |
+| `cursor`  | the cursor                                                                    |
+| `payload` | `{}`                                                                          |
 
 No consumer reads the stream. The host reads only the streams that its consumers list, and it
 refuses a consumer that lists a stream with no `.` after `facts.<source>`, so no consumer can list
@@ -69,7 +70,7 @@ Every fact has one envelope around the payload the source sent:
 | `api`     | the source API version of the payload, such as `github/2022-11-28`             |
 | `entity`  | the [entity ID](../queries/entities-and-links.md#entity-ids) the fact is about |
 | `actor`   | the entity ID of the actor, when the source names one                          |
-| `at`      | the source time, as an ISO date and time                                       |
+| `at`      | the source time, as an ISO date and time, or ingest's clock in a cursor record |
 | `cursor`  | the position of a pull path, in a [cursor record](#the-cursor-stream) only     |
 | `payload` | the source object, whole                                                       |
 
@@ -80,13 +81,13 @@ changes the shape of its payload, the consumer reads `api` and handles each shap
 A source builds each fact ID from the data it was sent, so the same data always gives the same ID.
 The envelope check accepts five forms:
 
-| Prefix         | Rest of the ID                                      | Used for                                                 |
-| -------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| `webhook:`     | the source name, a colon, and a delivery ID         | a webhook delivery                                       |
-| `event:`       | the source name, a colon, and the sender's ID       | one event of a signed fact batch                         |
-| `observation:` | 64 hex digits, a SHA-256 hash of what the poll read | the state of an object that a poll read                  |
-| `enrichment:`  | 64 hex digits                                       | an enrichment result                                     |
-| `manual:`      | 64 hex digits                                       | a link or a correction that a person or an agent asserts |
+| Prefix         | Rest of the ID                                      | Used for                                                     |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| `webhook:`     | the source name, a colon, and a delivery ID         | a webhook delivery                                           |
+| `event:`       | the source name, a colon, and the sender's ID       | one event of a signed fact batch                             |
+| `observation:` | 64 hex digits, a SHA-256 hash of what the poll read | the state of an object that a poll read, and a cursor record |
+| `enrichment:`  | 64 hex digits                                       | an enrichment result                                         |
+| `manual:`      | 64 hex digits                                       | a link or a correction that a person or an agent asserts     |
 
 A source name is lowercase letters, digits and `_`, and starts with a letter. The GitHub source puts
 a hash of the body in place of a delivery ID, as
@@ -133,8 +134,8 @@ their fact IDs with the run's:
 - When the offsets hold every fact ID of the run, in order, the run landed.
 - When the offsets are empty, the lost attempt can still land, so ingest sends the run again with
   the same guard.
-- When the offsets hold anything else, another writer took them, and the lost attempt can never
-  land. Ingest reads the new tail and sends the whole run there.
+- When the offsets hold anything else, another writer, such as a second ingest process, took them,
+  and the lost attempt can never land. Ingest reads the new tail and sends the whole run there.
 
 While a lost attempt can still land, ingest treats each later tail mismatch at the same guard as a
 possible landing. Ingest reads the guarded offsets again, and settles the result by the same three

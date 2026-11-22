@@ -141,7 +141,7 @@ clock by a fixed shift, because ingest refuses a token whose `iat` is ahead of i
 the clock of a PC can run ahead. The header is named `imp-identity` and the claim `imp_name`, as
 impz names them, because ingest checks the token with the verifier that checks a token from impz.
 
-Every process of the machine's user can post to the receiver, and can read the key. Ingest can
-therefore tell one machine from another, and cannot tell the processes of one machine apart.
-[Who can write through the route](../../design/telemetry-forwarder/sender-route.md#who-can-write-through-the-route)
-lists what that lets a process write.
+The receiver takes an export with no credential, so every process on the machine that reaches the
+loopback address writes through the route, including the processes of a second user. Every process
+of the machine's user can also read the key. Ingest can therefore tell one machine from another, and
+cannot tell the processes of one machine apart.

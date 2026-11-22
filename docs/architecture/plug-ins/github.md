@@ -40,8 +40,9 @@ route gives, such as 401 for a bad signature. The GitHub route adds these:
 - 400 when the delivery ID header is missing or the body is not JSON;
 - 422 when the body does not fit its event;
 - 202, storing nothing, for an event not in [Families and consumers](#families-and-consumers);
-- 202, with nothing stored, when the event's family has no fact type for the delivery's `action`.
-  Each family lists its fact types in `packages/source-github/src/families/`.
+- 202, with nothing stored, when the event's family has no fact type for the delivery's `action`, or
+  the plug-in ignores that action, as it does a `workflow_run` that has not completed. Each family
+  lists its fact types in `packages/source-github/src/families/`.
 
 ## Families and consumers
 
@@ -65,8 +66,8 @@ builds, for a later consumer to replay, because GitHub redelivers a webhook only
 
 The plug-in stores a `workflow_run` delivery only when its action is `completed`, and ignores the
 `requested` and `in_progress` deliveries of the run. Each delivery holds the whole run, and the
-`completed` one holds the result and every time of the run. The family lists all three types, so a
-consumer can read a stream that holds `requested` and `in_progress` facts.
+`completed` one holds the result and every time of the run. The family keeps all three fact types,
+because the stream can hold `requested` and `in_progress` facts that an earlier ingest stored.
 
 The `github_release`, `github_deploy` and `github_pull_request` consumers each write a table of
 their own name. The `github_ref` consumer writes only `github_commit`, one row per commit of a push.
@@ -213,12 +214,13 @@ order of the facts never changes the row.
 
 ## The delivery query
 
-The plug-in's query `github_pull_request_delivery`, which the API serves under `/rpc`, takes up to
-200 pull requests, an environment and an optional target. It returns each pull request's merge time,
-its first release and its first deploy. The plug-in also exports the query's SQL statement as
-`githubDelivery`, so a query of another plug-in can run the statement and join its result. The query
-reads the rows that are stored when it runs, so its answer is right in any order the facts arrived.
-The plug-in never stores the answer as a [link](../queries/entities-and-links.md#links).
+The plug-in's query `github_pull_request_delivery`, which the API serves under `/rpc` and `/mcp`,
+takes up to 200 pull requests, an environment and an optional target. It returns each pull request's
+merge time, its first release and its first deploy. The plug-in also exports the query's SQL
+statement as `githubDelivery`, so a query of another plug-in can run the statement and join its
+result. The query reads the rows that are stored when it runs, so its answer is right in any order
+the facts arrived. The plug-in never stores the answer as a
+[link](../queries/entities-and-links.md#links).
 
 The query orders commits by commit time, from `github_commit`, and never checks ancestry. When a
 commit has no row, the query uses a stand-in time:

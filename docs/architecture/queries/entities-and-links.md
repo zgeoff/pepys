@@ -2,13 +2,14 @@
 
 Pull requests, releases and model requests are entities: each one is one thing from one source. A
 link joins two entities by their IDs, with a type, a confidence and the fact it rests on. A
-consumer, the code in a plug-in that turns facts into rows, writes both. The host keeps each
-consumer's rows in a database file of its own, as
+consumer, the code in a plug-in that turns facts into rows, returns both, and the host writes them.
+The host keeps each consumer's rows in a database file of its own, as
 [the host](../consumers/host.md#commands-and-the-store-folder) describes.
 
 A query in pepys reads the entities and links of every source through two shared views, `entity` and
-`link_effective`, whatever consumer wrote the rows. The API builds the two shared views for each
-query, from the files of the consumers that the query reads.
+`link_effective`, whatever consumer wrote the rows. For each query built with Kysely, the API's
+query builder, the API builds the two shared views from the files of the consumers that the query
+reads.
 
 - [Plug-ins and the build](../consumers/plug-ins-and-build.md) covers how a consumer declares its
   tables, entity views and link types.

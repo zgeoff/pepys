@@ -66,8 +66,8 @@ takes the consumer's writer lock, repairs the `current` link, opens the new vers
 swap, and applies what is new. The writer lock is an OS file lock, so an `up` and a `run` of one
 consumer never write a file at once, and the kernel frees it when its holder exits.
 
-In both modes, the host reads each stream in batches: one read of at most 100 facts, applied as one
-transaction, so a crash or an error never leaves half a batch in the file.
+In fact mode and in scope mode, the host reads each stream in batches: one read of at most 100
+facts, applied as one transaction, so a crash or an error never leaves half a batch in the file.
 
 A failed batch rolls back, and the task then picks one of two outcomes by the error:
 
@@ -227,7 +227,8 @@ with a release build and a local S2, one run per case. Treat the figures as orde
 - `run --up` never retries an `up` that fails on an error other than a store or log error. `run`
   exits, so no consumer's tables update until someone fixes the error, while ingest keeps appending
   facts.
-- A batch that fails on another scope's row or link stops its consumer until a new module is up.
+- A batch that fails on another scope's row or link stops its consumer's task. The consumer stays
+  stopped until a new module is up and `run` restarts.
 - A store or log outage longer than the sum of the retry waits makes `run --up` exit 1 when the
   outage comes during the `up`. Once the tasks run, such an outage stops every task that reads
   during the outage, until the process restarts.

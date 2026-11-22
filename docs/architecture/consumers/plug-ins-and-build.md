@@ -2,10 +2,10 @@
 
 A deployment is a list of plug-ins. Each plug-in declares, as plain data, the fact families,
 sources, consumers, tables, link types, queries and settings it brings, with the `define*` functions
-of `@pepys/kit`, such as `definePlugin` and `defineConsumer`. `pepys build` turns that data into the
-files the host runs: a WebAssembly module for each consumer, and `consumers.json`, which lists them.
-`@pepys/testing` runs the same consumers and queries on Bun with no host and no compiler, so a
-plug-in author can test a consumer before it compiles.
+of `@pepys/kit`, such as `definePlugin` and `defineConsumer`. `pepys build --out` turns that data
+into the files the host runs: a WebAssembly module for each consumer, and `consumers.json`, which
+lists them. `@pepys/testing` runs the same consumers and queries on Bun with no host and no
+compiler, so a plug-in author can test a consumer before it compiles.
 
 ```mermaid
 flowchart LR
@@ -89,7 +89,8 @@ The kit's generators write two glue files for each consumer:
 - The boundary file is TypeScript. It declares:
   - the read functions that the host gives the module, for rows by key and for a scope's facts;
   - the settings constant;
-  - the model contract.
+  - the model type, the message union, and the two functions that build the model and apply a
+    message, which the entry file's `init` and `update` call.
 - The SQL schema creates the consumer's tables in its own database file. The host keeps one database
   file per consumer.
 

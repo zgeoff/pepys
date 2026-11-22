@@ -1,7 +1,7 @@
 # pepys architecture
 
 pepys keeps its owner's data as facts that never change, and answers typed queries over tables built
-from those facts. Every table can be deleted and built again by a replay of the facts.
+from those facts. Every consumer's table can be deleted and built again by a replay of the facts.
 
 These are the terms the docs under `docs/architecture/` use:
 
@@ -103,10 +103,10 @@ disk: the host writes it, and the API reads it.
 
 pepys publishes no container image. The deployment's repo builds its own images and sets its own
 network rules. Each source module marks each of its routes public or private, and a route it leaves
-unmarked is private. The GitHub webhook is the only public route. The API checks no token on `/rpc`,
-so the deployment's network rules must keep `/rpc` off the public network. Only `/mcp` and the paths
-of [the OAuth server](./queries/oauth-server.md) may face the internet, because each MCP request
-carries an access token.
+unmarked is private. Of ingest's routes, the GitHub webhook is the only public one. The API checks
+no token on `/rpc`, so the deployment's network rules must keep `/rpc` off the public network. Of
+the API's routes, only `/mcp` and the paths of [the OAuth server](./queries/oauth-server.md) may
+face the internet, because each MCP request carries an access token.
 
 [Deploying pepys](../runbooks/deploying.md) gives the steps and the settings of each process.
 

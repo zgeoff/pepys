@@ -1,7 +1,8 @@
 # Pull paths
 
-A pull path is a function of a source that [ingest](./ingest.md) runs on a timer to get facts from
-the source. This doc covers the timers, the lock of a source, resync marks and saved cursors.
+A pull path is a function of a source that [ingest](./ingest.md) runs to get facts from the source,
+on a timer when the path sets an interval. This doc covers the timers, the lock of a source, resync
+marks and saved cursors.
 
 Ingest starts one timer for each pull path that sets an interval. Ingest never runs a pull path with
 no interval on its own. Code that holds the result of `createIngest` can run such a path once

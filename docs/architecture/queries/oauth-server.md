@@ -4,14 +4,16 @@ The owner's MCP clients, such as Claude Code, reach the API's `/mcp` from the in
 request carries an access token. The API issues those tokens itself, from an OAuth 2.1 authorization
 server that runs in the API's process. The owner signs in with a passkey. A client can start an
 authorization only after the owner adds it by hand, and each authorization asks for a fresh passkey
-sign-in and the owner's consent. `/rpc`, the API's typed query route, takes no token, so the
-deployment's network keeps it off the internet.
+sign-in and the owner's consent. A [service client](#service-clients), an agent with no person
+present, signs in with its own secret instead. `/rpc`, the API's typed query route, takes no token,
+so the deployment's network keeps it off the internet.
 
 The server is the shared package `@zgeoff/mcp-auth`, which atc, boxxy and impz run too. Its
-[design](https://github.com/zgeoff/tools/tree/main/docs/design/mcp-auth) holds the OAuth routes and
-pages, the passkey sign-in, the token lifetimes, refresh rotation, revoke and the request guards.
-pepys passes it the `read` scope, the default paths, its table names and its clock, and serves it
-through the package's Elysia adapter beside `/rpc`. This doc covers what pepys adds around it.
+[architecture doc](https://github.com/zgeoff/tools/blob/main/docs/architecture/mcp-auth.md) covers
+the OAuth routes and pages, the passkey sign-in, the token lifetimes, refresh rotation, revoke and
+the request guards. pepys passes it the `read` scope, the default paths, its table names and its
+clock, and serves it through the package's Elysia adapter beside `/rpc`. This doc covers what pepys
+adds around it.
 
 [The API](./api.md) covers the queries that `/mcp` serves.
 [Serving MCP](../../runbooks/serving-mcp.md) gives the settings, the public paths, and the steps to
@@ -39,7 +41,7 @@ and the OAuth paths. The proxy puts the browser paths behind a login of its own,
 Access, and sends a client's requests straight through. Every request from the internet therefore
 reaches the API from the proxy's address. A process on the API's own machine or network reaches the
 API without the proxy, and so without the proxy's login. The server's rules assume that such a
-process exists, and keep it out with the passkey.
+process exists, and give it a token only after a passkey sign-in, or for a service client's secret.
 
 ## The database and the admin commands
 
