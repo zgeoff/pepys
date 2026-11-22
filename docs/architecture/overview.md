@@ -15,10 +15,10 @@ These are the terms the docs under `docs/architecture/` use:
   links to write.
 - A plug-in holds the code for one source: the source module that turns a delivery into facts, its
   consumers, and the queries that read their tables.
-- A deployment names the plug-ins one installation of pepys runs. It lives in its own repo, with the
-  entry files that start each process and the settings of each plug-in.
+- A deployment holds the list of plug-ins one installation of pepys runs. It lives in its own repo,
+  with the entry files that start each process and the settings of each plug-in.
 
-Three processes run a deployment:
+A deployment runs these processes:
 
 - ingest takes deliveries in, and pulls from a source's API on a timer, and appends the facts to the
   fact log;
@@ -45,7 +45,7 @@ flowchart LR
    success only once the log holds every fact of the delivery. A pull timer takes the same path from
    step 2, with no sender.
 3. The host reads each stream that a consumer declares, and passes the facts to the consumer's
-   WebAssembly module in one of two modes:
+   WebAssembly module in fact mode or in scope mode:
    - in fact mode, one fact at a time;
    - in scope mode, every fact of one scope, a group of facts such as all the facts of one pull
      request. The module returns the scope's whole set of rows, and they replace the rows the scope
@@ -104,11 +104,11 @@ disk: the host writes it, and the API reads it.
 pepys publishes no container image. The deployment's repo builds its own images and sets its own
 network rules. Each source module marks each of its routes public or private, and a route it leaves
 unmarked is private. Of ingest's routes, the GitHub webhook is the only public one. The API checks
-no token on `/rpc`, so the deployment's network rules must keep `/rpc` off the public network. Of
+no token on `/rpc`, so keep `/rpc` off the public network with the deployment's network rules. Of
 the API's routes, only `/mcp` and the paths of [the OAuth server](./queries/oauth-server.md) may
 face the internet, because each MCP request carries an access token.
 
-[Deploying pepys](../runbooks/deploying.md) gives the steps and the settings of each process.
+For the steps and the settings of each process, see [Deploying pepys](../runbooks/deploying.md).
 
 ## The data
 
@@ -133,8 +133,8 @@ per consumer. When the host applies a batch of facts, it commits the rows, the l
 positions and the change log entry in one transaction inside that one file. A transaction never
 spans two files.
 
-**Determinism.** A consumer must never read a clock, a random source, the network or a file, so a
-replay always gives the same rows. `pepys build` compiles each consumer with scriptc, a compiler
+**Determinism.** Never let a consumer read a clock, a random source, the network or a file, so that
+a replay always gives the same rows. `pepys build` compiles each consumer with scriptc, a compiler
 from TypeScript to WebAssembly, and refuses a module that scriptc does not mark deterministic. As a
 second guard, the host makes every clock the module can call read 0. A setting reaches a consumer as
 a constant compiled into the module, so a changed setting makes a new consumer version.
@@ -149,17 +149,17 @@ languages implement each port:
   implementation. Only the blob store's own tests run it.
 
 One set of fixture files holds the test cases for each port, and the tests of every implementation
-in both languages run those fixtures. The rules that both languages check share case files the same
-way: the fact format, the consumer manifest in `consumers.json`, the check on a consumer's links,
-and the check on the rows a scope replaces. A change that makes one language disagree with a case
-file fails that language's tests.
+in both languages run those fixtures. Both languages check these rules against shared case files the
+same way: the fact format, the consumer manifest in `consumers.json`, the check on a consumer's
+links, and the check on the rows a scope replaces. When you change one language so that it disagrees
+with a case file, that language's tests fail.
 
 **Core packages and plug-ins.** Put a part of the path, such as ingest or the API, in a core
 package, and keep every source's name out of it. Put a source, with its consumers and queries, in a
-plug-in. A lint rule lets a core package import only other core packages. A plug-in builds on
+plug-in. A lint rule lets a core package import only other core packages. Build a plug-in on
 `@pepys/kit`, which imports no other pepys package, so a plug-in in another repo needs only the
 published packages.
 
 **One version for every package.** Every public package and the host binary carry one version, and a
-release publishes them together. [Releasing](../runbooks/releasing.md) covers the steps of a release
-that a person does.
+release publishes them together. For the steps of a release that a person does, see
+[Releasing](../runbooks/releasing.md).

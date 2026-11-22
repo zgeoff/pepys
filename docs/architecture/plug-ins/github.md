@@ -41,8 +41,8 @@ route gives, such as 401 for a bad signature. The GitHub route adds these:
 - 422 when the body does not fit its event;
 - 202, storing nothing, for an event not in [Families and consumers](#families-and-consumers);
 - 202, with nothing stored, when the event's family has no fact type for the delivery's `action`, or
-  the plug-in ignores that action, as it does a `workflow_run` that has not completed. Each family
-  lists its fact types in `packages/source-github/src/families/`.
+  the plug-in ignores that action, as it does a `workflow_run` that has not completed. The fact
+  types of each family are in `packages/source-github/src/families/`.
 
 ## Families and consumers
 
@@ -77,9 +77,10 @@ whose author GitHub gives the user type `Bot`. Such a pull request is a bump: it
 repository to use a release of another repository, as a dependency update bot does.
 [The delivery query](#the-delivery-query) follows a bump to a deploy.
 
-A winning fact adds its `html_url` and `<owner>/<repo>#<number>`, in lowercase, to
-`github_pull_request_alias` as [aliases](../queries/entities-and-links.md#aliases). Old forms stay
-after a rename, and each alias goes to the newest fact that names it.
+When a fact wins, the `github_pull_request` consumer adds its `html_url` and
+`<owner>/<repo>#<number>`, in lowercase, to `github_pull_request_alias` as
+[aliases](../queries/entities-and-links.md#aliases). Old forms stay after a rename, and each alias
+goes to the newest fact that holds it.
 
 A delivery can embed another object, such as the pull request inside a review event. A row changes
 only with facts of its own object, so the embedded object updates nothing.
@@ -180,7 +181,7 @@ The tied delivery is the new last body, so the second resync's hash differs from
 second resynced fact is a new fact, and it wins.
 
 The resync pull reads only pull requests and releases, though the route marks objects of every
-family. Once the pull's batch is stored, ingest removes every mark it handed the pull, and so also
+family. Once the pull's batch is stored, ingest removes every mark it handed the pull, including
 each mark that the pull read nothing for:
 
 - a mark of another family, or with no API path;
@@ -209,7 +210,7 @@ once. A tag can add one more part after the pattern to name a target, such as
 that deletes the tag records nothing.
 
 The consumer keeps one row for each repository, environment, signal, commit and target. When a
-second fact names the same five values, the row keeps the earlier of the two deploy times, so the
+second fact holds the same five values, the row keeps the earlier of the two deploy times, so the
 order of the facts never changes the row.
 
 ## The delivery query

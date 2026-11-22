@@ -10,15 +10,15 @@ Each export to `/v1/logs` carries two tokens. An OTLP exporter cannot sign a bod
 a shared token in place of a signature. Ingest also checks the identity token of the machine that
 sent the export, and each fact keeps that machine's identity as its origin. The exporter writes each
 record's session ID itself, so one machine can send records under the session ID of a session that
-runs on another machine. A caller therefore trusts a row for a session only when the row's origin is
-the machine that runs that session.
+runs on another machine. Trust a row for a session only when the row's origin is the machine that
+runs that session.
 
 atc, the tool that runs agent sessions, stamps an `atc.session.id` attribute on every record of a
 session it runs.
 
-[Ingest](../ingest/ingest.md#the-sender-proof) covers the identity check.
-[The host](../consumers/host.md#a-fact-mode-batch) covers how it applies each fact ID once.
-[Entities and links](../queries/entities-and-links.md) covers the telemetry entity IDs.
+See [Ingest](../ingest/ingest.md#the-sender-proof) for the identity check. See
+[The host](../consumers/host.md#a-fact-mode-batch) for how it applies each fact ID once. See
+[Entities and links](../queries/entities-and-links.md) for the telemetry entity IDs.
 
 ## The paths
 
@@ -39,7 +39,7 @@ below too.
 
 An export holds many records, so `/v1/logs` and `/forwarded/v1/logs` take a larger body and more
 facts than ingest's other routes take. The plug-in file,
-[`telemetry-plugin.ts`](../../../packages/source-telemetry/src/telemetry-plugin.ts), sets both
+[`telemetry-plugin.ts`](../../../packages/source-telemetry/src/telemetry-plugin.ts), holds both
 limits:
 
 | Limit               | Default for a route | `/v1/logs` and `/forwarded/v1/logs` |
@@ -66,8 +66,8 @@ export is under both limits.
 2. Ingest checks the signed identity token in the `imp-identity` header, which the machine gets from
    its token broker. Ingest checks it against the issuers in the folder of trust documents at
    `PEPYS_IMP_IDENTITY_ISSUERS`, and against the audience in `PEPYS_IMP_IDENTITY_AUDIENCE`. Ingest
-   reads both variables from its environment at start, as
-   [the sender proof](../ingest/ingest.md#the-sender-proof) describes.
+   reads both variables from its environment at start. See
+   [the sender proof](../ingest/ingest.md#the-sender-proof).
 3. When either token is missing or fails its check, ingest answers 401, and the exporter drops the
    export.
 
@@ -75,9 +75,9 @@ export is under both limits.
 
 `/forwarded/v1/logs` has one check: the identity token in the `imp-identity` header. Ingest checks
 it against the folder of trust documents at `PEPYS_TELEMETRY_FORWARDER_ISSUERS` and the audience in
-`PEPYS_TELEMETRY_FORWARDER_AUDIENCE`, with no shared token. Both variables differ from the two of
-the imps, and ingest exits at start when the two groups share an audience, an issuer name or a key.
-With either variable unset, or the folder empty, the route answers 401 and `/v1/logs` works as
+`PEPYS_TELEMETRY_FORWARDER_AUDIENCE`, with no shared token. These two variables are separate from
+the imps' two, and ingest exits at start when the two groups share an audience, an issuer name or a
+key. With either variable unset, or the folder empty, the route answers 401 and `/v1/logs` works as
 before. The route is `private`, like the telemetry path.
 
 A token of the forwarder group never passes `/v1/logs`, and a token of an imp never passes the
@@ -107,8 +107,8 @@ Codex:
 | Codex       | an `event.name` that starts with `codex.`                                      | the name after `codex.`       |
 
 The event name `claude_code.api_request`, for example, gives the event `api_request`. Each product's
-file under [`products/`](../../../packages/source-telemetry/src/products/) lists the events it
-knows, and `products.ts` in that folder holds the list of products.
+file under [`products/`](../../../packages/source-telemetry/src/products/) holds the list of that
+product's events, and `products.ts` in that folder holds the list of products.
 
 The session is the first of these that holds a value:
 
@@ -148,8 +148,7 @@ the fact's session comes from `atc.session.id`.
   record, because a collector that forwards a record may set both again.
 
 `read` drops a record of no known product, a record with no session and a record with no time, and
-logs one warning per export with a count for each reason. A dropped record never refuses the rest of
-its export.
+logs one warning per export with a count for each reason. It keeps the rest of the export.
 
 ## The consumers
 
