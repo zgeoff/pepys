@@ -55,9 +55,9 @@ section.
 ### The three listeners
 
 Each listener takes one kind of credential on every query, whatever address it binds, loopback
-included. `GET /healthz`, which reads nothing, is the one route that takes none. A process on the
-cluster's node reaches every listener, and a NetworkPolicy never stops it, so only a credential
-keeps the owner's mail from that process.
+included. `GET /healthz`, which reads nothing, takes no credential. A process on the cluster's node
+reaches every listener, and a NetworkPolicy never stops it, so only a credential keeps the owner's
+mail from that process.
 
 | Listener | Serves                                                                                | Takes                                            | Reached through                              |
 | -------- | ------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
