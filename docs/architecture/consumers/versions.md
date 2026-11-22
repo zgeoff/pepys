@@ -11,20 +11,21 @@ stateDiagram-v2
   previous --> current
 ```
 
-A version is one build of a consumer, named by the hash in its `consumers.json` entry, and the
-commands move it along the edges above. The host takes the hash as a name and never computes it.
-`host.db` records each version's state, and is right when it and the `current` link disagree. Its
+A version is one build of a consumer, named by the hash in its `consumers.json` entry. The commands
+move a version along the edges above. The host takes the hash as a name and never computes it.
+`host.db` records each version's state, and wins when it disagrees with the `current` link. Its
 state table also allows `previewed` and `removed`, but no command moves a version into either.
 
 Every command starts by repairing the `current` link from `host.db`. Each time a command opens a
 version, whether the current one or one that `up` just wrote, it checks that the SHA-256 of
-`module.wasm` equals the entry's `module` digest, runs the manifest's SQL on the file, and checks
-the file's tables against the manifest's columns before it reads a fact.
+`module.wasm` equals the entry's `module` digest. Before it reads a fact, it then runs the
+manifest's SQL on the file and checks the file's tables against the manifest's columns.
 
 `up` then runs in this order:
 
-1. It checks that no other consumer's current version owns one of its tables, and that any
-   `version.json` in the folder holds the same entry, as one name never covers two builds.
+1. It checks that no other consumer's current version owns one of its tables. It also checks that
+   any `version.json` in the version folder holds the same entry, so one name never covers two
+   builds.
 2. It takes the build lock of the version, so two `up` runs of one version, such as `run --up` and
    `up` in two shells, never build it at once.
 3. It writes `module.wasm` and `version.json` to the version folder, and opens the new file.
@@ -36,13 +37,15 @@ the file's tables against the manifest's columns before it reads a fact.
 
 The host swaps a link and never renames a database file: SQLite finds a file's WAL files by its
 path, so a renamed file can pick up a stale WAL. After a crash between the two writes of step 6,
-`current` names the old version and `host.db` the new one, and the next command repairs the link.
+`current` points at the old version and `host.db` records the new one, and the next command repairs
+the link.
 
-An `up` of the version that is already current only applies the new facts. An `up` that finds an
-unfinished build deletes it and builds it again from the start of the log. The old version's folder
-stays on disk, and `up <consumer> --version <version>` applies to it the facts that arrived since it
-was current, from its own offsets, and swaps it back in.
+When the version is already current, `up` only applies the new facts. When `up` finds an unfinished
+build, it deletes the build and starts again from the start of the log. The old version's folder
+stays on disk. `up <consumer> --version <version>` applies the facts that arrived since that version
+was current, from its own offsets, and swaps the version back in.
 
-`preview` replays the listed version into `preview-<pid>/` up to the current version's offsets, or
-the whole log with no current version, prints the JSON row diff, and deletes the folder. Both
-versions have then read the same facts, so the diff shows only what the new code changes.
+`preview` replays the listed version into `preview-<pid>/`, up to the current version's offsets, or
+through the whole log when no version is current. It prints the JSON row diff and deletes the
+folder. Both versions have then read the same facts, so the diff shows only what the new code
+changes.
