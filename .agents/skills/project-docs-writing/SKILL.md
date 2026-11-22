@@ -8,8 +8,8 @@ description:
 
 # pepys docs writing
 
-Load the shared `docs-writing` skill first. This skill holds only what pepys adds to it, and where
-the two disagree, this one wins.
+Load the shared `docs-writing` skill first, then follow the rules below as well. Where the two
+disagree, follow the rules below.
 
 ## Spikes
 

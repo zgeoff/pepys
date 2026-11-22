@@ -2,12 +2,12 @@
 
 pepys is a personal data hub: it ingests the owner's own data from pluggable sources as immutable
 facts, builds entities and cross-source links from them, and serves them through typed queries, MCP,
-and change streams. `docs/README.md` indexes the docs.
+and change streams. The docs index is `docs/README.md`.
 
 ## Required reading
 
-The rules a task needs are not repeated here. Load the skill for the work before starting it. The
-skills are in `.agents/skills/`, and `.claude/skills` links to that folder.
+Load the skill for a task before you start it: this file doesn't repeat its rules. The skills are in
+`.agents/skills/`, and `.claude/skills` links to that folder.
 
 | Skill                  | Load before                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------- |
@@ -27,8 +27,8 @@ When you write or edit a skill:
 1. Load the `docs-writing`, `project-docs-writing`, `skill-writing`, `cold-read` and `deslop` skills
    from `.agents/skills/`, which `.claude/skills` links to. repo-sync delivers them there at the
    `zgeoff/skills` commit that `zgeoff/tools` pins, so install none of them yourself.
-2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. Its last step
-   fills the `## Checks` section of the PR template.
+2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. In its last
+   step, you fill the `## Checks` section of the PR template.
 
 ## Repo structure
 
@@ -49,8 +49,8 @@ docs/
 ## Packages
 
 - Every version lives once in the `workspaces.catalog` of the root `package.json`, as an exact pin.
-  A package depends on it as `catalog:`.
-- A package is named `@pepys/<folder>`. The one exception is the e2e lane's private plug-in in
+  Depend on it from a package as `catalog:`.
+- Name each package `@pepys/<folder>`. The one exception is the e2e lane's private plug-in in
   `packages/cli/e2e/fixtures/logbook-plugin/`, named `logbook-plugin` with no scope, as a plug-in
   outside the repo would be. A package that a plug-in or a deployment imports is public on npm:
   `api`, `cli`, `contract`, `ingest`, `kit`, `kysely-turso`, `schema`, `source-github`,
@@ -59,25 +59,25 @@ docs/
   - a `version`, a `license`, and `repository` with its `directory`;
   - a `files` list that leaves out tests and `test-utils`;
   - `publishConfig.access` of `public`, and a README.
-- A public package imports no private workspace package, and depends on each package it imports in
-  shipped code, not as a dev dependency. Its `files` list leaves out each test helper outside
-  `test-utils`, such as the ingest fixture runners.
-- A package exports `./src/index.ts`, and has no build step. When the tests of another workspace
-  import a test helper of the package, the package also exports
-  `"./test-utils/*": "./src/test-utils/*.ts"`, and its `files` list still leaves the helpers out. A
-  public package ships its TypeScript source for Bun: scriptc compiles a consumer from source, and
+- In a public package, import no private workspace package, and list each package that shipped code
+  imports as a dependency, not a dev dependency. Leave out of its `files` list each test helper
+  outside `test-utils`, such as the ingest fixture runners.
+- Export `./src/index.ts` from each package, and give it no build step. When the tests of another
+  workspace import a test helper of the package, also export
+  `"./test-utils/*": "./src/test-utils/*.ts"`, and still leave the helpers out of its `files` list.
+  A public package ships its TypeScript source for Bun: scriptc compiles a consumer from source, and
   `pepys build` copies a dependency's `src`. A plug-in's compiler checks that source with the
   plug-in's own options, so shipped code type-checks with the options in the
   [kit's README](packages/kit/README.md#configuration), and needs every type it uses from a
   dependency, never a peer.
-- Every public package carries one version. To release, set that version in each public
+- Give every public package the same version. To release, set that version in each public
   `package.json` in one pull request, with `bun.lock` written by the pinned bun. Then push the tag
   `v<version>` on `main`: [`release.yml`](.github/workflows/release.yml) checks the tag against each
   version, packs each package once, installs the tarballs outside the repo, and publishes them to
   npm with provenance. Its `release-host` job builds the host binary and makes the GitHub release of
-  the tag with the binary and its `SHA256SUMS`. The rules a deploy of that binary relies on are in
-  [Fetch the host](docs/runbooks/deploying.md#3-fetch-the-host), and
-  [Releasing](docs/runbooks/releasing.md) covers a run that fails.
+  the tag with the binary and its `SHA256SUMS`. For the rules a deploy of that binary relies on, see
+  [Fetch the host](docs/runbooks/deploying.md#3-fetch-the-host). For a run that fails, see
+  [Releasing](docs/runbooks/releasing.md).
 - `bun run check:outside-install` installs every public package into an empty folder outside the
   repo, type-checks a stub plug-in there, and runs a query test on the test store. It packs the
   packages first, or with `PEPYS_OUTSIDE_VERSION` set it installs that version from npm.
@@ -89,15 +89,15 @@ docs/
 - `rust-toolchain.toml` pins the toolchain. A `RUSTUP_TOOLCHAIN` variable in the shell overrides the
   pin, so unset it before running cargo here.
 - Every crate version lives once in `[workspace.dependencies]` of the root `Cargo.toml`, as an exact
-  `=x.y.z` pin, and a crate depends on it with `workspace = true`. `Cargo.lock` is committed.
+  `=x.y.z` pin. Depend on it from a crate with `workspace = true`. `Cargo.lock` is committed.
 - Pin each crate, and each Bun package, by the
   [Dependency exceptions](.agents/skills/ci-design/SKILL.md#dependency-exceptions) rule in
   ci-design. For a crate you pin by hand, read the release age off crates.io yourself: `bun install`
   holds back only a Bun package younger than the `minimumReleaseAge` in `bunfig.toml`, and pepys
   sets no release age for cargo.
-- A crate is named `pepys-<folder>`, takes its edition, license and lints from the workspace, and
-  sets `[lints] workspace = true`.
-- Errors use `thiserror` at module boundaries, and every fallible function returns `Result`.
+- Name each crate `pepys-<folder>`, take its edition, license and lints from the workspace, and set
+  `[lints] workspace = true`.
+- Use `thiserror` for errors at module boundaries, and return `Result` from every fallible function.
 - For faster development builds on Linux, link with wild through your own `~/.cargo/config.toml`;
   the repo leaves the default linker in place, which release builds use.
 
@@ -157,8 +157,8 @@ docs/
   It reads `PEPYS_STORE_DIR`, the store the host writes, `PEPYS_API_HOST`, which defaults to
   127.0.0.1, and `PEPYS_API_PORT`, which defaults to 8081. With `PEPYS_API_PUBLIC_URL` and
   `PEPYS_AUTH_DIR` set, it also serves MCP at `/mcp` behind the OAuth server in
-  [OAuth server](docs/architecture/queries/oauth-server.md). `PEPYS_API_SERVICE_TOKENS_FILE` names
-  the file of its [service clients](docs/architecture/queries/oauth-server.md#service-clients),
-  which it reads again on SIGHUP. Given `passkeys`, `clients` or `grants`, it runs that admin
-  command on the OAuth server's database and exits.
+  [OAuth server](docs/architecture/queries/oauth-server.md). It reads its
+  [service clients](docs/architecture/queries/oauth-server.md#service-clients) from the file at
+  `PEPYS_API_SERVICE_TOKENS_FILE`, and reads that file again on SIGHUP. Given `passkeys`, `clients`
+  or `grants`, it runs that admin command on the OAuth server's database and exits.
 - lefthook runs the light checks before a commit and a push. Leave the larger checks to CI.

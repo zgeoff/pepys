@@ -1,7 +1,7 @@
 ---
 name: project-testing
 description:
-  pepys's test rules on top of the shared testing skill. They say where each kind of test file goes
+  pepys's test rules on top of the shared testing skill, covering where each kind of test file goes
   and which command runs it, where test helpers go, how Bun end-to-end tests start Docker services,
   how to test consumers, and how to add tests that call hosted models or live APIs. Load together
   with the testing skill when designing, writing, or reviewing pepys tests.
@@ -21,12 +21,12 @@ metadata:
 ## Departures
 
 - For Bun, put a test that needs s2-lite or Garage in the `e2e/` folder of the package that owns the
-  code it tests. For Rust, put it in an `e2e` module. The shared
-  [slow tests reference](../testing/references/slow-tests.md) puts it in a `<name>.docker.test.ts`
-  file, but pepys runs no command for such files. `bun run test` and `cargo nextest run` can't hold
-  these tests either: s2-lite takes longer to start from a fresh image than the `slow-timeout` of
-  the default profile in [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test
-  timeout allow.
+  code it tests. For Rust, put it in an `e2e` module. pepys runs no command for the
+  `<name>.docker.test.ts` files of the shared
+  [slow tests reference](../testing/references/slow-tests.md). `bun run test` and
+  `cargo nextest run` can't hold these tests either: s2-lite takes longer to start from a fresh
+  image than the `slow-timeout` of the default profile in
+  [`nextest.toml`](../../../.config/nextest.toml) and Bun's default test timeout allow.
 - Put the e2e tests of the `@pepys/ingest` adapters in
   [`packages/ingest/e2e/`](../../../packages/ingest/e2e), with a prefix from
   [E2e prefixes](../testing/references/system-tests.md#e2e-prefixes). The shared
@@ -37,11 +37,11 @@ metadata:
 - Start a process or seed data in [`start-stack.ts`](../../../packages/cli/e2e/start-stack.ts) when
   more than one e2e test needs it. Don't write the `start` and `stop` modules of
   [Files and shared hosts](../testing/references/system-tests.md#files-and-shared-hosts).
-  `bun run test:e2e` loads `start-stack.ts` first, then runs only the `e2e/` folders that its script
-  lists. Add a new `e2e/` folder to the script, or its tests never run.
-- Leave `lanes` empty in `rig.config.ts`, in place of the `e2e` entry that Files and shared hosts
-  puts there, and keep the `pepys` program entry. pepys runs the e2e tests with `bun run test:e2e`.
-  `rig e2e` refuses `packages/ingest/e2e/`, because ingest declares no program.
+  `bun run test:e2e` loads `start-stack.ts` first, then runs only the `e2e/` folders in its script.
+  Add a new `e2e/` folder to the script, or its tests never run.
+- Leave `lanes` empty in `rig.config.ts`, in place of the `e2e` entry from Files and shared hosts,
+  and keep the `pepys` program entry. pepys runs the e2e tests with `bun run test:e2e`. `rig e2e`
+  refuses `packages/ingest/e2e/`, because ingest declares no program.
 - For an API test, seed a consumer's rows with
   [`create-consumer-version.ts`](../../../packages/api/src/test-utils/create-consumer-version.ts),
   in place of the shared [Seeding](../testing/references/seeding.md) rule. It writes
@@ -103,7 +103,8 @@ every case.
   1. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN`, as step 2 of
      [Bun tests in the e2e/ folders](#bun-tests-in-the-e2e-folders) says.
   2. Run `bun run consumers:build`.
-  3. Replace the case's `file` with the `consumers.json` that step 2 writes in `build/consumers/`.
+  3. Replace the case's `file` with the `consumers.json` that `bun run consumers:build` writes in
+     `build/consumers/`.
 
 ## Bun tests in the e2e/ folders
 
@@ -129,7 +130,7 @@ To run them:
 
 1. Start Docker.
 2. Set `PEPYS_ZIG_BIN` and `PEPYS_WASM_TOOLS_BIN` to the paths of the zig and wasm-tools binaries,
-   at the versions the Commands section of [AGENTS.md](../../../AGENTS.md) pins.
+   at the versions pinned in the Commands section of [AGENTS.md](../../../AGENTS.md).
 3. Run `bun run test:e2e:prepare`, which builds the host and the consumers of both deployments. Run
    it again after you change the host or a consumer.
 4. Run `bun run test:e2e`.
@@ -157,8 +158,8 @@ To run them:
 
 ## Consumer tests
 
-- Feed a consumer inline facts, written in the test beside the assertion. The Consumers section of
-  [project-code-style](../project-code-style/SKILL.md) defines a consumer.
+- Feed a consumer inline facts, written in the test beside the assertion. For what a consumer is,
+  see the Consumers section of [project-code-style](../project-code-style/SKILL.md).
 - Assert the full returned operation list with `toStrictEqual`, never a single field of one
   operation, so an extra or missing operation fails the test.
 

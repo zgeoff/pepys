@@ -17,9 +17,9 @@ metadata:
   generated functions in the consumer's boundary file, `src/generated/<consumer-file>-boundary.ts`.
   This replaces the shared rule against such a wrapper, in
   [Structure](../code-style/SKILL.md#structure). scriptc, the compiler that builds each consumer,
-  needs both declared in the consumer file, and refuses a re-export.
-  [Plug-ins and build](../../../docs/architecture/consumers/plug-ins-and-build.md) gives the rest of
-  what scriptc checks. The consumer's own logic goes in its other exports, such as `applyFact`.
+  needs both declared in the consumer file, and refuses a re-export. For the rest of what scriptc
+  checks, read [Plug-ins and build](../../../docs/architecture/consumers/plug-ins-and-build.md). Put
+  the consumer's own logic in its other exports, such as `applyFact`.
 
   ```ts
   export function init(): GithubRefModel {
@@ -36,9 +36,8 @@ metadata:
 Group the files in a package's `src/` by feature, so a folder never fills with unrelated files. A
 feature is one part the package owns, such as a port with its adapters, a job that enrichment runs,
 or a CLI command. A port is an interface that pepys's own code calls for I/O, such as the blob
-store, and an adapter is one implementation of it. The
-[fact log doc](../../../docs/architecture/ingest/fact-log.md#ports-and-their-fixtures) lists the
-ports.
+store, and an adapter is one implementation of it. Find the ports in the
+[fact log doc](../../../docs/architecture/ingest/fact-log.md#ports-and-their-fixtures).
 
 An invented package, to show the shape:
 
@@ -60,10 +59,10 @@ packages/example/src/
 - Put a helper that one feature imports in the smallest folder of that feature that holds every file
   that imports it. Put a helper that two or more features import in `src/utils/`, and a test helper
   that two or more features import in `src/test-utils/`.
-- No `index.ts` in a feature folder. `src/index.ts` is the only barrel, with one exception. A public
-  package may give a subpath to functions that a plug-in never imports, such as the generators that
-  only `pepys build` calls, so that a plug-in that imports the main entry can't reach them. To add
-  one:
+- Never put an `index.ts` in a feature folder. `src/index.ts` is the only barrel, with one
+  exception. In a public package, you may give a subpath to functions that a plug-in never imports,
+  such as the generators that only `pepys build` calls, so that a plug-in that imports the main
+  entry can't reach them. To add one:
   - list the subpath in `exports` in `package.json`;
   - point the subpath at a file in `src/` with the subpath's name, such as `src/generators.ts` for
     `@pepys/kit/generators`;
@@ -91,15 +90,14 @@ packages/example/src/
 
 - Write the consumer's logic, such as `applyFact`, as a pure function. It takes one input and
   returns a list of operations, and the same input always gives the same list. The `init` and
-  `update` wrappers in [Departures](#departures) only pass their arguments on. The
-  [host doc](../../../docs/architecture/consumers/host.md) describes the two input modes, fact and
-  scope, and the operations the host applies to the store.
+  `update` wrappers in [Departures](#departures) only pass their arguments on. Read the
+  [host doc](../../../docs/architecture/consumers/host.md) for the two input modes, fact and scope,
+  and for the operations the host applies to the store.
 - Never read a clock, a random source, the network or a file in a consumer. Take a time from a field
   of the input.
 - Import the types of the consumer's store rows and operations from
-  `src/generated/<consumer-file>-boundary.ts`.
-  [`github-pull-request.ts`](../../../packages/source-github/src/consumers/github-pull-request.ts)
-  is a consumer to copy the shape from.
+  `src/generated/<consumer-file>-boundary.ts`. Copy the shape of a consumer from
+  [`github-pull-request.ts`](../../../packages/source-github/src/consumers/github-pull-request.ts).
 
 ## IDs
 
@@ -120,7 +118,7 @@ packages/example/src/
   the whole string. The source is a source's lowercase name, such as `github` or `gmail`, or
   `deployment` for an ID from the owner's own configuration. The last part is the source's own
   identifier for the thing, a plain string until it sits inside the entity ID.
-- Write each kind that the
-  [entities and links doc](../../../docs/architecture/queries/entities-and-links.md#entity-ids)
-  lists in the form that doc gives it, such as `pull_request`. Write a new kind in lowercase full
-  words with `_` between them, such as `review_comment`, and add it to that doc.
+- Write each kind listed in the
+  [entities and links doc](../../../docs/architecture/queries/entities-and-links.md#entity-ids) in
+  the form given there, such as `pull_request`. Write a new kind in lowercase full words with `_`
+  between them, such as `review_comment`, and add it to that doc.
