@@ -42,7 +42,7 @@ families and entity views.
 The `define*` calls hold no secret and read no environment variable, and the kit depends on no
 SQLite package. A process that only declares a deployment, or only sends fact batches with the kit's
 sender, therefore needs no environment variable and installs no SQLite binding. Only a process that
-opens the store needs one.
+opens the store needs a SQLite binding.
 
 An entity kind is written `<source>:<kind>` in every place, so a pull request is
 `github:pull_request` in its entity ID, its entity view and a link end. The kit's types require only
@@ -67,8 +67,8 @@ a failure, so a deployment that one process would refuse runs in none. The failu
 - a consumer that reads a table by key when that table's key is a JSON column.
 
 `pepys build` also takes a file that exports one plug-in, with no deployment. The check of a plug-in
-alone skips the three checks that need another plug-in: the unknown entity kind, the unknown
-consumer and the unknown stream.
+alone skips the checks that need another plug-in: the unknown entity kind, the unknown consumer and
+the unknown stream.
 
 ## Settings
 
@@ -104,8 +104,8 @@ Every generated entity ID type is a branded string: a string type with a tag tha
 ID from passing as another. The generators use one fixed tag, `EntityID`, and put the entity kind in
 a second tag, because scriptc refuses a tag that is a type parameter.
 
-A package commits the glue of its own consumers in a `generated` folder beside each entry's folder,
-and its tests import that glue. `pepys build <file> --check` writes nothing, and exits 1 when a
+Commit the glue of a package's own consumers in a `generated` folder beside each entry's folder. The
+package's tests import that glue. `pepys build <file> --check` writes nothing, and exits 1 when a
 committed glue file is stale.
 
 ## pepys build
@@ -151,12 +151,12 @@ scriptc compiles a subset of TypeScript, and refuses a break of each rule below 
 3. Export `init` and `update`. Also export `applyFact` for a fact-mode consumer, or `applyScope` for
    a scope-mode consumer.
 
-When two facts change one row, keep the fact whose change the source dated later, its source update
-time. Facts can land in the stream out of that order, such as a failed webhook delivery that
-[the GitHub recovery pull](../plug-ins/github.md#the-recovery-pull) fetches later, so a consumer
-that keeps the last fact it gets keeps a stale row. When two facts have the same time, keep the
-later fact in the stream. The host applies the facts in stream order on every replay, so a replay
-picks the same winner.
+When two facts change one row, keep the fact with the later source update time: the time the source
+dated the change. Facts can land in the stream out of that order, such as a failed webhook delivery
+that [the GitHub recovery pull](../plug-ins/github.md#the-recovery-pull) fetches later, so a
+consumer that keeps the last fact it gets keeps a stale row. When two facts have the same time, keep
+the later fact in the stream. The host applies the facts in stream order on every replay, so a
+replay picks the same winner.
 
 One test run sees one stream order, so it cannot show a missing time check. Call `applyInBothOrders`
 from `@pepys/testing` in a consumer's tests, on facts with different times: it applies the facts one
@@ -164,11 +164,11 @@ at a time in order, then in reverse, and compares the two stores.
 
 ## consumers.json
 
-The host reads nothing about a consumer except its entry in `consumers.json`. The file names the
-deployment, or holds null for a plug-in built alone, and holds one entry per consumer. An entry
-never refers to another entry's tables or links, so one entry is enough to run its consumer. The
-host stores a copy of the entry beside each version it keeps, so an old version stays runnable after
-a later build drops it from `consumers.json`.
+The host reads nothing about a consumer except its entry in `consumers.json`. The file holds the
+deployment's name, or null for a plug-in built alone, and one entry per consumer. An entry never
+refers to another entry's tables or links, so one entry is enough to run its consumer. The host
+stores a copy of the entry beside each version it keeps, so an old version stays runnable after a
+later build drops it from `consumers.json`.
 
 Each entry holds these fields:
 
