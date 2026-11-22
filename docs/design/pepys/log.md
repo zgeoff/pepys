@@ -31,7 +31,7 @@ ingest, enrichment and the API append facts, and the host and compaction only re
 | cursor record (built) | `observation:` and a hash of the source, the pull path and the cursor |
 
 Deterministic IDs let pollers and webhook receivers write duplicates freely. Polls overlap and
-webhooks repeat, and neither needs to prevent it at write time.
+webhooks repeat, and neither pollers nor receivers need to prevent duplicates at write time.
 
 ## Cursors
 

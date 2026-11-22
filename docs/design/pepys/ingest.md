@@ -26,9 +26,8 @@ labels. The first two sources fill the three paths as follows.
 ## GitHub
 
 After an outage longer than GitHub keeps its webhook deliveries, ingest polls the affected objects
-once and writes observations. The
-[source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
-probes it.
+once and writes observations. For GitHub's limit and a probe of it, see the
+[source retention spike](../../../research/source-retention/README.md).
 
 Backfill reads the pull request and issue timeline APIs, which return past events with their times.
 Those events go into the same stream as the live events for the same entity.
