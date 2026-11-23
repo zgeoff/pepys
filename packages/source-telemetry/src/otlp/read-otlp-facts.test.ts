@@ -1,13 +1,22 @@
 import { expect, test } from 'bun:test';
+import type { KeptEvent } from '../products/kept-events.ts';
 import { products } from '../products/products.ts';
 import { buildLogsExport } from '../test-utils/build-logs-export.ts';
 import { readOtlpFacts } from './read-otlp-facts.ts';
 import type { LogsExport } from './types.ts';
 
 function setupTest() {
+  // the reader's own rules, apart from the allow-list: it keeps each event that these tests send
+  const keptEvents: readonly KeptEvent[] = products.flatMap((product) =>
+    [...Object.keys(product.events), 'new_thing', 'hook_registered'].map((event) => ({
+      product: product.name,
+      event,
+    })),
+  );
+
   return {
     read: (body: LogsExport) =>
-      readOtlpFacts(body, { products, sessionAttribute: 'atc.session.id' }),
+      readOtlpFacts(body, { products, keptEvents, sessionAttribute: 'atc.session.id' }),
   };
 }
 

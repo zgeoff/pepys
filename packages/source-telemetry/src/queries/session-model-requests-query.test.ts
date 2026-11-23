@@ -4,6 +4,7 @@ import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
 import { readOtlpFacts } from '../otlp/read-otlp-facts.ts';
 import type { LogsExport } from '../otlp/types.ts';
+import { keptEvents } from '../products/kept-events.ts';
 import { products } from '../products/products.ts';
 import { telemetryPlugin, telemetrySource } from '../telemetry-plugin.ts';
 import { buildLogsExport } from '../test-utils/build-logs-export.ts';
@@ -24,7 +25,8 @@ async function setupTest() {
     store,
     readFacts: (exports: readonly LogsExport[]) =>
       exports.flatMap(
-        (body) => readOtlpFacts(body, { products, sessionAttribute: 'atc.session.id' }).facts,
+        (body) =>
+          readOtlpFacts(body, { products, keptEvents, sessionAttribute: 'atc.session.id' }).facts,
       ),
     query: (input: SessionInput) => store.query(sessionModelRequestsQuery, input),
   };

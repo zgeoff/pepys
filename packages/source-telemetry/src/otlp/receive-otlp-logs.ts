@@ -35,7 +35,7 @@ type OtlpLogsReceiver = Pick<
 // The receive path of OTLP/HTTP logs in JSON. Ingest has checked the method, the size, the token or
 // the sender of the route, and has unpacked a gzip body, before `read` sees the export.
 export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
-  const { products, sessionAttribute, ...path } = receiver;
+  const { products, keptEvents, sessionAttribute, ...path } = receiver;
 
   return {
     ...path,
@@ -66,7 +66,7 @@ export function receiveOtlpLogs(receiver: OtlpLogsReceiver): ReceivePath {
         };
       }
 
-      const read = readOtlpFacts(body, { products, sessionAttribute });
+      const read = readOtlpFacts(body, { products, keptEvents, sessionAttribute });
 
       if (read.dropped.length > 0) {
         source.log.warn(
