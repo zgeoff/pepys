@@ -228,12 +228,12 @@ that machine from outside this plug-in.
 - The model request's `agent` column is always null: `read` recognises no attribute from either
   product as the subagent of a request.
 - The log keeps a Claude Code and a Codex `tool_decision` record, though only model requests and
-  turn costs become rows. It keeps no tool result, hook, prompt or response.
+  turn costs become rows. It keeps no tool result, hook, prompt or assistant response.
 - Codex signed in with a ChatGPT account sends no `turn_cost` event, so its sessions have no cost in
   either table. Whether Codex with an API key sends one is not checked.
 - Codex's exporter sends each export once. When ingest answers 503, Claude Code sends the same
   export again, and Codex never does, so that export's records are lost.
-- Codex writes `atc.session.id` on the resource only, and its `api_request` records carry no
+- Codex writes `atc.session.id` on the resource only, and some of its records carry no
   `conversation.id`. Without `atc.session.id`, `read` drops those records.
 - One Codex turn can send several `response.completed` events, such as one for the model that
   reviews a command. Each one becomes a model request row.

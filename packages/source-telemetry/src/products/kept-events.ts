@@ -28,6 +28,7 @@ export function isKeptEvent(
     (kept) =>
       kept.product === product &&
       kept.event === event &&
-      (kept.kind === undefined || record.attributes['event.kind'] === kept.kind),
+      (kept.kind === undefined ||
+        (record.attributes['event.kind'] ?? record.resource['event.kind']) === kept.kind),
   );
 }

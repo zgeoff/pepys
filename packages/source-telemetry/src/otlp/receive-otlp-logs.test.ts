@@ -573,3 +573,25 @@ test('it stores the kept records of an export that also holds dropped ones', asy
 
   expect(stored.map((fact) => fact.type)).toStrictEqual(['telemetry.codex.turn_cost']);
 });
+
+test('it stores a completed Codex response whose kind sits on the resource', async () => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport(
+    'codex',
+    { 'atc.session.id': 's-9', 'event.kind': 'response.completed' },
+    [{ 'event.name': 'codex.sse_event', 'event.timestamp': '2026-11-11T02:21:30.000Z' }],
+  );
+
+  await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const stored = await ctx.readStored();
+
+  expect(stored.map((fact) => fact.type)).toStrictEqual(['telemetry.codex.sse_event']);
+});
