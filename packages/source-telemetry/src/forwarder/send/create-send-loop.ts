@@ -72,6 +72,7 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
   let retryWaitMs = initialRetryWaitMs;
   let serverErrors = { key: '', count: 0 };
   let paceUntilMs = 0;
+  let paceMs = 0;
   let wakeIdle: (() => void) | null = null;
 
   const enter = (next: AnswerAction['state'], status: number | null, reason?: string): void => {
@@ -118,6 +119,10 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
   };
 
   const stopWithoutAnswer = (reason: string): number => {
+    if (state.send === 'stopped') {
+      options.logger.error('the send loop is still stopped', { reason });
+    }
+
     enter('stopped', null, reason);
 
     return slowRetryWaitMs;
@@ -152,7 +157,8 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     }
 
     // a wait with no request leaves the line where it is, and an idle loop never reaches this
-    const owedMs = paceUntilMs - options.now();
+    // a clock set back never makes the wait longer than the pause that the last request earned
+    const owedMs = Math.min(paceUntilMs - options.now(), paceMs);
 
     if (owedMs > 0) {
       return owedMs;
@@ -169,9 +175,11 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     serverErrors = { key, count: action.serverErrors };
 
     if (action.move === 'sent') {
-      paceUntilMs =
-        sendStartMs +
-        Math.floor((Buffer.byteLength(parsed.requestBody) * 1000) / options.maxBytesPerSecond);
+      paceMs = Math.floor(
+        (Buffer.byteLength(parsed.requestBody) * 1000) / options.maxBytesPerSecond,
+      );
+
+      paceUntilMs = sendStartMs + paceMs;
     }
 
     if (action.move === 'failed') {

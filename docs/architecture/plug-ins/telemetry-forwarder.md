@@ -44,12 +44,12 @@ The receiver and the send loop share only the files of the spool folder. The rec
 stores exports while the send loop waits on ingest, and the send loop sends the spool while no
 export arrives.
 
-| File                       | Holds                                                         | Written by    |
-| -------------------------- | ------------------------------------------------------------- | ------------- |
-| `<UTC day>-logs.jsonl`     | one export per line, for the exports received on that day     | the receiver  |
-| `positions.json`           | for each spool file, the byte offset of its first unsent line | the send loop |
-| `failed/<spool file name>` | each line of that spool file that the send loop gave up on    | the send loop |
-| `forwarder.lock`           | the lock of the `run` process                                 | `run`         |
+| File                       | Holds                                                         | Written by                                      |
+| -------------------------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| `<UTC day>-logs.jsonl`     | one export per line, for the exports received on that day     | the receiver                                    |
+| `positions.json`           | for each spool file, the byte offset of its first unsent line | the send loop, and `run` for a new spool folder |
+| `failed/<spool file name>` | each line of that spool file that the send loop gave up on    | the send loop                                   |
+| `forwarder.lock`           | the lock of the `run` process                                 | `run`                                           |
 
 A line holds the time of receipt, the path `/v1/logs`, the exporter's `user-agent` and the export as
 parsed JSON. The send loop never deletes a file under `failed/`. It deletes a spool file of an
@@ -82,14 +82,14 @@ the length of each. The retry wait doubles after each answer of the table's last
 and returns to its first length when the position moves. The slow wait is one fixed length, longer
 than that limit. The send loop acts on each answer of ingest by the first row that fits:
 
-| Ingest answers             | The send loop                                                     | Send state |
-| -------------------------- | ----------------------------------------------------------------- | ---------- |
-| 2xx                        | moves the position past the line, and sends the next line at once | `sending`  |
-| 400, 413, 415 or 422       | copies the line to `failed/`, moves the position, and goes on     | `sending`  |
-| 500, the first three times | keeps the line, and sends it again after the slow wait            | `stopped`  |
-| 500, the fourth time       | copies the line to `failed/`, moves the position, and goes on     | `sending`  |
-| 401, 403 or 404            | keeps the line, and sends it again after the slow wait            | `stopped`  |
-| any other answer, or none  | keeps the line, and sends it again after the retry wait           | `waiting`  |
+| Ingest answers             | The send loop                                                             | Send state |
+| -------------------------- | ------------------------------------------------------------------------- | ---------- |
+| 2xx                        | moves the position past the line, and sends the next line after the pause | `sending`  |
+| 400, 413, 415 or 422       | copies the line to `failed/`, moves the position, and goes on             | `sending`  |
+| 500, the first three times | keeps the line, and sends it again after the slow wait                    | `stopped`  |
+| 500, the fourth time       | copies the line to `failed/`, moves the position, and goes on             | `sending`  |
+| 401, 403 or 404            | keeps the line, and sends it again after the slow wait                    | `stopped`  |
+| any other answer, or none  | keeps the line, and sends it again after the retry wait                   | `waiting`  |
 
 - Ingest answers 400, 413, 415 or 422 only for a body that it refuses on every resend, so the send
   loop gives up on the line at once.
@@ -98,16 +98,16 @@ than that limit. The send loop acts on each answer of ingest by the first row th
 - A 401, 403 or 404 means that the deployment does not trust the machine or has no sender route. The
   owner repairs that, so the send loop keeps every line.
 
-After a 2xx, the send loop starts the next request only when the body bytes of the last one have
+After a 2xx, the send loop pauses before the next request until the body bytes of the last one have
 passed at the rate in `PEPYS_FORWARDER_MAX_BYTES_PER_SECOND`, whose default
 [the package README](../../../packages/source-telemetry/README.md) gives. The default lets a
-multi-gigabyte backlog drain over many hours, so a backlog cannot flood ingest again, and an export
-that arrives alone never waits. A large export holds the next request back for its size divided by
-the rate.
+multi-gigabyte backlog drain over many hours, so a backlog cannot flood ingest again, and steady
+traffic of small exports never waits. A large export holds the next request back for its size
+divided by the rate.
 
-The send loop sends no request during a wait, whatever the receiver stores. In `stopped`,
-`GET /health` answers 503, because most answers of that state need the owner: a deployment that does
-not trust the machine, or a fault of the deployment.
+The send loop sends no request during a wait or the pause, whatever the receiver stores. In
+`stopped`, `GET /health` answers 503, because most answers of that state need the owner: a
+deployment that does not trust the machine, or a fault of the deployment.
 
 These cases need no answer from ingest:
 

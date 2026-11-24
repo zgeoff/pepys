@@ -1047,3 +1047,20 @@ test('it sends nothing and stops when positions.json is missing and a spool file
     logged: ctx.logLines.filter((line) => line.includes('positions.json is missing')).length,
   }).toStrictEqual({ wait: 900_000, requests: 0, state: 'stopped', logged: 1 });
 });
+
+test('it waits no longer than the pause of the last request when the clock is set back', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-2');
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity), 500);
+
+  await loop.step();
+
+  ctx.clock.nowMs -= 3_600_000;
+
+  const wait = await loop.step();
+
+  expect(wait).toBeLessThanOrEqual(2000);
+});
