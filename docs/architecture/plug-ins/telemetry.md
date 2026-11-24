@@ -116,33 +116,47 @@ The session is the first of these that holds a value:
 3. the product's own session attribute: `session.id` for Claude Code, and `conversation.id` for
    Codex.
 
+`read` keeps a record only when its event is on the allow-list, `keptEvents` in
+[`kept-events.ts`](../../../packages/source-telemetry/src/products/kept-events.ts), because only
+these events feed a table or a planned reader:
+
+| Product     | Kept event                                             |
+| ----------- | ------------------------------------------------------ |
+| Claude Code | `api_request`, with every attribute it carries         |
+| Claude Code | `tool_decision`                                        |
+| Codex       | `tool_decision`                                        |
+| Codex       | `sse_event` whose `event.kind` is `response.completed` |
+| Codex       | `turn_cost`                                            |
+
+Any other event makes no fact: hook, `tool_result`, `assistant_response`, `user_prompt`, startup,
+websocket, plug-in and MCP connection events, and the small types. A new event type is dropped until
+someone adds it to the list. A record that the list leaves out is not counted as dropped below, and
+logs nothing. This holds for imps too, because every sender uses the same `read`.
+
 Every fact goes to the one stream, `facts.telemetry.log_record`. `read` builds each fact from these
 parts:
 
-| Part               | Value                                                                |
-| ------------------ | -------------------------------------------------------------------- |
-| type, listed event | `telemetry.<product>.<event>`                                        |
-| type, other event  | `telemetry.<product>.unlisted`                                       |
-| entity             | `telemetry:session:<session>`                                        |
-| time               | the record's `event.timestamp` attribute, else its `timeUnixNano`    |
-| ID                 | `event:telemetry:<product>.<event>:<key>`, for an unlisted event too |
+| Part   | Value                                                             |
+| ------ | ----------------------------------------------------------------- |
+| type   | `telemetry.<product>.<event>`                                     |
+| entity | `telemetry:session:<session>`                                     |
+| time   | the record's `event.timestamp` attribute, else its `timeUnixNano` |
+| ID     | `event:telemetry:<product>.<event>:<key>`                         |
 
 Ingest's clock never sets a fact's time. The key in the ID is the first of these that the record
 holds:
 
-1. the event's own key, where the product defines one: the `request_id` of a Claude Code request,
-   error or refusal, or the `client_request_id` of a request or an error with no `request_id`,
-   `t-<session.id>:<tool_use_id>` for a Claude Code tool result, and the `turn.id` of a Codex turn
-   cost;
-2. for Claude Code, `s-<session.id>:<event.sequence>`, for a listed or an unlisted event;
+1. the event's own key, where the product defines one: the `request_id` of a Claude Code request, or
+   its `client_request_id` when it has no `request_id`, and the `turn.id` of a Codex turn cost;
+2. for Claude Code, `s-<session.id>:<event.sequence>`;
 3. `h-` and a SHA-256 of these parts of the record: the product's own session ID, the event name,
    `timeUnixNano`, the body, and the attributes sorted by name.
 
 In the two Claude Code keys, `<session.id>` is Claude Code's own `session.id` attribute, even when
 the fact's session comes from `atc.session.id`.
 
-- The event name is part of the ID, so a Claude Code `api_request` and the `api_error` that shares
-  its request ID make two facts.
+- The event name is part of the ID, so two kept events of one product that share a key make two
+  facts.
 - The hash leaves out the resource and `observedTimeUnixNano`, the time a collector first saw the
   record, because a collector that forwards a record may set both again.
 
@@ -213,13 +227,13 @@ that machine from outside this plug-in.
   gets the ID of an earlier one, and the host skips the later event with no error.
 - The model request's `agent` column is always null: `read` recognises no attribute from either
   product as the subagent of a request.
-- The log keeps every record of a known product, tool and hook events included, though only model
-  requests and turn costs become rows.
+- The log keeps a Claude Code and a Codex `tool_decision` record, though only model requests and
+  turn costs become rows. It keeps no tool result, hook, prompt or assistant response.
 - Codex signed in with a ChatGPT account sends no `turn_cost` event, so its sessions have no cost in
   either table. Whether Codex with an API key sends one is not checked.
 - Codex's exporter sends each export once. When ingest answers 503, Claude Code sends the same
   export again, and Codex never does, so that export's records are lost.
-- Codex writes `atc.session.id` on the resource only, and its `api_request` records carry no
+- Codex writes `atc.session.id` on the resource only, and some of its records carry no
   `conversation.id`. Without `atc.session.id`, `read` drops those records.
 - One Codex turn can send several `response.completed` events, such as one for the model that
   reviews a command. Each one becomes a model request row.

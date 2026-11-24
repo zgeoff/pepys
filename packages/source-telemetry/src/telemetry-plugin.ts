@@ -1,6 +1,7 @@
 import { definePlugin, defineSource } from '@pepys/kit';
 import { logRecordFamily } from './log-record-family.ts';
 import { receiveOtlpLogs } from './otlp/receive-otlp-logs.ts';
+import { keptEvents } from './products/kept-events.ts';
 import { products } from './products/products.ts';
 import { sessionModelRequestsQuery } from './queries/session-model-requests-query.ts';
 import { telemetryModelRequestConsumer } from './telemetry-model-request-consumer.ts';
@@ -34,6 +35,7 @@ export const telemetrySource = defineSource({
       },
     ],
     products,
+    keptEvents,
 
     // atc stamps it on every record of a session it runs
     sessionAttribute: 'atc.session.id',

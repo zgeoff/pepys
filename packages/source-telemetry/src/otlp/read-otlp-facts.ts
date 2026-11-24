@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { parseEntityID } from '@pepys/kit';
 import type { LogRecordPayload } from '../log-record-family.ts';
+import { isKeptEvent } from '../products/kept-events.ts';
+import type { KeptEvent } from '../products/kept-events.ts';
 import type { TelemetryProduct } from '../products/types.ts';
 import { formatCanonicalJSON } from './format-canonical-json.ts';
 import { toAttributeMap } from './to-attribute-map.ts';
@@ -8,6 +10,9 @@ import type { AttributeValue, LogRecord, LogsExport, OtlpLogRecord } from './typ
 
 export interface OtlpReadOptions {
   products: readonly TelemetryProduct[];
+
+  // the events that make a fact; a record of any other event makes none and is not counted as dropped
+  keptEvents: readonly KeptEvent[];
 
   // the attribute that holds the session, read from the resource first and from the record second
   sessionAttribute: string;
@@ -36,7 +41,7 @@ export interface OtlpFacts {
   dropped: readonly DroppedRecord[];
 }
 
-// Pure. One fact per log record of a known product, with an ID that depends on the record alone.
+// Pure. One fact per log record of a known product and a kept event, with an ID that depends on the record alone.
 export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpFacts {
   const facts: TelemetryFact[] = [];
   const dropped: DroppedRecord[] = [];
@@ -54,6 +59,10 @@ export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpF
         };
 
         const built = buildFact(record, options);
+
+        if (built === 'not-kept') {
+          continue;
+        }
 
         if ('reason' in built) {
           dropped.push(built);
@@ -77,7 +86,7 @@ export function readOtlpFacts(body: LogsExport, options: OtlpReadOptions): OtlpF
 function buildFact(
   record: LogRecord,
   options: OtlpReadOptions,
-): Omit<TelemetryFact, 'payload'> | DroppedRecord {
+): Omit<TelemetryFact, 'payload'> | DroppedRecord | 'not-kept' {
   const owner = findOwner(record, options.products);
 
   if (owner === undefined) {
@@ -86,6 +95,11 @@ function buildFact(
 
   const product = owner.product;
   const event = owner.event;
+
+  if (!isKeptEvent(options.keptEvents, product.name, event, record)) {
+    return 'not-kept';
+  }
+
   const attribute = product.agentSessionAttribute;
   const agentSession = toText(record.attributes[attribute]) ?? toText(record.resource[attribute]);
 

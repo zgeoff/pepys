@@ -280,8 +280,8 @@ test('it answers 200 with {} to an export whose records are all dropped, and log
   const ctx = setupTest();
 
   const exported = buildLogsExport('codex', {}, [
-    { 'event.name': 'codex.user_prompt' },
-    { 'event.name': 'codex.user_prompt' },
+    { 'event.name': 'codex.turn_cost' },
+    { 'event.name': 'codex.turn_cost' },
     { 'event.name': 'other.event', 'conversation.id': 'x-3' },
   ]);
 
@@ -441,3 +441,157 @@ test.each([
     });
   },
 );
+
+test.each([
+  {
+    row: 'a Claude Code request',
+    product: 'claude_code',
+    record: { 'event.name': 'api_request', request_id: 'req_01', 'agent.id': 'sub-1' },
+    type: 'telemetry.claude_code.api_request',
+  },
+  {
+    row: 'a Claude Code tool decision',
+    product: 'claude_code',
+    record: { 'event.name': 'tool_decision', 'event.sequence': 4 },
+    type: 'telemetry.claude_code.tool_decision',
+  },
+  {
+    row: 'a Codex tool decision',
+    product: 'codex',
+    record: { 'event.name': 'codex.tool_decision' },
+    type: 'telemetry.codex.tool_decision',
+  },
+  {
+    row: 'a Codex completed response',
+    product: 'codex',
+    record: { 'event.name': 'codex.sse_event', 'event.kind': 'response.completed' },
+    type: 'telemetry.codex.sse_event',
+  },
+  {
+    row: 'a Codex turn cost',
+    product: 'codex',
+    record: { 'event.name': 'codex.turn_cost', 'turn.id': 't-1' },
+    type: 'telemetry.codex.turn_cost',
+  },
+] as const)('it stores $row from the forwarder, with every attribute', async (row) => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport(row.product, { 'atc.session.id': 's-9' }, [
+    { 'event.timestamp': '2026-11-11T02:21:30.000Z', 'session.id': 'c-1', ...row.record },
+  ]);
+
+  const response = await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const sent = exported.resourceLogs[0]?.scopeLogs[0]?.logRecords[0];
+
+  expect({ status: response.status, stored: await ctx.readStored() }).toStrictEqual({
+    status: 200,
+    stored: [
+      expect.objectContaining({
+        type: row.type,
+        payload: expect.objectContaining({ logRecord: sent }),
+      }),
+    ],
+  });
+});
+
+test.each([
+  { product: 'claude_code', record: { 'event.name': 'hook_execution_start' } },
+  { product: 'claude_code', record: { 'event.name': 'hook_execution_complete' } },
+  { product: 'claude_code', record: { 'event.name': 'tool_result', tool_use_id: 'toolu_01' } },
+  { product: 'claude_code', record: { 'event.name': 'assistant_response' } },
+  { product: 'claude_code', record: { 'event.name': 'user_prompt' } },
+  { product: 'claude_code', record: { 'event.name': 'mcp_server_connection' } },
+  { product: 'claude_code', record: { 'event.name': 'api_error', request_id: 'req_01' } },
+  { product: 'claude_code', record: { 'event.name': 'compaction' } },
+  { product: 'codex', record: { 'event.name': 'codex.tool_result' } },
+  { product: 'codex', record: { 'event.name': 'codex.user_prompt' } },
+  { product: 'codex', record: { 'event.name': 'codex.startup_phase' } },
+  { product: 'codex', record: { 'event.name': 'codex.websocket_request' } },
+  { product: 'codex', record: { 'event.name': 'codex.api_request' } },
+  {
+    product: 'codex',
+    record: { 'event.name': 'codex.sse_event', 'event.kind': 'response.created' },
+  },
+  { product: 'codex', record: { 'event.name': 'codex.sse_event' } },
+] as const)(
+  'it stores nothing for $record.event.name of $product, and logs no drop',
+  async (row) => {
+    const ctx = setupTest();
+
+    const exported = buildLogsExport(row.product, { 'atc.session.id': 's-9' }, [
+      { 'event.timestamp': '2026-11-11T02:21:30.000Z', ...row.record },
+    ]);
+
+    const response = await ctx.ingest.handleRequest(
+      new Request('http://ingest.test/forwarded/v1/logs', {
+        method: 'POST',
+        headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+        body: JSON.stringify(exported),
+      }),
+    );
+
+    expect({
+      status: response.status,
+      stored: await ctx.readStored(),
+      logged: ctx.readLogged(),
+    }).toStrictEqual({
+      status: 200,
+      stored: [],
+      logged: [],
+    });
+  },
+);
+
+test('it stores the kept records of an export that also holds dropped ones', async () => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport('codex', { 'atc.session.id': 's-9' }, [
+    { 'event.name': 'codex.tool_result', 'event.timestamp': '2026-11-11T02:21:00.000Z' },
+    {
+      'event.name': 'codex.turn_cost',
+      'turn.id': 't-1',
+      'event.timestamp': '2026-11-11T02:21:30.000Z',
+    },
+  ]);
+
+  await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const stored = await ctx.readStored();
+
+  expect(stored.map((fact) => fact.type)).toStrictEqual(['telemetry.codex.turn_cost']);
+});
+
+test('it stores a completed Codex response whose kind sits on the resource', async () => {
+  const ctx = setupTest();
+
+  const exported = buildLogsExport(
+    'codex',
+    { 'atc.session.id': 's-9', 'event.kind': 'response.completed' },
+    [{ 'event.name': 'codex.sse_event', 'event.timestamp': '2026-11-11T02:21:30.000Z' }],
+  );
+
+  await ctx.ingest.handleRequest(
+    new Request('http://ingest.test/forwarded/v1/logs', {
+      method: 'POST',
+      headers: { 'imp-identity': 'token-4', 'content-type': 'application/json' },
+      body: JSON.stringify(exported),
+    }),
+  );
+
+  const stored = await ctx.readStored();
+
+  expect(stored.map((fact) => fact.type)).toStrictEqual(['telemetry.codex.sse_event']);
+});
