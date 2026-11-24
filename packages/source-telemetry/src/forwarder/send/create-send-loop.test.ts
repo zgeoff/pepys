@@ -39,6 +39,10 @@ async function setupTest() {
   const trustDir = join(folder, 'trust');
 
   await mkdir(trustDir);
+  await mkdir(spoolDir);
+
+  // what `run` makes for a spool with no file yet
+  await writePositions(spoolDir, {});
 
   const created = await createIdentity({
     folder: join(folder, 'identity'),
@@ -135,7 +139,7 @@ async function setupTest() {
       jti: randomUUID(),
     });
 
-  const createLoop = (signToken: () => Promise<string>) =>
+  const createLoop = (signToken: () => Promise<string>, maxBytesPerSecond = 1_000_000_000) =>
     createSendLoop({
       folder: spoolDir,
       ingestURL: 'http://ingest.test',
@@ -177,6 +181,7 @@ async function setupTest() {
       },
       logger,
       failedCount: 0,
+      maxBytesPerSecond,
       requestTimeoutMs: 1000,
       pollMs: 1000,
     });
@@ -971,4 +976,91 @@ test('it sends each request with redirect handling set to manual, so a 3xx is an
   await loop.step();
 
   expect(ctx.requests.map((request) => request.redirect)).toStrictEqual(['manual']);
+});
+
+test('it waits out the bytes of the last request before it sends the next line of a backlog', async () => {
+  const ctx = await setupTest();
+  const first = await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-2');
+
+  // the loop sends a line's body, which is the export without the spool line's own fields
+  const rate = Math.floor(first.length / 2);
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity), rate);
+  const results = { sent: await loop.step() };
+
+  const paced = await loop.step();
+
+  const afterPause = { requests: ctx.requests.length };
+
+  ctx.clock.nowMs += paced ?? 0;
+
+  const resumed = await loop.step();
+
+  expect({
+    sent: results.sent,
+    pausedWithoutRequest: afterPause.requests === 1,
+    resumed,
+    requests: ctx.requests.length,
+  }).toStrictEqual({ sent: 0, pausedWithoutRequest: true, resumed: 0, requests: 2 });
+
+  expect(paced).toBeGreaterThan(1000);
+});
+
+test('it never pauses for steady traffic: one small export every 10 seconds', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity), 131_072);
+  const answers: (number | null)[] = [];
+
+  for (const turn of ['turn-1', 'turn-2', 'turn-3']) {
+    await ctx.writeExport(ctx.clock.nowMs, turn);
+
+    const answer = await loop.step();
+
+    answers.push(answer);
+
+    ctx.clock.nowMs += 10_000;
+  }
+
+  expect({ answers, requests: ctx.requests.length }).toStrictEqual({
+    answers: [0, 0, 0],
+    requests: 3,
+  });
+});
+
+test('it sends nothing and stops when positions.json is missing and a spool file is there', async () => {
+  const ctx = await setupTest();
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity));
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+
+  await rm(join(ctx.spoolDir, 'positions.json'));
+
+  const wait = await loop.step();
+
+  expect({
+    wait,
+    requests: ctx.requests.length,
+    state: loop.readState().send,
+    logged: ctx.logLines.filter((line) => line.includes('positions.json is missing')).length,
+  }).toStrictEqual({ wait: 900_000, requests: 0, state: 'stopped', logged: 1 });
+});
+
+test('it waits no longer than the pause of the last request when the clock is set back', async () => {
+  const ctx = await setupTest();
+
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-1');
+  await ctx.writeExport(ctx.clock.nowMs, 'turn-2');
+
+  const loop = ctx.createLoop(ctx.signWith(ctx.identity), 500);
+
+  await loop.step();
+
+  ctx.clock.nowMs -= 3_600_000;
+
+  const wait = await loop.step();
+
+  expect(wait).toBeLessThanOrEqual(2000);
 });

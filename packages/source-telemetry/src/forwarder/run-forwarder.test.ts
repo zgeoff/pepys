@@ -87,7 +87,7 @@ test('it receives an export and answers GET /health with send off when no ingest
   }).toStrictEqual({
     export: [200, {}],
     health: [200, { send: 'off', failed: 0 }],
-    names: ['<day>-logs.jsonl', 'forwarder.lock'],
+    names: ['<day>-logs.jsonl', 'forwarder.lock', 'positions.json'],
     ua: 'codex/1.0',
     exitCode: 0,
   });

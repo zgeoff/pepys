@@ -31,11 +31,11 @@ test('#readPositions reads what #writePositions wrote', async () => {
   });
 });
 
-test('#readPositions returns no position for a folder with no positions.json', async () => {
+test('#readPositions fails for a folder with no positions.json', async () => {
   const ctx = await setupTest();
   const positions = await readPositions(ctx.folder);
 
-  expect(positions).toStrictEqual({ ok: true, value: {} });
+  expect(positions).toStrictEqual({ ok: false, failure: 'positions.json is missing' });
 });
 
 test.each([

@@ -9,8 +9,18 @@ export interface ForwarderSettings {
   identityDir: string;
 
   // the send loop's settings; null when no ingest URL is set, and the forwarder only receives
-  send: { ingestURL: string; issuer: string; audience: string } | null;
+  send: {
+    ingestURL: string;
+    issuer: string;
+    audience: string;
+
+    // the most body bytes per second that the send loop sends while the spool holds a backlog
+    maxBytesPerSecond: number;
+  } | null;
 }
+
+// 128 KiB/s drains a 4 GB backlog in about 9 hours, and leaves 40 times the 3 KB/s of steady traffic
+const defaultMaxBytesPerSecond = 131_072;
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
@@ -59,13 +69,27 @@ export function resolveSettings(
     };
   }
 
+  const maxBytesPerSecond = parseByteRate(
+    findVariable('PEPYS_FORWARDER_MAX_BYTES_PER_SECOND') ?? String(defaultMaxBytesPerSecond),
+  );
+
+  if (maxBytesPerSecond === null) {
+    return {
+      ok: false,
+      failure: 'PEPYS_FORWARDER_MAX_BYTES_PER_SECOND must be a whole number above 0',
+    };
+  }
+
   if (!URL.canParse(ingestURL)) {
     return { ok: false, failure: 'PEPYS_FORWARDER_INGEST_URL is not a URL' };
   }
 
   return {
     ok: true,
-    value: { ...base, send: { ingestURL: ingestURL.replace(/\/+$/u, ''), issuer, audience } },
+    value: {
+      ...base,
+      send: { ingestURL: ingestURL.replace(/\/+$/u, ''), issuer, audience, maxBytesPerSecond },
+    },
   };
 }
 
@@ -77,4 +101,10 @@ function parsePort(text: string): number | null {
   const port = Number(text);
 
   return /^\d+$/u.test(text) && port <= 65_535 ? port : null;
+}
+
+function parseByteRate(text: string): number | null {
+  const rate = Number(text);
+
+  return /^\d+$/u.test(text) && Number.isSafeInteger(rate) && rate > 0 ? rate : null;
 }
