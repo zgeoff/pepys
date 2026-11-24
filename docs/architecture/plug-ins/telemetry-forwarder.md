@@ -98,6 +98,13 @@ than that limit. The send loop acts on each answer of ingest by the first row th
 - A 401, 403 or 404 means that the deployment does not trust the machine or has no sender route. The
   owner repairs that, so the send loop keeps every line.
 
+After a 2xx, the send loop starts the next request only when the body bytes of the last one have
+passed at the rate in `PEPYS_FORWARDER_MAX_BYTES_PER_SECOND`, whose default
+[the package README](../../../packages/source-telemetry/README.md) gives. The default lets a
+multi-gigabyte backlog drain over many hours, so a backlog cannot flood ingest again, and an export
+that arrives alone never waits. A large export holds the next request back for its size divided by
+the rate.
+
 The send loop sends no request during a wait, whatever the receiver stores. In `stopped`,
 `GET /health` answers 503, because most answers of that state need the owner: a deployment that does
 not trust the machine, or a fault of the deployment.
@@ -109,10 +116,12 @@ These cases need no answer from ingest:
 - The send loop leaves the last line of the newest spool file unsent while the line has no line
   break at its end, because the receiver can still be writing that line. In an older spool file, the
   send loop sends a last line with no line break.
-- The send loop enters `stopped` and sends nothing when `positions.json` does not parse, or holds an
-  offset past the end of its spool file. It reads the file again after each slow wait. The owner
-  then repairs the file, or deletes it, and the send loop sends every spool file again from its
-  start.
+- The send loop enters `stopped`, logs the reason once and sends nothing when `positions.json` is
+  missing while a spool file is there, does not parse, or holds an offset past the end of its spool
+  file. `run` makes an empty `positions.json` only for a spool folder with no spool file, so a lost
+  file never sends the whole spool again by itself. The send loop reads the file again after each
+  slow wait. The owner then writes the file back, or writes `{}` into it to send every spool file
+  again from its start.
 
 When the forwarder sends an export a second time, the tables that the queries read stay the same,
 because

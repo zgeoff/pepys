@@ -70,19 +70,19 @@ identity token that the machine signs with its own key.
    `systemctl --user enable --now pepys-telemetry-forwarder.service`.
 4. Point the agent's OTLP exporter at `http://127.0.0.1:4318`.
 
-`run` takes no flags and reads the variables below. `install` writes the last three into the unit
-from its flags, and copies each of the first four that is set in its own environment. To start `run`
-by hand, set them yourself. A second `run` on the same spool folder exits 1.
+`run` takes no flags and reads the variables below. `install` copies each of the first four that is
+set in its own environment, and writes the next three from its flags. Set them to start `run`.
 
-| Variable                       | Holds                                                                            | Default                                    |
-| ------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------ |
-| `PEPYS_FORWARDER_HOST`         | the address the receiver listens on                                              | `127.0.0.1`                                |
-| `PEPYS_FORWARDER_PORT`         | the port the receiver listens on                                                 | `4318`                                     |
-| `PEPYS_FORWARDER_SPOOL_DIR`    | the spool folder                                                                 | `~/.local/state/pepys-telemetry-forwarder` |
-| `PEPYS_FORWARDER_IDENTITY_DIR` | the folder of the private key and the machine's ID, mode 0700                    | `~/.config/pepys-telemetry-forwarder`      |
-| `PEPYS_FORWARDER_INGEST_URL`   | the URL of ingest, `https://<host>`; unset, the forwarder only receives          | none                                       |
-| `PEPYS_FORWARDER_ISSUER`       | the `issuer` of the trust document; needed with an ingest URL                    | none                                       |
-| `PEPYS_FORWARDER_AUDIENCE`     | the deployment's `PEPYS_TELEMETRY_FORWARDER_AUDIENCE`; needed with an ingest URL | none                                       |
+| Variable                               | Holds                                                                                           | Default                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `PEPYS_FORWARDER_HOST`                 | the address the receiver listens on                                                             | `127.0.0.1`                                |
+| `PEPYS_FORWARDER_PORT`                 | the port the receiver listens on                                                                | `4318`                                     |
+| `PEPYS_FORWARDER_SPOOL_DIR`            | the spool folder                                                                                | `~/.local/state/pepys-telemetry-forwarder` |
+| `PEPYS_FORWARDER_IDENTITY_DIR`         | the folder of the private key and the machine's ID, mode 0700                                   | `~/.config/pepys-telemetry-forwarder`      |
+| `PEPYS_FORWARDER_INGEST_URL`           | the URL of ingest, `https://<host>`; unset, the forwarder only receives                         | none                                       |
+| `PEPYS_FORWARDER_ISSUER`               | the `issuer` of the trust document; needed with an ingest URL                                   | none                                       |
+| `PEPYS_FORWARDER_AUDIENCE`             | the deployment's `PEPYS_TELEMETRY_FORWARDER_AUDIENCE`; needed with an ingest URL                | none                                       |
+| `PEPYS_FORWARDER_MAX_BYTES_PER_SECOND` | the most body bytes per second that the send loop sends after a 2xx; set it in the unit by hand | `131072`                                   |
 
 The receiver answers `GET /health` on the same port with `{"send":"sending","failed":0}`: the state
 of the send loop, and the count of lines that ingest refused for good. It answers 503 when `send` is

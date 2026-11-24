@@ -14,6 +14,7 @@ import type { SendState } from './send/types.ts';
 import { readSettings } from './settings/read-settings.ts';
 import type { ForwarderSettings } from './settings/read-settings.ts';
 import { countFailedLines } from './spool/count-failed-lines.ts';
+import { createPositionsFile } from './spool/create-positions-file.ts';
 import { createSpoolAppender } from './spool/create-spool-appender.ts';
 
 interface RunDependencies {
@@ -29,6 +30,7 @@ const lockFileName = 'forwarder.lock';
 interface Sender {
   ingestURL: string;
   audience: string;
+  maxBytesPerSecond: number;
   identity: Identity;
 }
 
@@ -59,6 +61,7 @@ export async function runForwarder(dependencies: RunDependencies): Promise<numbe
     sender = {
       ingestURL: listen.send.ingestURL,
       audience: listen.send.audience,
+      maxBytesPerSecond: listen.send.maxBytesPerSecond,
       identity: { ...identity.value, issuer: listen.send.issuer },
     };
   }
@@ -95,6 +98,8 @@ async function runWithSpool(
 
   const failedCount = await countFailedLines(listen.spoolDir);
 
+  await createPositionsFile(listen.spoolDir);
+
   const loop: SendLoop | null =
     sender === null
       ? null
@@ -113,6 +118,7 @@ async function runWithSpool(
           sleep: sleepUntilAborted,
           logger,
           failedCount,
+          maxBytesPerSecond: sender.maxBytesPerSecond,
           requestTimeoutMs,
           pollMs,
         });

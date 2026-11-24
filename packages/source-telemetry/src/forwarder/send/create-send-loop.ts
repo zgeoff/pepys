@@ -36,6 +36,9 @@ interface SendLoopOptions {
   failedCount: number;
   requestTimeoutMs: number;
   pollMs: number;
+
+  // The send loop starts no request until the body bytes of the last one, at this rate, have passed.
+  maxBytesPerSecond: number;
 }
 
 export interface SendLoop {
@@ -68,9 +71,10 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
   let state: SendState = { send: 'sending', failed: options.failedCount };
   let retryWaitMs = initialRetryWaitMs;
   let serverErrors = { key: '', count: 0 };
+  let paceUntilMs = 0;
   let wakeIdle: (() => void) | null = null;
 
-  const enter = (next: AnswerAction['state'], status: number | null): void => {
+  const enter = (next: AnswerAction['state'], status: number | null, reason?: string): void => {
     if (next === 'sending') {
       state = { send: 'sending', failed: state.failed };
 
@@ -80,7 +84,7 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     const since = state.send === next && state.since !== undefined ? state.since : toISO(options);
 
     if (state.send !== 'stopped' && next === 'stopped') {
-      options.logger.error('the send loop stopped', { status });
+      options.logger.error('the send loop stopped', { status, reason: reason ?? null });
     }
 
     state = { send: next, status, since, failed: state.failed };
@@ -113,8 +117,8 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     return action.wait === 'slow' ? slowRetryWaitMs : 0;
   };
 
-  const stopWithoutAnswer = (): number => {
-    enter('stopped', null);
+  const stopWithoutAnswer = (reason: string): number => {
+    enter('stopped', null, reason);
 
     return slowRetryWaitMs;
   };
@@ -123,7 +127,7 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     const positions = await readPositions(options.folder);
 
     if (!positions.ok) {
-      return stopWithoutAnswer();
+      return stopWithoutAnswer(positions.failure);
     }
 
     const files = await readSpoolFiles(options.folder);
@@ -131,7 +135,7 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
     const found = await readUnsent(options.folder, files, kept);
 
     if (found.kind === 'bad-position') {
-      return stopWithoutAnswer();
+      return stopWithoutAnswer('a position is past the end of its spool file');
     }
 
     if (found.kind === 'none') {
@@ -147,14 +151,28 @@ export function createSendLoop(options: SendLoopOptions): SendLoop {
       return 0;
     }
 
+    // a wait with no request leaves the line where it is, and an idle loop never reaches this
+    const owedMs = paceUntilMs - options.now();
+
+    if (owedMs > 0) {
+      return owedMs;
+    }
+
     const key = `${found.unsent.name}:${found.unsent.offset}`;
     const earlierErrors = serverErrors.key === key ? serverErrors.count : 0;
+    const sendStartMs = options.now();
 
     const answer = await send(options, parsed.requestBody);
 
     const action = pickAnswerAction(answer.status, earlierErrors);
 
     serverErrors = { key, count: action.serverErrors };
+
+    if (action.move === 'sent') {
+      paceUntilMs =
+        sendStartMs +
+        Math.floor((Buffer.byteLength(parsed.requestBody) * 1000) / options.maxBytesPerSecond);
+    }
 
     if (action.move === 'failed') {
       await moveFailed(found.unsent, {

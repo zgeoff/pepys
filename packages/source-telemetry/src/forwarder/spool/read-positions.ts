@@ -12,7 +12,10 @@ const positionsSchema = z.record(
   }),
 );
 
-// A missing file means no position yet. A file that does not parse fails.
+export const missingPositionsFailure = 'positions.json is missing';
+
+// A missing file fails, like one that does not parse: with the spool's files still there, an empty
+// answer would send the whole spool again.
 export async function readPositions(folder: string): Promise<Result<Positions, string>> {
   let text: string;
 
@@ -20,7 +23,7 @@ export async function readPositions(folder: string): Promise<Result<Positions, s
     text = await readFile(join(folder, 'positions.json'), 'utf8');
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return { ok: true, value: {} };
+      return { ok: false, failure: missingPositionsFailure };
     }
 
     return { ok: false, failure: 'positions.json cannot be read' };
