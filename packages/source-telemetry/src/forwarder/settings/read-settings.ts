@@ -20,7 +20,7 @@ export interface ForwarderSettings {
 }
 
 // 128 KiB/s drains a 4 GB backlog in about 9 hours, and leaves 40 times the 3 KB/s of steady traffic
-export const defaultMaxBytesPerSecond = 131_072;
+const defaultMaxBytesPerSecond = 131_072;
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
