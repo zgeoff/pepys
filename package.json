@@ -20,7 +20,7 @@
       "@orpc/mcp": "2.0.0-beta.50",
       "@orpc/openapi": "2.0.0-beta.50",
       "@orpc/server": "2.0.0-beta.50",
-      "@s2-dev/streamstore": "0.31.0",
+      "@s2-dev/streamstore": "0.32.0",
       "@scriptc/runtime-wasm32-wasi": "0.4.5",
       "@stylistic/eslint-plugin": "5.10.0",
       "@tsconfig/strictest": "2.0.9",
