@@ -1,7 +1,7 @@
 # mcp-queries
 
 An agent with no person present calls pepys's queries as MCP tools at the API's `/mcp`. Run this
-journey on `local`, and check its end state. After a deploy, also run the steps in
+journey on `local`, and check its end state. After a deploy, also run the two reads in
 [On prod](#on-prod) against the deployed pepys.
 
 The agent signs in as a service client: it trades the client's ID and secret for an access token at

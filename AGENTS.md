@@ -24,9 +24,9 @@ Load the skill for a task before you start it: this file doesn't repeat its rule
 
 When you write or edit a skill:
 
-1. Load the `docs-writing`, `project-docs-writing`, `skill-writing`, `cold-read` and `deslop` skills
-   from `.agents/skills/`, which `.claude/skills` links to. repo-sync delivers them there at the
-   `zgeoff/skills` commit that `zgeoff/tools` pins, so install none of them yourself.
+1. Load the `skill-writing`, `cold-read` and `deslop` skills from `.agents/skills/`, which
+   `.claude/skills` links to. repo-sync delivers them there at the `zgeoff/skills` commit that
+   `zgeoff/tools` pins, so install none of them yourself.
 2. Do every step in the "Check it" section of `.agents/skills/skill-writing/SKILL.md`. In its last
    step, you fill the `## Checks` section of the PR template.
 

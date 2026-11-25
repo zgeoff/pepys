@@ -19,7 +19,7 @@ finding has a home.
 
 - Give the spike the README and `results.md` shape in the
   [Spikes section of docs-writing's docs-tree reference](../docs-writing/references/docs-tree.md#spikes).
-- Add a row for the spike to the table in [research/README.md](../../../research/README.md).
+- [research/README.md](../../../research/README.md) holds the index.
 - In a design doc, link the spike instead of repeating its numbers or its method, so each number has
   one owner. Link `results.md` when you cite a measurement.
 

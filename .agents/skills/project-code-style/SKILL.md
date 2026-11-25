@@ -88,9 +88,8 @@ packages/example/src/
 
 ## Consumers
 
-- Write the consumer's logic, such as `applyFact`, as a pure function. It takes one input and
-  returns a list of operations, and the same input always gives the same list. The `init` and
-  `update` wrappers in [Departures](#departures) only pass their arguments on. Read the
+- Write a consumer as a pure function. It takes one input and returns a list of operations, and the
+  same input always gives the same list. Read the
   [host doc](../../../docs/architecture/consumers/host.md) for the two input modes, fact and scope,
   and for the operations the host applies to the store.
 - Never read a clock, a random source, the network or a file in a consumer. Take a time from a field
