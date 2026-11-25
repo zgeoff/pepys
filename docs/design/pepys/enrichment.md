@@ -3,7 +3,9 @@
 Enrichment is the part of pepys that calls outside the process: git, a MIME parser, a model API, an
 embedding model. It runs as a TypeScript service on Bun, because its time goes to waiting on git,
 disks and networks. Every result returns to the log as a fact, so a replay reads the stored result
-and never repeats the outside call. Enrichment never writes the store.
+and never repeats the outside call. Enrichment never writes the store, which is the consumer files;
+a consumer projects each result from its fact. Its own fact-ID lookup file and its blobs sit outside
+the store.
 
 ## The write-back pattern
 
@@ -62,8 +64,8 @@ compared the parsers on an invented corpus.
 ### Models
 
 High-volume typed decisions go to Jev, through its API. Jev returns one choice from a set the caller
-defines, with a calibrated probability, which matches labelling an email or judging a candidate
-pair. Jev does not find links: code proposes each candidate pair, and Jev only judges it.
+defines, with a calibrated probability. That fits labelling an email and judging a candidate pair.
+Jev does not find links: code proposes each candidate pair, and Jev only judges it.
 
 The link judgement job asks one question per candidate pair, each with the answers related,
 unrelated and unclear, and sends every pair for one input in one call. One question per pair lets an
@@ -84,10 +86,11 @@ Claude, on the owner's subscription, does agent work over MCP, such as briefs an
 work reads the graph and is not an enrichment job. When an agent's output must become a fact, it
 follows the same write-back pattern.
 
-pepys runs no local language model. LEAF-IR is a small embedding model that runs on the CPU, so the
-embedding job runs locally. The job runs LEAF-IR's fp32 weights through `@huggingface/transformers`,
-one text per call, and truncates a text past the model's 512-token limit. The q8 weights are faster,
-but a q8 vector changes with the batch it runs in, as the
+pepys runs no local language model. LEAF-IR is an embedding model, not a language model, and is
+small enough to run on the CPU, so the embedding job runs locally. The job runs LEAF-IR's fp32
+weights through `@huggingface/transformers`, one text per call, and truncates a text past the
+model's 512-token limit. The q8 weights are faster, but a q8 vector changes with the batch it runs
+in, as the
 [LEAF-IR spike](https://github.com/zgeoff/pepys/blob/894eb4e7f9bf702d77d797475ab45ddef47b37c4/research/leaf-ir-bun/README.md)
 measured.
 

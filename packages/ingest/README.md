@@ -11,7 +11,7 @@
   </p>
 </div>
 
-pepys ingest, for Bun: it receives each source's deliveries and appends them to the fact log.
+pepys ingest, for Bun, receives each source's deliveries and appends them to the fact log.
 
 A deployment serves one receive route for each receive path of its sources. Each route checks its
 delivery, and appends the facts it reads to the fact log. A receive path can also declare sender
@@ -41,12 +41,15 @@ PEPYS_S2_ENDPOINT=http://127.0.0.1:8090 PEPYS_S2_BASIN=pepys bun serve-ingest.ts
 
 ## Features
 
-- `serveIngest` and `createIngest`: the receive routes of a deployment.
+- `serveIngest` serves a deployment's receive routes, and `createIngest` returns them as one fetch
+  function with no listener.
 - The sender proof port, with the adapter that verifies a worker machine's identity token through
   `@impz/client/identity`.
 - The fact log port, with its S2 and memory adapters.
-- The blob store port, with its Garage and local folder adapters.
+- The blob store port, with its Garage and local folder adapters, for a large file stored beside the
+  log. Ingest's routes write no blob.
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of ingest and the log.
+Read [Ingest](../../docs/architecture/ingest/ingest.md) for the routes and the delivery check, and
+[the fact log](../../docs/architecture/ingest/fact-log.md) for the streams ingest appends to.

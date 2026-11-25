@@ -14,7 +14,7 @@ commands. `run` starts its two parts:
 - The send loop reads the spool files, and posts each export to the
   [sender route](./telemetry.md#the-sender-route) of ingest.
 
-`install` sets a machine up, as [Identity and install](#identity-and-install) describes.
+`install` sets a machine up; see [Identity and install](#identity-and-install).
 
 ## The receiver
 
@@ -40,7 +40,8 @@ With no ingest URL set, `run` starts the receiver alone, and the send state is `
 
 ## The spool folder
 
-The receiver and the send loop share only the files of the spool folder. The receiver therefore
+The receiver and the send loop pass exports to each other only through the files of the spool
+folder. The receiver reads the send state only to answer `GET /health`. The receiver therefore
 stores exports while the send loop waits on ingest, and the send loop sends the spool while no
 export arrives.
 
@@ -54,8 +55,8 @@ export arrives.
 A line holds the time of receipt, the path `/v1/logs`, the exporter's `user-agent` and the export as
 parsed JSON. The send loop never deletes a file under `failed/`. It deletes a spool file of an
 earlier day a week after it first finds the file with no unsent line, and it keeps the time of that
-find in `positions.json`, so a restart of `run` leaves the week as it was. A line that the send loop
-gave up on counts as sent.
+find in `positions.json`, so the week survives a restart of `run`. A line that the send loop gave up
+on counts as sent.
 
 At most one `run` process works on a spool folder, because two send loops would each overwrite the
 positions that the other wrote. `run` holds a kernel lock on `forwarder.lock` for as long as it
@@ -77,8 +78,8 @@ those syncs. A power failure therefore loses nothing that the forwarder has acte
 
 The send loop has one request in flight. Before each request it picks the newest spool file that
 holds an unsent line, and sends the first unsent line of that file. An export of today therefore
-never waits behind the unsent lines of earlier days. The send loop has two waits, and the code sets
-the length of each. The retry wait doubles after each answer of the table's last row, up to a limit,
+never waits behind the unsent lines of earlier days. The send loop has two waits, each with a length
+fixed in the code. The retry wait doubles after each answer of the table's last row, up to a limit,
 and returns to its first length when the position moves. The slow wait is one fixed length, longer
 than that limit. The send loop acts on each answer of ingest by the first row that fits:
 
@@ -99,8 +100,8 @@ than that limit. The send loop acts on each answer of ingest by the first row th
   owner repairs that, so the send loop keeps every line.
 
 The send loop sends no request during a wait, whatever the receiver stores. In `stopped`,
-`GET /health` answers 503, because most answers of that state need the owner: a deployment that does
-not trust the machine, or a fault of the deployment.
+`GET /health` answers 503, because the owner must repair most causes of that state: a deployment
+that does not trust the machine, or a fault of the deployment.
 
 These cases need no answer from ingest:
 
@@ -111,8 +112,8 @@ These cases need no answer from ingest:
   send loop sends a last line with no line break.
 - The send loop enters `stopped` and sends nothing when `positions.json` does not parse, or holds an
   offset past the end of its spool file. It reads the file again after each slow wait. The owner
-  then repairs the file, or deletes it, and the send loop sends every spool file again from its
-  start.
+  then repairs the file or deletes it. After a delete, the send loop sends every spool file again
+  from its start.
 
 When the forwarder sends an export a second time, the tables that the queries read stay the same,
 because
@@ -128,20 +129,18 @@ the facts to the fact log, the record of every fact that ingest stored, and chan
 the subject of each token. It writes a systemd user unit that runs `run`, and prints the machine's
 trust document: the issuer name that the owner gave `install`, and the public half of the key. The
 owner adds that document to the [folder of trust documents](./telemetry.md#the-sender-route) of the
-deployment, which is how ingest comes to trust the machine. The deployment never holds the private
-half.
+deployment, and ingest then trusts the machine. The deployment never holds the private half.
 
 `install` enables and starts nothing, and never replaces a key or a machine ID that the identity
-folder holds. A second `install` therefore prints the same trust document.
-[The package README](../../../packages/source-telemetry/README.md#the-forwarder) gives the commands
-and the settings.
+folder holds. A second `install` therefore prints the same trust document. For the commands and the
+settings, see [the package README](../../../packages/source-telemetry/README.md#the-forwarder).
 
 The send loop signs a new token for each request. The token's `iat` is earlier than the machine's
 clock by a fixed shift, because ingest refuses a token whose `iat` is ahead of its own clock, and
 the clock of a PC can run ahead. The header is named `imp-identity` and the claim `imp_name`, as
 impz names them, because ingest checks the token with the verifier that checks a token from impz.
 
-Every process of the machine's user can post to the receiver, and can read the key. Ingest can
-therefore tell one machine from another, and cannot tell the processes of one machine apart.
-[Who can write through the route](../../design/telemetry-forwarder/sender-route.md#who-can-write-through-the-route)
-lists what that lets a process write.
+The receiver takes an export with no credential, so every process on the machine that reaches the
+loopback address can send exports through the forwarder, including the processes of a second user.
+Every process of the machine's user can also read the key. Ingest therefore cannot tell the
+processes of one machine apart, and tells only one machine from another.

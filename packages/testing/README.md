@@ -15,7 +15,8 @@ Test a pepys plug-in on Bun, with no host and no network.
 
 The test store runs a plug-in's consumers over one in-memory database, with every table, the link
 table and the shared views, and answers the plug-in's queries. It repeats the host's link check and
-scope replace in TypeScript. It does not prove the scriptc compile or the Rust host.
+scope replace in TypeScript. A passing test proves nothing about the scriptc compile or the Rust
+host.
 
 ## Install
 
@@ -25,8 +26,8 @@ bun add -d @pepys/testing
 
 Set the compiler options from the [kit's README](../kit/README.md#configuration).
 
-Then apply facts, and test a query on the rows that the plug-in's consumers write from them. A query
-test that seeds through the consumers fails when a consumer changes the shape of its rows:
+Then apply facts, and test a query on the rows that the plug-in's consumers write from them. Seed a
+query test through the consumers, so the test fails when a consumer changes the shape of its rows:
 
 ```ts
 import { expect, test } from 'bun:test';
@@ -67,4 +68,5 @@ bun test
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the test store.
+For the plug-in that the test store runs, read
+[Plug-ins and the build](../../docs/architecture/consumers/plug-ins-and-build.md).

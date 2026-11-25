@@ -2,13 +2,13 @@
 
 Pull requests, releases and model requests are entities: each one is one thing from one source. A
 link joins two entities by their IDs, with a type, a confidence and the fact it rests on. A
-consumer, the code in a plug-in that turns facts into rows, writes both. The host keeps each
-consumer's rows in a database file of its own, as
+consumer, the code in a plug-in that turns facts into rows, returns both, and the host writes them.
+The host keeps each consumer's rows in a database file of its own, as
 [the host](../consumers/host.md#commands-and-the-store-folder) describes.
 
-A query in pepys reads the entities and links of every source through two shared views, `entity` and
-`link_effective`, whatever consumer wrote the rows. The API builds the two shared views for each
-query, from the files of the consumers that the query reads.
+A query built with Kysely, the API's query builder, reads the entities and links of every source
+through two shared views, `entity` and `link_effective`, whatever consumer wrote the rows. For each
+such query, the API builds the two views from the files of the consumers that the query reads.
 
 - [Plug-ins and the build](../consumers/plug-ins-and-build.md) covers how a consumer declares its
   tables, entity views and link types.
@@ -83,8 +83,8 @@ The kinds with an entity view in this repo's plug-ins are:
 The API's store reader opens one connection for a call and attaches each consumer file the call
 reads, as [One call](./api.md#one-call) describes. A view across all the attached files would have
 to be a temporary view, and Turso, the SQLite engine of the store, refuses a temporary view over
-attached files. The store reader therefore puts two common table expressions in front of each query,
-and these are the shared views:
+attached files. The store reader therefore puts the shared views in front of each query as two
+common table expressions:
 
 - `entity`: a `union all` of the `entity` view of each attached file that has one;
 - `link_effective`: a `union all` of the `link` table of each attached consumer that declares a link
@@ -92,10 +92,9 @@ and these are the shared views:
 
 The shared `entity` has the same name as each file's own `entity` view. Inside the query, SQLite
 resolves the bare name `entity` to the common table expression. The store reader adds the two shared
-views only to a query built with Kysely, the API's query builder. A query in raw SQL that names
-`entity` or `link_effective` throws a `SharedViewInRawSQLError`, and the fix is to build that query
-with the query builder. A raw query may name `<consumer>.entity`, which is one file's own view, and
-any table of a consumer.
+views only to a query built with Kysely. A query in raw SQL that names `entity` or `link_effective`
+throws a `SharedViewInRawSQLError`: build that query with the query builder instead. A raw query may
+name `<consumer>.entity`, which is one file's own view, and any table of a consumer.
 
 A consumer can keep the row of a deleted entity. Take a release that GitHub deletes: the consumer
 stores the delete, and a fact from before the delete can still arrive later. A kept row lets the
@@ -116,16 +115,17 @@ GitHub plug-in's own queries skip it too.
 ## Aliases
 
 `get_entity` takes one text input, which holds an entity ID or an alias. Text with the form in
-[Entity IDs](#entity-ids) is an ID: a lowercase source, a `:`, a lowercase kind, a `:`, and a last
-part that is not empty. The API treats any other text as an alias. An alias is the text a person
-writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pull/412` for a pull
-request.
+[Entity IDs](#entity-ids) is an ID: a lowercase source, a `:`, a lowercase kind name, a `:`, and a
+last part that is not empty. The API treats any other text as an alias. An alias is the text a
+person writes for an entity, such as `acme/api#412` or `https://github.com/acme/api/pull/412` for a
+pull request.
 
 To keep aliases, a consumer declares a table beside the table of its entity view, named after that
 table with `_alias` added, such as `github_pull_request_alias`. The alias table holds three columns:
-`alias`, the text key, `entity_id`, and `updated_at`, the source update time of the newest fact that
-names the alias. [The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check)
-refuses an alias table of any other shape.
+`alias`, which is the text key; `entity_id`; and `updated_at`, the source update time of the newest
+fact that names the alias.
+[The deployment check](../consumers/plug-ins-and-build.md#the-deployment-check) refuses an alias
+table of any other shape.
 
 The consumer writes an alias row for the entity of a fact when no row holds the alias, or when the
 fact's source update time is newer than the stored `updated_at`. At an equal time, the later fact in

@@ -1,10 +1,11 @@
 # pepys design
 
-This folder holds the design of the parts of pepys that are not built yet, one doc per part, as
-[Design docs](#design-docs) lists. [The architecture overview](../../architecture/overview.md)
-describes the part that is built, and defines the terms these docs use, such as fact, consumer,
-scope, plug-in and deployment. Where a design here and an architecture doc differ about the built
-part, the architecture doc is right.
+Each part of pepys that is not built yet has one design doc in this folder, listed under
+[Design docs](#design-docs). For the part that is built, and for the terms these docs use, such as
+fact, consumer, scope, plug-in and deployment, read
+[the architecture overview](../../architecture/overview.md). Where a design here and an architecture
+doc differ about the built part, follow the architecture doc. Read the doc of a part before you
+design or build that part.
 
 The question pepys exists to answer is "what is waiting on me, across everything?". Every part below
 keeps the split that the built part keeps: facts are kept forever and never change, and everything
@@ -35,4 +36,4 @@ stays pure.
 ## Spikes
 
 Each spike settles one open question before the work that depends on it starts. The spikes live in
-[research/](../../../research/README.md), whose index says what each one answers.
+[research/](../../../research/README.md), and its index gives the question each one answers.

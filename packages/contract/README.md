@@ -13,7 +13,7 @@
 
 The oRPC contract of the pepys core queries, for Bun.
 
-The pepys API serves this contract, and a client types its calls of the core queries with it.
+The pepys API serves this contract. Use the contract to type a client's calls of the core queries.
 
 ## Install
 
@@ -39,7 +39,9 @@ const around = await api.neighbourhood({ id: 'github:pull_request:9001' });
 ## Features
 
 - `coreContract`: the routes of the core queries, with their input and output schemas.
+- `CoreContract`: the type of `coreContract`, to type a client.
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the API.
+For the core queries and how the API serves them, read
+[the API](../../docs/architecture/queries/api.md).

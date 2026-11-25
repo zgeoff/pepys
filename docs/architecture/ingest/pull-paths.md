@@ -1,30 +1,32 @@
 # Pull paths
 
-A pull path is a function of a source that [ingest](./ingest.md) runs on a timer to get facts from
-the source. This doc covers the timers, the lock of a source, resync marks and saved cursors.
+A pull path is a function of a source that [ingest](./ingest.md) runs to get facts from the source,
+on a timer when the path sets an interval. This doc covers the timers, the lock of a source, resync
+marks and saved cursors.
 
 Ingest starts one timer for each pull path that sets an interval. Ingest never runs a pull path with
-no interval on its own. Code that holds the result of `createIngest` can run such a path once
-through `runPull`, as the tests do.
+no interval on its own. To run such a path once, call `runPull` on the result of `createIngest`, as
+the tests do.
 
 Ingest holds one lock per source, in memory. A run takes the lock of its source before its pull
-starts, so two pull paths of one source never run at the same time, and the pull paths of two
-sources do. A `runPull` call takes the same lock as a timer's run.
+starts, so two pull paths of one source never run at the same time. Pull paths of different sources
+can. A `runPull` call takes the same lock as a timer's run.
 
-A run that finds the lock taken waits, and the waiting runs go in the order they asked. A timer
-starts no run while its last run waits or runs, so each timer has at most one run in the queue. A
-waiting run keeps its turn, because a skipped turn would leave an hourly pull two hours between
-runs. When ingest stops, a waiting run ends, and its pull never starts.
+A run that finds the lock taken waits, and the waiting runs go in the order they asked. A timer that
+fires while its last run waits or runs starts no new run, so each timer has at most one run in the
+queue. The waiting run keeps its place in the queue, because dropping it for the next timer would
+leave an hourly pull two hours between runs. When ingest stops, a waiting run ends, and its pull
+never starts.
 
 A pull's batch goes through the same batch checks and appends as a delivery. When a pull returns a
 fact with a blob, ingest appends nothing from that run, logs the error, and keeps the cursor.
 
 Ingest keeps resync marks, one per entity whose row may be stale. A delivery on a receive path can
-set a mark, and the resync pull of the same ingest process reads the marks.
-[The resync pull](../plug-ins/github.md#the-resync-pull) lists when the GitHub webhook sets one.
-Ingest removes each mark only after the run's whole batch is stored, so a failed run keeps every
-mark for the next one. Ingest keeps the marks in memory, at most 10,000 per source with the oldest
-dropped first, and a restart loses them.
+set a mark, and the resync pull of the same ingest process reads the marks. For when the GitHub
+webhook sets a mark, see [The resync pull](../plug-ins/github.md#the-resync-pull). Ingest removes
+each mark only after the run's whole batch is stored, so a failed run keeps every mark for the next
+one. Ingest keeps the marks in memory, at most 10,000 per source with the oldest dropped first, and
+a restart loses them.
 
 ## Cursors
 

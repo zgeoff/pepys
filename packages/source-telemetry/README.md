@@ -14,8 +14,8 @@
 
 The pepys telemetry plug-in, for Bun.
 
-The plug-in receives the OTLP log exports of coding agents as facts, and builds one row per model
-request and one per reported turn cost with its two consumers.
+The plug-in receives the OTLP log exports of coding agents as facts. Its two consumers build one row
+per model request and one per reported turn cost.
 
 ## Install
 
@@ -24,8 +24,8 @@ bun add @pepys/source-telemetry @pepys/kit
 bun add -d @pepys/cli
 ```
 
-Add the plug-in to a deployment, then build its consumers. The build compiles each consumer, which
-needs zig and wasm-tools, as the [CLI README](../cli/README.md) says.
+Install zig and wasm-tools, which the build needs ([CLI README](../cli/README.md)). Then add the
+plug-in to a deployment and build its consumers.
 
 ```ts
 // deployment.ts
@@ -49,15 +49,15 @@ bunx pepys build deployment.ts --out build
 
 ## The forwarder
 
-This package ships [the forwarder](../../docs/architecture/plug-ins/telemetry-forwarder.md), the
-program `pepys-telemetry-forwarder`, for a machine that impz does not run, such as the owner's PC.
-It spools each OTLP log export of a coding agent, and sends it to the
-[sender route](../../docs/architecture/plug-ins/telemetry.md#the-sender-route) of ingest with an
-identity token that the machine signs with its own key.
+On a machine that impz does not run, such as the owner's PC, run `pepys-telemetry-forwarder`,
+[the forwarder](../../docs/architecture/plug-ins/telemetry-forwarder.md) that this package ships. It
+spools each OTLP log export of a coding agent, and sends it to ingest's
+[sender route](../../docs/architecture/plug-ins/telemetry.md#the-sender-route) with an identity
+token that the machine signs with its own key.
 
 1. Install the package for the machine's user, and run `install`. It makes the machine's key and ID,
-   writes a systemd user unit that it never starts, and prints the machine's trust document, its
-   issuer name and public key.
+   writes a systemd user unit that it never starts, and prints the machine's trust document, which
+   holds its issuer name and public key.
 
    ```sh
    bun add --global --exact @pepys/source-telemetry@<version>
@@ -66,13 +66,12 @@ identity token that the machine signs with its own key.
    ```
 
 2. Copy `study-pc.json` into ingest's folder at `PEPYS_TELEMETRY_FORWARDER_ISSUERS`.
-3. Start the unit, which runs `pepys-telemetry-forwarder run`:
-   `systemctl --user enable --now pepys-telemetry-forwarder.service`.
+3. Run `systemctl --user enable --now pepys-telemetry-forwarder.service` to start the unit.
 4. Point the agent's OTLP exporter at `http://127.0.0.1:4318`.
 
-`run` takes no flags and reads the variables below. `install` writes the last three into the unit
-from its flags, and copies each of the first four that is set in its own environment. To start `run`
-by hand, set them yourself. A second `run` on the same spool folder exits 1.
+The unit runs `run`, which takes no flags and reads the variables below. `install` writes the last
+three into the unit from its flags, and copies each of the first four that is set in its own
+environment. A second `run` on the same spool folder exits 1.
 
 | Variable                       | Holds                                                                            | Default                                    |
 | ------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -97,4 +96,5 @@ of the send loop, and the count of lines that ingest refused for good. It answer
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the plug-ins.
+Read [the telemetry plug-in](../../docs/architecture/plug-ins/telemetry.md) for the routes, the
+facts and the consumers.

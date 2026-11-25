@@ -18,17 +18,16 @@ All three paths produce events wherever the source has a history API. Observatio
 gap longer than the source keeps its history, and for objects with no history API, such as Gmail
 labels. The first two sources fill the three paths as follows.
 
-| Source | Live                                     | Recovery                                | Backfill        |
-| ------ | ---------------------------------------- | --------------------------------------- | --------------- |
-| GitHub | GitHub App webhooks                      | failed deliveries from the delivery log | timeline APIs   |
-| Gmail  | polling `history.list` from a history ID | the same poll, resumed from its cursor  | `messages.list` |
+| Source | Live                                     | Recovery                                                                       | Backfill        |
+| ------ | ---------------------------------------- | ------------------------------------------------------------------------------ | --------------- |
+| GitHub | GitHub App webhooks                      | failed deliveries from the delivery log                                        | timeline APIs   |
+| Gmail  | polling `history.list` from a history ID | the same poll, resumed from its cursor, or a full sync once the cursor expires | `messages.list` |
 
 ## GitHub
 
 After an outage longer than GitHub keeps its webhook deliveries, ingest polls the affected objects
-once and writes observations. The
-[source retention spike](../../../research/source-retention/README.md) quotes GitHub's limit and
-probes it.
+once and writes observations. For GitHub's limit and a probe of it, see the
+[source retention spike](../../../research/source-retention/README.md).
 
 Backfill reads the pull request and issue timeline APIs, which return past events with their times.
 Those events go into the same stream as the live events for the same entity.
@@ -49,7 +48,8 @@ reference to the raw blob. The raw message keeps everything; enrichment extracts
 Gmail keeps a history ID valid for no fixed time: by its documentation, typically at least a week,
 and in rare cases only a few hours. When the stored history ID has expired, Gmail returns HTTP 404,
 and ingest runs one full sync from `messages.list` before it resumes polling, whatever the length of
-the outage.
+the outage. The full sync writes observations, because the gap is longer than Gmail kept its
+history.
 
 ## Writes
 

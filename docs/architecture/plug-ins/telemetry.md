@@ -1,23 +1,24 @@
 # The telemetry plug-in
 
 The telemetry plug-in, `@pepys/source-telemetry`, stores the OpenTelemetry log records that Claude
-Code and Codex export, one fact per record. Its two consumers write two tables: one row for each
-model request, and one row for each turn of a session that reports a cost. A caller adds up what a
-session cost from the two tables without counting anything twice.
+Code and Codex export, one fact per record that names its product, session and time. Its two
+consumers write two tables: one row for each model request, and one row for each turn of a session
+that reports a cost. A caller adds up what a session cost from the two tables without counting
+anything twice.
 
-Each export carries two tokens. An OTLP exporter cannot sign a body, so ingest checks a shared token
-in place of a signature. Ingest also checks the identity token of the machine that sent the export,
-and each fact keeps that machine's identity as its origin. The exporter writes each record's session
-ID itself, so one machine can send records under the session ID of a session that runs on another
-machine. A caller therefore trusts a row for a session only when the row's origin is the machine
-that runs that session.
+Each export to `/v1/logs` carries two tokens. An OTLP exporter cannot sign a body, so ingest checks
+a shared token in place of a signature. Ingest also checks the identity token of the machine that
+sent the export, and each fact keeps that machine's identity as its origin. The exporter writes each
+record's session ID itself, so one machine can send records under the session ID of a session that
+runs on another machine. Trust a row for a session only when the row's origin is the machine that
+runs that session.
 
 atc, the tool that runs agent sessions, stamps an `atc.session.id` attribute on every record of a
 session it runs.
 
-[Ingest](../ingest/ingest.md#the-sender-proof) covers the identity check.
-[The host](../consumers/host.md#a-fact-mode-batch) covers how it applies each fact ID once.
-[Entities and links](../queries/entities-and-links.md) covers the telemetry entity IDs.
+See [Ingest](../ingest/ingest.md#the-sender-proof) for the identity check. See
+[The host](../consumers/host.md#a-fact-mode-batch) for how it applies each fact ID once. See
+[Entities and links](../queries/entities-and-links.md) for the telemetry entity IDs.
 
 ## The paths
 
@@ -36,15 +37,15 @@ exporter set to send all three signals sees each export succeed. `/forwarded/v1/
 [sender route](../ingest/ingest.md#sender-routes) for a machine outside impz, and takes the limits
 below too.
 
-An export holds many records, so `/v1/logs` takes a larger body and more facts than ingest's other
-routes take. The plug-in file,
-[`telemetry-plugin.ts`](../../../packages/source-telemetry/src/telemetry-plugin.ts), sets both
+An export holds many records, so `/v1/logs` and `/forwarded/v1/logs` take a larger body and more
+facts than ingest's other routes take. The plug-in file,
+[`telemetry-plugin.ts`](../../../packages/source-telemetry/src/telemetry-plugin.ts), holds both
 limits:
 
-| Limit               | Default for a route | `/v1/logs` |
-| ------------------- | ------------------- | ---------- |
-| body size, in bytes | 1,048,576           | 4,194,304  |
-| facts in one export | 100                 | 1,000      |
+| Limit               | Default for a route | `/v1/logs` and `/forwarded/v1/logs` |
+| ------------------- | ------------------- | ----------------------------------- |
+| body size, in bytes | 1,048,576           | 4,194,304                           |
+| facts in one export | 100                 | 1,000                               |
 
 An exporter drops an export that gets a 4xx. Ingest therefore answers 400 only when the
 `Content-Type` is not `application/json`, or the body is not OTLP JSON in shape. It answers 422 to
@@ -65,8 +66,8 @@ export is under both limits.
 2. Ingest checks the signed identity token in the `imp-identity` header, which the machine gets from
    its token broker. Ingest checks it against the issuers in the folder of trust documents at
    `PEPYS_IMP_IDENTITY_ISSUERS`, and against the audience in `PEPYS_IMP_IDENTITY_AUDIENCE`. Ingest
-   reads both variables from its environment at start, as
-   [the sender proof](../ingest/ingest.md#the-sender-proof) describes.
+   reads both variables from its environment at start. See
+   [the sender proof](../ingest/ingest.md#the-sender-proof).
 3. When either token is missing or fails its check, ingest answers 401, and the exporter drops the
    export.
 
@@ -74,9 +75,9 @@ export is under both limits.
 
 `/forwarded/v1/logs` has one check: the identity token in the `imp-identity` header. Ingest checks
 it against the folder of trust documents at `PEPYS_TELEMETRY_FORWARDER_ISSUERS` and the audience in
-`PEPYS_TELEMETRY_FORWARDER_AUDIENCE`, with no shared token. Both variables differ from the two of
-the imps, and ingest exits at start when the two groups share an audience, an issuer name or a key.
-With either variable unset, or the folder empty, the route answers 401 and `/v1/logs` works as
+`PEPYS_TELEMETRY_FORWARDER_AUDIENCE`, with no shared token. These two variables are separate from
+the imps' two, and ingest exits at start when the two groups share an audience, an issuer name or a
+key. With either variable unset, or the folder empty, the route answers 401 and `/v1/logs` works as
 before. The route is `private`, like the telemetry path.
 
 A token of the forwarder group never passes `/v1/logs`, and a token of an imp never passes the
@@ -106,8 +107,8 @@ Codex:
 | Codex       | an `event.name` that starts with `codex.`                                      | the name after `codex.`       |
 
 The event name `claude_code.api_request`, for example, gives the event `api_request`. Each product's
-file under [`products/`](../../../packages/source-telemetry/src/products/) lists the events it
-knows, and `products.ts` in that folder holds the list of products.
+file under [`products/`](../../../packages/source-telemetry/src/products/) holds the list of that
+product's events, and `products.ts` in that folder holds the list of products.
 
 The session is the first of these that holds a value:
 
@@ -147,8 +148,7 @@ the fact's session comes from `atc.session.id`.
   record, because a collector that forwards a record may set both again.
 
 `read` drops a record of no known product, a record with no session and a record with no time, and
-logs one warning per export with a count for each reason. A dropped record never refuses the rest of
-its export.
+logs one warning per export with a count for each reason. It keeps the rest of the export.
 
 ## The consumers
 
@@ -181,8 +181,8 @@ A test holds that list equal to the list in `products.ts`.
 
 ## The query
 
-The API serves the query `telemetry_session_model_requests` under `/rpc`. It returns the model
-requests of one session, oldest first. The caller passes:
+The API serves the query `telemetry_session_model_requests` under `/rpc` and `/mcp`. It returns the
+model requests of one session, oldest first. The caller passes:
 
 - the session, by its full ID, `telemetry:session:<id>`;
 - the issuer of the origin that runs the session;
@@ -202,8 +202,9 @@ that machine from outside this plug-in.
   It can never write a row under another machine's origin.
 - Every session on one machine has the same origin, so a caller can never use the origin to tell two
   sessions on one machine apart.
-- A machine that cannot prove its identity cannot send telemetry. While the trust documents or the
-  audience are unset, ingest answers 401 to every export, and the exporter drops each one.
+- A machine that cannot prove its identity cannot send telemetry. While a route's trust documents or
+  audience are unset, ingest answers 401 to every export on that route, and the exporter drops each
+  one.
 - Two copies of one record get one fact ID even when a collector rewrote the resource between them,
   because the ID leaves the resource out. When the rewrite changed `atc.session.id`, the two copies
   name two sessions. The host applies the copy that comes first in the stream and skips the second,
@@ -213,7 +214,7 @@ that machine from outside this plug-in.
   gets the ID of an earlier one, and the host skips the later event with no error.
 - The model request's `agent` column is always null: `read` recognises no attribute from either
   product as the subagent of a request.
-- The log keeps every record of a known product, tool and hook events included, though only model
+- The log keeps every record that `read` keeps, tool and hook events included, though only model
   requests and turn costs become rows.
 - Codex signed in with a ChatGPT account sends no `turn_cost` event, so its sessions have no cost in
   either table. Whether Codex with an API key sends one is not checked.

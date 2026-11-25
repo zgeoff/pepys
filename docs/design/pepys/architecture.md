@@ -2,9 +2,10 @@
 
 Write each new pepys contract by the rules in this doc, so that two agents who implement it from its
 type alone build the same behaviour. A contract is a type or a command signature that one part of
-pepys declares and another part builds against. Every call to an outside system goes through a port,
-as [the architecture overview](../../architecture/overview.md#concerns-that-cut-across-the-system)
-describes for the built part. This doc holds the rules that the built part does not use yet.
+pepys declares and another part builds against. Send every call to an outside system through a port,
+as the built part does and
+[the architecture overview](../../architecture/overview.md#concerns-that-cut-across-the-system)
+describes. The rules in the table below are the ones the built part does not use yet.
 
 | Rule                                                | Applies to                                                        |
 | --------------------------------------------------- | ----------------------------------------------------------------- |
@@ -50,8 +51,8 @@ version.
 
 A job promotion gives each consumer that reads the job a new
 [consumer version](./host.md#consumer-versions), which the host builds to the side and swaps. A
-consumer challenger stops at the champion's offset. Facts past that offset reach only the
-challenger, so the diff would count them as changes the challenger's code made.
+consumer challenger stops at the champion's offset, because the diff would otherwise count the newer
+facts as changes the challenger's code made.
 
 An enrichment challenger writes its facts under its own version, and every consumer reads only the
 champion's facts. The owner therefore never sees the challenger's output, and that output cannot
@@ -77,32 +78,32 @@ no labelled data reports the diff alone, as a consumer does.
 
 The evaluation report holds the diff, the score, the threshold that the challenger's version file
 sets for the score, and the cost of the run, such as the number of model calls. The owner reads the
-report, then runs the promotion command. The command shows no prompt, as
-[decision 0018](../../decisions/0018-preview-and-up.md) sets out.
+report, then runs the promotion command, or a promotion runs unattended. The command shows no
+prompt, as [decision 0018](../../decisions/0018-preview-and-up.md) sets out.
 
-The deployment's promotion gate reads the report and decides. The default gate refuses a challenger
-whose score is below its threshold, and promotes one with no threshold, so an unattended promotion
-never installs a version that scores below its own threshold. To promote below the threshold, the
-owner lowers or removes the threshold in the version file. The threshold sits outside the version
-hash, so that edit makes no new version and reruns no model calls. A deployment may pass its own
-gate.
+The command passes the report to the deployment's promotion gate, which decides. The default gate
+refuses a challenger whose score is below its threshold, and promotes one with no threshold, so an
+unattended promotion never installs a version that scores below its own threshold. To promote below
+the threshold, the owner lowers or removes the threshold in the version file. The threshold sits
+outside the version hash, so that edit makes no new version and reruns no model calls. A deployment
+may pass its own gate.
 
 ## Buckets
 
 An enrichment challenger can run on a sample of its input before the owner promotes it, because each
 model call costs money. A scope is the unit that a job's work belongs to, such as a Gmail thread or
 a pull request. A hash of the scope ID puts each scope in one of 100 buckets, numbered 0 to 99. The
-challenger's version record lists the buckets it runs on and the most model calls the run may make.
-Enrichment refuses a run that would make more before its first call. The owner widens the sample
+challenger's version file lists the buckets it runs on and the most model calls the run may make.
+Before its first call, enrichment refuses a run that would make more. The owner widens the sample
 with `pepys sample enrich <job>`, and promotion covers the remaining scopes.
 
 The bucket list sits outside the version hash, so widening the sample keeps the facts that the
 challenger has written. A replay never reruns a job, because it reads the job's stored facts.
 
 pepys buckets whole scopes, because a bucket per message could put the messages of one thread under
-two job versions. Consumers replay every fact instead, because a replay is cheap and gives the same
-output each time. The ranking scores against the golden queries instead, because one owner runs too
-few queries for live statistics.
+two job versions. A consumer challenger takes no sample, and replays every fact up to the champion's
+offset, because a replay is cheap and gives the same output each time. The ranking scores against
+the golden queries instead, because one owner runs too few queries for live statistics.
 
 ## Provisional contracts
 

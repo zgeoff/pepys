@@ -69,13 +69,14 @@ the alias table resolves it.
 
 The brands exist only in TypeScript, and the module boundary passes plain strings. The host
 therefore checks every link operation against the same registry, and rejects a link of the wrong
-kinds. An ID carries its kind in its prefix, so the host checks an ID end when the operation
-arrives. A reference written as text names no kind, so its kind is checked when the alias table
-resolves it, and a reference that resolves to the wrong kind is left out of the effective link view.
+kinds. An ID carries its kind in its prefix, so the built host checks an ID end when the operation
+arrives. This design adds the check of a reference end. A reference written as text carries no kind,
+so its kind is checked when the alias table resolves it, and a reference that resolves to the wrong
+kind is left out of the effective link view.
 
 ## Manual and agent links
 
 People and agents assert and retract links through the [API](./api.md), which writes them to the
 manual fact stream. A retraction removes a link for every origin. An agent's link carries the
-agent's origin, a confidence and required evidence, and every manual fact records the client that
-wrote it, so all of one agent's links can be retracted together.
+agent's origin, a confidence and required evidence. Every manual fact records the client that wrote
+it, so all of one agent's links can be retracted together.

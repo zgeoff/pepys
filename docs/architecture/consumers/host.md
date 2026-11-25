@@ -1,21 +1,23 @@
 # The host
 
-The host is one Rust process, and the only process that writes the tables a deployment serves. Each
-consumer is a pure function from facts to rows, which `pepys build` compiles to a WebAssembly module
-and lists in `consumers.json`. The host reads each consumer's streams from the
-[fact log](../ingest/fact-log.md), runs the module on new facts, and writes the returned operations
-into the consumer's own database file. To deploy a new version, the host builds a new file beside
-the live one by replaying the log, then swaps it in, so a reader never sees a half-built table. The
-host hardcodes no source, table or consumer: it reads each from `consumers.json`.
+The host is a Rust program, and the only program that writes the tables a deployment serves. Each
+consumer is a pure function from facts to rows, which `pepys build` of
+[`@pepys/cli`](../../../packages/cli/README.md) compiles to a WebAssembly module and lists in
+`consumers.json`. The host reads each consumer's streams from the [fact log](../ingest/fact-log.md),
+runs the module on new facts, and writes the returned operations into the consumer's own database
+file. To deploy a new version, the host builds a new file beside the live one by replaying the log,
+then swaps it in, so a reader never sees a half-built table. The host hardcodes no source, table or
+consumer: it reads each from `consumers.json`.
 
-[Plug-ins and the build](./plug-ins-and-build.md) covers `consumers.json`, the manifest of each
-entry, and the modules. [The API](../queries/api.md) covers the reader of the host's files.
+See [Plug-ins and the build](./plug-ins-and-build.md) for `consumers.json`, the manifest of each
+entry, and the modules, and [the API](../queries/api.md) for the reader of the host's files.
 [Decision 0006](../../decisions/0006-consumers-return-operations.md) records why a consumer returns
 operations, and [decision 0018](../../decisions/0018-preview-and-up.md) records `preview` and `up`.
 
 ## Commands and the store folder
 
-The binary is `pepys`, and it has three commands:
+The host's binary is also named `pepys`, and a release ships it as `pepys-host-linux-x64`. It has
+three commands:
 
 - `run [--up]` applies new facts to the current version of every consumer in `consumers.json` until
   it is stopped. With `--up`, it deploys every consumer first.
@@ -25,9 +27,9 @@ The binary is `pepys`, and it has three commands:
 - `preview <consumer>` prints the row diff that the listed version would make against the current
   one. It changes nothing that a reader sees.
 
-Every command needs five settings: `--s2-endpoint`, `--s2-access-token`, `--s2-basin`, `--store-dir`
-and `--consumers`. Each flag has a variable, such as `PEPYS_S2_BASIN` for `--s2-basin`, and
-[Start the processes](../../runbooks/deploying.md#4-start-the-processes) lists them.
+Every command needs `--s2-endpoint`, `--s2-access-token`, `--s2-basin`, `--store-dir` and
+`--consumers`. Each flag has a variable, such as `PEPYS_S2_BASIN` for `--s2-basin`. Find every
+variable in [Start the processes](../../runbooks/deploying.md#4-start-the-processes).
 
 The store folder holds one folder per consumer, and one folder per version inside it:
 
@@ -56,20 +58,21 @@ writer that opens the file without it locks the file, and the API cannot read it
 
 ## Versions
 
-[Versions](./versions.md) covers what a version of a consumer is and how the host makes one current.
+See [Versions](./versions.md) for what a version of a consumer is and how the host makes one
+current.
 
 ## Running consumers
 
 `run` refuses to start when a consumer has no current version, or when two current versions own one
 table. It runs one task per consumer, which polls the consumer's streams on a short timer. Each pass
 takes the consumer's writer lock, repairs the `current` link, opens the new version's folder after a
-swap, and applies what is new. The writer lock is an OS file lock, so an `up` and a `run` of one
-consumer never write a file at once, and the kernel frees it when its holder exits.
+swap, and applies what is new. The writer lock keeps an `up` and a `run` of one consumer from
+writing a file at once. It is an OS file lock, so the kernel frees it when its holder exits.
 
-In both modes, the host reads each stream in batches: one read of at most 100 facts, applied as one
-transaction, so a crash or an error never leaves half a batch in the file.
+In fact mode and in scope mode, the host reads each stream in batches: one read of at most 100
+facts, applied as one transaction, so a crash or an error never leaves half a batch in the file.
 
-A failed batch rolls back, and the task then picks one of two outcomes by the error:
+A failed batch rolls back, and what the task does next depends on the error:
 
 - After a store or log error, such as a Turso error or a failed S2 read, the task prints the error,
   waits, reopens the version and runs the pass again from the committed offsets. The wait doubles
@@ -81,14 +84,15 @@ A failed batch rolls back, and the task then picks one of two outcomes by the er
 
 The `up` of `run --up` retries a store or log error as a task does. After such an error, for example
 a refused S2 connection, `run` prints the consumer and the error, waits, and runs that consumer's
-`up` again from step 1. The waits and the limit are those of a task, and the host counts the failed
-tries of each consumer's `up` on their own. After any other error, or when one consumer's `up`
-reaches the limit, `run` exits 1 before any task starts. The `up` command never retries.
+`up` again from step 1 of [the steps of `up`](./versions.md). The waits and the limit are those of a
+task, and the host counts the failed tries of each consumer's `up` on their own. After any other
+error, or when one consumer's `up` reaches the limit, `run` exits 1 before any task starts. The `up`
+command never retries.
 
 A stopped task stays stopped until the process restarts. The host prints the error, and the other
 tasks keep running. When every task has stopped, `run` exits 1. SIGINT or SIGTERM stops `run` with
-exit 0 at any point, during the `up` of `--up` as well as once the tasks run. The next `up` builds
-again a version whose build the signal stopped. When `consumers.json` lists no consumer, `run` waits
+exit 0 at any point, during the `up` of `--up` as well as once the tasks run. When a signal stops a
+build, the next `up` builds that version again. When `consumers.json` lists no consumer, `run` waits
 for one of the two signals.
 
 ## The module boundary
@@ -199,8 +203,9 @@ the package plug-ins build on, and each check must report the problem kind that 
 
 ## Limits
 
-[Host throughput](../../../research/host-throughput/README.md) measured these limits on one machine
-with a release build and a local S2, one run per case. Treat the figures as orders of magnitude.
+These limits come from [Host throughput](../../../research/host-throughput/README.md), measured on
+one machine with a release build and a local S2, one run per case. Treat the figures as orders of
+magnitude.
 
 - **Batch size.** A read and a transaction hold at most 100 facts, in both modes. The number is the
   `BATCH_SIZE` in [`commands.rs`](../../../crates/host/src/commands.rs), and no setting changes it.
@@ -212,9 +217,9 @@ with a release build and a local S2, one run per case. Treat the figures as orde
   touches. The bench timed one scope while it grew from 1000 to 2000 facts, from 2000 to 5000, and
   from 5000 to 10000. The scope grew 2 to 2.5 times from one interval to the next, and the average
   time of a batch in it grew about 4 times. The same 10000 facts took 35 times longer in one scope
-  than in 1000 scopes. A deployment that expects a scope of thousands of facts must expect a long
-  replay. See [Scope length](../../../research/host-throughput/results.md#scope-mode-scope-length).
-  The cause inside the batch is open: the spike did not profile it.
+  than in 1000 scopes. When you expect a scope of thousands of facts, expect a long replay. See
+  [Scope length](../../../research/host-throughput/results.md#scope-mode-scope-length). The spike
+  did not profile the batch, so the cause is still open.
 - **Replay time.** An `up` takes the number of facts divided by the rates above, so 100000 facts
   took the order of a minute in both modes when the scopes held 10 facts. With longer scopes the
   replay time follows the scope length: one scope of 10000 facts took several minutes
@@ -227,7 +232,8 @@ with a release build and a local S2, one run per case. Treat the figures as orde
 - `run --up` never retries an `up` that fails on an error other than a store or log error. `run`
   exits, so no consumer's tables update until someone fixes the error, while ingest keeps appending
   facts.
-- A batch that fails on another scope's row or link stops its consumer until a new module is up.
+- A batch that fails on another scope's row or link stops its consumer's task. The consumer stays
+  stopped until a new module is up and `run` restarts.
 - A store or log outage longer than the sum of the retry waits makes `run --up` exit 1 when the
   outage comes during the `up`. Once the tasks run, such an outage stops every task that reads
   during the outage, until the process restarts.

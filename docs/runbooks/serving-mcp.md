@@ -1,17 +1,17 @@
 # Serving MCP
 
-Use this runbook to serve the API's MCP endpoint, `/mcp`, to the owner's MCP clients over the
-internet, to add a client, and to revoke a client's access. The API serves `/mcp` only behind its
-own OAuth server, which [The OAuth server](../architecture/queries/oauth-server.md) describes.
-Before you start, run a deployment with the steps in [Deploying pepys](./deploying.md). The API's
-other route, `/rpc`, takes no token, so these steps keep it off the internet.
+Serve the API's MCP endpoint, `/mcp`, to the owner's MCP clients over the internet, then add and
+revoke clients. The API serves `/mcp` only behind its own OAuth server, described in
+[The OAuth server](../architecture/queries/oauth-server.md). Before you start, run a deployment with
+the steps in [Deploying pepys](./deploying.md). The API's typed query route, `/rpc`, takes no token,
+so keep it off the internet.
 
 These placeholders appear in the steps:
 
 - `<public_host>`: the host name that clients reach the API at.
 - `<public_origin>`: `https://<public_host>`.
-- `<api_entry>`: the deployment's API entry file, which
-  [1. Write the deployment](./deploying.md#1-write-the-deployment) has you write.
+- `<api_entry>`: the deployment's API entry file, from
+  [1. Write the deployment](./deploying.md#1-write-the-deployment).
 
 A grant is one client's access from one approved sign-in. Each grant holds the client's tokens, and
 revoking it ends them.
@@ -45,21 +45,23 @@ below to the API's port. Set the proxy to answer 404 to every other path, `/rpc/
 
 ## 2. Set the API's settings
 
-Serve each public route from one API process. That process alone holds the tokens it issued, in its
-`mcp-auth.db`, so a second serving process with another `PEPYS_AUTH_DIR` refuses them. An admin
-command is no serving process, and shares the first process's `mcp-auth.db`.
+Serve each public route from one API process. The API keeps the tokens it issued in the
+`mcp-auth.db` in its `PEPYS_AUTH_DIR`, so a serving process with another `PEPYS_AUTH_DIR` refuses
+them. You can run an admin command beside that process, because the command shares its
+`mcp-auth.db`.
 
 1. Set these variables for the API, in addition to the ones in
    [4. Start the processes](./deploying.md#4-start-the-processes):
    - `PEPYS_API_PUBLIC_URL`: `<public_origin>`, with no path. For a local run, an `http://` origin
      with a loopback host also works.
    - `PEPYS_AUTH_DIR`: a folder on a disk that lasts across restarts. The API keeps `mcp-auth.db`,
-     the OAuth server's database, there. Mount the folder in the API's container only.
+     the OAuth server's database, there, so the grants outlast a restart. Mount the folder in the
+     API's container only, because the file holds every grant and client.
    - `PEPYS_API_HOST`: an address the proxy reaches, such as `0.0.0.0`.
 2. When the proxy rewrites `Host`, set `PEPYS_API_ALLOWED_HOSTS` to the values it sends, split by
    commas.
 3. To let agents sign in with no person present, set `PEPYS_API_SERVICE_TOKENS_FILE` to the path of
-   a service-token file, as [Add a service client](#add-a-service-client) says.
+   a service-token file, which you write in [Add a service client](#add-a-service-client).
 4. To see the real client address in the API's security log, set `PEPYS_API_TRUST_FORWARDED_FROM` to
    the proxy's IP addresses, split by commas. The API writes one `pepys security` line to stderr for
    each sign-in and each refused token. With the variable set, the API marks the client address that
@@ -99,9 +101,9 @@ unknown command prints the usage of every command and exits 2.
    Expect: `bun <api_entry> passkeys` lists the new passkey.
 
 4. Pick a free port, `<port>`, on the machine that runs the MCP client. The client listens there for
-   the browser's redirect. The server matches every other part of the redirect URI exactly, and lets
-   the port of an `http://localhost` redirect URI vary, as RFC 8252 section 8.3 asks. Claude Code
-   takes a fixed port, so give it the same `<port>` in step 6.
+   the browser's redirect. The server lets the port of an `http://localhost` redirect URI vary,
+   following RFC 8252 section 8.3, and matches every other part exactly. Claude Code takes a fixed
+   port, so give it the same `<port>` in step 6.
 5. Run this command, with the client's name in place of `<name>`:
 
    ```sh
@@ -117,8 +119,8 @@ unknown command prints the usage of every command and exits 2.
    claude mcp add --transport http --client-id <client_id> --callback-port <port> <server_name> <public_origin>/mcp
    ```
 
-   Give no client secret. The server issues none, because every client is a public client in the
-   OAuth sense.
+   Give no client secret. The server issues none, because each client that `clients add` adds is a
+   public client in the OAuth sense.
 
 7. Start the client, and let it connect. In Claude Code, run `/mcp`, and pick the server to sign in.
 
@@ -127,8 +129,8 @@ unknown command prints the usage of every command and exits 2.
 
 ## Add a service client
 
-A service client signs in with an ID and a secret, and gets only the `read` scope.
-[Service clients](../architecture/queries/oauth-server.md#service-clients) explains the file.
+A service client signs in with an ID and a secret, and gets only the `read` scope. For the file's
+format, see [Service clients](../architecture/queries/oauth-server.md#service-clients).
 
 1. From the pepys repo root, mint a secret and its digest:
 
@@ -165,7 +167,7 @@ A service client signs in with an ID and a secret, and gets only the `read` scop
 ## Revoke access
 
 - To end a service client's access, remove its entry from the service-token file, then send SIGHUP
-  as step 3 of [Add a service client](#add-a-service-client) says. Its tokens fail on their next
+  as in step 3 of [Add a service client](#add-a-service-client). Its tokens fail on their next
   request. When it is the last client, leave `"clients": {}` in the file.
 - To end one grant:
   1. Run `bun <api_entry> grants`. Expect: each grant, with its ID, its client, its scopes and when

@@ -4,13 +4,12 @@
 - **Decision records:** [0026](../../decisions/0026-credentials-bound-to-listeners.md),
   [0027](../../decisions/0027-rpc-stays-off-the-public-route.md)
 
-The API serves MCP at `/mcp` behind its own OAuth server, which
-[the OAuth server](../../architecture/queries/oauth-server.md) describes, and serves typed oRPC
-queries under `/rpc` with no credential. This design adds service tokens to `/rpc`, so a script on
-the owner's PC and a pod in the cluster each read it with a credential of its own, and splits the
-API into three listeners that each take one kind of credential.
-[Serving MCP](../../runbooks/serving-mcp.md) gives the settings of the public route that the API
-serves now.
+The API serves MCP at `/mcp` behind its own
+[OAuth server](../../architecture/queries/oauth-server.md), and serves typed oRPC queries under
+`/rpc` with no credential. This design adds service tokens to `/rpc`, so a script on the owner's PC
+and a pod in the cluster each read it with a credential of its own. It also splits the API into
+three listeners that each take one kind of credential. For the settings of the public route that the
+API serves now, see [Serving MCP](../../runbooks/serving-mcp.md).
 
 ## Shape
 
@@ -55,9 +54,10 @@ section.
 
 ### The three listeners
 
-Each listener takes one kind of credential, on every query, whatever address it binds, loopback
-included. A NetworkPolicy never stops a process on the cluster's node, which reaches every listener,
-so only a credential keeps the owner's mail from that process.
+Each listener takes one kind of credential on every query, whatever address it binds, loopback
+included. `GET /healthz`, which reads nothing, takes no credential. A process on the cluster's node
+reaches every listener, and a NetworkPolicy never stops it, so only a credential keeps the owner's
+mail from that process.
 
 | Listener | Serves                                                                                | Takes                                            | Reached through                              |
 | -------- | ------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
@@ -138,25 +138,25 @@ interface CallersFile {
   event with outcome `rejected`. A reload that changes the set writes one with outcome `accepted`,
   and a reload that changes nothing writes none. A request that starts after a reload finishes sees
   the new set.
-- To revoke a credential, the owner removes its 1Password item and applies the cloud repo's Pulumi
-  program, which removes the entry from the callers file. The kubelet writes the changed Secret into
-  the pod within its sync period and cache delay, about a minute by default. The credential stops
-  working at most 30 seconds after that, and no process restarts.
+- To revoke a credential, remove its 1Password item and apply the cloud repo's Pulumi program, which
+  removes the entry from the callers file. The kubelet writes the changed Secret into the pod within
+  its sync period and cache delay, about a minute by default. The credential stops working at most
+  30 seconds after that, and no process restarts.
 - The API keeps every service token and `Authorization` header out of its log lines, errors and
   security events.
 
 ### Deploying the listeners
 
-Before you build the listeners, run two checks on this k3s cluster. Each one tests a fact this
+Before you build the listeners, run these checks on this k3s cluster. Each one tests a fact this
 design relies on:
 
 1. Send a request from the PC to a NodePort Service with `externalTrafficPolicy: Local`. Expect: the
    pod sees the PC's tailnet address as the client address. If the pod sees another address, the
-   tailnet listener relies on the token alone, and the tailnet rules here change to say so.
+   tailnet listener relies on the token alone: change the tailnet rules here to say so.
 2. Change the data of a Secret through the cloud repo's Pulumi program, and keep its name fixed.
    Expect: the kubelet writes the change into a pod's folder mount, and the pod keeps running. If
-   the mount never changes or the pod restarts, a revocation restarts the pod and the host, and
-   [Service tokens](#service-tokens) changes to say so.
+   the mount never changes or the pod restarts, a revocation restarts the pod and the host: change
+   [Service tokens](#service-tokens) to say so.
 
 Then deploy the listeners with the steps below. A build of the API that reads
 `PEPYS_API_CALLERS_FILE` exits 1 at start without a callers file. Do step 3 before you deploy that
@@ -178,8 +178,9 @@ build.
 5. Add a check to the cloud repo that fails on a wrong NodePort. It fails when the tailnet NodePort
    targets another port or takes another traffic policy. It also fails when any NodePort targets the
    public or the cluster port.
-6. Add NetworkPolicy rules. Let cloudflared reach the public port alone. Let the boxxy server reach
-   the cluster port alone. Let the PC's tailnet address reach the tailnet port alone.
+6. Add NetworkPolicy rules. Let only cloudflared reach the public port, only the boxxy server reach
+   the cluster port, and only the PC's tailnet address reach the tailnet port; each reaches no other
+   listener.
 7. Add an exposure registry entry for the NodePort, reachable only from the tailnet. Name the API's
    service tokens as its guard.
 
@@ -200,7 +201,10 @@ build.
 
 ## Deployment of the public route
 
-Make these changes in the cloud repo.
+These steps put the public route on the API as it is built now, with one listener, so do them before
+[Deploying the listeners](#deploying-the-listeners). Once the listeners are built, the public
+listener binds `PEPYS_API_PUBLIC_HOST`, and `PEPYS_API_HOST` binds the cluster listener. Make these
+changes in the cloud repo.
 
 1. Route `<public_host>` through the shared Cloudflare tunnel to the API's ClusterIP Service, with
    the paths that [the public paths](../../runbooks/serving-mcp.md#1-route-the-public-paths) list.

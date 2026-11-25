@@ -1,19 +1,22 @@
 # The verify registry
 
-Edit a feature's `paths`, and the `ignoredPaths` list, in
+Edit a feature's `paths`, the `sharedPaths` list and the `ignoredPaths` list in
 [`feature-paths.ts`](../../../../scripts/verify/feature-paths.ts). Write each path as a glob
 relative to the repo root. Edit the rest of a feature, such as its name and summary, in
 [`create-verify-registry.ts`](../../../../scripts/verify/create-verify-registry.ts). It imports the
-paths from `feature-paths.ts`, and passes `ignoredPaths` to the registry's `.ignore()`. SKILL.md
-calls that list the registry's `.ignore` list.
+lists from `feature-paths.ts`, and passes `sharedPaths` to the registry's `.shared()` and
+`ignoredPaths` to its `.ignore()`, the two calls in SKILL.md.
 
-- Add a glob to `ignoredPaths` only for files whose behaviour no journey exercises.
+- Add a glob to `sharedPaths` for a file whose change changes every feature, such as the verify CLI.
+- Add a glob to `ignoredPaths` only for a file that no journey runs. Ignore each file the running
+  app never reads, such as a test, the kind SKILL.md gives for `.ignore()`. Ignore code that no
+  journey reaches too, such as `pepys start`, which the `local` app replaces with its own start.
   `bun verify gate` never asks for a verdict on a change to an ignored file, even when a feature's
   glob matches it too.
 - Put the features and the globs in any order. A changed file counts for every feature whose glob
   matches it. The order of the features sets only the row order of `bun verify features` and the
   report.
-- For each new feature path, add an entry to
+- For each new feature path and each `sharedPaths` glob, add an entry to
   [`skill-gate.json`](../../../../.claude/skill-gate.json), with the glob as `match` and
   `["verify"]` as `skills`. The skill-gate hook reads that file, and blocks an edit to a matching
   file until you load this skill. It is a separate check from `bun verify gate`. When you change or

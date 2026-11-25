@@ -14,8 +14,9 @@
 
 The pepys GitHub plug-in, for Bun.
 
-The plug-in receives GitHub's webhook deliveries as facts, and builds pull request rows from them
-with its consumer.
+The plug-in receives GitHub's webhook deliveries as facts. Its consumers build tables of pull
+requests, releases, commits and deploys from them, and its delivery query returns when each pull
+request merged, released and deployed.
 
 ## Install
 
@@ -24,8 +25,8 @@ bun add @pepys/source-github @pepys/kit
 bun add -d @pepys/cli
 ```
 
-Add the plug-in to a deployment, then build its consumers. The build compiles each consumer, which
-needs zig and wasm-tools, as the [CLI README](../cli/README.md) says.
+Add the plug-in to a deployment, then build its consumers. Install zig and wasm-tools first: the
+build needs them to compile each consumer ([CLI README](../cli/README.md)).
 
 ```ts
 // deployment.ts
@@ -43,10 +44,11 @@ bunx pepys build deployment.ts --out build
 
 - `githubPlugin`: the plug-in, to add to a deployment.
 - `githubPullRequestConsumer`: the consumer of pull request facts, with its SQL schema.
-- `githubDelivery`: what a query of another plug-in needs to read when each pull request merged,
-  released and deployed. Pass `consumers` as the query's `reads`, run `select(input).execute(db)`,
-  and give the result's `rows` to `parse`.
+- `githubDelivery`: the parts of the delivery query. To read when each pull request merged, released
+  and deployed from another plug-in's query, pass `consumers` as that query's `reads`, run
+  `select(input).execute(db)`, and give the result's `rows` to `parse`.
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the plug-ins.
+Read [the GitHub plug-in](../../docs/architecture/plug-ins/github.md) for the families, the
+consumers and the delivery query.

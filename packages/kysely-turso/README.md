@@ -46,4 +46,4 @@ const books = await db.selectFrom('book').selectAll().execute();
 
 ## Documentation
 
-The [pepys docs](../../docs/README.md) hold the design of the store.
+For the store reader that uses this dialect, read [the API](../../docs/architecture/queries/api.md).

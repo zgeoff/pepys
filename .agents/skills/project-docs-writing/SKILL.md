@@ -8,16 +8,20 @@ description:
 
 # pepys docs writing
 
-Load the shared `docs-writing` skill first. This skill holds only what pepys adds to it, and where
-the two disagree, this one wins.
+Load the shared `docs-writing` skill first, then follow the rules below as well. Where the two
+disagree, follow the rules below.
 
 ## Spikes
 
-A design's evidence lives in a spike under `research/<name>/`, not in `docs/design/<work>/spikes/`.
-Each spike takes the README and `results.md` shape in the
-[Spikes section of docs-writing's docs-tree reference](https://github.com/zgeoff/tools/blob/main/sync/skills/docs-writing/references/docs-tree.md#spikes).
-[research/README.md](../../../research/README.md) holds the index. A design doc links the spike
-instead of repeating its numbers or its method, and links `results.md` when it cites a measurement.
+Put a design's evidence in a spike under `research/<name>/`, never in `docs/design/<work>/spikes/`.
+A design folder is deleted once its code is built, and a spike in `research/` stays until its
+finding has a home.
 
-A spike is deleted once its finding sits in the design or architecture doc that owns it. A link that
-cites a deleted spike points at the commit that last held it.
+- Give the spike the README and `results.md` shape in the
+  [Spikes section of docs-writing's docs-tree reference](../docs-writing/references/docs-tree.md#spikes).
+- [research/README.md](../../../research/README.md) holds the index.
+- In a design doc, link the spike instead of repeating its numbers or its method, so each number has
+  one owner. Link `results.md` when you cite a measurement.
+
+Delete the spike once its finding sits in the design or architecture doc that owns it. Then point
+each link that cites the spike at the commit that last held it.
