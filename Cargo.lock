@@ -2300,7 +2300,7 @@ dependencies = [
  "hyper-util",
  "prost",
  "rusty-s3",
- "s2-api",
+ "s2-api 0.46.0",
  "s2-sdk",
  "serde",
  "serde_json",
@@ -2899,7 +2899,33 @@ dependencies = [
  "itertools 0.15.0",
  "mime",
  "prost",
- "s2-common",
+ "s2-common 0.45.0",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "thiserror 2.0.21",
+ "time",
+ "tokio-util",
+ "zstd",
+]
+
+[[package]]
+name = "s2-api"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2247f11cd7de8da044ba05103e49b5498017104f0f70d9cb08110b279cbee8e3"
+dependencies = [
+ "base64ct",
+ "bytes",
+ "compact_str",
+ "flate2",
+ "futures-core",
+ "futures-util",
+ "http",
+ "itertools 0.15.0",
+ "mime",
+ "prost",
+ "s2-common 0.46.0",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -2914,6 +2940,25 @@ name = "s2-common"
 version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bdd0f8e784c2c0de7846157fd2f70bfd451e0e6f41e58fd7701af3e7f1036420"
+dependencies = [
+ "base64ct",
+ "bytes",
+ "compact_str",
+ "enumset",
+ "http",
+ "rand 0.10.4",
+ "secrecy",
+ "serde",
+ "strum 0.28.0",
+ "thiserror 2.0.21",
+ "time",
+]
+
+[[package]]
+name = "s2-common"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1be438ee66a9f200adb315ef4dd73ecbbb6a02e3ca6a07b0dfff7d88e44292e"
 dependencies = [
  "base64ct",
  "bytes",
@@ -2952,8 +2997,8 @@ dependencies = [
  "prost",
  "rand 0.10.4",
  "rustls",
- "s2-api",
- "s2-common",
+ "s2-api 0.45.0",
+ "s2-common 0.45.0",
  "secrecy",
  "serde",
  "serde_json",
