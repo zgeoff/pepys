@@ -298,7 +298,7 @@
     "@orpc/mcp": "2.0.0-beta.50",
     "@orpc/openapi": "2.0.0-beta.50",
     "@orpc/server": "2.0.0-beta.50",
-    "@s2-dev/streamstore": "0.31.0",
+    "@s2-dev/streamstore": "0.32.0",
     "@scriptc/runtime-wasm32-wasi": "0.4.5",
     "@stylistic/eslint-plugin": "5.10.0",
     "@tsconfig/strictest": "2.0.9",
@@ -765,7 +765,7 @@
 
     "@protobuf-ts/runtime": ["@protobuf-ts/runtime@2.11.1", "", {}, "sha512-KuDaT1IfHkugM2pyz+FwiY80ejWrkH1pAtOBOZFuR6SXEFTsnb/jiQWQ1rCIrcKx2BtyxnxW6BWwsVSA/Ie+WQ=="],
 
-    "@s2-dev/streamstore": ["@s2-dev/streamstore@0.31.0", "", { "dependencies": { "@protobuf-ts/runtime": "^2.11.1", "debug": "^4.4.3" } }, "sha512-BB0ypNgBeuVUxbbOJFoNRKKbuwplqOoZcbpRaZGfZgZEiDaUgdzAG8KhAyglJ9yLhwVJoDQ8qczpJWJuKR8miQ=="],
+    "@s2-dev/streamstore": ["@s2-dev/streamstore@0.32.0", "", { "dependencies": { "@protobuf-ts/runtime": "^2.11.1", "debug": "^4.4.3" } }, "sha512-WRtr8uLyxFPpmB1YWvs3toUenCLBhyy8vW8DfsJJZD81NdaUey6gASXRrWVK+5DWSRqVfdR3OS31ChlRf+QWaw=="],
 
     "@scriptc/cli-darwin-arm64": ["@scriptc/cli-darwin-arm64@0.4.5", "", { "os": "darwin", "cpu": "arm64" }, "sha512-iiA+mNYAn1oaiz6i8HM5Q/Aurn5ChYVonX2Dt/PcojhE7CTloWFfrLBBtdRmisbLKfw6vTwioadnSntfO3pN5g=="],
 
