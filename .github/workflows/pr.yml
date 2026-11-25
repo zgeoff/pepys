@@ -25,7 +25,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: zgeoff/tools/.github/workflows/bun-checks.yml@23ffbe02834a1b7b00033a522b5514d41d657814 # main
+    uses: zgeoff/tools/.github/workflows/bun-checks.yml@b09202a144e97e98b9aeeb457452fd2f4e703123 # main
     with:
       scripts:
         audit deadcode format:check lint:full lint:toml check check:outside-install schema:check
@@ -36,7 +36,7 @@ jobs:
   changes:
     permissions:
       contents: read
-    uses: zgeoff/tools/.github/workflows/paths-changed.yml@23ffbe02834a1b7b00033a522b5514d41d657814 # main
+    uses: zgeoff/tools/.github/workflows/paths-changed.yml@b09202a144e97e98b9aeeb457452fd2f4e703123 # main
     with:
       paths: |
         crates/**
@@ -69,7 +69,7 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - name: Install the cargo tools
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: cargo-nextest@0.9.148,cargo-deny@0.20.2,cargo-shear@1.14.0
       - name: Format
@@ -114,7 +114,7 @@ jobs:
         with:
           version: 0.16.0
       - name: Install wasm-tools and nextest
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: wasm-tools@1.262.0,cargo-nextest@0.9.148
       - name: Export the zig and wasm-tools paths
