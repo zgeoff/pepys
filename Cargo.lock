@@ -2300,7 +2300,7 @@ dependencies = [
  "hyper-util",
  "prost",
  "rusty-s3",
- "s2-api 0.48.0",
+ "s2-api",
  "s2-sdk",
  "serde",
  "serde_json",
@@ -2885,32 +2885,6 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "s2-api"
-version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93c477aa0985186ce42ab2ce8a90dce0e0b20a9dd48b82188083a8ed47909aef"
-dependencies = [
- "base64ct",
- "bytes",
- "compact_str",
- "flate2",
- "futures-core",
- "futures-util",
- "http",
- "itertools 0.15.0",
- "mime",
- "prost",
- "s2-common 0.47.0",
- "serde",
- "serde_json",
- "strum 0.28.0",
- "thiserror 2.0.21",
- "time",
- "tokio-util",
- "zstd",
-]
-
-[[package]]
-name = "s2-api"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fcdad38b2e05ffb6ce3e345cc56f8bf7cda924ffdcf5f815d40163fb8f08aa3"
@@ -2925,7 +2899,7 @@ dependencies = [
  "itertools 0.15.0",
  "mime",
  "prost",
- "s2-common 0.48.0",
+ "s2-common",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -2933,25 +2907,6 @@ dependencies = [
  "time",
  "tokio-util",
  "zstd",
-]
-
-[[package]]
-name = "s2-common"
-version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06dbec9a765bb6aa6d3f1729dea9b892ebb2f3cb5e91f490265917209d93a4c9"
-dependencies = [
- "base64ct",
- "bytes",
- "compact_str",
- "enumset",
- "http",
- "rand 0.10.4",
- "secrecy",
- "serde",
- "strum 0.28.0",
- "thiserror 2.0.21",
- "time",
 ]
 
 [[package]]
@@ -2975,9 +2930,9 @@ dependencies = [
 
 [[package]]
 name = "s2-sdk"
-version = "0.47.0"
+version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5a82440d163641a97d288c2737afd5651d214faa245931afb31efa2c0f2e06"
+checksum = "13fd16660e3ef0d077eed69e0c1d445f59e47701d6b96d52ff42d9277f0a6441"
 dependencies = [
  "async-compression",
  "async-stream",
@@ -2997,8 +2952,8 @@ dependencies = [
  "prost",
  "rand 0.10.4",
  "rustls",
- "s2-api 0.47.0",
- "s2-common 0.47.0",
+ "s2-api",
+ "s2-common",
  "secrecy",
  "serde",
  "serde_json",
