@@ -34,7 +34,7 @@
       "@wringer/stream": "0.1.8",
       "@zgeoff/agent-hooks": "0.3.3",
       "@zgeoff/bun-test-extended": "0.2.4",
-      "@zgeoff/chex": "0.3.6",
+      "@zgeoff/chex": "0.4.8",
       "@zgeoff/commitlint-config": "0.1.2",
       "@zgeoff/diet": "0.3.3",
       "@zgeoff/format-codemod": "0.3.6",
