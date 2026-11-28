@@ -5,7 +5,7 @@ Edit the globs in [`feature-paths.ts`](../../../../scripts/verify/feature-paths.
 root. Edit the rest of a feature, such as its name and summary, in
 [`create-verify-registry.ts`](../../../../scripts/verify/create-verify-registry.ts). The registry
 reads each feature's `paths` from `featurePaths`, passes `sharedPaths` to `.shared()`, and passes
-`ignoredPaths` to `.ignore()`.
+`ignoredPaths` to `.ignore()`. `sharedPaths` and `ignoredPaths` live in `feature-paths.ts`.
 
 `featurePaths` builds each feature's `paths` from these lists:
 
@@ -25,8 +25,9 @@ the parts of the API that its own journey runs.
 
 A journey reaches a path when its sends, its reads or its `caught-up` run that path. Ingest, the API
 and the host load every plug-in at start-up, and `bun verify doctor` runs before every journey, but
-neither makes a path core. A change that breaks start-up or `doctor` still fails each journey that
-the change flags.
+neither makes a path core. Put a part that only start-up loads, such as a GitHub event family that
+no journey sends, in each feature whose journey sends to that plug-in. A change that breaks start-up
+or `doctor` still fails each journey that the change flags.
 
 1. Put each path in the list for the journeys that reach it:
    - Add a path that one journey or a few reach to the `packages` or `paths` of those features.
@@ -51,9 +52,9 @@ the change flags.
    Fix the glob or the entry named in the failure, and run the test again. When you move a path on
    purpose, change the features that the test expects for its sample file.
 
-Put the features and the globs in any order. A changed file counts for every feature whose glob
-matches it. The order of the features sets only the row order of `bun verify features` and the
-report.
+Put the features and the globs in any order. A changed file that no ignore glob matches counts for
+every feature whose glob matches it. The order of the features sets only the row order of
+`bun verify features` and the report.
 
 After you add a feature, write its file under `references/`, and run the steps in
 [Edit the skill and the registry](../SKILL.md#edit-the-skill-and-the-registry).
