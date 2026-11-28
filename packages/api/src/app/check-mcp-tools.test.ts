@@ -34,7 +34,11 @@ async function setupTest() {
     allHints,
     withoutHint: (missing: string) =>
       Object.fromEntries(Object.entries(allHints).filter((entry) => entry[0] !== missing)),
-    checkShipped: () => checkMCPTools(createRouter(checked.value.queries), context),
+    checkShipped: async () => {
+      await checkMCPTools(createRouter(checked.value.queries), context);
+
+      return 'checked';
+    },
 
     // a plug-in query with the given output, served by the real router
     checkQueryOutput: (shape: 'array' | 'scalar' | 'nullable' | 'file') => {
@@ -74,7 +78,7 @@ test('#checkMCPTools accepts the core tools and the plug-in queries as they ship
   const ctx = await setupTest();
   const result = await ctx.checkShipped();
 
-  expect(result).toBeUndefined();
+  expect(result).toBe('checked');
 });
 
 test.each([
