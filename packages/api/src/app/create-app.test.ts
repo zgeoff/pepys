@@ -1,4 +1,8 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import {
+  CLIENT_CAPABILITIES_META_KEY,
+  PROTOCOL_VERSION_META_KEY,
+} from '@modelcontextprotocol/server';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import { checkDeployment, defineDeployment, definePlugin, defineQuery } from '@pepys/kit';
@@ -63,10 +67,14 @@ async function setupTest() {
     answerRequest: (request: Request) => app.handle(request),
 
     // each call starts the API with its OAuth routes and signs a client in
-    callMCP: async (method: string, params: Readonly<Record<string, unknown>>) => {
+    callMCP: async (
+      method: string,
+      params: Readonly<Record<string, unknown>>,
+      headers: Readonly<Record<string, string>> = {},
+    ) => {
       const mcp = await startAuthorizedMCP(context, logError);
 
-      return readMCPAnswer(mcp.sendRequest, method, params);
+      return readMCPAnswer(mcp.sendRequest, method, params, headers);
     },
   };
 }
@@ -310,23 +318,30 @@ test('it lists the core procedures and every plug-in query as MCP tools, each wi
 
 test('it lists each MCP tool as a read-only query with an object output schema', async () => {
   const ctx = await setupTest();
-  const listed = await ctx.callMCP('tools/list', {});
 
-  const tools = ['get_entity', 'neighbourhood', 'harbour_voyage_count', 'harbour_vessel_ports'].map(
-    (name) =>
-      expect.objectContaining({
-        name,
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          idempotentHint: true,
-          openWorldHint: false,
-        },
-        outputSchema: expect.objectContaining({ type: 'object' }),
-      }),
+  // the request format of the 2026-07-28 revision, which lists an array output as { result: [...] }
+  const listed = await ctx.callMCP(
+    'tools/list',
+    { _meta: { [PROTOCOL_VERSION_META_KEY]: '2026-07-28', [CLIENT_CAPABILITIES_META_KEY]: {} } },
+    { 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/list' },
   );
 
-  expect(listed).toStrictEqual({ jsonrpc: '2.0', id: 1, result: { tools } });
+  const names = ['get_entity', 'neighbourhood', 'harbour_voyage_count', 'harbour_vessel_ports'];
+
+  const tools = names.map((name) =>
+    expect.objectContaining({
+      name,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      outputSchema: expect.objectContaining({ type: 'object' }),
+    }),
+  );
+
+  expect(listed).toMatchObject({ jsonrpc: '2.0', id: 1, result: { tools } });
 });
 
 test('it runs neighbourhood as an MCP tool with only the start given', async () => {

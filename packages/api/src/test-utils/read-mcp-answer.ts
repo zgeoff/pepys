@@ -6,6 +6,7 @@ export async function readMCPAnswer(
   handleRequest: HandleRequest,
   method: string,
   params: Readonly<Record<string, unknown>>,
+  extraHeaders: Readonly<Record<string, string>> = {},
 ): Promise<unknown> {
   const response = await handleRequest(
     new Request('http://pepys.test/mcp', {
@@ -13,6 +14,7 @@ export async function readMCPAnswer(
       headers: {
         'content-type': 'application/json',
         accept: 'application/json, text/event-stream',
+        ...extraHeaders,
       },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     }),
