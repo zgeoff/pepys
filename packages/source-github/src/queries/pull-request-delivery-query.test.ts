@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
+import { z } from 'zod';
 import { githubPlugin } from '../github-plugin.ts';
 import { githubSource } from '../github-source.ts';
 import { pullRequestDeliveryQuery } from './pull-request-delivery-query.ts';
@@ -333,18 +334,20 @@ test.each([
 
   const result = await ctx.query(row.input);
 
-  expect(result).toStrictEqual([
-    {
-      pullRequest: toTagged<EntityID>('github:pull_request:10'),
-      mergedAt: '2026-10-01T10:00:00Z',
-      release: {
-        id: toTagged<EntityID>('github:release:2'),
-        tag: 'v1.2.0',
-        at: '2026-10-01T11:05:00Z',
+  expect(result).toStrictEqual({
+    deliveries: [
+      {
+        pullRequest: toTagged<EntityID>('github:pull_request:10'),
+        mergedAt: '2026-10-01T10:00:00Z',
+        release: {
+          id: toTagged<EntityID>('github:release:2'),
+          tag: 'v1.2.0',
+          at: '2026-10-01T11:05:00Z',
+        },
+        deploy: row.deploy,
       },
-      deploy: row.deploy,
-    },
-  ]);
+    ],
+  });
 });
 
 test('it gives an open pull request no release and no deploy, and leaves out an unknown one', async () => {
@@ -416,14 +419,16 @@ test('it gives an open pull request no release and no deploy, and leaves out an 
     environment: 'production',
   });
 
-  expect(result).toStrictEqual([
-    {
-      pullRequest: toTagged<EntityID>('github:pull_request:11'),
-      mergedAt: null,
-      release: null,
-      deploy: null,
-    },
-  ]);
+  expect(result).toStrictEqual({
+    deliveries: [
+      {
+        pullRequest: toTagged<EntityID>('github:pull_request:11'),
+        mergedAt: null,
+        release: null,
+        deploy: null,
+      },
+    ],
+  });
 });
 
 test('it leaves out text that is no entity ID and answers for the rest', async () => {
@@ -462,14 +467,16 @@ test('it leaves out text that is no entity ID and answers for the rest', async (
     environment: 'production',
   });
 
-  expect(result).toStrictEqual([
-    {
-      pullRequest: toTagged<EntityID>('github:pull_request:11'),
-      mergedAt: null,
-      release: null,
-      deploy: null,
-    },
-  ]);
+  expect(result).toStrictEqual({
+    deliveries: [
+      {
+        pullRequest: toTagged<EntityID>('github:pull_request:11'),
+        mergedAt: null,
+        release: null,
+        deploy: null,
+      },
+    ],
+  });
 });
 
 test('it answers an empty list with no rows', async () => {
@@ -505,7 +512,7 @@ test('it answers an empty list with no rows', async () => {
 
   const result = await ctx.query({ pullRequests: [], environment: 'production' });
 
-  expect(result).toStrictEqual([]);
+  expect(result).toStrictEqual({ deliveries: [] });
 });
 
 test('it falls back to the merge time and the release creation time when no push gave the commits', async () => {
@@ -585,16 +592,22 @@ test('it falls back to the merge time and the release creation time when no push
     environment: 'production',
   });
 
-  expect(result).toStrictEqual([
-    {
-      pullRequest: toTagged<EntityID>('github:pull_request:30'),
-      mergedAt: '2026-10-01T10:00:00Z',
-      release: {
-        id: toTagged<EntityID>('github:release:31'),
-        tag: 'v1.0.0',
-        at: '2026-10-01T10:35:00Z',
+  expect(result).toStrictEqual({
+    deliveries: [
+      {
+        pullRequest: toTagged<EntityID>('github:pull_request:30'),
+        mergedAt: '2026-10-01T10:00:00Z',
+        release: {
+          id: toTagged<EntityID>('github:release:31'),
+          tag: 'v1.0.0',
+          at: '2026-10-01T10:35:00Z',
+        },
+        deploy: null,
       },
-      deploy: null,
-    },
-  ]);
+    ],
+  });
+});
+
+test('it declares an object output, as an MCP tool requires', () => {
+  expect(z.toJSONSchema(pullRequestDeliveryQuery.output, { io: 'output' }).type).toBe('object');
 });

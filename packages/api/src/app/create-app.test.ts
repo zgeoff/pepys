@@ -308,6 +308,27 @@ test('it lists the core procedures and every plug-in query as MCP tools, each wi
   });
 });
 
+test('it lists each MCP tool as a read-only query with an object output schema', async () => {
+  const ctx = await setupTest();
+  const listed = await ctx.callMCP('tools/list', {});
+
+  const tools = ['get_entity', 'neighbourhood', 'harbour_voyage_count', 'harbour_vessel_ports'].map(
+    (name) =>
+      expect.objectContaining({
+        name,
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        outputSchema: expect.objectContaining({ type: 'object' }),
+      }),
+  );
+
+  expect(listed).toStrictEqual({ jsonrpc: '2.0', id: 1, result: { tools } });
+});
+
 test('it runs neighbourhood as an MCP tool with only the start given', async () => {
   const ctx = await setupTest();
 
@@ -406,6 +427,25 @@ test('#createRouter refuses a plug-in query with a zod transform', () => {
   const plugin = definePlugin({ name: 'tide', queries: [query] });
 
   expect(() => createRouter(plugin.queries)).toThrow(/harbour_tide has a zod transform/u);
+});
+
+test.each([
+  { shape: 'a bare array', output: z.array(z.string()) },
+  { shape: 'a scalar', output: z.number() },
+  { shape: 'a nullable object', output: z.object({}).nullable() },
+])('#createRouter refuses a plug-in query whose output is $shape', (row) => {
+  const query = defineQuery({
+    name: 'harbour_tide',
+    description: 'Gives the tide.',
+    input: z.object({}),
+    output: row.output,
+    reads: [],
+    handler: () => Promise.reject(new Error('never called')),
+  });
+
+  const queries = [query];
+
+  expect(() => createRouter(queries)).toThrow(/harbour_tide has an output that is not an object/u);
 });
 
 test('it answers /mcp with 404 when the API serves no OAuth routes', async () => {

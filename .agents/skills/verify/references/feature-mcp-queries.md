@@ -40,12 +40,13 @@ Each field below sits under `data`.
 - `mcp tools` gives `server: "pepys"` and exactly these five tools, in any order, each with
   `inReadTools: true`: `get_entity`, `neighbourhood`, `github_pull_request_delivery`,
   `telemetry_session_model_requests` and `logbook_harbour_voyages`.
-- `mcp call github_pull_request_delivery` gives `isError: false`, and `structuredContent.result`
+- `mcp call github_pull_request_delivery` gives `isError: false`, and `structuredContent.deliveries`
   holds one object: `pullRequest` `github:pull_request:1874433061`, `mergedAt`
   `2026-10-08T10:00:00Z`, and `release.tag` `v2.3.0`.
-- `mcp call telemetry_session_model_requests` gives `isError: false`, and `structuredContent.result`
-  holds one object: `id` `telemetry:model_request:claude_code.api_request:req_channel_01`, `model`
-  `model-large`, `input_tokens` 30 and `output_tokens` 120.
+- `mcp call telemetry_session_model_requests` gives `isError: false`, and
+  `structuredContent.requests` holds one object: `id`
+  `telemetry:model_request:claude_code.api_request:req_channel_01`, `model` `model-large`,
+  `input_tokens` 30 and `output_tokens` 120.
 
 ## On prod
 

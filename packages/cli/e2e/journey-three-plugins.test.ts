@@ -53,18 +53,20 @@ test("it serves the voyages of the outside plug-in's signed fact batch through i
 
   const answer = await ctx.api.logbook_harbour_voyages({ harbour: 'Port Coral' });
 
-  expect(answer).toStrictEqual([
-    {
-      id: 'logbook:voyage:v-1',
-      title: 'Charting the harbour reef',
-      logged_at: '2026-10-02T07:00:00Z',
-    },
-    {
-      id: 'logbook:voyage:v-2',
-      title: 'Sounding the north channel',
-      logged_at: '2026-10-03T07:00:00Z',
-    },
-  ]);
+  expect(answer).toStrictEqual({
+    voyages: [
+      {
+        id: 'logbook:voyage:v-1',
+        title: 'Charting the harbour reef',
+        logged_at: '2026-10-02T07:00:00Z',
+      },
+      {
+        id: 'logbook:voyage:v-2',
+        title: 'Sounding the north channel',
+        logged_at: '2026-10-03T07:00:00Z',
+      },
+    ],
+  });
 });
 
 test('it serves a voyage of the outside plug-in through get_entity', async () => {
@@ -143,14 +145,16 @@ test("it serves the GitHub plug-in's delivery query for the stored pull request"
     environment: 'production',
   });
 
-  expect(answer).toStrictEqual([
-    {
-      pullRequest: toTagged<EntityID>('github:pull_request:1874433021'),
-      mergedAt: null,
-      release: null,
-      deploy: null,
-    },
-  ]);
+  expect(answer).toStrictEqual({
+    deliveries: [
+      {
+        pullRequest: toTagged<EntityID>('github:pull_request:1874433021'),
+        mergedAt: null,
+        release: null,
+        deploy: null,
+      },
+    ],
+  });
 });
 
 test('it serves the model request of an OTLP export with a proven sender through the telemetry query', async () => {
@@ -162,19 +166,21 @@ test('it serves the model request of an OTLP export with a proven sender through
     subject: 'imp-7731',
   });
 
-  expect(answer).toStrictEqual([
-    {
-      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_harbour_01'),
-      product: 'claude_code',
-      model: 'model-large',
-      input_tokens: 12,
-      cache_read_tokens: 900,
-      cache_creation_tokens: 30,
-      output_tokens: 210,
-      cost_usd: 0.4,
-      at: '2026-11-11T02:20:00.000Z',
-    },
-  ]);
+  expect(answer).toStrictEqual({
+    requests: [
+      {
+        id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_harbour_01'),
+        product: 'claude_code',
+        model: 'model-large',
+        input_tokens: 12,
+        cache_read_tokens: 900,
+        cache_creation_tokens: 30,
+        output_tokens: 210,
+        cost_usd: 0.4,
+        at: '2026-11-11T02:20:00.000Z',
+      },
+    ],
+  });
 });
 
 test('it refuses with 401 an OTLP export with the bearer secret and no proven sender, and stores nothing', async () => {

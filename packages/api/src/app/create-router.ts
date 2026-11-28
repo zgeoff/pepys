@@ -1,13 +1,15 @@
 import { oc } from '@orpc/contract';
+import { mcp } from '@orpc/mcp';
 import { openapi } from '@orpc/openapi';
 import { implement } from '@orpc/server';
-import type { Router } from '@orpc/server';
-import { coreContract } from '@pepys/contract';
+import type { AnyProcedure, Router } from '@orpc/server';
+import { coreContract, readOnlyToolAnnotations } from '@pepys/contract';
 import type { AnyQueryDefinition } from '@pepys/kit';
 import { z } from 'zod';
 import { readEntity } from '../queries/get-entity/read-entity.ts';
 import { walkNeighbourhood } from '../queries/neighbourhood/walk-neighbourhood.ts';
 import type { QueryContext } from '../queries/types.ts';
+import { checkToolAnnotations } from './check-tool-annotations.ts';
 import { runPluginQuery } from './run-plugin-query.ts';
 
 // One flat router: the two core procedures and each plug-in query, by its snake case name, which
@@ -15,7 +17,7 @@ import { runPluginQuery } from './run-plugin-query.ts';
 export function createRouter(queries: readonly AnyQueryDefinition[]): Router<QueryContext> {
   const core = implement(coreContract).$context<QueryContext>();
 
-  const router: Record<string, Router<QueryContext>> = {
+  const router: Record<string, AnyProcedure> = {
     get_entity: core.get_entity.handler(async (options) => {
       const result = await readEntity(options.context, options.input.id);
 
@@ -47,9 +49,16 @@ export function createRouter(queries: readonly AnyQueryDefinition[]): Router<Que
       );
     }
 
+    if (!hasObjectOutput(query)) {
+      throw new Error(
+        `the query ${query.name} has an output that is not an object, and an MCP tool needs an object output schema`,
+      );
+    }
+
     const contract = oc
       .errors({ SERVICE_UNAVAILABLE: {} })
       .meta(openapi({ description: query.description }))
+      .meta(mcp.tool({ annotations: readOnlyToolAnnotations }))
       .input(query.input)
       .output(query.output);
 
@@ -69,6 +78,8 @@ export function createRouter(queries: readonly AnyQueryDefinition[]): Router<Que
       });
   }
 
+  checkToolAnnotations(router);
+
   return router;
 }
 
@@ -82,4 +93,10 @@ function hasTransform(query: AnyQueryDefinition): boolean {
   } catch {
     return true;
   }
+}
+
+// MCP requires the outputSchema of a tool to be "type": "object", so a query that returns a bare
+// array, a scalar or a union would make clients hide its tool. A query wraps a list in an object.
+function hasObjectOutput(query: AnyQueryDefinition): boolean {
+  return z.toJSONSchema(query.output, { io: 'output' }).type === 'object';
 }

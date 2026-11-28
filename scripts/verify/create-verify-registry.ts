@@ -71,6 +71,8 @@ const hostReadSchema = z.strictObject({
 });
 
 const hostReadsSchema = z.strictObject({ reads: z.array(hostReadSchema) });
+const deliveriesSchema = z.object({ deliveries: z.array(z.unknown()) });
+const requestsSchema = z.object({ requests: z.array(z.unknown()) });
 const pullRequestStream = 'facts.github.pull_request';
 const launcherPath = join(import.meta.dir, 'local', 'run-local-stack.ts');
 const storeSqlitePath = join(import.meta.dir, 'local', 'run-store-sqlite.ts');
@@ -286,7 +288,7 @@ export function createVerifyRegistry(): Wringer {
         'Call github_pull_request_delivery for one pull request and one environment, through the API',
       effect: 'read',
       args: z.strictObject({ pullRequest: entityIDText, environment: z.string().min(1) }),
-      data: z.array(z.unknown()),
+      data: deliveriesSchema,
       run: (args, ctx) => {
         const api = createAPIClient(ctx.drivers.http);
 
@@ -306,7 +308,7 @@ export function createVerifyRegistry(): Wringer {
         issuer: z.string().min(1),
         subject: z.string().min(1),
       }),
-      data: z.array(z.unknown()),
+      data: requestsSchema,
       run: (args, ctx) => createAPIClient(ctx.drivers.http).telemetry_session_model_requests(args),
     })
     .command({

@@ -30,7 +30,8 @@ bun verify db query "select number, state, is_merged, merged_at from github_pull
 ## End state
 
 - Each `send-webhook` returns `data.sent` 1.
-- `query delivery` returns an array of exactly one object in `data`, with at least these fields:
+- `query delivery` returns `data.deliveries`, an array of exactly one object, with at least these
+  fields:
   - `pullRequest`: `github:pull_request:1874433040`;
   - `mergedAt`: 2026-10-02 11:00:00 UTC;
   - `release`: `tag` `v2.1.0`, and `at` 2026-10-03 08:00:00 UTC;

@@ -1,9 +1,10 @@
 # The GitHub plug-in
 
 With the GitHub plug-in, `@pepys/source-github`, you can ask when a pull request reached its users:
-its merge, its first release and its first deploy. The plug-in stores the webhooks of a GitHub App
-as facts. Its consumers turn those facts into tables of pull requests, releases, commits and
-deploys, and [the delivery query](#the-delivery-query) joins the tables each time it runs.
+its merge, its first release and its first deploy, in an object with one field, `deliveries`. The
+plug-in stores the webhooks of a GitHub App as facts. Its consumers turn those facts into tables of
+pull requests, releases, commits and deploys, and [the delivery query](#the-delivery-query) joins
+the tables each time it runs.
 
 Ingest also runs two pulls for the plug-in: jobs on a timer that read the GitHub API as the App.
 They fill the gaps that webhooks leave. The recovery pull fetches deliveries that failed, and the
@@ -215,10 +216,11 @@ order of the facts never changes the row.
 
 The plug-in's query `github_pull_request_delivery`, which the API serves under `/rpc`, takes up to
 200 pull requests, an environment and an optional target. It returns each pull request's merge time,
-its first release and its first deploy. The plug-in also exports the query's SQL statement as
-`githubDelivery`, so a query of another plug-in can run the statement and join its result. The query
-reads the rows that are stored when it runs, so its answer is right in any order the facts arrived.
-The plug-in never stores the answer as a [link](../queries/entities-and-links.md#links).
+its first release and its first deploy, in an object with one field, `deliveries`. The plug-in also
+exports the query's SQL statement as `githubDelivery`, so a query of another plug-in can run the
+statement and join its result. The query reads the rows that are stored when it runs, so its answer
+is right in any order the facts arrived. The plug-in never stores the answer as a
+[link](../queries/entities-and-links.md#links).
 
 The query orders commits by commit time, from `github_commit`, and never checks ancestry. When a
 commit has no row, the query uses a stand-in time:

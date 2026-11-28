@@ -138,6 +138,16 @@ The kit's deployment check refuses a plug-in query that takes a core query's nam
 also refuses a query whose zod schema has a transform, and the process stops. An MCP tool needs a
 JSON Schema of each input and output, and zod cannot write one for the output of a transform.
 
+The API also refuses a query whose output schema is not an object, such as a bare array, and the
+process stops. MCP requires the `outputSchema` of a tool to have `type: "object"`, and a client
+hides a tool that breaks this. A query that returns a list wraps it in an object with a plain field
+name.
+
+Every query is a read, so the API gives each MCP tool the annotations `readOnlyHint: true`,
+`destructiveHint: false`, `idempotentHint: true` and `openWorldHint: false`. A client that sees no
+annotations treats a tool as one that writes, deletes and reaches outside, and asks before each
+call. At start, the API refuses a tool that lacks any of the four.
+
 `@pepys/api` exports a `DeploymentClient` type, built from `@orpc/contract` types. A caller outside
 the repo that builds a typed client with `@orpc/client` installs it at the version the repo pins for
 every `@orpc/*` package, so the client and the contract share one copy of the oRPC types. The pin is

@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import type { EntityID } from '@pepys/kit';
 import { createTestStore } from '@pepys/testing';
 import { toTagged } from '@zgeoff/std';
+import { z } from 'zod';
 import { readOtlpFacts } from '../otlp/read-otlp-facts.ts';
 import type { LogsExport } from '../otlp/types.ts';
 import { products } from '../products/products.ts';
@@ -86,30 +87,32 @@ test('it returns the model requests of a session from its sender, oldest first',
     subject: 'imp-0193',
   });
 
-  expect(answer).toStrictEqual([
-    {
-      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_02'),
-      product: 'claude_code',
-      model: 'model-large',
-      input_tokens: 8,
-      cache_read_tokens: 600,
-      cache_creation_tokens: 0,
-      output_tokens: 95,
-      cost_usd: 0.25,
-      at: '2026-11-11T02:20:00.000Z',
-    },
-    {
-      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_01'),
-      product: 'claude_code',
-      model: 'model-large',
-      input_tokens: 12,
-      cache_read_tokens: 900,
-      cache_creation_tokens: 30,
-      output_tokens: 210,
-      cost_usd: 0.4,
-      at: '2026-11-11T02:25:00.000Z',
-    },
-  ]);
+  expect(answer).toStrictEqual({
+    requests: [
+      {
+        id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_02'),
+        product: 'claude_code',
+        model: 'model-large',
+        input_tokens: 8,
+        cache_read_tokens: 600,
+        cache_creation_tokens: 0,
+        output_tokens: 95,
+        cost_usd: 0.25,
+        at: '2026-11-11T02:20:00.000Z',
+      },
+      {
+        id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_01'),
+        product: 'claude_code',
+        model: 'model-large',
+        input_tokens: 12,
+        cache_read_tokens: 900,
+        cache_creation_tokens: 30,
+        output_tokens: 210,
+        cost_usd: 0.4,
+        at: '2026-11-11T02:25:00.000Z',
+      },
+    ],
+  });
 });
 
 test('it leaves out a row of the session that another sender stored', async () => {
@@ -142,7 +145,7 @@ test('it leaves out a row of the session that another sender stored', async () =
     subject: 'imp-0193',
   });
 
-  expect(answer).toStrictEqual([]);
+  expect(answer).toStrictEqual({ requests: [] });
 });
 
 test('it answers no rows for a session that is no entity ID', async () => {
@@ -171,7 +174,7 @@ test('it answers no rows for a session that is no entity ID', async () => {
 
   const answer = await ctx.query({ session: 's-9', issuer: 'harbour-host', subject: 'imp-0193' });
 
-  expect(answer).toStrictEqual([]);
+  expect(answer).toStrictEqual({ requests: [] });
 });
 
 test('it leaves out a row of the session that the same issuer stored for another subject', async () => {
@@ -204,7 +207,7 @@ test('it leaves out a row of the session that the same issuer stored for another
     subject: 'imp-0193',
   });
 
-  expect(answer).toStrictEqual([]);
+  expect(answer).toStrictEqual({ requests: [] });
 });
 
 test('it orders two requests of one time by ID', async () => {
@@ -249,28 +252,34 @@ test('it orders two requests of one time by ID', async () => {
     subject: 'imp-0193',
   });
 
-  expect(answer).toStrictEqual([
-    {
-      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_a'),
-      product: 'claude_code',
-      model: 'model-small',
-      input_tokens: 3,
-      cache_read_tokens: 40,
-      cache_creation_tokens: 0,
-      output_tokens: 18,
-      cost_usd: 0.05,
-      at: '2026-11-11T02:20:00.000Z',
-    },
-    {
-      id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_b'),
-      product: 'claude_code',
-      model: 'model-large',
-      input_tokens: 12,
-      cache_read_tokens: 900,
-      cache_creation_tokens: 30,
-      output_tokens: 210,
-      cost_usd: 0.4,
-      at: '2026-11-11T02:20:00.000Z',
-    },
-  ]);
+  expect(answer).toStrictEqual({
+    requests: [
+      {
+        id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_a'),
+        product: 'claude_code',
+        model: 'model-small',
+        input_tokens: 3,
+        cache_read_tokens: 40,
+        cache_creation_tokens: 0,
+        output_tokens: 18,
+        cost_usd: 0.05,
+        at: '2026-11-11T02:20:00.000Z',
+      },
+      {
+        id: toTagged<EntityID>('telemetry:model_request:claude_code.api_request:req_b'),
+        product: 'claude_code',
+        model: 'model-large',
+        input_tokens: 12,
+        cache_read_tokens: 900,
+        cache_creation_tokens: 30,
+        output_tokens: 210,
+        cost_usd: 0.4,
+        at: '2026-11-11T02:20:00.000Z',
+      },
+    ],
+  });
+});
+
+test('it declares an object output, as an MCP tool requires', () => {
+  expect(z.toJSONSchema(sessionModelRequestsQuery.output, { io: 'output' }).type).toBe('object');
 });
