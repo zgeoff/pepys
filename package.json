@@ -10,7 +10,7 @@
     "catalog": {
       "@commitlint/cli": "21.2.4",
       "@impz/client": "7.10.0",
-      "@impz/testing": "7.8.1",
+      "@impz/testing": "7.10.0",
       "@msw/data": "1.1.8",
       "@mswjs/interceptors": "0.45.12",
       "@octokit/webhooks": "14.2.0",
