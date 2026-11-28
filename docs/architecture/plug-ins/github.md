@@ -1,10 +1,9 @@
 # The GitHub plug-in
 
 With the GitHub plug-in, `@pepys/source-github`, you can ask when a pull request reached its users:
-its merge, its first release and its first deploy, in an object with one field, `deliveries`. The
-plug-in stores the webhooks of a GitHub App as facts. Its consumers turn those facts into tables of
-pull requests, releases, commits and deploys, and [the delivery query](#the-delivery-query) joins
-the tables each time it runs.
+its merge, its first release and its first deploy. The plug-in stores the webhooks of a GitHub App
+as facts. Its consumers turn those facts into tables of pull requests, releases, commits and
+deploys, and [the delivery query](#the-delivery-query) joins the tables each time it runs.
 
 Ingest also runs two pulls for the plug-in: jobs on a timer that read the GitHub API as the App.
 They fill the gaps that webhooks leave. The recovery pull fetches deliveries that failed, and the

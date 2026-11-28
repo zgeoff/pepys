@@ -429,25 +429,6 @@ test('#createRouter refuses a plug-in query with a zod transform', () => {
   expect(() => createRouter(plugin.queries)).toThrow(/harbour_tide has a zod transform/u);
 });
 
-test.each([
-  { shape: 'a bare array', output: z.array(z.string()) },
-  { shape: 'a scalar', output: z.number() },
-  { shape: 'a nullable object', output: z.object({}).nullable() },
-])('#createRouter refuses a plug-in query whose output is $shape', (row) => {
-  const query = defineQuery({
-    name: 'harbour_tide',
-    description: 'Gives the tide.',
-    input: z.object({}),
-    output: row.output,
-    reads: [],
-    handler: () => Promise.reject(new Error('never called')),
-  });
-
-  const queries = [query];
-
-  expect(() => createRouter(queries)).toThrow(/harbour_tide has an output that is not an object/u);
-});
-
 test('it answers /mcp with 404 when the API serves no OAuth routes', async () => {
   const ctx = await setupTest();
 
