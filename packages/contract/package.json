@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@orpc/contract": "catalog:",
+    "@orpc/mcp": "catalog:",
     "@orpc/openapi": "catalog:",
     "@pepys/kit": "workspace:*",
     "zod": "catalog:"

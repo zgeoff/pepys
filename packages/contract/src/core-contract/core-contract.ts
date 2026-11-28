@@ -1,5 +1,6 @@
 import { oc } from '@orpc/contract';
 import type { InferContractRouterInputs, InferContractRouterOutputs } from '@orpc/contract';
+import { mcp } from '@orpc/mcp';
 import { openapi } from '@orpc/openapi';
 import { entityIDSchema } from '@pepys/kit';
 import { z } from 'zod';
@@ -106,6 +107,15 @@ const neighbourhoodOutput = z.object({
     .describe('true when the entity limit or the read limit of a hop cut the walk short.'),
 });
 
+// Every pepys query only reads its own data, so each MCP tool says so: a client that sees no hints
+// treats a tool as one that writes, deletes and reaches outside, and asks before each call.
+export const readOnlyToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
 export const coreContract = {
   get_entity: oc
     .errors({ BAD_REQUEST: {}, NOT_FOUND: {}, SERVICE_UNAVAILABLE: {} })
@@ -115,6 +125,7 @@ export const coreContract = {
           'Returns one entity by its ID, such as github:pull_request:9001, or by an alias, such as acme/api#412: its summary, the consumer and table that hold it, and its full row.',
       }),
     )
+    .meta(mcp.tool({ annotations: readOnlyToolAnnotations }))
     .input(getEntityInput)
     .output(getEntityOutput),
   neighbourhood: oc
@@ -125,6 +136,7 @@ export const coreContract = {
           'Returns the entities linked to one entity, in both directions, up to 3 links away. It follows a hub link type only when includeHubs is true.',
       }),
     )
+    .meta(mcp.tool({ annotations: readOnlyToolAnnotations }))
     .input(neighbourhoodInput)
     .output(neighbourhoodOutput),
 };

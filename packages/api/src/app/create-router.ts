@@ -1,8 +1,9 @@
 import { oc } from '@orpc/contract';
+import { mcp } from '@orpc/mcp';
 import { openapi } from '@orpc/openapi';
 import { implement } from '@orpc/server';
-import type { Router } from '@orpc/server';
-import { coreContract } from '@pepys/contract';
+import type { AnyProcedure, Router } from '@orpc/server';
+import { coreContract, readOnlyToolAnnotations } from '@pepys/contract';
 import type { AnyQueryDefinition } from '@pepys/kit';
 import { z } from 'zod';
 import { readEntity } from '../queries/get-entity/read-entity.ts';
@@ -15,7 +16,7 @@ import { runPluginQuery } from './run-plugin-query.ts';
 export function createRouter(queries: readonly AnyQueryDefinition[]): Router<QueryContext> {
   const core = implement(coreContract).$context<QueryContext>();
 
-  const router: Record<string, Router<QueryContext>> = {
+  const router: Record<string, AnyProcedure> = {
     get_entity: core.get_entity.handler(async (options) => {
       const result = await readEntity(options.context, options.input.id);
 
@@ -50,6 +51,7 @@ export function createRouter(queries: readonly AnyQueryDefinition[]): Router<Que
     const contract = oc
       .errors({ SERVICE_UNAVAILABLE: {} })
       .meta(openapi({ description: query.description }))
+      .meta(mcp.tool({ annotations: readOnlyToolAnnotations }))
       .input(query.input)
       .output(query.output);
 

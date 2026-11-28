@@ -8,7 +8,7 @@ export const harbourVoyagesQuery = defineQuery({
   name: 'logbook_harbour_voyages',
   description: 'Returns the voyages logged in one harbour, oldest first.',
   input: z.object({ harbour: z.string().min(1) }),
-  output: z.array(voyageSchema),
+  output: z.object({ voyages: z.array(voyageSchema) }),
   reads: [logbookVoyageConsumer],
   handler: async (call) => {
     const rows = await call.db
@@ -19,6 +19,6 @@ export const harbourVoyagesQuery = defineQuery({
       .orderBy('id')
       .execute();
 
-    return rows;
+    return { voyages: rows };
   },
 });

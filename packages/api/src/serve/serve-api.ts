@@ -4,7 +4,9 @@ import { checkDeployment } from '@pepys/kit';
 import type { Deployment } from '@pepys/kit';
 import { makeShutdownHandler } from '@pepys/schema';
 import { match } from 'ts-pattern';
+import { checkMCPTools } from '../app/check-mcp-tools.ts';
 import { createApp } from '../app/create-app.ts';
+import { createRouter } from '../app/create-router.ts';
 import { readAPIConfig } from '../config/read-api-config.ts';
 import type { APIConfig, MCPConfig } from '../config/read-api-config.ts';
 import { runClients } from '../oauth/admin/run-clients.ts';
@@ -130,6 +132,8 @@ function runAdminCommand(
 }
 
 async function startServer(context: QueryContext, config: APIConfig): Promise<() => Promise<void>> {
+  await checkMCPTools(createRouter(context.deployment.queries), context);
+
   if (config.mcp === null) {
     const app = createApp(context, { logError, oauth: null });
 

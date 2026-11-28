@@ -126,6 +126,7 @@
       "version": "0.4.5",
       "dependencies": {
         "@orpc/contract": "catalog:",
+        "@orpc/mcp": "catalog:",
         "@orpc/openapi": "catalog:",
         "@pepys/kit": "workspace:*",
         "zod": "catalog:",

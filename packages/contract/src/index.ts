@@ -5,4 +5,8 @@ export type {
   CoreParsedInputs,
 } from './core-contract/core-contract.ts';
 
-export { coreContract, neighbourhoodCaps } from './core-contract/core-contract.ts';
+export {
+  coreContract,
+  neighbourhoodCaps,
+  readOnlyToolAnnotations,
+} from './core-contract/core-contract.ts';

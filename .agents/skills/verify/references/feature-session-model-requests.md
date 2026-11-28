@@ -29,8 +29,8 @@ bun verify query session-requests --session telemetry:session:s-reef --issuer ha
 ## End state
 
 - `send-telemetry` returns `data.session` `telemetry:session:s-reef`.
-- `query session-requests` returns an array of exactly two objects in `data`, oldest first, with at
-  least these fields:
+- `query session-requests` returns `data.requests`, an array of exactly two objects, oldest first,
+  with at least these fields:
   - `id` `telemetry:model_request:claude_code.api_request:req_reef_01`, `model` `model-large`,
     `input_tokens` 12, `output_tokens` 210, `cache_read_tokens` 900 and `cost_usd` 0.4;
   - `id` `telemetry:model_request:claude_code.api_request:req_reef_02`, `model` `model-small`,

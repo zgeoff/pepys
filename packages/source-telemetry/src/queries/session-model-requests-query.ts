@@ -25,14 +25,14 @@ export const sessionModelRequestsQuery = defineQuery({
     issuer: z.string().min(1),
     subject: z.string().min(1),
   }),
-  output: z.array(modelRequestSchema),
+  output: z.object({ requests: z.array(modelRequestSchema) }),
   reads: [telemetryModelRequestConsumer],
   handler: async (call) => {
     const session = call.input.session;
 
     // text that is no entity ID names no stored session, so it has no rows either way
     if (!isEntityID(session)) {
-      return [];
+      return { requests: [] };
     }
 
     const rows = await call.db
@@ -55,6 +55,6 @@ export const sessionModelRequestsQuery = defineQuery({
       .orderBy('id')
       .execute();
 
-    return rows;
+    return { requests: rows };
   },
 });

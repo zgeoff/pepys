@@ -182,7 +182,7 @@ A test holds that list equal to the list in `products.ts`.
 ## The query
 
 The API serves the query `telemetry_session_model_requests` under `/rpc`. It returns the model
-requests of one session, oldest first. The caller passes:
+requests of one session, oldest first, in an object with one field, `requests`. The caller passes:
 
 - the session, by its full ID, `telemetry:session:<id>`;
 - the issuer of the origin that runs the session;

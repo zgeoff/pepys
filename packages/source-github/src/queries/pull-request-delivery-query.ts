@@ -29,14 +29,14 @@ export const pullRequestDeliveryQuery = defineQuery({
     environment: nameSchema,
     target: nameSchema.optional(),
   }),
-  output: z.array(deliverySchema),
+  output: z.object({ deliveries: z.array(deliverySchema) }),
   reads: githubDeliveryConsumers,
   handler: async (call) => {
     // text that is no entity ID names no stored pull request, so it has no row either way
     const [first, ...rest] = call.input.pullRequests.filter((id) => isEntityID(id));
 
     if (first === undefined) {
-      return [];
+      return { deliveries: [] };
     }
 
     const result = await selectPullRequestDelivery({
@@ -45,6 +45,6 @@ export const pullRequestDeliveryQuery = defineQuery({
       target: call.input.target,
     }).execute(call.db);
 
-    return parsePullRequestDeliveries(result.rows);
+    return { deliveries: parsePullRequestDeliveries(result.rows) };
   },
 });
