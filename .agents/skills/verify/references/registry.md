@@ -10,8 +10,9 @@ reads each feature's `paths` from `featurePaths`, passes `sharedPaths` to `.shar
 `featurePaths` builds each feature's `paths` from these lists:
 
 - `corePaths`, the packages and globs that every journey runs, such as the host, the stack, the kit,
-  and the part of ingest and the API that every send and every query goes through. Each entry has a
-  comment on why every journey runs it.
+  and the part of ingest and the API that every send and every query goes through. It also holds
+  each file that the app reads but that you can't trace to a journey. Each entry has a comment on
+  why it is there.
 - the feature's `packages`, each a package folder that its journey runs whole, such as
   `packages/source-telemetry`, with the folder of each workspace package it depends on.
   `feature-paths.ts` reads the dependencies from each `package.json` when it loads.
