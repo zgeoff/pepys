@@ -228,7 +228,7 @@ export const ignoredPaths = [
   'packages/source-github/src/{api/serve-api,ingest/serve-ingest}.ts',
   'packages/*/src/**/test-utils/**',
   'crates/host/src/{e2e,test_utils,blob_store/fixtures,fact_log/fixtures}.rs',
-  'crates/host/src/e2e/**',
+  'crates/host/src/{e2e,test_utils}/**',
   'packages/testing/src/dock/**',
   'packages/testing/src/*.ts',
   'packages/testing/src/{consumer-entries,fact-index,fact-log,fact-mode,links,memory-store-reader,operations,orders,rows,scope-replace,store-database,test-store,test-utils,utils}/**',

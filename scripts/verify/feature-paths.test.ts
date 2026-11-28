@@ -141,6 +141,7 @@ test.each([
   'packages/api/src/test-utils/start-live-writer.ts',
   'packages/cli/src/start/run-start.ts',
   'crates/host/src/e2e.rs',
+  'crates/host/src/test_utils/stub_s2.rs',
 ])('it flags no feature for %s, which no journey runs', async (path) => {
   const ctx = await setupTest();
 
