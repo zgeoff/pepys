@@ -310,7 +310,7 @@
     "@wringer/http": "0.1.9",
     "@wringer/mcp": "0.1.6",
     "@wringer/stream": "0.1.8",
-    "@zgeoff/agent-hooks": "0.3.2",
+    "@zgeoff/agent-hooks": "0.3.3",
     "@zgeoff/bun-test-extended": "0.2.4",
     "@zgeoff/chex": "0.3.6",
     "@zgeoff/commitlint-config": "0.1.2",
@@ -929,7 +929,7 @@
 
     "@wringer/stream": ["@wringer/stream@0.1.8", "", { "dependencies": { "xstate": "5.33.3" }, "peerDependencies": { "@wringer/core": "0.4.1", "zod": "^4.0.0" } }, "sha512-IUu8knC4M2N587fN5/SyO0wVqNLZXqO7JL6s7BBtnr2fK1meha+XnkhWihsd1QKL/gvuJlSCmeUq0PaEGzpxkA=="],
 
-    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.3.2", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-9F7us6ipxUDEozm0RPGBWlbPVQpr8icqVX5zoZYuyrN1dxSy+NTge7zdUkDFHYVQ4RzHxoz+3kHj/YPZZJiewQ=="],
+    "@zgeoff/agent-hooks": ["@zgeoff/agent-hooks@0.3.3", "", { "bin": { "agent-hooks": "dist/cli.js" } }, "sha512-LfE2vjSdvZS17qsNij8OE4nAM/5HfvvmX/tpOR99DfC3h6DC0rsBpruoPiLwMCmc5CTgolveEh14UtqfonnM/w=="],
 
     "@zgeoff/bun-test-extended": ["@zgeoff/bun-test-extended@0.2.4", "", { "dependencies": { "jest-extended": "7.0.0", "jest-matcher-utils": "30.5.2" } }, "sha512-pjHhfUFSQVOG97CPobmUJ3v1xbigRe5DOD+7VDoe5IIYvAOMkctmkHznj4EKKnZSpQp0b3/jqvYuzIFrpeaZMw=="],
 
