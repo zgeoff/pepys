@@ -62,7 +62,7 @@ const logbookPlugin = 'packages/cli/e2e/fixtures/logbook-plugin/src/{index,logbo
 export const featurePaths = {
   'pull-request-delivery': buildFeatureGlobs(
     workspace,
-    joinReaches(githubWebhooks, githubDelivery, {
+    buildJoinedReach(githubWebhooks, githubDelivery, {
       packages: [],
       paths: [
         'packages/cli/e2e/fixtures/build-github-review-delivery.ts',
@@ -73,7 +73,7 @@ export const featurePaths = {
   'session-model-requests': buildFeatureGlobs(workspace, telemetry),
   'entity-neighbourhood': buildFeatureGlobs(
     workspace,
-    joinReaches(githubWebhooks, {
+    buildJoinedReach(githubWebhooks, {
       packages: [],
       paths: [
         'packages/api/src/queries/{get-entity,neighbourhood}/**',
@@ -86,7 +86,7 @@ export const featurePaths = {
   'host-restart-recovery': buildFeatureGlobs(workspace, githubWebhooks),
   'mcp-queries': buildFeatureGlobs(
     workspace,
-    joinReaches(githubWebhooks, githubDelivery, telemetry, {
+    buildJoinedReach(githubWebhooks, githubDelivery, telemetry, {
       packages: [],
       paths: [
         // the OAuth server in front of /mcp
@@ -156,7 +156,7 @@ async function readWorkspace(rootDir: string): Promise<Workspace> {
   };
 }
 
-function joinReaches(...reaches: readonly FeatureReach[]): FeatureReach {
+function buildJoinedReach(...reaches: readonly FeatureReach[]): FeatureReach {
   return {
     packages: reaches.flatMap((reach) => reach.packages),
     paths: reaches.flatMap((reach) => reach.paths),
@@ -220,13 +220,15 @@ export const ignoredPaths = [
   'Cargo.lock',
   'rust-toolchain.toml',
 
-  // 4. Code that no journey runs: the entries that the `local` app's own start replaces, the test
-  //    helpers and test network of unit tests, the stub deployment's dock plug-in, and enrichment,
+  // 4. Code that no journey runs: `pepys start` and the entries that the `local` app replaces, test
+  //    helpers and the host's test modules, the stub deployment's dock plug-in, and enrichment,
   //    which no package imports.
-  'packages/cli/src/*.ts',
+  'packages/cli/src/index.ts',
   'packages/cli/src/start/**',
   'packages/source-github/src/{api/serve-api,ingest/serve-ingest}.ts',
   'packages/*/src/**/test-utils/**',
+  'crates/host/src/{e2e,test_utils,blob_store/fixtures,fact_log/fixtures}.rs',
+  'crates/host/src/e2e/**',
   'packages/testing/src/dock/**',
   'packages/testing/src/*.ts',
   'packages/testing/src/{consumer-entries,fact-index,fact-log,fact-mode,links,memory-store-reader,operations,orders,rows,scope-replace,store-database,test-store,test-utils,utils}/**',

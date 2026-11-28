@@ -10,6 +10,7 @@
       "match": "packages/{api,contract,ingest,kit,kysely-turso,schema,source-github,source-telemetry}/**",
       "skills": ["verify"]
     },
+    { "match": "packages/cli/src/{bin,parse-cli-arguments,run-cli}.ts", "skills": ["verify"] },
     { "match": "packages/cli/src/{build,utils}/**", "skills": ["verify"] },
     { "match": "packages/cli/e2e/fixtures/**", "skills": ["verify"] },
     { "match": "packages/testing/src/ledger/**", "skills": ["verify"] },

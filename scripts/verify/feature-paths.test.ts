@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { collectFeatureScopes, isGlobMatch } from '@wringer/core';
 import { z } from 'zod';
 import { createVerifyRegistry } from './create-verify-registry.ts';
-import { featurePaths, sharedPaths } from './feature-paths.ts';
 
 async function setupTest() {
   const gateSchema = z.object({ match: z.string(), skills: z.array(z.string()) });
@@ -30,16 +29,16 @@ async function setupTest() {
   };
 }
 
-test('it asks for the verify skill before an edit under each feature path and shared path', async () => {
+test('it asks for the verify skill before an edit to each file that a feature or shared path holds', async () => {
   const ctx = await setupTest();
 
   const verifyGlobs = ctx.rules.gates
     .filter((gate) => gate.skills.includes('verify'))
-    .map((gate) => new Bun.Glob(gate.match));
+    .map((gate) => gate.match);
 
-  const mapped = [...Object.values(featurePaths).flat(), ...sharedPaths];
+  const mapped = ctx.trackedPaths.filter((path) => ctx.collectFlagged(path).length > 0);
 
-  expect(mapped.filter((glob) => !verifyGlobs.some((gate) => gate.match(glob)))).toStrictEqual([]);
+  expect(mapped.filter((path) => !isGlobMatch(path, verifyGlobs))).toStrictEqual([]);
 });
 
 test.each([
@@ -124,6 +123,7 @@ test.each([
   'packages/api/src/serve/serve-api.ts',
   'packages/api/src/app/create-router.ts',
   'packages/cli/src/build/compile-consumer.ts',
+  'packages/cli/src/run-cli.ts',
   'packages/cli/e2e/fixtures/e2e-deployment.ts',
   'packages/cli/e2e/fixtures/start-e2e-stack.ts',
   'packages/testing/src/ledger/ledger-plugin.ts',
@@ -139,6 +139,8 @@ test.each([
   'packages/source-github/src/ingest/serve-ingest.ts',
   'packages/testing/src/dock/dock-plugin.ts',
   'packages/api/src/test-utils/start-live-writer.ts',
+  'packages/cli/src/start/run-start.ts',
+  'crates/host/src/e2e.rs',
 ])('it flags no feature for %s, which no journey runs', async (path) => {
   const ctx = await setupTest();
 

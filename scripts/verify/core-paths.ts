@@ -21,7 +21,7 @@ export const corePaths = {
   // and each feature names the other parts its journey reaches.
   globs: [
     // ingest: its start, the receive route that every send goes through, the fact log, the blob
-    // store, and the pulls and the other sender proofs, which its start loads
+    // store, and the pulls and other sender proofs, which no journey can be traced to
     'packages/ingest/src/*.ts',
     'packages/ingest/src/{blob-store,config,fact-log,pull,receive,serve,utils}/**',
     'packages/ingest/src/sender-proof/{fake,none}/**',
@@ -32,7 +32,8 @@ export const corePaths = {
     'packages/api/src/queries/*.ts',
     'packages/api/src/queries/entity-kinds/**',
 
-    // `pepys build`, which compiles each consumer the host runs
+    // `pepys build`, which `bun run test:e2e:prepare` runs to compile each consumer the host runs
+    'packages/cli/src/{bin,parse-cli-arguments,run-cli}.ts',
     'packages/cli/src/build/**',
     'packages/cli/src/utils/**',
 

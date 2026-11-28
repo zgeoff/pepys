@@ -5,7 +5,7 @@ Edit the globs in [`feature-paths.ts`](../../../../scripts/verify/feature-paths.
 root. Edit the rest of a feature, such as its name and summary, in
 [`create-verify-registry.ts`](../../../../scripts/verify/create-verify-registry.ts). The registry
 reads each feature's `paths` from `featurePaths`, passes `sharedPaths` to `.shared()`, and passes
-`ignoredPaths` to `.ignore()`. SKILL.md calls that last list the registry's `.ignore` list.
+`ignoredPaths` to `.ignore()`.
 
 `featurePaths` builds each feature's `paths` from three sources:
 
@@ -16,19 +16,22 @@ reads each feature's `paths` from `featurePaths`, passes `sharedPaths` to `.shar
   `packages/source-telemetry`, with the folder of each workspace package it depends on.
   `feature-paths.ts` reads the dependencies from each `package.json` when it loads.
 - the feature's `paths`, the globs for the parts of a package that its journey runs, such as the
-  OAuth server in `packages/api`. The feature also holds the workspace dependencies of that package.
+  OAuth server in `packages/api`. `feature-paths.ts` adds the folders of that package's workspace
+  dependencies itself, so list only the globs.
 
 The dependency walk skips a package that `corePaths` splits into globs, such as `packages/api`. The
 GitHub plug-in depends on the API, but each feature holds only the parts of the API that its own
 journey runs.
 
-Ingest, the API and the host load every plug-in when they start. Put a part that every start loads
-only in the features whose journey uses it. A change that breaks the start still fails each journey
-that the change flags.
+A journey reaches a path when its sends, its reads or its `caught-up` run that path. Ingest, the API
+and the host load every plug-in at start, and `bun verify doctor` runs before every journey, but
+neither makes a path core. A change that breaks the start or `doctor` still fails each journey that
+the change flags.
 
 1. Put each path in the list for the journeys that reach it:
    - Add a path that one journey or a few reach to the `packages` or `paths` of those features.
-   - Add a path that every journey reaches to `corePaths`, with a comment that says why.
+   - Add a path that every journey reaches, by that rule, to `corePaths`, with a comment that says
+     why.
    - Add a file that the running app reads, but that you can't trace to a journey, to `corePaths`.
      An extra journey run costs less than a missed feature.
    - Add a file that the running app never reads, such as a test or a test helper, to
@@ -41,7 +44,8 @@ that the change flags.
    skill-gate hook blocks an edit to a matching file until the agent loads this skill. It is a
    separate check from `bun verify gate`. For a glob you remove, delete an entry that only it used.
 3. Run `bun test scripts/verify/feature-paths.test.ts`. Expect: the test passes. It fails when:
-   - a glob in `featurePaths` or `sharedPaths` has no `verify` entry in `skill-gate.json`;
+   - a tracked file that a feature or `sharedPaths` holds matches no `verify` entry in
+     `skill-gate.json`;
    - a sample file flags other features than the test expects;
    - a tracked file matches no feature, shared or ignore glob.
 

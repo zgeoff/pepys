@@ -1,7 +1,6 @@
 import type { WorkspacePackage } from './types.ts';
 
-// The folders the seeds reach: each seed, then each workspace package that a reached package
-// depends on, sorted. A seed with no package, such as a folder that a change deletes, still counts.
+// A seed with no package, such as a folder that a change deletes, still counts as reached.
 export function collectReachedFolders(
   seedFolders: readonly string[],
   packages: readonly WorkspacePackage[],
