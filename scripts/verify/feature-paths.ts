@@ -1,23 +1,167 @@
-// Globs are root-relative, as `git ls-files` prints them, and match with Bun.Glob. A path is in a
-// feature when the feature's journey runs it: every journey runs the e2e deployment on Garage and
-// s2-lite, with ingest, the API and the host, and the consumers that `pepys build` compiled.
-const everyJourney = [
-  'packages/{api,contract,ingest,kit,kysely-turso,schema}/**',
-  'packages/cli/src/{build,utils,test-utils}/**',
-  'packages/cli/e2e/fixtures/**',
-  'packages/testing/src/ledger/**',
-  'packages/testing/src/dock/**',
-  'crates/host/**',
-  'stack/**',
-] as const;
+import { join } from 'node:path';
+import { collectReachedFolders } from './collect-reached-folders.ts';
+import { corePaths } from './core-paths.ts';
+import { readWorkspacePackages } from './read-workspace-packages.ts';
+import type { WorkspacePackage } from './types.ts';
 
+// Globs are root-relative, as `git ls-files` prints them, and match with Bun.Glob. A part that every
+// start loads goes only in the features whose journey uses it: a change that breaks the start still
+// fails each journey it flags.
+interface FeatureReach {
+  // package folders that the journey runs whole, with the workspace packages they depend on
+  readonly packages: readonly string[];
+
+  // the parts of a package that the journey runs, which bring that package's workspace dependencies
+  readonly paths: readonly string[];
+}
+
+const workspace = await readWorkspace(join(import.meta.dir, '..', '..'));
+
+// a pull request's opened and merged webhooks, from the fixture that signs them to the consumer
+// that stores the pull request
+const githubWebhooks: FeatureReach = {
+  packages: [],
+  paths: [
+    'packages/cli/e2e/fixtures/{build-github-delivery,build-pull-request-fields,write-github-delivery}.ts',
+    'packages/source-github/src/{github-plugin,github-pull-request-consumer,github-pull-request-schema-path,github-settings,github-source,index}.ts',
+    'packages/source-github/src/consumers/github-pull-request.ts',
+    'packages/source-github/src/generated/github-pull-request*',
+    'packages/source-github/src/ingest/**',
+    'packages/source-github/src/utils/find-field.ts',
+
+    // the families that the source loads and no journey sends
+    'packages/source-github/src/families/{build-family-types,issue-comment-family,issue-family,pull-request-family,repository-family,review-comment-family,review-thread-family,workflow-run-family}.ts',
+  ],
+};
+
+// a release's webhook, and the delivery query, which reads a merged pull request's release and
+// deploy
+const githubDelivery: FeatureReach = {
+  packages: [],
+  paths: [
+    'packages/cli/e2e/fixtures/build-github-release-delivery.ts',
+    'packages/source-github/src/queries/**',
+    'packages/source-github/src/github-{deploy,ref,release}-consumer.ts',
+    'packages/source-github/src/consumers/github-{deploy,ref,release}.ts',
+    'packages/source-github/src/generated/github-{deploy,ref,release}*',
+    'packages/source-github/src/families/{deployment,ref,release}-family.ts',
+    'packages/source-github/src/utils/deploy-signals.ts',
+  ],
+};
+
+// an OpenTelemetry export, which ingest takes only from a sender with a signed identity
+const telemetry: FeatureReach = {
+  packages: ['packages/source-telemetry'],
+  paths: ['packages/ingest/src/sender-proof/imp-identity/**'],
+};
+
+const logbookPlugin = 'packages/cli/e2e/fixtures/logbook-plugin/src/{index,logbook-plugin}.ts';
+
+// Each feature holds the core list, the folders of its packages and of the workspace packages they
+// depend on, from each `package.json` as this file loads, and the parts of packages it names.
 export const featurePaths = {
-  'pull-request-delivery': [...everyJourney, 'packages/source-github/**'],
-  'session-model-requests': [...everyJourney, 'packages/source-telemetry/**'],
-  'entity-neighbourhood': [...everyJourney, 'packages/source-github/**'],
-  'host-restart-recovery': [...everyJourney, 'packages/source-github/**'],
-  'mcp-queries': [...everyJourney, 'packages/source-github/**', 'packages/source-telemetry/**'],
+  'pull-request-delivery': buildFeatureGlobs(
+    workspace,
+    joinReaches(githubWebhooks, githubDelivery, {
+      packages: [],
+      paths: [
+        'packages/cli/e2e/fixtures/build-github-review-delivery.ts',
+        'packages/source-github/src/families/pull-request-review-family.ts',
+      ],
+    }),
+  ),
+  'session-model-requests': buildFeatureGlobs(workspace, telemetry),
+  'entity-neighbourhood': buildFeatureGlobs(
+    workspace,
+    joinReaches(githubWebhooks, {
+      packages: [],
+      paths: [
+        'packages/api/src/queries/{get-entity,neighbourhood}/**',
+        logbookPlugin,
+        'packages/cli/e2e/fixtures/logbook-plugin/src/{consumers,generated}/**',
+        'packages/cli/e2e/fixtures/logbook-plugin/src/{logbook-source,logbook-voyage-consumer,voyage-family}.ts',
+      ],
+    }),
+  ),
+  'host-restart-recovery': buildFeatureGlobs(workspace, githubWebhooks),
+  'mcp-queries': buildFeatureGlobs(
+    workspace,
+    joinReaches(githubWebhooks, githubDelivery, telemetry, {
+      packages: [],
+      paths: [
+        // the OAuth server in front of /mcp
+        'packages/api/src/oauth/**',
+
+        // `mcp tools` lists the logbook plug-in's query
+        logbookPlugin,
+        'packages/cli/e2e/fixtures/logbook-plugin/src/harbour-voyages-query.ts',
+      ],
+    }),
+  ),
 } as const satisfies Record<string, readonly string[]>;
+
+interface Workspace {
+  readonly packages: readonly WorkspacePackage[];
+  readonly coreFolders: readonly string[];
+  readonly splitFolders: readonly string[];
+}
+
+function buildFeatureGlobs(workspaceFacts: Workspace, reach: FeatureReach): string[] {
+  const ownerFolders = collectOwnerFolders(reach.paths, workspaceFacts.packages);
+
+  // a split package's other parts run only where a feature names them
+  const skippedFolders = new Set([
+    ...workspaceFacts.coreFolders,
+    ...workspaceFacts.splitFolders,
+    ...ownerFolders,
+  ]);
+
+  const ownFolders = collectReachedFolders(
+    [...reach.packages, ...ownerFolders],
+    workspaceFacts.packages,
+  ).filter((folder) => !skippedFolders.has(folder));
+
+  return [
+    ...workspaceFacts.coreFolders.map((folder) => `${folder}/**`),
+    ...corePaths.globs,
+    ...ownFolders.map((folder) => `${folder}/**`),
+    ...reach.paths,
+  ];
+}
+
+// The folder of the package that holds each glob, the deepest when packages nest.
+function collectOwnerFolders(
+  globs: readonly string[],
+  packages: readonly WorkspacePackage[],
+): string[] {
+  const owners = globs.flatMap((glob) => {
+    const holders = packages
+      .map((entry) => entry.folder)
+      .filter((folder) => glob.startsWith(`${folder}/`))
+      .toSorted((first, second) => second.length - first.length);
+
+    return holders.slice(0, 1);
+  });
+
+  return [...new Set(owners)];
+}
+
+async function readWorkspace(rootDir: string): Promise<Workspace> {
+  const packages = await readWorkspacePackages(rootDir);
+
+  return {
+    packages,
+    coreFolders: collectReachedFolders(corePaths.packages, packages),
+    splitFolders: collectOwnerFolders(corePaths.globs, packages),
+  };
+}
+
+function joinReaches(...reaches: readonly FeatureReach[]): FeatureReach {
+  return {
+    packages: reaches.flatMap((reach) => reach.packages),
+    paths: reaches.flatMap((reach) => reach.paths),
+  };
+}
 
 // A change to one of these changes every feature: the verify CLI, its `local` app and its doctor.
 export const sharedPaths = ['scripts/verify/**'] as const;
@@ -76,11 +220,14 @@ export const ignoredPaths = [
   'Cargo.lock',
   'rust-toolchain.toml',
 
-  // 4. Code that no journey runs: `pepys start` and the CLI's entry, which the `local` app replaces
-  //    with its own start; the test store and the test network of unit tests; and enrichment, which
-  //    no package imports.
+  // 4. Code that no journey runs: the entries that the `local` app's own start replaces, the test
+  //    helpers and test network of unit tests, the stub deployment's dock plug-in, and enrichment,
+  //    which no package imports.
   'packages/cli/src/*.ts',
   'packages/cli/src/start/**',
+  'packages/source-github/src/{api/serve-api,ingest/serve-ingest}.ts',
+  'packages/*/src/**/test-utils/**',
+  'packages/testing/src/dock/**',
   'packages/testing/src/*.ts',
   'packages/testing/src/{consumer-entries,fact-index,fact-log,fact-mode,links,memory-store-reader,operations,orders,rows,scope-replace,store-database,test-store,test-utils,utils}/**',
   'packages/mock-network/**',

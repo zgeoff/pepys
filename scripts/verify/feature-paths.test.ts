@@ -1,56 +1,156 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { collectFeatureScopes, isGlobMatch } from '@wringer/core';
 import { z } from 'zod';
-import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
+import { createVerifyRegistry } from './create-verify-registry.ts';
+import { featurePaths, sharedPaths } from './feature-paths.ts';
 
 async function setupTest() {
   const gateSchema = z.object({ match: z.string(), skills: z.array(z.string()) });
-  const rulesPath = join(import.meta.dir, '..', '..', '.claude', 'skill-gate.json');
+  const rootDir = join(import.meta.dir, '..', '..');
+  const rulesPath = join(rootDir, '.claude', 'skill-gate.json');
 
   const rulesJSON: unknown = await Bun.file(rulesPath).json();
 
   const rules = z.object({ gates: z.array(gateSchema) }).parse(rulesJSON);
+  const registry = createVerifyRegistry();
+  const scopes = collectFeatureScopes(registry);
+
+  const trackedText = await Bun.$`git ls-files`.cwd(rootDir).text();
 
   return {
     rules,
-    isIgnored: (path: string) => ignoredPaths.some((glob) => new Bun.Glob(glob).match(path)),
+    featureNames: registry.features.map((feature) => feature.name),
+    trackedPaths: trackedText.trim().split('\n'),
+    isIgnored: (path: string) => isGlobMatch(path, registry.ignore),
+    collectFlagged: (path: string) =>
+      isGlobMatch(path, registry.ignore)
+        ? []
+        : scopes.filter((scope) => isGlobMatch(path, scope.globs)).map((scope) => scope.name),
   };
 }
 
 test('it asks for the verify skill before an edit under each feature path and shared path', async () => {
   const ctx = await setupTest();
 
-  const verifyGlobs = new Set(
-    ctx.rules.gates.filter((gate) => gate.skills.includes('verify')).map((gate) => gate.match),
-  );
+  const verifyGlobs = ctx.rules.gates
+    .filter((gate) => gate.skills.includes('verify'))
+    .map((gate) => new Bun.Glob(gate.match));
 
   const mapped = [...Object.values(featurePaths).flat(), ...sharedPaths];
 
-  expect(mapped.filter((glob) => !verifyGlobs.has(glob))).toStrictEqual([]);
-});
-
-test('it ignores each file a release pull request changes', async () => {
-  const ctx = await setupTest();
-
-  const releaseFiles = [
-    'bun.lock',
-    'package.json',
-    'packages/api/package.json',
-    'packages/source-github/package.json',
-    'Cargo.toml',
-    'Cargo.lock',
-  ];
-
-  expect(releaseFiles.filter((path) => !ctx.isIgnored(path))).toStrictEqual([]);
+  expect(mapped.filter((glob) => !verifyGlobs.some((gate) => gate.match(glob)))).toStrictEqual([]);
 });
 
 test.each([
-  'packages/api/src/serve/serve-api.ts',
-  'crates/host/src/main.rs',
-  'stack/compose.yaml',
-  'packages/cli/e2e/fixtures/e2e-deployment.ts',
-])('it never ignores %s, which a journey runs', async (path) => {
+  {
+    path: 'packages/source-github/src/families/pull-request-review-family.ts',
+    flagged: ['pull-request-delivery'],
+  },
+  {
+    path: 'packages/cli/e2e/fixtures/build-github-review-delivery.ts',
+    flagged: ['pull-request-delivery'],
+  },
+  {
+    path: 'packages/source-github/src/queries/select-pull-request-delivery.ts',
+    flagged: ['pull-request-delivery', 'mcp-queries'],
+  },
+  {
+    path: 'packages/source-github/src/consumers/github-release.ts',
+    flagged: ['pull-request-delivery', 'mcp-queries'],
+  },
+  {
+    path: 'packages/source-telemetry/src/otlp/parse-logs-export.ts',
+    flagged: ['session-model-requests', 'mcp-queries'],
+  },
+  {
+    path: 'packages/source-telemetry/src/consumers/telemetry-model-request.ts',
+    flagged: ['session-model-requests', 'mcp-queries'],
+  },
+  {
+    path: 'packages/ingest/src/sender-proof/imp-identity/read-imp-identity-sender-proof.ts',
+    flagged: ['session-model-requests', 'mcp-queries'],
+  },
+  {
+    path: 'packages/api/src/queries/neighbourhood/walk-neighbourhood.ts',
+    flagged: ['entity-neighbourhood'],
+  },
+  {
+    path: 'packages/api/src/queries/get-entity/read-entity.ts',
+    flagged: ['entity-neighbourhood'],
+  },
+  {
+    path: 'packages/cli/e2e/fixtures/logbook-plugin/src/logbook-voyage-consumer.ts',
+    flagged: ['entity-neighbourhood'],
+  },
+  {
+    path: 'packages/cli/e2e/fixtures/logbook-plugin/src/harbour-voyages-query.ts',
+    flagged: ['mcp-queries'],
+  },
+  {
+    path: 'packages/api/src/oauth/http/start-mcp-http-server.ts',
+    flagged: ['mcp-queries'],
+  },
+  {
+    path: 'packages/source-github/src/ingest/read-github-delivery.ts',
+    flagged: [
+      'pull-request-delivery',
+      'entity-neighbourhood',
+      'host-restart-recovery',
+      'mcp-queries',
+    ],
+  },
+  {
+    path: 'packages/source-github/src/consumers/github-pull-request.ts',
+    flagged: [
+      'pull-request-delivery',
+      'entity-neighbourhood',
+      'host-restart-recovery',
+      'mcp-queries',
+    ],
+  },
+])('it flags only the features whose journey reaches $path', async (row) => {
   const ctx = await setupTest();
 
-  expect(ctx.isIgnored(path)).toBe(false);
+  expect(ctx.collectFlagged(row.path)).toStrictEqual([...row.flagged]);
+});
+
+test.each([
+  'crates/host/src/main.rs',
+  'stack/compose.yaml',
+  'packages/kit/src/index.ts',
+  'packages/schema/src/index.ts',
+  'packages/ingest/src/serve/serve-ingest.ts',
+  'packages/api/src/serve/serve-api.ts',
+  'packages/api/src/app/create-router.ts',
+  'packages/cli/src/build/compile-consumer.ts',
+  'packages/cli/e2e/fixtures/e2e-deployment.ts',
+  'packages/cli/e2e/fixtures/start-e2e-stack.ts',
+  'packages/testing/src/ledger/ledger-plugin.ts',
+  'scripts/verify/create-verify-registry.ts',
+])('it flags every feature for a change to the core file %s', async (path) => {
+  const ctx = await setupTest();
+
+  expect(ctx.collectFlagged(path)).toStrictEqual(ctx.featureNames);
+});
+
+test.each([
+  'packages/source-github/src/api/serve-api.ts',
+  'packages/source-github/src/ingest/serve-ingest.ts',
+  'packages/testing/src/dock/dock-plugin.ts',
+  'packages/api/src/test-utils/start-live-writer.ts',
+])('it flags no feature for %s, which no journey runs', async (path) => {
+  const ctx = await setupTest();
+
+  expect(ctx.collectFlagged(path)).toStrictEqual([]);
+});
+
+test('it maps every tracked file to a feature or the ignore list', async () => {
+  const ctx = await setupTest();
+
+  expect(
+    ctx.trackedPaths.filter(
+      (path) => !ctx.isIgnored(path) && ctx.collectFlagged(path).length === 0,
+    ),
+  ).toStrictEqual([]);
 });

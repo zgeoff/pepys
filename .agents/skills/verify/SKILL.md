@@ -171,7 +171,8 @@ for its commands.
 
 <!-- repo: registry -->
 
-Read [the registry](references/registry.md) before you add a feature or a glob.
+A feature's `paths` holds the core list and what its own journey reaches. Read
+[the registry](references/registry.md) before you add a feature or a glob.
 
 <!-- /repo -->
 
